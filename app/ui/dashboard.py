@@ -1,7 +1,7 @@
 from __future__ import annotations
 
 from PySide6.QtCore import Qt
-from PySide6.QtWidgets import QGridLayout, QLabel, QVBoxLayout, QWidget
+from PySide6.QtWidgets import QGridLayout, QHBoxLayout, QLabel, QVBoxLayout, QWidget
 
 from app.sensors import Snapshot
 
@@ -16,24 +16,41 @@ class DashboardPage(QWidget):
         self.setObjectName("page")
 
         layout = QVBoxLayout(self)
-        layout.setContentsMargins(40, 36, 40, 32)
-        layout.setSpacing(6)
+        layout.setContentsMargins(30, 26, 30, 24)
+        layout.setSpacing(7)
 
-        title = QLabel("Dashboard")
+        header = QHBoxLayout()
+        header.setContentsMargins(0, 0, 0, 0)
+        header.setSpacing(16)
+        heading = QVBoxLayout()
+        heading.setContentsMargins(0, 0, 0, 0)
+        heading.setSpacing(4)
+        eyebrow = QLabel("PC PERFORMANCE CENTER")
+        eyebrow.setObjectName("pageEyebrow")
+        heading.addWidget(eyebrow)
+        title = QLabel("System Overview")
         title.setObjectName("pageTitle")
-        layout.addWidget(title)
-        desc = QLabel("Live system metrics — updates every second")
+        heading.addWidget(title)
+        desc = QLabel("Live telemetry from your hardware, storage and thermal sensors.")
         desc.setObjectName("pageDesc")
-        layout.addWidget(desc)
+        heading.addWidget(desc)
+        header.addLayout(heading, 1)
+
+        live_badge = QLabel("●  LIVE MONITORING")
+        live_badge.setObjectName("pageBadge")
+        live_badge.setAlignment(Qt.AlignmentFlag.AlignCenter)
+        live_badge.setMinimumHeight(29)
+        header.addWidget(live_badge, 0, Qt.AlignmentFlag.AlignTop)
+        layout.addLayout(header)
 
         grid = QGridLayout()
-        grid.setContentsMargins(0, 18, 0, 0)
-        grid.setSpacing(12)
+        grid.setContentsMargins(0, 20, 0, 0)
+        grid.setSpacing(14)
 
-        self.cpu = MetricCard("CPU")
-        self.ram = MetricCard("RAM")
-        self.gpu = MetricCard("GPU")
-        self.net = MetricCard("Network", sparkline=True, bar=False)
+        self.cpu = MetricCard("CPU", color="#5bd6df")
+        self.ram = MetricCard("Memory", color="#a78bfa")
+        self.gpu = MetricCard("GPU", color="#54a8ff")
+        self.net = MetricCard("Network", sparkline=True, bar=False, color="#45d6a0")
 
         self.disks = CardPanel("Storage")
         self.thermal = ValueListCard("Thermals")
