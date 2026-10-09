@@ -4,6 +4,10 @@ from typing import Callable
 
 from PySide6.QtCore import QObject, QThread, Signal
 
+from app.logs import get_logger
+
+log = get_logger("tasks")
+
 
 class Task(QThread):
     done = Signal(object)
@@ -17,6 +21,7 @@ class Task(QThread):
         try:
             result = self._fn()
         except Exception as e:
+            log.warning("task %s failed: %s", getattr(self._fn, "__name__", self._fn), e)
             self.failed.emit(str(e) or type(e).__name__)
             return
         self.done.emit(result)

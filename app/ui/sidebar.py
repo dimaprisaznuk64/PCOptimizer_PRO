@@ -57,7 +57,7 @@ class Sidebar(QWidget):
         footer.setObjectName("sidebarFooter")
         footer_layout = QVBoxLayout(footer)
         footer_layout.setContentsMargins(0, 0, 0, 0)
-        version = QLabel("v0.1.0 · M2")
+        version = QLabel("v0.1.0 · M14")
         version.setObjectName("footerText")
         footer_layout.addWidget(version)
         layout.addWidget(footer)

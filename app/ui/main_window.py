@@ -5,19 +5,29 @@ import sys
 from PySide6.QtCore import Qt
 from PySide6.QtWidgets import QApplication, QHBoxLayout, QMainWindow, QStackedWidget, QStatusBar, QWidget
 
+from app.settings import SettingsService
+
 from .pages import build_pages
 from .sampler import SensorSampler
 from .sidebar import NAV_ITEMS, Sidebar
 from .theme import apply
+from .tray import AppTray
 
 
 class MainWindow(QMainWindow):
-    def __init__(self, parent: QWidget | None = None) -> None:
+    def __init__(
+        self,
+        settings: SettingsService | None = None,
+        parent: QWidget | None = None,
+    ) -> None:
         super().__init__(parent)
         self.setWindowTitle("PCOptimizer PRO")
         self.setMinimumSize(1024, 640)
         self.resize(1280, 800)
         self.sampler: SensorSampler | None = None
+        self.tray: AppTray | None = None
+        self.settings = settings or SettingsService()
+        self._force_quit = False
 
         root = QWidget()
         root.setObjectName("root")
@@ -29,7 +39,7 @@ class MainWindow(QMainWindow):
         self.stack = QStackedWidget()
 
         self._index_by_key: dict[str, int] = {}
-        for i, (key, page) in enumerate(build_pages()):
+        for i, (key, page) in enumerate(build_pages(self.settings)):
             self._index_by_key[key] = i
             self.stack.addWidget(page)
 
@@ -64,19 +74,71 @@ class MainWindow(QMainWindow):
         self.stack.setCurrentIndex(index)
         self.statusBar().showMessage(f"{dict(NAV_ITEMS).get(key, key)}")
 
+    def page(self, key: str):
+        index = self._index_by_key.get(key)
+        return None if index is None else self.stack.widget(index)
+
+    # ---------- tray ----------
+
+    def attach_tray(self, tray: AppTray) -> None:
+        self.tray = tray
+        tray.open_requested.connect(self.open_window)
+        tray.gaming_requested.connect(self.open_gaming)
+        tray.quit_requested.connect(self.quit_app)
+
+    def open_window(self) -> None:
+        self.show()
+        self.raise_()
+        self.activateWindow()
+
+    def open_gaming(self) -> None:
+        self.show_page("gaming")
+        self.open_window()
+
+    def quit_app(self) -> None:
+        self._force_quit = True
+        self.close()
+
+    # ---------- snapshots ----------
+
     def handle_snapshot(self, snapshot) -> None:
         for i in range(self.stack.count()):
             handler = getattr(self.stack.widget(i), "apply_snapshot", None)
             if handler is not None:
                 handler(snapshot)
+        self._update_tray_tooltip(snapshot)
+
+    def _update_tray_tooltip(self, snapshot) -> None:
+        if self.tray is None or not self.settings.get("tray_metrics"):
+            return
+        parts: list[str] = []
+        if snapshot.cpu is not None:
+            parts.append(f"CPU {snapshot.cpu.percent:.0f}%")
+        if snapshot.memory is not None:
+            parts.append(f"RAM {snapshot.memory.percent:.0f}%")
+        if parts:
+            self.tray.set_tooltip("PCOptimizer PRO\n" + " · ".join(parts))
+
+    # ---------- lifecycle ----------
 
     def closeEvent(self, event) -> None:
+        tray_ok = (
+            not self._force_quit
+            and self.tray is not None
+            and self.tray.visible
+            and self.settings.get("minimize_to_tray")
+        )
+        if tray_ok:
+            event.ignore()
+            self.hide()
+            return
         if self.sampler is not None:
             self.sampler.stop()
         super().closeEvent(event)
 
 
 def run(argv: list[str] | None = None) -> int:
+    from app.logs import get_logger, setup_logging
     from app.sensors import SensorManager
 
     app = QApplication(argv if argv is not None else sys.argv)
@@ -85,18 +147,34 @@ def run(argv: list[str] | None = None) -> int:
     app.setAttribute(Qt.ApplicationAttribute.AA_DontShowIconsInMenus, True)
     apply(app)
 
+    settings = SettingsService()
+    if not settings.path.exists():
+        settings.save()
+    log_file = setup_logging(settings.get("log_level"))
+    log = get_logger("main")
+    log.info("starting PCOptimizer PRO (settings: %s, log: %s)", settings.path, log_file)
+
     manager = SensorManager.with_defaults()
-    window = MainWindow()
-    sampler = SensorSampler(manager, interval_ms=1000)
+    window = MainWindow(settings=settings)
+    sampler = SensorSampler(manager, interval_ms=settings.get("sample_interval_ms"))
     sampler.snapshot_ready.connect(window.handle_snapshot)
     window.sampler = sampler
 
-    window.show()
+    tray = AppTray(parent=app)
+    window.attach_tray(tray)
+    tray.show()
+
+    if settings.get("start_minimized"):
+        window.showMinimized()
+    else:
+        window.show()
     sampler.start()
     try:
         return app.exec()
     finally:
         sampler.stop()
+        tray.hide()
+        log.info("stopped")
         manager.close()
 
 
