@@ -5,6 +5,7 @@ venv/
 build/
 dist/
 *.spec
+!PCOptimizer_PRO.spec
 logs/*.log
 .idea/
 .vscode/
