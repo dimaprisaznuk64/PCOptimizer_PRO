@@ -47,9 +47,9 @@ class DashboardPage(QWidget):
         grid.setContentsMargins(0, 20, 0, 0)
         grid.setSpacing(14)
 
-        self.cpu = MetricCard("CPU", color="#5bd6df")
-        self.ram = MetricCard("Memory", color="#a78bfa")
-        self.gpu = MetricCard("GPU", color="#54a8ff")
+        self.cpu = MetricCard("CPU", color="#5bd6df", spark_range=(0, 100))
+        self.ram = MetricCard("Memory", color="#a78bfa", spark_range=(0, 100))
+        self.gpu = MetricCard("GPU", color="#54a8ff", spark_range=(0, 100))
         self.net = MetricCard("Network", sparkline=True, bar=False, color="#45d6a0")
 
         self.disks = CardPanel("Storage")

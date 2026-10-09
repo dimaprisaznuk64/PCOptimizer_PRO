@@ -3,8 +3,9 @@ $ErrorActionPreference = "Stop"
 $root = Split-Path -Parent $PSScriptRoot
 Set-Location $root
 
-python scripts/make_icon.py
-python -m PyInstaller --clean --noconfirm PCOptimizer_PRO.spec
+$pyCmd = if (Get-Command py -ErrorAction SilentlyContinue) { "py -3.13" } else { "python" }
+Invoke-Expression "$pyCmd scripts/make_icon.py"
+Invoke-Expression "$pyCmd -m PyInstaller --clean --noconfirm PCOptimizer_PRO.spec"
 
 $exe = Join-Path $root "dist\PCOptimizer_PRO\PCOptimizer_PRO.exe"
 Write-Host "Done: $exe"

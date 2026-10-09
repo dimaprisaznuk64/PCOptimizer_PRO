@@ -11,6 +11,7 @@ ACCENT = "#54a8ff"
 ACCENT_HOVER = "#69e0dc"
 ACCENT_TINT = "#142e49"
 DANGER = "#ff647c"
+WARN = "#f0a03a"
 OK = "#45d6a0"
 
 NAV_WIDTH = 248

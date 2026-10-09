@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 from datetime import datetime
+import time
 
 from PySide6.QtCore import Qt
 from PySide6.QtWidgets import (
@@ -32,6 +33,8 @@ class ProcessPage(QWidget):
         self.setObjectName("page")
         self._service = service or ProcessService()
         self._rows: dict[int, ProcessInfo] = {}
+        self._last_refresh_ts = 0.0
+        self._auto_refresh_interval = 3.0
 
         layout = QVBoxLayout(self)
         layout.setContentsMargins(40, 36, 40, 32)
@@ -147,9 +150,12 @@ class ProcessPage(QWidget):
 
     def apply_snapshot(self, snapshot) -> None:
         if self.isVisible():
-            self.refresh()
+            now = time.monotonic()
+            if now - self._last_refresh_ts >= self._auto_refresh_interval:
+                self.refresh()
 
     def refresh(self) -> None:
+        self._last_refresh_ts = time.monotonic()
         try:
             processes = self._service.list()
         except Exception as e:
@@ -199,15 +205,13 @@ class ProcessPage(QWidget):
 
     def _selected_pid(self) -> int | None:
         row = self.table.currentRow()
-        if row < 0:
-            item = self.table.item(row, 0) if self.table.selectedItems() else None
-        else:
+        if row >= 0:
             item = self.table.item(row, 0)
-        if item is None:
+        else:
             selected = self.table.selectedItems()
-            if not selected:
-                return None
-            item = selected[0]
+            item = selected[0] if selected else None
+        if item is None:
+            return None
         pid = item.data(Qt.ItemDataRole.UserRole)
         return int(pid) if pid is not None else None
 

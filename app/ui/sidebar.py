@@ -1,7 +1,7 @@
 from __future__ import annotations
 
 from PySide6.QtCore import Qt, Signal
-from PySide6.QtWidgets import QHBoxLayout, QLabel, QPushButton, QVBoxLayout, QWidget
+from PySide6.QtWidgets import QButtonGroup, QHBoxLayout, QLabel, QPushButton, QVBoxLayout, QWidget
 
 from .theme import NAV_WIDTH
 
@@ -79,6 +79,8 @@ class Sidebar(QWidget):
         layout.addWidget(section_monitor)
 
         self._buttons: dict[str, QPushButton] = {}
+        self._group = QButtonGroup(self)
+        self._group.setExclusive(True)
         for index, (key, label) in enumerate(NAV_ITEMS):
             if key == "cleaner":
                 section = QLabel("TOOLS & PERFORMANCE")
@@ -101,6 +103,7 @@ class Sidebar(QWidget):
             button.setMinimumHeight(39)
             button.clicked.connect(lambda _=False, k=key: self.navigated.emit(k))
             layout.addWidget(button)
+            self._group.addButton(button)
             self._buttons[key] = button
 
         layout.addStretch(1)
@@ -124,10 +127,11 @@ class Sidebar(QWidget):
     def keys(self) -> tuple[str, ...]:
         return tuple(self._buttons)
 
-    def select(self, key: str) -> None:
+    def set_current(self, key: str) -> None:
         button = self._buttons.get(key)
-        if button is None:
-            return
-        for item in self._buttons.values():
-            item.setChecked(item is button)
+        if button is not None:
+            button.setChecked(True)
+
+    def select(self, key: str) -> None:
+        self.set_current(key)
         self.navigated.emit(key)

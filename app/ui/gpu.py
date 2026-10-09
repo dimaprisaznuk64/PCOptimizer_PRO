@@ -37,9 +37,9 @@ class GpuPanel(QFrame):
 
         grid = QGridLayout()
         grid.setSpacing(12)
-        self.util = MetricCard("Utilization", sparkline=True, bar=True)
-        self.vram = MetricCard("VRAM", sparkline=True, bar=True, color=VRAM_COLOR)
-        self.temp = MetricCard("Temperature", sparkline=True, bar=False, color=TEMP_COLOR)
+        self.util = MetricCard("Utilization", sparkline=True, bar=True, spark_range=(0, 100))
+        self.vram = MetricCard("VRAM", sparkline=True, bar=True, color=VRAM_COLOR, spark_range=(0, 100))
+        self.temp = MetricCard("Temperature", sparkline=True, bar=False, color=TEMP_COLOR, spark_range=(20, 100))
         self.power = MetricCard("Power", sparkline=True, bar=True, color=POWER_COLOR)
         grid.addWidget(self.util, 0, 0)
         grid.addWidget(self.vram, 0, 1)

@@ -5,23 +5,9 @@ from PySide6.QtWidgets import QFrame, QGridLayout, QLabel, QVBoxLayout, QWidget
 
 from app.sensors import Snapshot
 
-from .components import Bar, CardPanel, Sparkline
+from .components import Bar, CardPanel, Sparkline, level_color
 from .format import gb, rate
-
-ACCENT = "#4f8cff"
-ACCENT_HOVER = "#6ba0ff"
-DANGER = "#e5534b"
-OK = "#3fb950"
-
-
-def _level_color(percent: float | None) -> str:
-    if percent is None:
-        return ACCENT
-    if percent >= 90:
-        return DANGER
-    if percent >= 70:
-        return ACCENT
-    return ACCENT_HOVER
+from .theme import ACCENT, ACCENT_HOVER, DANGER, OK
 
 
 class _Card(QFrame):
@@ -64,7 +50,7 @@ class CoreBars(QWidget):
             bar.setVisible(True)
             text.setVisible(True)
             bar.set_percent(value)
-            bar.set_color(_level_color(value))
+            bar.set_color(level_color(value))
             text.setText(f"{value:.0f}%")
 
     def _rebuild(self, count: int) -> None:
@@ -154,7 +140,7 @@ class MonitorPage(QWidget):
         box.setFixedWidth(200)
         row.addWidget(box, 0, 0)
 
-        self.cpu_spark = Sparkline(ACCENT, points=180, height=96)
+        self.cpu_spark = Sparkline(ACCENT, points=180, height=96, value_range=(0, 100))
         row.addWidget(self.cpu_spark, 0, 1)
 
         core_label = QLabel("PER-CORE USAGE")
@@ -175,7 +161,7 @@ class MonitorPage(QWidget):
         card.body.addWidget(self.mem_sub)
         self.mem_bar = Bar(ACCENT, height=10)
         card.body.addWidget(self.mem_bar)
-        self.mem_spark = Sparkline(ACCENT, points=90, height=44)
+        self.mem_spark = Sparkline(ACCENT, points=90, height=44, value_range=(0, 100))
         card.body.addWidget(self.mem_spark)
         self.swap_sub = QLabel("")
         self.swap_sub.setObjectName("cardSub")
@@ -219,11 +205,11 @@ class MonitorPage(QWidget):
             self.mem_value.setText(f"{m.percent:.0f}%")
             self.mem_sub.setText(f"{gb(m.used)} used / {gb(m.total)} · {gb(m.available)} available")
             self.mem_bar.set_percent(m.percent)
-            self.mem_bar.set_color(_level_color(m.percent))
+            self.mem_bar.set_color(level_color(m.percent))
             self.mem_spark.add(m.percent)
             self.swap_sub.setText(f"Swap {gb(m.swap_used)} / {gb(m.swap_total)} · {m.swap_percent:.0f}%")
             self.swap_bar.set_percent(m.swap_percent)
-            self.swap_bar.set_color(_level_color(m.swap_percent))
+            self.swap_bar.set_color(level_color(m.swap_percent))
 
         if s.net:
             n = s.net

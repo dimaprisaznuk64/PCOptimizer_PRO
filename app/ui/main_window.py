@@ -1,10 +1,13 @@
 from __future__ import annotations
 
+import faulthandler
 import sys
+import threading
 
 from PySide6.QtCore import Qt
 from PySide6.QtWidgets import QApplication, QHBoxLayout, QMainWindow, QStackedWidget, QStatusBar, QWidget
 
+from app.logs import get_logger
 from app.settings import SettingsService
 
 from .pages import build_pages
@@ -12,6 +15,8 @@ from .sampler import SensorSampler
 from .sidebar import NAV_ITEMS, Sidebar
 from .theme import apply
 from .tray import AppTray
+
+log = get_logger("ui.main_window")
 
 
 class MainWindow(QMainWindow):
@@ -72,6 +77,7 @@ class MainWindow(QMainWindow):
         if index is None:
             return
         self.stack.setCurrentIndex(index)
+        self.sidebar.set_current(key)
         self.statusBar().showMessage(f"{dict(NAV_ITEMS).get(key, key)}")
 
     def page(self, key: str):
@@ -103,10 +109,17 @@ class MainWindow(QMainWindow):
 
     def handle_snapshot(self, snapshot) -> None:
         for i in range(self.stack.count()):
-            handler = getattr(self.stack.widget(i), "apply_snapshot", None)
+            widget = self.stack.widget(i)
+            handler = getattr(widget, "apply_snapshot", None)
             if handler is not None:
-                handler(snapshot)
-        self._update_tray_tooltip(snapshot)
+                try:
+                    handler(snapshot)
+                except Exception as exc:
+                    log.warning("error applying snapshot to %s: %s", type(widget).__name__, exc)
+        try:
+            self._update_tray_tooltip(snapshot)
+        except Exception as exc:
+            log.warning("error updating tray tooltip: %s", exc)
 
     def _update_tray_tooltip(self, snapshot) -> None:
         if self.tray is None or not self.settings.get("tray_metrics"):
@@ -154,6 +167,18 @@ def run(argv: list[str] | None = None) -> int:
     log = get_logger("main")
     log.info("starting PCOptimizer PRO (settings: %s, log: %s)", settings.path, log_file)
 
+    crash_log = log_file.with_name("crash.log")
+    try:
+        faulthandler.enable(crash_log.open("a"))
+    except Exception:
+        faulthandler.enable()
+
+    def _log_uncaught(kind: str, exc: BaseException, tb) -> None:
+        log.error("%s uncaught: %s", kind, exc)
+
+    sys.excepthook = lambda etype, exc, tb: _log_uncaught("main thread", exc, tb)
+    threading.excepthook = lambda args: _log_uncaught("worker thread", args.exc_value, args.exc_traceback)
+
     manager = SensorManager.with_defaults()
     window = MainWindow(settings=settings)
     sampler = SensorSampler(manager, interval_ms=settings.get("sample_interval_ms"))
@@ -170,12 +195,16 @@ def run(argv: list[str] | None = None) -> int:
         window.show()
     sampler.start()
     try:
-        return app.exec()
+        code = app.exec()
     finally:
         sampler.stop()
         tray.hide()
         log.info("stopped")
         manager.close()
+    if not isinstance(code, int):
+        code = 0
+    log.info("exiting (code %s)", code)
+    return code
 
 
 if __name__ == "__main__":

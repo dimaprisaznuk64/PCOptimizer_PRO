@@ -3,17 +3,42 @@ from __future__ import annotations
 from collections import deque
 
 from PySide6.QtCore import QPointF, QRectF, Qt
-from PySide6.QtGui import QColor, QPainter, QPainterPath, QPen
-from PySide6.QtWidgets import QFrame, QLabel, QVBoxLayout, QWidget
+from PySide6.QtGui import QColor, QLinearGradient, QPainter, QPainterPath, QPen
+from PySide6.QtWidgets import QFrame, QLabel, QSizePolicy, QVBoxLayout, QWidget
 
-from .theme import ACCENT, ACCENT_HOVER, DANGER, PANEL_ALT
+from .theme import ACCENT, BORDER, DANGER, PANEL_ALT, WARN
+
+
+def with_alpha(color: str, alpha: int) -> QColor:
+    result = QColor(color)
+    result.setAlpha(max(0, min(255, int(alpha))))
+    return result
+
+
+def level_color(percent: float | None, base: str = ACCENT) -> str:
+    if percent is None:
+        return base
+    if percent >= 90:
+        return DANGER
+    if percent >= 75:
+        return WARN
+    return base
 
 
 class Sparkline(QWidget):
-    def __init__(self, color: str = ACCENT, points: int = 90, height: int = 40, parent: QWidget | None = None) -> None:
+    def __init__(
+        self,
+        color: str = ACCENT,
+        points: int = 90,
+        height: int = 40,
+        parent: QWidget | None = None,
+        *,
+        value_range: tuple[float, float] | None = None,
+    ) -> None:
         super().__init__(parent)
         self.setFixedHeight(height)
         self._color = color
+        self._range = value_range
         self._values: deque[float] = deque(maxlen=points)
 
     def add(self, value: float) -> None:
@@ -29,17 +54,27 @@ class Sparkline(QWidget):
             return
         painter = QPainter(self)
         painter.setRenderHint(QPainter.RenderHint.Antialiasing)
-        rect = self.rect().adjusted(2, 4, -2, -4)
-        lo = min(self._values)
-        hi = max(self._values)
+        rect = self.rect().adjusted(5, 6, -5, -6)
+
+        if self._range is not None:
+            lo, hi = self._range
+        else:
+            lo = min(self._values)
+            hi = max(self._values)
         if hi - lo < 1e-9:
             hi = lo + 1.0
+
+        grid = with_alpha(BORDER, 150)
+        painter.setPen(QPen(grid, 1, Qt.PenStyle.DotLine))
+        for frac in (0.25, 0.5, 0.75):
+            y = rect.bottom() - frac * rect.height()
+            painter.drawLine(QPointF(rect.left(), y), QPointF(rect.right(), y))
 
         width = max(rect.width(), 1)
         step = width / (len(self._values) - 1)
 
         def point(i: int, value: float) -> QPointF:
-            ratio = (value - lo) / (hi - lo)
+            ratio = max(0.0, min(1.0, (value - lo) / (hi - lo)))
             return QPointF(rect.left() + i * step, rect.bottom() - ratio * rect.height())
 
         path = QPainterPath()
@@ -52,10 +87,20 @@ class Sparkline(QWidget):
         fill.lineTo(rect.right(), rect.bottom())
         fill.lineTo(rect.left(), rect.bottom())
         fill.closeSubpath()
-        painter.fillPath(fill, QColor(self._color + "26"))
+        gradient = QLinearGradient(0, rect.top(), 0, rect.bottom())
+        gradient.setColorAt(0.0, with_alpha(self._color, 90))
+        gradient.setColorAt(1.0, with_alpha(self._color, 0))
+        painter.fillPath(fill, gradient)
 
-        painter.setPen(QPen(QColor(self._color), 1.8))
+        pen = QPen(QColor(self._color), 2.0)
+        pen.setJoinStyle(Qt.PenJoinStyle.RoundJoin)
+        pen.setCapStyle(Qt.PenCapStyle.RoundCap)
+        painter.setPen(pen)
         painter.drawPath(path)
+
+        painter.setBrush(QColor(self._color))
+        painter.setPen(Qt.PenStyle.NoPen)
+        painter.drawEllipse(point(len(self._values) - 1, self._values[-1]), 3.0, 3.0)
 
 
 class Bar(QWidget):
@@ -97,9 +142,11 @@ class MetricCard(QFrame):
         sparkline: bool = True,
         bar: bool = True,
         color: str = ACCENT,
+        spark_range: tuple[float, float] | None = None,
     ) -> None:
         super().__init__(parent)
         self.setObjectName("card")
+        self._color = color
 
         layout = QVBoxLayout(self)
         layout.setContentsMargins(16, 14, 16, 14)
@@ -118,14 +165,19 @@ class MetricCard(QFrame):
         self.sub.setWordWrap(True)
         layout.addWidget(self.sub)
 
-        self.spark = Sparkline(color) if sparkline else None
+        self.spark = Sparkline(color, value_range=spark_range) if sparkline else None
         if self.spark:
-            layout.addWidget(self.spark)
-
-        layout.addStretch(1)
+            self.spark.setMinimumHeight(40)
+            self.spark.setMaximumHeight(16777215)
+            self.spark.setSizePolicy(QSizePolicy.Policy.Expanding, QSizePolicy.Policy.Expanding)
+            layout.addSpacing(6)
+            layout.addWidget(self.spark, 1)
+        else:
+            layout.addStretch(1)
 
         self.bar = Bar(color) if bar else None
         if self.bar:
+            layout.addSpacing(6)
             layout.addWidget(self.bar)
 
     def update_metric(self, value: str, sub: str = "", percent: float | None = None, spark: float | None = None) -> None:
@@ -134,10 +186,7 @@ class MetricCard(QFrame):
         self.sub.setVisible(bool(sub))
         if self.bar:
             self.bar.set_percent(percent)
-            if percent is not None:
-                self.bar.set_color(DANGER if percent >= 90 else ACCENT if percent >= 70 else ACCENT_HOVER)
-            else:
-                self.bar.set_color(PANEL_ALT)
+            self.bar.set_color(level_color(percent, self._color) if percent is not None else PANEL_ALT)
         if self.spark:
             if spark is not None:
                 self.spark.add(spark)
@@ -184,7 +233,7 @@ class CardPanel(QFrame):
                 self._rows[key] = (label, bar, text_label)
             label, bar, text_label = self._rows[key]
             bar.set_percent(percent)
-            bar.set_color(DANGER if (percent or 0) >= 90 else ACCENT)
+            bar.set_color(level_color(percent, ACCENT))
             text_label.setText(text)
 
 
@@ -208,7 +257,9 @@ class ValueListCard(QFrame):
         wanted = [key for key, _ in items]
         for key in list(self._rows):
             if key not in wanted:
-                self._layout.removeWidget(self._rows.pop(key))
+                widget = self._rows.pop(key)
+                self._layout.removeWidget(widget)
+                widget.deleteLater()
         self._empty.setVisible(not items)
         for key, text in items:
             if key not in self._rows:
@@ -219,4 +270,4 @@ class ValueListCard(QFrame):
             self._rows[key].setText(f"{key}   {text}")
 
 
-__all__ = ["Bar", "CardPanel", "MetricCard", "Sparkline", "ValueListCard"]
+__all__ = ["Bar", "CardPanel", "MetricCard", "Sparkline", "ValueListCard", "level_color", "with_alpha"]
