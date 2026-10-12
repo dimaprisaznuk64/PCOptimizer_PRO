@@ -16,12 +16,15 @@ from PySide6.QtWidgets import (
     QWidget,
 )
 
+from app.i18n import tr
 from app.startup import StartupItem, StartupService
 
 from .format import mb
+from .components import attach_empty_hint
 from .tasks import Task
 
-COLUMNS = ("Name", "Source", "Command", "Impact", "State")
+COLUMN_KEYS = ("start_col_name", "start_col_source", "start_col_command", "start_col_impact", "start_col_state")
+COLUMNS = tuple(tr(k) for k in COLUMN_KEYS)
 
 
 class StartupPage(QWidget):
@@ -32,46 +35,50 @@ class StartupPage(QWidget):
         self._items: list[StartupItem] = []
         self._errors: list[str] = []
         self._task: Task | None = None
+        self._selected: StartupItem | None = None
         self.detail_rows: dict[str, QLabel] = {}
 
         layout = QVBoxLayout(self)
         layout.setContentsMargins(40, 36, 40, 32)
         layout.setSpacing(10)
 
-        title = QLabel("Startup")
+        title = QLabel(tr("start_title"))
         title.setObjectName("pageTitle")
         layout.addWidget(title)
-        desc = QLabel("Programs that launch at logon — registry Run keys, Startup folder and Task Scheduler")
+        desc = QLabel(tr("start_desc"))
         desc.setObjectName("pageDesc")
         layout.addWidget(desc)
+
+        self._title = title
+        self._desc = desc
 
         toolbar = QHBoxLayout()
         toolbar.setSpacing(8)
 
-        self.refresh_button = QPushButton("Refresh")
+        self.refresh_button = QPushButton(tr("start_refresh"))
         self.refresh_button.setProperty("secondary", True)
         self.refresh_button.clicked.connect(self.start_refresh)
         toolbar.addWidget(self.refresh_button)
 
-        self.toggle_button = QPushButton("Enable / Disable")
+        self.toggle_button = QPushButton(tr("start_toggle"))
         self.toggle_button.setProperty("secondary", True)
         self.toggle_button.setEnabled(False)
         self.toggle_button.clicked.connect(self.start_toggle)
         toolbar.addWidget(self.toggle_button)
 
-        self.remove_button = QPushButton("Remove")
+        self.remove_button = QPushButton(tr("start_remove"))
         self.remove_button.setProperty("danger", True)
         self.remove_button.setEnabled(False)
         self.remove_button.clicked.connect(self.start_remove)
         toolbar.addWidget(self.remove_button)
 
-        self.undo_button = QPushButton("Undo last")
+        self.undo_button = QPushButton(tr("start_undo"))
         self.undo_button.setProperty("secondary", True)
         self.undo_button.setEnabled(False)
         self.undo_button.clicked.connect(self.start_undo)
         toolbar.addWidget(self.undo_button)
 
-        self.status_label = QLabel("Idle")
+        self.status_label = QLabel(tr("start_idle"))
         self.status_label.setObjectName("cardSub")
         toolbar.addWidget(self.status_label, 1)
         layout.addLayout(toolbar)
@@ -79,6 +86,7 @@ class StartupPage(QWidget):
         splitter = QSplitter(Qt.Orientation.Horizontal)
 
         self.table = QTableWidget(0, len(COLUMNS))
+        attach_empty_hint(self.table, "empty_startup")
         self.table.setHorizontalHeaderLabels(COLUMNS)
         self.table.verticalHeader().setVisible(False)
         self.table.setShowGrid(False)
@@ -87,6 +95,7 @@ class StartupPage(QWidget):
         self.table.setSelectionMode(QAbstractItemView.SelectionMode.SingleSelection)
         self.table.setEditTriggers(QAbstractItemView.EditTrigger.NoEditTriggers)
         header = self.table.horizontalHeader()
+        header.setDefaultAlignment(Qt.AlignmentFlag.AlignLeft | Qt.AlignmentFlag.AlignVCenter)
         header.setSectionResizeMode(0, QHeaderView.ResizeMode.ResizeToContents)
         header.setSectionResizeMode(1, QHeaderView.ResizeMode.ResizeToContents)
         header.setSectionResizeMode(2, QHeaderView.ResizeMode.Stretch)
@@ -103,11 +112,13 @@ class StartupPage(QWidget):
         details_layout.setContentsMargins(18, 16, 18, 16)
         details_layout.setSpacing(8)
 
-        details_title = QLabel("DETAILS")
+        details_title = QLabel(tr("start_details"))
         details_title.setObjectName("cardTitle")
         details_layout.addWidget(details_title)
 
-        self.detail_name = QLabel("Select an entry")
+        self._details_title = details_title
+
+        self.detail_name = QLabel(tr("start_select_hint"))
         self.detail_name.setObjectName("gpuName")
         self.detail_name.setWordWrap(True)
         details_layout.addWidget(self.detail_name)
@@ -130,15 +141,29 @@ class StartupPage(QWidget):
         self.detail_command = command_label
         details_layout.addWidget(command_label)
 
-        note = QLabel("Disabling is reversible. Removed entries are backed up and can be restored with Undo.")
-        note.setObjectName("cardSub")
-        note.setWordWrap(True)
-        details_layout.addWidget(note)
+        self.note = QLabel(tr("start_note"))
+        self.note.setObjectName("cardSub")
+        self.note.setWordWrap(True)
+        details_layout.addWidget(self.note)
         details_layout.addStretch(1)
         splitter.addWidget(details)
         splitter.setStretchFactor(0, 3)
         splitter.setStretchFactor(1, 1)
         layout.addWidget(splitter, 1)
+
+    def retranslate(self) -> None:
+        """Refresh static texts after a language change."""
+        self._title.setText(tr("start_title"))
+        self._desc.setText(tr("start_desc"))
+        self.refresh_button.setText(tr("start_refresh"))
+        self.toggle_button.setText(tr("start_toggle"))
+        self.remove_button.setText(tr("start_remove"))
+        self.undo_button.setText(tr("start_undo"))
+        self._details_title.setText(tr("start_details"))
+        self.note.setText(tr("start_note"))
+        self.table.setHorizontalHeaderLabels(tuple(tr(k) for k in COLUMN_KEYS))
+        self._render_table()
+        self._on_selection_changed()
 
     @property
     def service(self) -> StartupService:
@@ -152,7 +177,7 @@ class StartupPage(QWidget):
     def start_refresh(self) -> None:
         if self._task is not None:
             return
-        self.status_label.setText("Loading startup entries…")
+        self.status_label.setText(tr("start_loading"))
         self._set_busy(True)
         self._task = Task(self._service.list_items, parent=self)
         self._task.done.connect(self._apply_list)
@@ -163,23 +188,23 @@ class StartupPage(QWidget):
         self._task = None
         self._set_busy(False)
         if not isinstance(result, tuple) or len(result) != 2:
-            self.status_label.setText(f"Load failed: {result}")
+            self.status_label.setText(tr("start_load_failed", msg=result))
             return
         items, errors = result
         self._items = list(items)
         self._errors = list(errors)
         self.undo_button.setEnabled(self._history_exists())
         self._render_table()
-        message = f"{len(self._items)} startup entries"
+        message = tr("start_count", count=len(self._items))
         if errors:
-            message += f" · issues: {'; '.join(errors[:2])}"
+            message += " · " + tr("start_issues", msg="; ".join(errors[:2]))
         self.status_label.setText(message)
         self._on_selection_changed()
 
     def _on_task_failed(self, message: str) -> None:
         self._task = None
         self._set_busy(False)
-        self.status_label.setText(f"Failed: {message}")
+        self.status_label.setText(tr("start_failed", msg=message))
 
     def _set_busy(self, busy: bool) -> None:
         self.refresh_button.setEnabled(not busy)
@@ -192,13 +217,14 @@ class StartupPage(QWidget):
         if item is None or self._task is not None:
             return
         target_state = not item.enabled
-        verb = "Enable" if target_state else "Disable"
-        if not self._ask_confirm(f"{verb} {item.name}?", item):
+        verb = tr("start_enable") if target_state else tr("start_disable")
+        if not self._ask_confirm(tr("start_toggle_msg", verb=verb.lower(), name=item.name), item):
             return
         self.status_label.setText(f"{verb} {item.name}…")
         self._set_busy(True)
         self._task = Task(lambda: self._service.set_enabled(item, target_state), parent=self)
-        self._task.done.connect(lambda _r, name=item.name, verb=verb: self._after_change(f"{verb}d {name}"))
+        done_text = tr("start_enabled_state") if target_state else tr("start_disabled_state")
+        self._task.done.connect(lambda _r, name=item.name, text=done_text: self._after_change(f"{text}: {name}"))
         self._task.failed.connect(self._on_task_failed)
         self._task.start()
 
@@ -206,19 +232,19 @@ class StartupPage(QWidget):
         item = self._selected_item()
         if item is None or self._task is not None:
             return
-        if not self._ask_confirm(f"Remove {item.name} from startup?", item):
+        if not self._ask_confirm(tr("start_remove_msg", name=item.name), item):
             return
-        self.status_label.setText(f"Removing {item.name}…")
+        self.status_label.setText(tr("start_removing", name=item.name))
         self._set_busy(True)
         self._task = Task(lambda: self._service.remove(item), parent=self)
-        self._task.done.connect(lambda result, name=item.name: self._after_change(str(result) or f"Removed {name}"))
+        self._task.done.connect(lambda result, name=item.name: self._after_change(str(result) or tr("start_removed_n", name=name)))
         self._task.failed.connect(self._on_task_failed)
         self._task.start()
 
     def start_undo(self) -> None:
         if self._task is not None:
             return
-        self.status_label.setText("Restoring last removal…")
+        self.status_label.setText(tr("start_restoring"))
         self._set_busy(True)
         self._task = Task(self._service.undo_last, parent=self)
         self._task.done.connect(lambda result: self._after_change(str(result)))
@@ -255,7 +281,7 @@ class StartupPage(QWidget):
             impact_item = QTableWidgetItem(item.impact)
             impact_item.setData(Qt.ItemDataRole.UserRole, item.id)
             self.table.setItem(row, 3, impact_item)
-            state_item = QTableWidgetItem("Enabled" if item.enabled else "Disabled")
+            state_item = QTableWidgetItem(tr("start_enabled_state") if item.enabled else tr("start_disabled_state"))
             self.table.setItem(row, 4, state_item)
         self.table.setSortingEnabled(True)
         self.table.blockSignals(False)
@@ -282,8 +308,9 @@ class StartupPage(QWidget):
 
     def _on_selection_changed(self) -> None:
         item = self._selected_item()
+        self._selected = item
         if item is None:
-            self.detail_name.setText("Select an entry")
+            self.detail_name.setText(tr("start_select_hint"))
             self.detail_badge.setVisible(False)
             for label in self.detail_rows.values():
                 label.setText("")
@@ -293,28 +320,30 @@ class StartupPage(QWidget):
             return
 
         self.detail_name.setText(item.name)
-        self.detail_badge.setText("DISABLED" if not item.enabled else item.impact.upper())
+        self.detail_badge.setText(tr("start_badge_disabled") if not item.enabled else item.impact.upper())
         self.detail_badge.setVisible(True)
-        self.detail_rows["source"].setText(f"Source  {item.source}")
-        self.detail_rows["state"].setText(f"State  {'Enabled' if item.enabled else 'Disabled'}")
-        self.detail_rows["impact"].setText(f"Impact  {item.impact} — {item.impact_reason}")
-        self.detail_rows["target"].setText(f"Target size  {mb(item.target_size)}")
-        self.detail_rows["location"].setText(f"Location  {item.location}")
-        self.detail_command.setText(f"Command  {item.command}")
+        self.detail_rows["source"].setText(tr("start_detail_source", value=item.source))
+        self.detail_rows["state"].setText(
+            tr("start_detail_state", value=tr("start_enabled_state") if item.enabled else tr("start_disabled_state"))
+        )
+        self.detail_rows["impact"].setText(tr("start_detail_impact", value=item.impact, reason=item.impact_reason))
+        self.detail_rows["target"].setText(tr("start_detail_target", value=mb(item.target_size)))
+        self.detail_rows["location"].setText(tr("start_detail_location", value=item.location))
+        self.detail_command.setText(tr("start_detail_command", value=item.command))
 
         can_modify = item.kind in ("registry", "folder", "task")
         self.toggle_button.setEnabled(can_modify and self._task is None)
         self.remove_button.setEnabled(item.kind in ("registry", "folder") and self._task is None)
         if item.kind == "registry" and item.hive == "HKLM":
-            self.remove_button.setToolTip("Changing HKLM entries requires running as administrator")
+            self.remove_button.setToolTip(tr("start_hklm_tooltip"))
         else:
             self.remove_button.setToolTip("")
 
     def _ask_confirm(self, question: str, item: StartupItem) -> bool:
         answer = QMessageBox.question(
             self,
-            "Startup change",
-            f"{question}\n\nYou can undo this from the toolbar.",
+            tr("start_confirm_title"),
+            tr("start_confirm_msg", question=question),
             QMessageBox.StandardButton.Yes | QMessageBox.StandardButton.No,
             QMessageBox.StandardButton.No,
         )

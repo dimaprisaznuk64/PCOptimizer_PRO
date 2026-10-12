@@ -4,19 +4,14 @@ from PySide6.QtCore import QObject, Qt, Signal
 from PySide6.QtGui import QAction, QColor, QIcon, QPainter, QPixmap
 from PySide6.QtWidgets import QMenu, QSystemTrayIcon
 
+from .theme import ACCENT, PANEL
+from app.i18n import tr
 
-def build_icon(color: str = "#4f8cff") -> QIcon:
-    pixmap = QPixmap(64, 64)
-    pixmap.fill(QColor(0, 0, 0, 0))
-    painter = QPainter(pixmap)
-    painter.setRenderHint(QPainter.RenderHint.Antialiasing)
-    painter.setPen(Qt.PenStyle.NoPen)
-    painter.setBrush(QColor(color))
-    painter.drawEllipse(4, 4, 56, 56)
-    painter.setBrush(QColor("#0f1115"))
-    painter.drawEllipse(22, 22, 20, 20)
-    painter.end()
-    return QIcon(pixmap)
+
+def build_icon(color: str = "") -> QIcon:
+    from .icons import app_icon
+
+    return app_icon(color)
 
 
 class AppTray(QObject):
@@ -29,19 +24,25 @@ class AppTray(QObject):
         self.tray = QSystemTrayIcon(icon or build_icon(), self)
         self.menu = QMenu()
 
-        self.open_action: QAction = self.menu.addAction("Open PCOptimizer")
+        self.open_action: QAction = self.menu.addAction(tr("tray_open"))
         self.open_action.triggered.connect(self.open_requested.emit)
 
-        self.gaming_action: QAction = self.menu.addAction("Gaming Mode")
+        self.gaming_action: QAction = self.menu.addAction(tr("tray_gaming"))
         self.gaming_action.triggered.connect(self.gaming_requested.emit)
 
         self.menu.addSeparator()
-        self.quit_action: QAction = self.menu.addAction("Quit")
+        self.quit_action: QAction = self.menu.addAction(tr("tray_quit"))
         self.quit_action.triggered.connect(self.quit_requested.emit)
 
         self.tray.setContextMenu(self.menu)
         self.tray.activated.connect(self._on_activated)
         self.tray.setToolTip("PCOptimizer PRO")
+
+    def retranslate(self) -> None:
+        """Refresh context-menu texts after a language change."""
+        self.open_action.setText(tr("tray_open"))
+        self.gaming_action.setText(tr("tray_gaming"))
+        self.quit_action.setText(tr("tray_quit"))
 
     @property
     def visible(self) -> bool:

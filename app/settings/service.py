@@ -14,11 +14,13 @@ DEFAULTS: dict[str, Any] = {
     "tray_metrics": True,
     "log_level": "INFO",
     "theme": "DARK",
+    "language": "UA",
 }
 
 CHOICES: dict[str, tuple[str, ...]] = {
     "log_level": ("DEBUG", "INFO", "WARNING", "ERROR"),
-    "theme": ("DARK",),
+    "theme": ("DARK", "PURPLE", "GREEN", "LIGHT", "AMOLED"),
+    "language": ("UA", "EN"),
 }
 
 RANGES: dict[str, tuple[int, int]] = {

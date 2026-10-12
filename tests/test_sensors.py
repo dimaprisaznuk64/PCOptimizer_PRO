@@ -105,3 +105,85 @@ def test_mock_factory_on_real_manager_does_not_need_hardware() -> None:
     s = SensorManager([MockBackend(cpu_percent=7.5)]).snapshot()
     assert s.cpu and s.cpu.percent == 7.5
     assert not s.errors
+
+
+class _FakeNVMLError(Exception):
+    pass
+
+
+class _FakeUtil:
+    def __init__(self, gpu: float) -> None:
+        self.gpu = gpu
+
+
+class _FakeMem:
+    used = 1024
+    total = 4096
+
+
+class _FakeNvml:
+    NVMLError = _FakeNVMLError
+    NVML_TEMPERATURE_GPU = 0
+    NVML_CLOCK_SM = 0
+
+    def __init__(self, util_fails: bool = False) -> None:
+        self.util_fails = util_fails
+
+    def nvmlDeviceGetName(self, handle):
+        return "Fake GPU"
+
+    def nvmlDeviceGetUtilizationRates(self, handle):
+        if self.util_fails:
+            raise _FakeNVMLError("Unknown Error")
+        return _FakeUtil(42.0)
+
+    def nvmlDeviceGetMemoryInfo(self, handle):
+        return _FakeMem()
+
+    def nvmlDeviceGetTemperature(self, handle, sensor):
+        raise _FakeNVMLError("not supported")
+
+    def nvmlDeviceGetPowerUsage(self, handle):
+        raise _FakeNVMLError("not supported")
+
+    def nvmlDeviceGetFanSpeed(self, handle):
+        raise _FakeNVMLError("not supported")
+
+    def nvmlDeviceGetClockInfo(self, handle, clock):
+        raise _FakeNVMLError("not supported")
+
+    def nvmlDeviceGetPowerManagementLimit(self, handle):
+        raise _FakeNVMLError("not supported")
+
+    def nvmlDeviceGetPowerManagementDefaultLimit(self, handle):
+        raise _FakeNVMLError("not supported")
+
+    def nvmlDeviceGetEnforcedPowerLimit(self, handle):
+        raise _FakeNVMLError("not supported")
+
+
+def _fake_nvml_backend(nvml: _FakeNvml):
+    from app.sensors.nvml_backend import NvmlBackend
+
+    backend = NvmlBackend.__new__(NvmlBackend)
+    backend._nvml = nvml
+    backend._handles = [object()]
+    backend._last = {}
+    return backend
+
+
+def test_nvml_utilization_error_does_not_drop_the_gpu() -> None:
+    backend = _fake_nvml_backend(_FakeNvml(util_fails=True))
+    part = backend.collect()
+    assert len(part["gpus"]) == 1
+    assert part["gpus"][0].utilization == 0.0
+
+
+def test_nvml_utilization_falls_back_to_last_known_value() -> None:
+    backend = _fake_nvml_backend(_FakeNvml(util_fails=False))
+    first = backend.collect()["gpus"][0]
+    assert first.utilization == 42.0
+    backend._nvml.util_fails = True
+    second = backend.collect()["gpus"][0]
+    assert second.utilization == 42.0
+    assert second.memory_total == 4096

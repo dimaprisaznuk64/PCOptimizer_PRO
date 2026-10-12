@@ -256,51 +256,56 @@ class StartupService:
         return items
 
     def _task_items(self) -> list[StartupItem]:
-        import pythoncom
-        from win32com.client import Dispatch
-
-        pythoncom.CoInitialize()
-        try:
-            service = Dispatch("Schedule.Service")
-            service.Connect()
-            folder = service.GetFolder("\\")
-            tasks = folder.GetTasks(0)
-        finally:
-            pythoncom.CoUninitialize()
-
         items: list[StartupItem] = []
-        count = tasks.Count
-        for index in range(1, count + 1):
-            task = tasks.Item(index)
-            triggers = task.Definition.Triggers
-            trigger_types = [triggers.Item(i).Type for i in range(1, triggers.Count + 1)]
-            if not any(t in (8, 9) for t in trigger_types):
-                continue
-            actions = task.Definition.Actions
-            command = ""
-            if actions.Count >= 1:
-                action = actions.Item(1)
-                command = str(getattr(action, "Path", "") or "")
-                arguments = str(getattr(action, "Arguments", "") or "")
-                if arguments:
-                    command = f"{command} {arguments}".strip()
-            size = _target_size(command) if command else None
-            impact, reason = impact_of(task.Name, size)
-            items.append(
-                StartupItem(
-                    id=f"task:{task.Path}".lower(),
-                    name=task.Name,
-                    source="Task Scheduler",
-                    kind="task",
-                    command=command,
-                    location=task.Path,
-                    enabled=bool(task.Enabled),
-                    impact=impact,
-                    impact_reason=reason,
-                    target_size=size,
-                    task_path=task.Path,
-                )
-            )
+        try:
+            import pythoncom
+            from win32com.client import Dispatch
+
+            pythoncom.CoInitialize()
+            try:
+                service = Dispatch("Schedule.Service")
+                service.Connect()
+                folder = service.GetFolder("\\")
+                tasks = folder.GetTasks(0)
+                count = tasks.Count
+                for index in range(1, count + 1):
+                    try:
+                        task = tasks.Item(index)
+                        triggers = task.Definition.Triggers
+                        trigger_types = [triggers.Item(i).Type for i in range(1, triggers.Count + 1)]
+                        if not any(t in (8, 9) for t in trigger_types):
+                            continue
+                        actions = task.Definition.Actions
+                        command = ""
+                        if actions.Count >= 1:
+                            action = actions.Item(1)
+                            command = str(getattr(action, "Path", "") or "")
+                            arguments = str(getattr(action, "Arguments", "") or "")
+                            if arguments:
+                                command = f"{command} {arguments}".strip()
+                        size = _target_size(command) if command else None
+                        impact, reason = impact_of(task.Name, size)
+                        items.append(
+                            StartupItem(
+                                id=f"task:{task.Path}".lower(),
+                                name=task.Name,
+                                source="Task Scheduler",
+                                kind="task",
+                                command=command,
+                                location=task.Path,
+                                enabled=bool(task.Enabled),
+                                impact=impact,
+                                impact_reason=reason,
+                                target_size=size,
+                                task_path=task.Path,
+                            )
+                        )
+                    except Exception:
+                        continue
+            finally:
+                pythoncom.CoUninitialize()
+        except Exception:
+            pass
         return items
 
     def set_enabled(self, item: StartupItem, enabled: bool) -> None:

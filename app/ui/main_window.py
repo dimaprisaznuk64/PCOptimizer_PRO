@@ -1,22 +1,41 @@
 from __future__ import annotations
 
-import faulthandler
 import sys
-import threading
 
 from PySide6.QtCore import Qt
-from PySide6.QtWidgets import QApplication, QHBoxLayout, QMainWindow, QStackedWidget, QStatusBar, QWidget
+from PySide6.QtGui import QColor, QPainter, QRadialGradient
+from PySide6.QtWidgets import QApplication, QHBoxLayout, QMainWindow, QStackedWidget, QVBoxLayout, QWidget
 
-from app.logs import get_logger
+from app.i18n import I18nService, tr
 from app.settings import SettingsService
 
 from .pages import build_pages
 from .sampler import SensorSampler
 from .sidebar import NAV_ITEMS, Sidebar
-from .theme import apply
+from .theme import BG, GLOW_A, GLOW_ALPHA_A, GLOW_ALPHA_B, GLOW_B, apply
+from .topbar import TopBar
 from .tray import AppTray
 
-log = get_logger("ui.main_window")
+
+class _GlowRoot(QWidget):
+    """Window background: flat dark base with soft colored glows."""
+
+    def paintEvent(self, event) -> None:
+        painter = QPainter(self)
+        painter.fillRect(self.rect(), QColor(BG))
+        w, h = self.width(), self.height()
+        for cx, cy, radius, color, alpha in (
+            (w * 0.92, h * 0.02, max(w, h) * 0.55, GLOW_A, GLOW_ALPHA_A),
+            (w * 0.35, h * 1.05, max(w, h) * 0.5, GLOW_B, GLOW_ALPHA_B),
+        ):
+            glow = QRadialGradient(cx, cy, radius)
+            inner = QColor(color)
+            inner.setAlpha(alpha)
+            outer = QColor(color)
+            outer.setAlpha(0)
+            glow.setColorAt(0.0, inner)
+            glow.setColorAt(1.0, outer)
+            painter.fillRect(self.rect(), glow)
 
 
 class MainWindow(QMainWindow):
@@ -27,20 +46,28 @@ class MainWindow(QMainWindow):
     ) -> None:
         super().__init__(parent)
         self.setWindowTitle("PCOptimizer PRO")
-        self.setMinimumSize(1024, 640)
+        from .icons import app_icon
+
+        self.setWindowIcon(app_icon())
+        self.setMinimumSize(1120, 680)
         self.resize(1280, 800)
         self.sampler: SensorSampler | None = None
         self.tray: AppTray | None = None
         self.settings = settings or SettingsService()
         self._force_quit = False
+        self._last_snapshot = None
+        I18nService.instance().set_language(self.settings.get("language"), emit=False)
+        I18nService.instance().language_changed.connect(self._on_language_changed)
 
-        root = QWidget()
+        root = _GlowRoot()
         root.setObjectName("root")
         self._root_layout = QHBoxLayout(root)
         self._root_layout.setContentsMargins(0, 0, 0, 0)
         self._root_layout.setSpacing(0)
 
         self.sidebar = Sidebar()
+        self.topbar = TopBar()
+        self.topbar.settings_requested.connect(lambda: self.show_page("settings"))
         self.stack = QStackedWidget()
 
         self._index_by_key: dict[str, int] = {}
@@ -49,15 +76,21 @@ class MainWindow(QMainWindow):
             self.stack.addWidget(page)
 
         self.sidebar.navigated.connect(self.show_page)
+        dashboard = self.page("dashboard")
+        if dashboard is not None and hasattr(dashboard, "navigate"):
+            dashboard.navigate.connect(self.show_page)
         self._root_layout.addWidget(self.sidebar)
-        self._root_layout.addWidget(self.stack, 1)
+
+        self._content = QWidget()
+        self._content.setObjectName("root")
+        content_layout = QVBoxLayout(self._content)
+        content_layout.setContentsMargins(0, 0, 0, 0)
+        content_layout.setSpacing(0)
+        content_layout.addWidget(self.topbar)
+        content_layout.addWidget(self.stack, 1)
+        self._root_layout.addWidget(self._content, 1)
 
         self.setCentralWidget(root)
-
-        status = QStatusBar()
-        status.setSizeGripEnabled(False)
-        self.setStatusBar(status)
-        status.showMessage("Ready")
 
         missing = set(key for key, _ in NAV_ITEMS) - set(self._index_by_key)
         if missing:
@@ -76,9 +109,47 @@ class MainWindow(QMainWindow):
         index = self._index_by_key.get(key)
         if index is None:
             return
+        changed = self.stack.currentIndex() != index
         self.stack.setCurrentIndex(index)
+        if changed:
+            self._fade_in(self.stack.widget(index))
         self.sidebar.set_current(key)
-        self.statusBar().showMessage(f"{dict(NAV_ITEMS).get(key, key)}")
+        self.topbar.set_title(dict(NAV_ITEMS).get(key, key))
+
+    def _fade_in(self, page) -> None:
+        """Short fade when switching pages (effect is removed afterwards)."""
+        from PySide6.QtCore import QPropertyAnimation
+        from PySide6.QtWidgets import QGraphicsOpacityEffect
+
+        effect = QGraphicsOpacityEffect(page)
+        effect.setOpacity(0.0)
+        page.setGraphicsEffect(effect)
+        anim = QPropertyAnimation(effect, b"opacity", page)
+        anim.setDuration(170)
+        anim.setStartValue(0.0)
+        anim.setEndValue(1.0)
+        anim.finished.connect(lambda: page.setGraphicsEffect(None))
+        anim.start(QPropertyAnimation.DeletionPolicy.DeleteWhenStopped)
+
+    def _on_language_changed(self, _lang: str = "") -> None:
+        """Re-translate the whole shell + all pages after a language switch."""
+        self.settings.set("language", I18nService.instance().current_language)
+        self.sidebar.retranslate()
+        self.topbar.retranslate()
+        if self.tray is not None:
+            self.tray.retranslate()
+        for i in range(self.stack.count()):
+            page = self.stack.widget(i)
+            retranslate = getattr(page, "retranslate", None)
+            if retranslate is None:
+                continue
+            try:
+                retranslate()
+            except RuntimeError:
+                pass
+        if self._last_snapshot is not None:
+            self._update_sidebar_health(self._last_snapshot)
+        self.show_page(self.current_key)
 
     def page(self, key: str):
         index = self._index_by_key.get(key)
@@ -104,22 +175,39 @@ class MainWindow(QMainWindow):
     def quit_app(self) -> None:
         self._force_quit = True
         self.close()
+        app = QApplication.instance()
+        if app is not None:
+            app.quit()
 
     # ---------- snapshots ----------
 
     def handle_snapshot(self, snapshot) -> None:
+        self._last_snapshot = snapshot
         for i in range(self.stack.count()):
-            widget = self.stack.widget(i)
-            handler = getattr(widget, "apply_snapshot", None)
+            handler = getattr(self.stack.widget(i), "apply_snapshot", None)
             if handler is not None:
-                try:
-                    handler(snapshot)
-                except Exception as exc:
-                    log.warning("error applying snapshot to %s: %s", type(widget).__name__, exc)
-        try:
-            self._update_tray_tooltip(snapshot)
-        except Exception as exc:
-            log.warning("error updating tray tooltip: %s", exc)
+                handler(snapshot)
+        self._update_sidebar_health(snapshot)
+        self._update_tray_tooltip(snapshot)
+
+    def _update_sidebar_health(self, snapshot) -> None:
+        loads = [v for v in (
+            snapshot.cpu.percent if snapshot.cpu else None,
+            snapshot.memory.percent if snapshot.memory else None,
+        ) if v is not None]
+        peak = max(loads) if loads else 0.0
+        if not loads:
+            self.sidebar.set_health(tr("status_no_sensor"), "warn")
+            self.topbar.set_status(tr("status_no_sensor"), "warn")
+        elif peak >= 90:
+            self.sidebar.set_health(tr("status_high"), "danger")
+            self.topbar.set_status(tr("status_high"), "danger")
+        elif peak >= 75:
+            self.sidebar.set_health(tr("status_busy"), "warn")
+            self.topbar.set_status(tr("status_busy"), "warn")
+        else:
+            self.sidebar.set_health(tr("status_healthy"), "ok")
+            self.topbar.set_status(tr("status_healthy"), "ok")
 
     def _update_tray_tooltip(self, snapshot) -> None:
         if self.tray is None or not self.settings.get("tray_metrics"):
@@ -147,12 +235,32 @@ class MainWindow(QMainWindow):
             return
         if self.sampler is not None:
             self.sampler.stop()
+        from .tasks import stop_all
+
+        stop_all()
         super().closeEvent(event)
+
+    def shutdown(self) -> None:
+        """Destroy the full widget tree before interpreter teardown.
+
+        Without this the window and pages survive to interpreter exit, where
+        the underlying Qt objects are collected in a nondeterministic order
+        and can crash natively (access violation on the offscreen platform).
+        """
+        try:
+            I18nService.instance().language_changed.disconnect(self._on_language_changed)
+        except (RuntimeError, TypeError):
+            pass
+        self._force_quit = True
+        self.close()
+        self.deleteLater()
 
 
 def run(argv: list[str] | None = None) -> int:
     from app.logs import get_logger, setup_logging
     from app.sensors import SensorManager
+
+    from .single_instance import SingleInstanceGuard
 
     app = QApplication(argv if argv is not None else sys.argv)
     app.setApplicationName("PCOptimizer PRO")
@@ -165,22 +273,17 @@ def run(argv: list[str] | None = None) -> int:
         settings.save()
     log_file = setup_logging(settings.get("log_level"))
     log = get_logger("main")
+
+    guard = SingleInstanceGuard(parent=app)
+    if not guard.acquire():
+        log.info("another instance is already running — exiting")
+        return 0
+
     log.info("starting PCOptimizer PRO (settings: %s, log: %s)", settings.path, log_file)
-
-    crash_log = log_file.with_name("crash.log")
-    try:
-        faulthandler.enable(crash_log.open("a"))
-    except Exception:
-        faulthandler.enable()
-
-    def _log_uncaught(kind: str, exc: BaseException, tb) -> None:
-        log.error("%s uncaught: %s", kind, exc)
-
-    sys.excepthook = lambda etype, exc, tb: _log_uncaught("main thread", exc, tb)
-    threading.excepthook = lambda args: _log_uncaught("worker thread", args.exc_value, args.exc_traceback)
 
     manager = SensorManager.with_defaults()
     window = MainWindow(settings=settings)
+    guard.show_requested.connect(window.open_window)
     sampler = SensorSampler(manager, interval_ms=settings.get("sample_interval_ms"))
     sampler.snapshot_ready.connect(window.handle_snapshot)
     window.sampler = sampler
@@ -195,16 +298,18 @@ def run(argv: list[str] | None = None) -> int:
         window.show()
     sampler.start()
     try:
-        code = app.exec()
+        return app.exec()
     finally:
         sampler.stop()
         tray.hide()
+        guard.close()
+        from .tasks import stop_all
+
+        stop_all()
         log.info("stopped")
+        window.shutdown()
+        app.processEvents()
         manager.close()
-    if not isinstance(code, int):
-        code = 0
-    log.info("exiting (code %s)", code)
-    return code
 
 
 if __name__ == "__main__":

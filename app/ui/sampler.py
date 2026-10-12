@@ -17,14 +17,26 @@ class SensorSampler(QThread):
         self._stop = Event()
 
     def run(self) -> None:
-        while not self._stop.is_set():
-            try:
-                snapshot = self._manager.snapshot()
-            except Exception:
+        try:
+            import pythoncom
+            pythoncom.CoInitialize()
+        except Exception:
+            pass
+        try:
+            while not self._stop.is_set():
+                try:
+                    snapshot = self._manager.snapshot()
+                except Exception:
+                    self._stop.wait(self._interval_s)
+                    continue
+                self.snapshot_ready.emit(snapshot)
                 self._stop.wait(self._interval_s)
-                continue
-            self.snapshot_ready.emit(snapshot)
-            self._stop.wait(self._interval_s)
+        finally:
+            try:
+                import pythoncom
+                pythoncom.CoUninitialize()
+            except Exception:
+                pass
 
     def stop(self, timeout_ms: int = 5000) -> None:
         self._stop.set()

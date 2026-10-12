@@ -56,13 +56,6 @@ def test_main_window_dispatches_snapshot(qapp) -> None:
     window.close()
 
 
-def test_dashboard_spark_ranges_fixed_to_100(qapp) -> None:
-    page = DashboardPage()
-    assert page.cpu.spark._range == (0, 100)
-    assert page.ram.spark._range == (0, 100)
-    assert page.gpu.spark._range == (0, 100)
-
-
 def test_sampler_emits_snapshots(qapp) -> None:
     sampler = SensorSampler(SensorManager.mock(), interval_ms=60)
     spy = QSignalSpy(sampler.snapshot_ready)

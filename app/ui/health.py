@@ -16,17 +16,35 @@ from PySide6.QtWidgets import (
 )
 
 from app.health import Finding, FixReport, HealthReport, HealthService
+from app.i18n import tr
 
+from .components import ScoreRing, attach_empty_hint
+from .activity import ActivityLog
+from .activity import record as log_action
 from .tasks import Task
+from .theme import ACCENT, DANGER, OK, TEXT_DIM, WARN
 
-HEALTH_COLUMNS = ("Category", "Severity", "Issue", "Details")
+HEALTH_COLUMN_KEYS = ("health_col_category", "health_col_severity", "health_col_issue", "health_col_details")
 
 SEVERITY_COLOR = {
-    "critical": "#ff5c5c",
-    "warning": "#ffb03a",
-    "info": "#4f8cff",
-    "ok": "#39d98a",
+    "critical": DANGER,
+    "warning": WARN,
+    "info": ACCENT,
+    "ok": OK,
 }
+
+SEVERITY_TR = {
+    "critical": "health_sev_critical",
+    "warning": "health_sev_warning",
+    "info": "health_sev_info",
+    "ok": "health_sev_ok",
+}
+
+
+def grade_text(grade: str) -> str:
+    key = f"grade_{grade.lower()}"
+    text = tr(key)
+    return grade if text == key else text
 
 
 class HealthPage(QWidget):
@@ -41,34 +59,34 @@ class HealthPage(QWidget):
         layout.setContentsMargins(40, 36, 40, 32)
         layout.setSpacing(10)
 
-        title = QLabel("PC Health")
+        title = QLabel(tr("health_title"))
         title.setObjectName("pageTitle")
         layout.addWidget(title)
-        desc = QLabel(
-            "One-click scan of your system. FIX ALL only removes temporary files and caches — "
-            "every other recommendation is advisory and reversible."
-        )
+        desc = QLabel(tr("health_desc"))
         desc.setObjectName("pageDesc")
         desc.setWordWrap(True)
         layout.addWidget(desc)
 
+        self._title = title
+        self._desc = desc
+
         score_card = QFrame()
-        score_card.setObjectName("card")
+        score_card.setObjectName("hero")
         score_layout = QHBoxLayout(score_card)
         score_layout.setContentsMargins(18, 16, 18, 16)
         score_layout.setSpacing(20)
 
         self.score_label = QLabel("—")
         self.score_label.setObjectName("scoreValue")
-        self.score_label.setMinimumWidth(120)
-        score_layout.addWidget(self.score_label)
+        self.ring = ScoreRing(self.score_label)
+        score_layout.addWidget(self.ring)
 
         text_box = QVBoxLayout()
         text_box.setSpacing(2)
-        self.grade_label = QLabel("Not scanned yet")
+        self.grade_label = QLabel(tr("health_not_scanned"))
         self.grade_label.setObjectName("cardValue")
         text_box.addWidget(self.grade_label)
-        self.detail_label = QLabel("Run SCAN MY PC to score this machine.")
+        self.detail_label = QLabel(tr("health_grade_hint"))
         self.detail_label.setObjectName("cardSub")
         self.detail_label.setWordWrap(True)
         text_box.addWidget(self.detail_label)
@@ -76,10 +94,11 @@ class HealthPage(QWidget):
 
         buttons = QVBoxLayout()
         buttons.setSpacing(6)
-        self.scan_button = QPushButton("SCAN MY PC")
+        self.scan_button = QPushButton(tr("health_scan_btn"))
+        self.scan_button.setProperty("primary", True)
         self.scan_button.clicked.connect(self.start_scan)
         buttons.addWidget(self.scan_button)
-        self.fix_button = QPushButton("FIX ALL")
+        self.fix_button = QPushButton(tr("health_fix_btn"))
         self.fix_button.setProperty("secondary", True)
         self.fix_button.setEnabled(False)
         self.fix_button.clicked.connect(self.start_fix)
@@ -87,21 +106,23 @@ class HealthPage(QWidget):
         score_layout.addLayout(buttons)
         layout.addWidget(score_card)
 
-        self.findings_table = QTableWidget(0, len(HEALTH_COLUMNS))
-        self.findings_table.setHorizontalHeaderLabels(HEALTH_COLUMNS)
+        self.findings_table = QTableWidget(0, len(HEALTH_COLUMN_KEYS))
+        attach_empty_hint(self.findings_table, "empty_health")
+        self.findings_table.setHorizontalHeaderLabels([tr(k) for k in HEALTH_COLUMN_KEYS])
         self.findings_table.verticalHeader().setVisible(False)
         self.findings_table.setShowGrid(False)
         self.findings_table.setAlternatingRowColors(True)
         self.findings_table.setEditTriggers(QTableWidget.EditTrigger.NoEditTriggers)
         self.findings_table.setSelectionBehavior(QTableWidget.SelectionBehavior.SelectRows)
         header = self.findings_table.horizontalHeader()
+        header.setDefaultAlignment(Qt.AlignmentFlag.AlignLeft | Qt.AlignmentFlag.AlignVCenter)
         header.setSectionResizeMode(0, QHeaderView.ResizeMode.ResizeToContents)
         header.setSectionResizeMode(1, QHeaderView.ResizeMode.ResizeToContents)
         header.setSectionResizeMode(2, QHeaderView.ResizeMode.Stretch)
         header.setSectionResizeMode(3, QHeaderView.ResizeMode.Stretch)
         layout.addWidget(self.findings_table, 1)
 
-        self.status_label = QLabel("Idle")
+        self.status_label = QLabel(tr("health_idle"))
         self.status_label.setObjectName("cardSub")
         layout.addWidget(self.status_label)
 
@@ -109,12 +130,31 @@ class HealthPage(QWidget):
     def service(self) -> HealthService:
         return self._service
 
+    def retranslate(self) -> None:
+        """Refresh static texts after a language change."""
+        self._title.setText(tr("health_title"))
+        self._desc.setText(tr("health_desc"))
+        self.scan_button.setText(tr("health_scan_btn"))
+        self.fix_button.setText(tr("health_fix_btn"))
+        self.findings_table.setHorizontalHeaderLabels([tr(k) for k in HEALTH_COLUMN_KEYS])
+        for row in range(self.findings_table.rowCount()):
+            self._retranslate_finding_row(row)
+
+    def _retranslate_finding_row(self, row: int) -> None:
+        item = self.findings_table.item(row, 1)
+        if item is None:
+            return
+        severity = item.data(Qt.ItemDataRole.UserRole)
+        key = SEVERITY_TR.get(severity)
+        if key:
+            item.setText(tr(key))
+
     # ---------- scan ----------
 
     def start_scan(self) -> None:
         if self._task is not None:
             return
-        self.status_label.setText("Scanning your PC…")
+        self.status_label.setText(tr("health_scanning"))
         self._set_busy(True)
         self._task = Task(self._service.scan, parent=self)
         self._task.done.connect(self._after_scan)
@@ -125,17 +165,20 @@ class HealthPage(QWidget):
         self._task = None
         self._set_busy(False)
         if not isinstance(result, HealthReport):
-            self.status_label.setText(f"Scan failed: {result}")
+            self.status_label.setText(tr("health_scan_failed", msg=result))
             return
         self._report = result
         self._render_report(result)
+        ActivityLog.instance().health = (result.score, str(result.grade))
+        log_action(tr("act_health"), f"{result.score}/100")
 
     def _render_report(self, report: HealthReport) -> None:
         self.score_label.setText(str(report.score))
-        self.grade_label.setText(f"{report.grade}")
+        self.ring.set_value(report.score)
+        self.grade_label.setText(grade_text(report.grade))
         issues = sum(1 for f in report.findings if f.severity != "ok")
         self.detail_label.setText(
-            f"{issues} issue(s) found · temporary files: {report.junk_bytes / 1024**3:.2f} GB"
+            tr("health_detail", issues=issues, size=report.junk_bytes / 1024**3)
         )
 
         self.findings_table.setSortingEnabled(False)
@@ -146,19 +189,20 @@ class HealthPage(QWidget):
 
         self.fix_button.setEnabled(report.fixable_count > 0)
         if report.fixable_count:
-            self.status_label.setText(f"{report.fixable_count} automatic fix(es) available")
+            self.status_label.setText(tr("health_fix_available", count=report.fixable_count))
         else:
-            self.status_label.setText("Nothing to fix automatically")
+            self.status_label.setText(tr("health_nothing"))
 
     def _set_finding_row(self, row: int, finding: Finding) -> None:
         category = QTableWidgetItem(finding.category)
-        severity = QTableWidgetItem(finding.severity.upper())
-        severity.setForeground(QColor(SEVERITY_COLOR.get(finding.severity, "#c9d1d9")))
+        severity_item = QTableWidgetItem(tr(SEVERITY_TR.get(finding.severity, "health_sev_info")))
+        severity_item.setData(Qt.ItemDataRole.UserRole, finding.severity)
+        severity_item.setForeground(QColor(SEVERITY_COLOR.get(finding.severity, TEXT_DIM)))
         issue = QTableWidgetItem(finding.title)
         detail = QTableWidgetItem(finding.detail)
         detail.setToolTip(finding.fix_hint or finding.detail)
         self.findings_table.setItem(row, 0, category)
-        self.findings_table.setItem(row, 1, severity)
+        self.findings_table.setItem(row, 1, severity_item)
         self.findings_table.setItem(row, 2, issue)
         self.findings_table.setItem(row, 3, detail)
 
@@ -170,11 +214,11 @@ class HealthPage(QWidget):
         if not self._report.fixable_count:
             return
         if not self._ask_confirm(
-            "FIX ALL",
-            "This removes temporary files and caches (the Recycle Bin is kept).\n\nContinue?",
+            tr("health_fix_confirm_title"),
+            tr("health_fix_confirm_msg"),
         ):
             return
-        self.status_label.setText("Applying fixes…")
+        self.status_label.setText(tr("health_fixing"))
         self._set_busy(True)
         self._task = Task(self._service.fix_all, parent=self)
         self._task.done.connect(self._after_fix)
@@ -185,13 +229,13 @@ class HealthPage(QWidget):
         self._task = None
         if not isinstance(result, FixReport):
             self._set_busy(False)
-            self.status_label.setText(f"Fix failed: {result}")
+            self.status_label.setText(tr("health_fix_failed", msg=result))
             return
         reclaimed = result.reclaimed_bytes / 1024**3
-        self.status_label.setText(
-            f"Freed {reclaimed:.2f} GB ({result.files_deleted} files)"
-            + (f" · {len(result.errors)} error(s)" if result.errors else "")
-        )
+        message = tr("health_freed", size=reclaimed, files=result.files_deleted)
+        if result.errors:
+            message += " · " + tr("health_errors_n", count=len(result.errors))
+        self.status_label.setText(message)
         self._set_busy(False)
         self.start_scan()
 

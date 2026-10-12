@@ -1,7 +1,7 @@
 from __future__ import annotations
 
-from datetime import datetime
 import time
+from datetime import datetime
 
 from PySide6.QtCore import Qt
 from PySide6.QtWidgets import (
@@ -20,11 +20,42 @@ from PySide6.QtWidgets import (
     QWidget,
 )
 
+from app.i18n import tr
 from app.processes import ProcessInfo, ProcessService, ProcessServiceError, ProcessNotFound, ProtectedProcessError
 
 from .format import mb, uptime
+from .components import align_numeric_headers
+from .tasks import Task
 
-COLUMNS = ("Name", "PID", "CPU %", "Memory", "User")
+COLUMN_KEYS = ("proc_col_name", "proc_col_pid", "proc_col_cpu", "proc_col_mem", "proc_col_user")
+COLUMNS = tuple(tr(k) for k in COLUMN_KEYS)
+
+_DETAIL_TR: dict[str, str] = {
+    "user": "proc_detail_user",
+    "status": "proc_detail_status",
+    "cpu": "proc_detail_cpu",
+    "memory": "proc_detail_memory",
+    "started": "proc_detail_started",
+    "uptime": "proc_detail_uptime",
+    "threads": "proc_detail_threads",
+    "parent": "proc_detail_parent",
+}
+
+_REFRESH_INTERVAL_S = 2.0
+
+
+class _SizeItem(QTableWidgetItem):
+    """Shows formatted text but sorts by the raw byte count."""
+
+    def __init__(self, text: str, value: float) -> None:
+        super().__init__(text)
+        self._value = float(value)
+        self.setTextAlignment(Qt.AlignmentFlag.AlignRight | Qt.AlignmentFlag.AlignVCenter)
+
+    def __lt__(self, other) -> bool:
+        if isinstance(other, _SizeItem):
+            return self._value < other._value
+        return super().__lt__(other)
 
 
 class ProcessPage(QWidget):
@@ -33,24 +64,27 @@ class ProcessPage(QWidget):
         self.setObjectName("page")
         self._service = service or ProcessService()
         self._rows: dict[int, ProcessInfo] = {}
-        self._last_refresh_ts = 0.0
-        self._auto_refresh_interval = 3.0
+        self._task: Task | None = None
+        self._last_refresh = 0.0
 
         layout = QVBoxLayout(self)
         layout.setContentsMargins(40, 36, 40, 32)
         layout.setSpacing(10)
 
-        title = QLabel("Processes")
+        title = QLabel(tr("proc_title"))
         title.setObjectName("pageTitle")
         layout.addWidget(title)
-        desc = QLabel("Running processes — select a row for details, end protected processes is blocked")
+        desc = QLabel(tr("proc_desc"))
         desc.setObjectName("pageDesc")
         layout.addWidget(desc)
+
+        self._title = title
+        self._desc = desc
 
         toolbar = QHBoxLayout()
         toolbar.setSpacing(8)
         self.filter = QLineEdit()
-        self.filter.setPlaceholderText("Filter by name, PID or user…")
+        self.filter.setPlaceholderText(tr("proc_filter_placeholder"))
         self.filter.setClearButtonEnabled(True)
         self.filter.textChanged.connect(lambda _t: self.refresh())
         toolbar.addWidget(self.filter, 1)
@@ -59,12 +93,12 @@ class ProcessPage(QWidget):
         self.count_label.setObjectName("cardSub")
         toolbar.addWidget(self.count_label)
 
-        self.refresh_button = QPushButton("Refresh")
+        self.refresh_button = QPushButton(tr("proc_refresh"))
         self.refresh_button.setProperty("secondary", True)
         self.refresh_button.clicked.connect(self.refresh)
         toolbar.addWidget(self.refresh_button)
 
-        self.end_button = QPushButton("End process")
+        self.end_button = QPushButton(tr("proc_end"))
         self.end_button.setProperty("danger", True)
         self.end_button.setEnabled(False)
         self.end_button.clicked.connect(self.end_selected)
@@ -74,6 +108,7 @@ class ProcessPage(QWidget):
         splitter = QSplitter(Qt.Orientation.Horizontal)
         self.table = QTableWidget(0, len(COLUMNS))
         self.table.setHorizontalHeaderLabels(COLUMNS)
+        align_numeric_headers(self.table, (1, 2, 3))
         self.table.verticalHeader().setVisible(False)
         self.table.setShowGrid(False)
         self.table.setAlternatingRowColors(True)
@@ -81,6 +116,7 @@ class ProcessPage(QWidget):
         self.table.setSelectionMode(QAbstractItemView.SelectionMode.SingleSelection)
         self.table.setEditTriggers(QAbstractItemView.EditTrigger.NoEditTriggers)
         header = self.table.horizontalHeader()
+        header.setDefaultAlignment(Qt.AlignmentFlag.AlignLeft | Qt.AlignmentFlag.AlignVCenter)
         header.setSectionResizeMode(0, QHeaderView.ResizeMode.Stretch)
         for col in range(1, len(COLUMNS)):
             header.setSectionResizeMode(col, QHeaderView.ResizeMode.ResizeToContents)
@@ -96,11 +132,13 @@ class ProcessPage(QWidget):
         details_layout.setContentsMargins(18, 16, 18, 16)
         details_layout.setSpacing(8)
 
-        details_title = QLabel("DETAILS")
+        details_title = QLabel(tr("proc_details"))
         details_title.setObjectName("cardTitle")
         details_layout.addWidget(details_title)
 
-        self.detail_name = QLabel("Select a process")
+        self._details_title = details_title
+
+        self.detail_name = QLabel(tr("proc_select_hint"))
         self.detail_name.setObjectName("gpuName")
         self.detail_name.setWordWrap(True)
         details_layout.addWidget(self.detail_name)
@@ -140,28 +178,70 @@ class ProcessPage(QWidget):
         self.status_label.setObjectName("cardSub")
         layout.addWidget(self.status_label)
 
+        self._detail_info: ProcessInfo | None = None
+
+    def retranslate(self) -> None:
+        """Refresh static texts after a language change."""
+        self._title.setText(tr("proc_title"))
+        self._desc.setText(tr("proc_desc"))
+        self.filter.setPlaceholderText(tr("proc_filter_placeholder"))
+        self.refresh_button.setText(tr("proc_refresh"))
+        self.end_button.setText(tr("proc_end"))
+        self._details_title.setText(tr("proc_details"))
+        self.table.setHorizontalHeaderLabels(tuple(tr(k) for k in COLUMN_KEYS))
+        align_numeric_headers(self.table, (1, 2, 3))
+        if self._detail_info is None:
+            self.detail_name.setText(tr("proc_select_hint"))
+        else:
+            self.detail_name.setText(f"{self._detail_info.name} (PID {self._detail_info.pid})")
+            self._on_selection_changed()
+        if self._rows:
+            self.count_label.setText(tr("proc_count", count=len(self._rows)))
+
     @property
     def service(self) -> ProcessService:
         return self._service
 
     def showEvent(self, event) -> None:
         super().showEvent(event)
-        self.refresh()
+        self.start_refresh()
 
     def apply_snapshot(self, snapshot) -> None:
         if self.isVisible():
-            now = time.monotonic()
-            if now - self._last_refresh_ts >= self._auto_refresh_interval:
-                self.refresh()
+            self.start_refresh()
+
+    def start_refresh(self) -> None:
+        if self._task is not None:
+            return
+        now = time.monotonic()
+        if now - self._last_refresh < _REFRESH_INTERVAL_S:
+            return
+        self._last_refresh = now
+        self._task = Task(self._service.list, parent=self)
+        self._task.done.connect(self._apply_result)
+        self._task.failed.connect(self._on_task_failed)
+        self._task.start()
+
+    def _apply_result(self, result: object) -> None:
+        self._task = None
+        if not isinstance(result, list):
+            self.status_label.setText(tr("proc_failed_list", msg=result))
+            return
+        self._render(result)
+
+    def _on_task_failed(self, message: str) -> None:
+        self._task = None
+        self.status_label.setText(tr("proc_failed_list", msg=message))
 
     def refresh(self) -> None:
-        self._last_refresh_ts = time.monotonic()
         try:
             processes = self._service.list()
         except Exception as e:
-            self.status_label.setText(f"Failed to list processes: {e}")
+            self.status_label.setText(tr("proc_failed_list", msg=e))
             return
+        self._render(processes)
 
+    def _render(self, processes: list[ProcessInfo]) -> None:
         needle = self.filter.text().strip().lower()
         selected_pid = self._selected_pid()
 
@@ -183,13 +263,12 @@ class ProcessPage(QWidget):
             self.table.setItem(row, 0, name_item)
             self.table.setItem(row, 1, self._number_item(p.pid))
             self.table.setItem(row, 2, self._number_item(round(p.cpu_percent, 1)))
-            memory = QTableWidgetItem(mb(p.memory_bytes))
-            memory.setData(Qt.ItemDataRole.DisplayRole, float(p.memory_bytes))
+            memory = _SizeItem(mb(p.memory_bytes), p.memory_bytes)
             self.table.setItem(row, 3, memory)
             self.table.setItem(row, 4, QTableWidgetItem(p.username or "—"))
 
         self.table.setSortingEnabled(True)
-        self.count_label.setText(f"{len(filtered)} processes")
+        self.count_label.setText(tr("proc_count", count=len(filtered)))
 
         if selected_pid is not None and selected_pid in self._rows:
             self._select_pid(selected_pid)
@@ -201,17 +280,20 @@ class ProcessPage(QWidget):
     def _number_item(value: int | float) -> QTableWidgetItem:
         item = QTableWidgetItem()
         item.setData(Qt.ItemDataRole.DisplayRole, value)
+        item.setTextAlignment(Qt.AlignmentFlag.AlignRight | Qt.AlignmentFlag.AlignVCenter)
         return item
 
     def _selected_pid(self) -> int | None:
         row = self.table.currentRow()
-        if row >= 0:
-            item = self.table.item(row, 0)
+        if row < 0:
+            item = self.table.item(row, 0) if self.table.selectedItems() else None
         else:
-            selected = self.table.selectedItems()
-            item = selected[0] if selected else None
+            item = self.table.item(row, 0)
         if item is None:
-            return None
+            selected = self.table.selectedItems()
+            if not selected:
+                return None
+            item = selected[0]
         pid = item.data(Qt.ItemDataRole.UserRole)
         return int(pid) if pid is not None else None
 
@@ -230,8 +312,9 @@ class ProcessPage(QWidget):
                 info = self._service.details(pid)
             except Exception:
                 info = self._rows.get(pid)
+        self._detail_info = info
         if info is None:
-            self.detail_name.setText("Select a process")
+            self.detail_name.setText(tr("proc_select_hint"))
             for label in self.detail_rows.values():
                 label.setText("")
             self.detail_exe.setText("")
@@ -241,29 +324,31 @@ class ProcessPage(QWidget):
             return
 
         self.detail_name.setText(f"{info.name} (PID {info.pid})")
+        self.detail_rows["pid"].setText(f"PID  {info.pid}")
+        self.detail_rows["user"].setText(tr("proc_detail_user", value=info.username or "—"))
+        self.detail_rows["status"].setText(tr("proc_detail_status", value=info.status))
+        self.detail_rows["cpu"].setText(tr("proc_detail_cpu", value=f"{info.cpu_percent:.1f}%"))
+        self.detail_rows["memory"].setText(
+            tr("proc_detail_memory", value=mb(info.memory_bytes), pct=f"{info.memory_percent:.1f}%")
+        )
         started = (
             datetime.fromtimestamp(info.create_time).strftime("%Y-%m-%d %H:%M:%S")
             if info.create_time
             else "—"
         )
-        values = {
-            "pid": f"PID  {info.pid}",
-            "user": f"User  {info.username or '—'}",
-            "status": f"Status  {info.status}",
-            "cpu": f"CPU  {info.cpu_percent:.1f}%",
-            "memory": f"Memory  {mb(info.memory_bytes)} · {info.memory_percent:.1f}%",
-            "started": f"Started  {started}",
-            "uptime": f"Uptime  {uptime(info.uptime_seconds)}",
-            "threads": f"Threads  {info.num_threads if info.num_threads is not None else '—'}",
-            "parent": f"Parent  {info.ppid if info.ppid is not None else '—'}",
-        }
-        for key, text in values.items():
-            self.detail_rows[key].setText(text)
+        self.detail_rows["started"].setText(tr("proc_detail_started", value=started))
+        self.detail_rows["uptime"].setText(tr("proc_detail_uptime", value=uptime(info.uptime_seconds)))
+        self.detail_rows["threads"].setText(
+            tr("proc_detail_threads", value=info.num_threads if info.num_threads is not None else "—")
+        )
+        self.detail_rows["parent"].setText(
+            tr("proc_detail_parent", value=info.ppid if info.ppid is not None else "—")
+        )
 
-        self.detail_exe.setText(f"Path  {info.exe or '—'}")
-        self.detail_cmd.setText(f"Cmd  {info.cmdline or '—'}")
+        self.detail_exe.setText(tr("proc_detail_path", value=info.exe or "—"))
+        self.detail_cmd.setText(tr("proc_detail_cmd", value=info.cmdline or "—"))
         if info.protected_reason:
-            self.protected_badge.setText(f"PROTECTED · {info.protected_reason}")
+            self.protected_badge.setText(tr("proc_protected", reason=info.protected_reason))
             self.protected_badge.setVisible(True)
         else:
             self.protected_badge.setVisible(False)
@@ -272,8 +357,8 @@ class ProcessPage(QWidget):
     def _ask_confirm(self, info: ProcessInfo) -> bool:
         answer = QMessageBox.question(
             self,
-            "End process",
-            f"Terminate {info.name} (PID {info.pid})?",
+            tr("proc_confirm_title"),
+            tr("proc_confirm_msg", name=info.name, pid=info.pid),
             QMessageBox.StandardButton.Yes | QMessageBox.StandardButton.No,
             QMessageBox.StandardButton.No,
         )
@@ -292,14 +377,15 @@ class ProcessPage(QWidget):
         try:
             ended = self._service.terminate(info.pid)
         except ProtectedProcessError as e:
-            self._warn("Protected process", str(e))
+            self._warn(tr("proc_protected_title"), str(e))
             return
         except ProcessNotFound:
-            self.status_label.setText(f"{info.name} already exited")
+            self.status_label.setText(tr("proc_already_exited", name=info.name))
             self.refresh()
             return
         except ProcessServiceError as e:
-            self._warn("Cannot end process", str(e))
+            self._warn(tr("proc_cannot_end"), str(e))
             return
-        self.status_label.setText(f"{'Ended' if ended else 'Failed to end'} {info.name} (PID {info.pid})")
+        key = "proc_ended" if ended else "proc_end_failed"
+        self.status_label.setText(tr(key, name=info.name, pid=info.pid))
         self.refresh()

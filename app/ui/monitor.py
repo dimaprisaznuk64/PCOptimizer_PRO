@@ -3,11 +3,23 @@ from __future__ import annotations
 from PySide6.QtCore import Qt
 from PySide6.QtWidgets import QFrame, QGridLayout, QLabel, QVBoxLayout, QWidget
 
+from app.i18n import tr
 from app.sensors import Snapshot
 
-from .components import Bar, CardPanel, Sparkline, level_color
+from .components import Bar, CardPanel, Sparkline
 from .format import gb, rate
+
 from .theme import ACCENT, ACCENT_HOVER, DANGER, OK
+
+
+def _level_color(percent: float | None) -> str:
+    if percent is None:
+        return ACCENT
+    if percent >= 90:
+        return DANGER
+    if percent >= 70:
+        return ACCENT
+    return ACCENT_HOVER
 
 
 class _Card(QFrame):
@@ -20,10 +32,14 @@ class _Card(QFrame):
         label = QLabel(title.upper())
         label.setObjectName("cardTitle")
         self._layout.addWidget(label)
+        self.title_label = label
         self.body = QVBoxLayout()
         self.body.setSpacing(6)
         self._layout.addLayout(self.body)
         self._layout.addStretch(1)
+
+    def set_title(self, text: str) -> None:
+        self.title_label.setText(text.upper())
 
 
 class CoreBars(QWidget):
@@ -50,7 +66,7 @@ class CoreBars(QWidget):
             bar.setVisible(True)
             text.setVisible(True)
             bar.set_percent(value)
-            bar.set_color(level_color(value))
+            bar.set_color(_level_color(value))
             text.setText(f"{value:.0f}%")
 
     def _rebuild(self, count: int) -> None:
@@ -87,12 +103,15 @@ class MonitorPage(QWidget):
         layout.setContentsMargins(40, 36, 40, 32)
         layout.setSpacing(6)
 
-        title = QLabel("System Monitor")
+        title = QLabel(tr("mon_title"))
         title.setObjectName("pageTitle")
         layout.addWidget(title)
-        desc = QLabel("CPU, memory, storage and network detail — updates every second")
+        desc = QLabel(tr("mon_desc"))
         desc.setObjectName("pageDesc")
         layout.addWidget(desc)
+
+        self._title = title
+        self._desc = desc
 
         grid = QGridLayout()
         grid.setContentsMargins(0, 18, 0, 0)
@@ -101,8 +120,8 @@ class MonitorPage(QWidget):
         cpu_card = self._build_cpu_card()
         mem_card = self._build_memory_card()
         net_card = self._build_network_card()
-        self.disks = CardPanel("Storage")
-        self.thermals = CardPanel("Thermals")
+        self.disks = CardPanel(tr("mon_storage"))
+        self.thermals = CardPanel(tr("mon_thermals"))
 
         grid.addWidget(cpu_card, 0, 0, 1, 4)
         grid.addWidget(mem_card, 1, 0, 1, 2)
@@ -122,7 +141,7 @@ class MonitorPage(QWidget):
         layout.addWidget(self.errors)
 
     def _build_cpu_card(self) -> QFrame:
-        card = _Card("CPU")
+        card = _Card(tr("dash_cpu"))
         row = QGridLayout()
         row.setSpacing(16)
 
@@ -140,19 +159,21 @@ class MonitorPage(QWidget):
         box.setFixedWidth(200)
         row.addWidget(box, 0, 0)
 
-        self.cpu_spark = Sparkline(ACCENT, points=180, height=96, value_range=(0, 100))
+        self.cpu_spark = Sparkline(ACCENT, points=180, height=96)
         row.addWidget(self.cpu_spark, 0, 1)
 
-        core_label = QLabel("PER-CORE USAGE")
+        core_label = QLabel(tr("mon_per_core"))
         core_label.setObjectName("cardTitle")
         card.body.addWidget(core_label)
         card.body.addLayout(row)
         self.cores = CoreBars()
         card.body.addWidget(self.cores)
+        self._core_title = core_label
+        self._cpu_card = card
         return card
 
     def _build_memory_card(self) -> QFrame:
-        card = _Card("Memory")
+        card = _Card(tr("dash_mem"))
         self.mem_value = QLabel("—")
         self.mem_value.setObjectName("cardValue")
         card.body.addWidget(self.mem_value)
@@ -161,17 +182,18 @@ class MonitorPage(QWidget):
         card.body.addWidget(self.mem_sub)
         self.mem_bar = Bar(ACCENT, height=10)
         card.body.addWidget(self.mem_bar)
-        self.mem_spark = Sparkline(ACCENT, points=90, height=44, value_range=(0, 100))
+        self.mem_spark = Sparkline(ACCENT, points=90, height=44)
         card.body.addWidget(self.mem_spark)
         self.swap_sub = QLabel("")
         self.swap_sub.setObjectName("cardSub")
         card.body.addWidget(self.swap_sub)
         self.swap_bar = Bar(ACCENT_HOVER, height=8)
         card.body.addWidget(self.swap_bar)
+        self._mem_card = card
         return card
 
     def _build_network_card(self) -> QFrame:
-        card = _Card("Network")
+        card = _Card(tr("dash_net"))
         self.net_down_value = QLabel("—")
         self.net_down_value.setObjectName("cardValue")
         card.body.addWidget(self.net_down_value)
@@ -189,36 +211,48 @@ class MonitorPage(QWidget):
         self.net_total_sub.setObjectName("cardSub")
         self.net_total_sub.setWordWrap(True)
         card.body.addWidget(self.net_total_sub)
+        self._net_card = card
         return card
+
+    def retranslate(self) -> None:
+        """Refresh static texts after a language change."""
+        self._title.setText(tr("mon_title"))
+        self._desc.setText(tr("mon_desc"))
+        self._cpu_card.set_title(tr("dash_cpu"))
+        self._mem_card.set_title(tr("dash_mem"))
+        self._net_card.set_title(tr("dash_net"))
+        self._core_title.setText(tr("mon_per_core"))
+        self.disks.set_title(tr("mon_storage"))
+        self.thermals.set_title(tr("mon_thermals"))
 
     def apply_snapshot(self, s: Snapshot) -> None:
         if s.cpu:
             c = s.cpu
             freq = f" · {c.freq_mhz:.0f}MHz" if c.freq_mhz else ""
             self.cpu_value.setText(f"{c.percent:.0f}%")
-            self.cpu_sub.setText(f"{c.physical_cores} cores / {c.logical_cores} threads{freq}")
+            self.cpu_sub.setText(tr("mon_cores", physical=c.physical_cores, logical=c.logical_cores) + freq)
             self.cpu_spark.add(c.percent)
             self.cores.set_percents(c.per_core)
 
         if s.memory:
             m = s.memory
             self.mem_value.setText(f"{m.percent:.0f}%")
-            self.mem_sub.setText(f"{gb(m.used)} used / {gb(m.total)} · {gb(m.available)} available")
+            self.mem_sub.setText(tr("mon_used_total", used=gb(m.used), total=gb(m.total), available=gb(m.available)))
             self.mem_bar.set_percent(m.percent)
-            self.mem_bar.set_color(level_color(m.percent))
+            self.mem_bar.set_color(_level_color(m.percent))
             self.mem_spark.add(m.percent)
-            self.swap_sub.setText(f"Swap {gb(m.swap_used)} / {gb(m.swap_total)} · {m.swap_percent:.0f}%")
+            self.swap_sub.setText(tr("mon_swap", used=gb(m.swap_used), total=gb(m.swap_total), pct=m.swap_percent))
             self.swap_bar.set_percent(m.swap_percent)
-            self.swap_bar.set_color(level_color(m.swap_percent))
+            self.swap_bar.set_color(_level_color(m.swap_percent))
 
         if s.net:
             n = s.net
             self.net_down_value.setText(f"{rate(n.recv_rate)}/s")
-            self.net_down_sub.setText(f"download · {n.packets_recv:,} packets")
+            self.net_down_sub.setText(tr("mon_down_sub", packets=f"{n.packets_recv:,}"))
             self.net_down_spark.add(n.recv_rate)
-            self.net_up_value.setText(f"↑ {rate(n.send_rate)}/s · {n.packets_sent:,} packets")
+            self.net_up_value.setText(tr("mon_up_sub", rate=rate(n.send_rate), packets=f"{n.packets_sent:,}"))
             self.net_up_spark.add(n.send_rate)
-            self.net_total_sub.setText(f"total ↓{gb(n.bytes_recv)} ↑{gb(n.bytes_sent)}")
+            self.net_total_sub.setText(tr("mon_total_sub", down=gb(n.bytes_recv), up=gb(n.bytes_sent)))
 
         if s.disks:
             rows = [
@@ -237,7 +271,7 @@ class MonitorPage(QWidget):
             )
 
         if s.errors:
-            self.errors.setText("Sensors: " + " · ".join(f"{k}: {v}" for k, v in s.errors.items()))
+            self.errors.setText(tr("mon_sensors", msg=" · ".join(f"{k}: {v}" for k, v in s.errors.items())))
             self.errors.setVisible(True)
         else:
             self.errors.setText("")

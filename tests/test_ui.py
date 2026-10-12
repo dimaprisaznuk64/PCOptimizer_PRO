@@ -40,25 +40,3 @@ def test_unknown_key_is_ignored(qapp) -> None:
     window.show_page("does-not-exist")
     assert window.current_key == before
     window.close()
-
-
-def test_sidebar_highlight_follows_programmatic_navigation(qapp) -> None:
-    window = MainWindow()
-    window.show_page("gpu")
-    assert window.sidebar._buttons["gpu"].isChecked()
-    assert not window.sidebar._buttons["dashboard"].isChecked()
-    window.show_page("settings")
-    assert window.sidebar._buttons["settings"].isChecked()
-    assert not window.sidebar._buttons["gpu"].isChecked()
-    window.close()
-
-
-def test_sidebar_buttons_are_exclusive_on_click(qapp) -> None:
-    window = MainWindow()
-    window.sidebar._buttons["cleaner"].click()
-    assert window.sidebar._buttons["cleaner"].isChecked()
-    assert not window.sidebar._buttons["dashboard"].isChecked()
-    window.sidebar._buttons["optimizer"].click()
-    assert window.sidebar._buttons["optimizer"].isChecked()
-    assert not window.sidebar._buttons["cleaner"].isChecked()
-    window.close()

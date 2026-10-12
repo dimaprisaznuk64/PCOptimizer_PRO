@@ -62,16 +62,19 @@ def test_save_sets_up_logging(qapp, tmp_path) -> None:
 
 
 def test_reset_restores_defaults(qapp, tmp_path) -> None:
+    from app.i18n import I18nService, tr
+
     page = _page(qapp, tmp_path)
     page.interval_combo.setCurrentIndex(page.interval_combo.findData(5000))
     page.minimize_check.setChecked(False)
     page.save()
     assert SettingsService(tmp_path / "settings.json").get("sample_interval_ms") == 5000
 
+    I18nService.instance().set_language("EN", emit=False)
     page.reset()
     assert page.interval_combo.currentData() == DEFAULTS["sample_interval_ms"]
     assert page.minimize_check.isChecked() is True
-    assert page.status_label.text() == "Defaults restored"
+    assert page.status_label.text() == tr("set_reset_done") == "Defaults restored"
     assert SettingsService(tmp_path / "settings.json").get("sample_interval_ms") == DEFAULTS[
         "sample_interval_ms"
     ]
@@ -106,6 +109,8 @@ def test_collect_values_shape(qapp, tmp_path) -> None:
         "start_minimized",
         "tray_metrics",
         "log_level",
+        "theme",
+        "language",
     }
     assert isinstance(values["sample_interval_ms"], int)
     assert isinstance(values["minimize_to_tray"], bool)

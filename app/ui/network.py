@@ -17,12 +17,15 @@ from PySide6.QtWidgets import (
     QWidget,
 )
 
+from app.i18n import tr
+from .components import attach_empty_hint
 from app.network import DEFAULT_PING_HOST, CheckResult, NetworkService, PingResult
 
+from .activity import record as log_action
 from .tasks import Task
 
-PING_COLUMNS = ("Time", "Host", "Avg", "Loss", "Result")
-DIAG_COLUMNS = ("Check", "Status", "Detail")
+PING_COLUMN_KEYS = ("net_col_time", "net_col_host", "net_col_avg", "net_col_loss", "net_col_result")
+DIAG_COLUMN_KEYS = ("net_col_check", "net_col_status", "net_col_detail")
 
 
 class NetworkPage(QWidget):
@@ -37,16 +40,16 @@ class NetworkPage(QWidget):
         layout.setContentsMargins(40, 36, 40, 32)
         layout.setSpacing(10)
 
-        title = QLabel("Network")
+        title = QLabel(tr("net_title"))
         title.setObjectName("pageTitle")
         layout.addWidget(title)
-        desc = QLabel(
-            "Ping monitor and safe connectivity diagnostics. "
-            "Checks are read-only; the only action is flushing the DNS cache."
-        )
+        desc = QLabel(tr("net_desc"))
         desc.setObjectName("pageDesc")
         desc.setWordWrap(True)
         layout.addWidget(desc)
+
+        self._title = title
+        self._desc = desc
 
         splitter = QSplitter(Qt.Orientation.Horizontal)
 
@@ -56,37 +59,41 @@ class NetworkPage(QWidget):
         ping_layout.setContentsMargins(18, 16, 18, 16)
         ping_layout.setSpacing(8)
 
-        ping_title = QLabel("PING MONITOR")
+        ping_title = QLabel(tr("net_ping_title"))
         ping_title.setObjectName("cardTitle")
         ping_layout.addWidget(ping_title)
+        self._ping_title = ping_title
 
         controls = QHBoxLayout()
         self.host_input = QLineEdit(DEFAULT_PING_HOST)
-        self.host_input.setPlaceholderText("host or IP")
+        self.host_input.setPlaceholderText(tr("net_host_placeholder"))
         controls.addWidget(self.host_input, 1)
-        self.ping_button = QPushButton("Ping ×4")
+        self.ping_button = QPushButton(tr("net_ping_btn"))
+        self.ping_button.setProperty("primary", True)
         self.ping_button.clicked.connect(self.start_ping)
         controls.addWidget(self.ping_button)
         ping_layout.addLayout(controls)
 
         summary = QHBoxLayout()
-        self.avg_label = QLabel("avg —")
-        self.avg_label.setObjectName("cardValue")
-        self.loss_label = QLabel("loss —")
-        self.loss_label.setObjectName("cardValue")
+        self.avg_label = QLabel(tr("net_avg_none"))
+        self.avg_label.setObjectName("statValue")
+        self.loss_label = QLabel(tr("net_loss_n", pct=0))
+        self.loss_label.setObjectName("statValue")
         summary.addWidget(self.avg_label)
         summary.addWidget(self.loss_label)
         summary.addStretch(1)
         ping_layout.addLayout(summary)
 
-        self.ping_table = QTableWidget(0, len(PING_COLUMNS))
-        self.ping_table.setHorizontalHeaderLabels(PING_COLUMNS)
+        self.ping_table = QTableWidget(0, len(PING_COLUMN_KEYS))
+        attach_empty_hint(self.ping_table, "empty_ping")
+        self.ping_table.setHorizontalHeaderLabels([tr(k) for k in PING_COLUMN_KEYS])
         self.ping_table.verticalHeader().setVisible(False)
         self.ping_table.setShowGrid(False)
         self.ping_table.setAlternatingRowColors(True)
         self.ping_table.setEditTriggers(QTableWidget.EditTrigger.NoEditTriggers)
         self.ping_table.setSelectionMode(QTableWidget.SelectionMode.NoSelection)
         header = self.ping_table.horizontalHeader()
+        header.setDefaultAlignment(Qt.AlignmentFlag.AlignLeft | Qt.AlignmentFlag.AlignVCenter)
         header.setSectionResizeMode(0, QHeaderView.ResizeMode.ResizeToContents)
         header.setSectionResizeMode(1, QHeaderView.ResizeMode.Stretch)
         header.setSectionResizeMode(2, QHeaderView.ResizeMode.ResizeToContents)
@@ -102,33 +109,37 @@ class NetworkPage(QWidget):
         diag_layout.setSpacing(8)
 
         diag_head = QHBoxLayout()
-        diag_title = QLabel("DIAGNOSTICS")
+        diag_title = QLabel(tr("net_diag_title"))
         diag_title.setObjectName("cardTitle")
         diag_head.addWidget(diag_title)
+        self._diag_title = diag_title
         diag_head.addStretch(1)
-        self.diag_button = QPushButton("Run checks")
+        self.diag_button = QPushButton(tr("net_diag_btn"))
+        self.diag_button.setProperty("primary", True)
         self.diag_button.clicked.connect(self.start_diagnostics)
         diag_head.addWidget(self.diag_button)
-        self.flush_button = QPushButton("Flush DNS")
+        self.flush_button = QPushButton(tr("net_flush_btn"))
         self.flush_button.setProperty("secondary", True)
         self.flush_button.clicked.connect(self.start_flush)
         diag_head.addWidget(self.flush_button)
         diag_layout.addLayout(diag_head)
 
-        self.diag_table = QTableWidget(0, len(DIAG_COLUMNS))
-        self.diag_table.setHorizontalHeaderLabels(DIAG_COLUMNS)
+        self.diag_table = QTableWidget(0, len(DIAG_COLUMN_KEYS))
+        attach_empty_hint(self.diag_table, "empty_diag")
+        self.diag_table.setHorizontalHeaderLabels([tr(k) for k in DIAG_COLUMN_KEYS])
         self.diag_table.verticalHeader().setVisible(False)
         self.diag_table.setShowGrid(False)
         self.diag_table.setAlternatingRowColors(True)
         self.diag_table.setEditTriggers(QTableWidget.EditTrigger.NoEditTriggers)
         self.diag_table.setSelectionMode(QTableWidget.SelectionMode.NoSelection)
         diag_header = self.diag_table.horizontalHeader()
+        diag_header.setDefaultAlignment(Qt.AlignmentFlag.AlignLeft | Qt.AlignmentFlag.AlignVCenter)
         diag_header.setSectionResizeMode(0, QHeaderView.ResizeMode.ResizeToContents)
         diag_header.setSectionResizeMode(1, QHeaderView.ResizeMode.ResizeToContents)
         diag_header.setSectionResizeMode(2, QHeaderView.ResizeMode.Stretch)
         diag_layout.addWidget(self.diag_table, 1)
 
-        self.status_label = QLabel("Idle")
+        self.status_label = QLabel(tr("net_idle"))
         self.status_label.setObjectName("cardSub")
         diag_layout.addWidget(self.status_label)
         splitter.addWidget(diag_card)
@@ -140,13 +151,27 @@ class NetworkPage(QWidget):
     def service(self) -> NetworkService:
         return self._service
 
+    def retranslate(self) -> None:
+        """Refresh static texts after a language change."""
+        self._title.setText(tr("net_title"))
+        self._desc.setText(tr("net_desc"))
+        self._ping_title.setText(tr("net_ping_title"))
+        self._diag_title.setText(tr("net_diag_title"))
+        self.host_input.setPlaceholderText(tr("net_host_placeholder"))
+        self.ping_button.setText(tr("net_ping_btn"))
+        self.diag_button.setText(tr("net_diag_btn"))
+        self.flush_button.setText(tr("net_flush_btn"))
+        self.avg_label.setText(tr("net_avg_none") if not self._results else self.avg_label.text())
+        self.ping_table.setHorizontalHeaderLabels([tr(k) for k in PING_COLUMN_KEYS])
+        self.diag_table.setHorizontalHeaderLabels([tr(k) for k in DIAG_COLUMN_KEYS])
+
     # ---------- ping ----------
 
     def start_ping(self) -> None:
         if self._task is not None:
             return
         host = self.host_input.text().strip() or DEFAULT_PING_HOST
-        self.status_label.setText(f"Pinging {host}…")
+        self.status_label.setText(tr("net_pinging", host=host))
         self._set_busy(True)
         self._task = Task(lambda: self._service.ping(host, 4), parent=self)
         self._task.done.connect(self._after_ping)
@@ -157,7 +182,7 @@ class NetworkPage(QWidget):
         self._task = None
         self._set_busy(False)
         if not isinstance(result, PingResult):
-            self.status_label.setText(f"Ping failed: {result}")
+            self.status_label.setText(tr("net_ping_failed", msg=result))
             return
         self._results.append(result)
         self._render_ping(result)
@@ -166,7 +191,7 @@ class NetworkPage(QWidget):
             self.status_label.setText(f"{result.host}: {result.error}")
         else:
             self.status_label.setText(
-                f"{result.host}: {result.received}/{result.sent} · avg {result.avg_ms}ms"
+                tr("net_ping_result", host=result.host, received=result.received, sent=result.sent, avg=result.avg_ms, avg_unit="ms")
             )
 
     def _render_ping(self, result: PingResult) -> None:
@@ -178,23 +203,23 @@ class NetworkPage(QWidget):
         avg = f"{result.avg_ms}ms" if result.avg_ms is not None else "—"
         self.ping_table.setItem(row, 2, QTableWidgetItem(avg))
         self.ping_table.setItem(row, 3, QTableWidgetItem(f"{result.loss_percent:g}%"))
-        status = result.error or "ok"
+        status = result.error or tr("net_overall_ok")
         self.ping_table.setItem(row, 4, QTableWidgetItem(status))
         self.ping_table.setSortingEnabled(True)
 
     def _update_ping_summary(self, result: PingResult) -> None:
         if result.avg_ms is not None:
-            self.avg_label.setText(f"avg {result.avg_ms}ms")
+            self.avg_label.setText(f"{tr('net_avg')} {result.avg_ms}ms")
         else:
-            self.avg_label.setText("avg —")
-        self.loss_label.setText(f"loss {result.loss_percent:g}%")
+            self.avg_label.setText(tr("net_avg_none"))
+        self.loss_label.setText(tr("net_loss_n", pct=result.loss_percent))
 
     # ---------- diagnostics ----------
 
     def start_diagnostics(self) -> None:
         if self._task is not None:
             return
-        self.status_label.setText("Running checks…")
+        self.status_label.setText(tr("net_running"))
         self._set_busy(True)
         self._task = Task(self._service.diagnostics, parent=self)
         self._task.done.connect(self._after_diagnostics)
@@ -205,14 +230,14 @@ class NetworkPage(QWidget):
         self._task = None
         self._set_busy(False)
         if not isinstance(result, list):
-            self.status_label.setText(f"Diagnostics failed: {result}")
+            self.status_label.setText(tr("net_diag_failed", msg=result))
             return
         checks = [r for r in result if isinstance(r, CheckResult)]
         self.diag_table.setSortingEnabled(False)
         self.diag_table.setRowCount(len(checks))
         for row, check in enumerate(checks):
             name_item = QTableWidgetItem(check.name)
-            status_item = QTableWidgetItem("OK" if check.ok else "FAIL")
+            status_item = QTableWidgetItem(tr("net_ok_short") if check.ok else tr("net_fail_short"))
             detail_item = QTableWidgetItem(check.detail)
             detail_item.setToolTip(check.detail)
             self.diag_table.setItem(row, 0, name_item)
@@ -221,15 +246,15 @@ class NetworkPage(QWidget):
         self.diag_table.setSortingEnabled(True)
         failed = sum(1 for c in checks if not c.ok)
         self.status_label.setText(
-            f"{len(checks) - failed}/{len(checks)} checks passed"
+            tr("net_checks_partial", ok=len(checks) - failed, total=len(checks))
             if failed
-            else f"all {len(checks)} checks passed"
+            else tr("net_checks_all", total=len(checks))
         )
 
     def start_flush(self) -> None:
         if self._task is not None:
             return
-        self.status_label.setText("Flushing DNS cache…")
+        self.status_label.setText(tr("net_flushing"))
         self._set_busy(True)
         self._task = Task(self._service.flush_dns, parent=self)
         self._task.done.connect(self._after_flush)
@@ -240,13 +265,14 @@ class NetworkPage(QWidget):
         self._task = None
         self._set_busy(False)
         self.status_label.setText(str(result))
+        log_action(tr("act_dns"), tr("act_done"))
 
     # ---------- misc ----------
 
     def _on_task_failed(self, message: str) -> None:
         self._task = None
         self._set_busy(False)
-        self.status_label.setText(f"Failed: {message}")
+        self.status_label.setText(tr("net_failed", msg=message))
 
     def _set_busy(self, busy: bool) -> None:
         self.ping_button.setEnabled(not busy)

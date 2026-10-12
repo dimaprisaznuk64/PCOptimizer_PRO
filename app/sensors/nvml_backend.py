@@ -23,6 +23,7 @@ class NvmlBackend(Backend):
             raise SensorUnavailable(f"NVML device query failed: {e}") from e
         if not self._handles:
             raise SensorUnavailable("no NVIDIA GPUs reported by NVML")
+        self._last: dict[int, GpuStat] = {}
 
     def _opt(self, fn):
         try:
@@ -32,11 +33,29 @@ class NvmlBackend(Backend):
 
     def _read(self, index: int, handle) -> GpuStat:
         nvml = self._nvml
-        name = nvml.nvmlDeviceGetName(handle)
+        prev = self._last.get(index)
+
+        # On laptops with hybrid graphics the GPU may be asleep, and some NVML
+        # calls (notably utilization) intermittently return NVML_ERROR_UNKNOWN.
+        # Read best-effort and fall back to the last known values so the GPU
+        # stays visible instead of dropping out of the snapshot.
+        name = self._opt(lambda: nvml.nvmlDeviceGetName(handle))
         if isinstance(name, bytes):
             name = name.decode(errors="replace")
-        util = nvml.nvmlDeviceGetUtilizationRates(handle)
-        mem = nvml.nvmlDeviceGetMemoryInfo(handle)
+        if not name:
+            name = prev.name if prev is not None else f"GPU {index}"
+
+        util = self._opt(lambda: nvml.nvmlDeviceGetUtilizationRates(handle))
+        utilization = float(util.gpu) if util is not None else (prev.utilization if prev is not None else 0.0)
+
+        mem = self._opt(lambda: nvml.nvmlDeviceGetMemoryInfo(handle))
+        if mem is not None:
+            memory_used, memory_total = int(mem.used), int(mem.total)
+        elif prev is not None:
+            memory_used, memory_total = prev.memory_used, prev.memory_total
+        else:
+            memory_used = memory_total = 0
+
         temperature = self._opt(lambda: nvml.nvmlDeviceGetTemperature(handle, nvml.NVML_TEMPERATURE_GPU))
         power_w = self._opt(lambda: nvml.nvmlDeviceGetPowerUsage(handle) / 1000.0)
         fan_percent = self._opt(lambda: float(nvml.nvmlDeviceGetFanSpeed(handle)))
@@ -46,18 +65,23 @@ class NvmlBackend(Backend):
             or self._opt(lambda: nvml.nvmlDeviceGetPowerManagementDefaultLimit(handle) / 1000.0)
             or self._opt(lambda: nvml.nvmlDeviceGetEnforcedPowerLimit(handle) / 1000.0)
         )
-        return GpuStat(
+        if power_limit_w is None and prev is not None:
+            power_limit_w = prev.power_limit_w
+
+        stat = GpuStat(
             index=index,
             name=name,
-            utilization=float(util.gpu),
-            memory_used=mem.used,
-            memory_total=mem.total,
+            utilization=utilization,
+            memory_used=memory_used,
+            memory_total=memory_total,
             temperature=float(temperature) if temperature is not None else None,
             power_w=power_w,
             fan_percent=fan_percent,
             clock_mhz=clock_mhz,
             power_limit_w=power_limit_w,
         )
+        self._last[index] = stat
+        return stat
 
     def collect(self) -> Partial:
         return {"gpus": tuple(self._read(i, h) for i, h in enumerate(self._handles))}

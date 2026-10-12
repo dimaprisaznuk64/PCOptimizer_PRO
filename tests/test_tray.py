@@ -2,13 +2,14 @@ from __future__ import annotations
 
 from PySide6.QtGui import QCloseEvent
 from PySide6.QtWidgets import QSystemTrayIcon
+from PySide6.QtWidgets import QApplication
 
 from app.settings import SettingsService
 from app.ui.main_window import MainWindow
 from app.ui.tray import AppTray, build_icon
 
 
-def test_build_icon_returns_icon() -> None:
+def test_build_icon_returns_icon(qapp) -> None:
     icon = build_icon()
     assert not icon.isNull()
 
@@ -98,6 +99,18 @@ def test_quit_app_forces_close(qapp, tmp_path) -> None:
     window.quit_app()
     assert window._force_quit is True
     assert not window.isVisible()
+
+
+def test_quit_app_exits_event_loop(qapp, tmp_path, monkeypatch) -> None:
+    window = MainWindow(settings=SettingsService(tmp_path / "settings.json"))
+    tray = AppTray(parent=qapp)
+    window.attach_tray(tray)
+    window.hide()
+
+    calls: list[int] = []
+    monkeypatch.setattr(QApplication, "quit", lambda self: calls.append(1))
+    window.quit_app()
+    assert calls == [1]
 
 
 def test_gaming_action_opens_page(qapp, tmp_path) -> None:

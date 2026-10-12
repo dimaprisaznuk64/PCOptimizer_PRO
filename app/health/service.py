@@ -79,7 +79,7 @@ class HealthService:
         startup: StartupService | None = None,
         optimizer: OptimizerService | None = None,
     ) -> None:
-        self._sensors = sensors or SensorManager()
+        self._sensors = sensors if sensors is not None else SensorManager.with_defaults()
         self._disks = disks or DiskAnalyzer()
         self._cleaner = cleaner or CleanerService()
         self._startup = startup or StartupService()
