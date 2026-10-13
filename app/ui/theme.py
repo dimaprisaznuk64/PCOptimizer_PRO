@@ -76,6 +76,45 @@ PALETTES: dict[str, dict] = {
         "OK_BG": "#0e2616", "HERO_TOP": "#0d1d3d", "BRAND_A": "#5a9bff", "BRAND_B": "#7a5cff",
         "GLOW_ALPHA_A": 55, "GLOW_ALPHA_B": 35, "C1": "#2f80ff", "C2": "#9b6dff", "C3": "#19d3e0", "C4": "#ffb03a",
     },
+    "MATRIX": {
+        **_BASE,
+        "BG": "#050A06", "PANEL": "#08130B", "PANEL_ALT": "#0E1F12", "BORDER": "#17361F", "BORDER_HI": "#245C33",
+        "TEXT": "#E6FFEE", "TEXT_DIM": "#7FB894", "ACCENT": "#22FF88", "ACCENT_HOVER": "#5CFFAA",
+        "ACCENT_TINT": "#0A3320", "ACCENT_PRESSED": "#00CC66", "ON_ACCENT": "#04140A",
+        "DANGER": "#FF4D4D", "OK": "#33FF88", "WARN": "#FFC53D",
+        "SIDEBAR_TOP": "#07140B", "SIDEBAR_BOTTOM": "#040A06", "HOVER": "#10281A",
+        "DANGER_BG": "#251012", "DANGER_BORDER": "#5C2226", "DANGER_BG_HOVER": "#33171A",
+        "OK_BG": "#0A2616", "WARN_BG": "#2A2410", "HERO_TOP": "#0A2A18",
+        "BRAND_A": "#22FF88", "BRAND_B": "#00E0B0", "GLOW_A": "#00FF7F", "GLOW_B": "#22FF88",
+        "GLOW_ALPHA_A": 40, "GLOW_ALPHA_B": 28,
+        "C1": "#33FF88", "C2": "#00E0B0", "C3": "#A0FF3C", "C4": "#FFD24A",
+    },
+    "CYBERPUNK": {
+        **_BASE,
+        "BG": "#0A0410", "PANEL": "#140A1F", "PANEL_ALT": "#1E1030", "BORDER": "#33184F", "BORDER_HI": "#5A2A88",
+        "TEXT": "#FCE9FF", "TEXT_DIM": "#B78FD6", "ACCENT": "#FF2FB4", "ACCENT_HOVER": "#FF6CC8",
+        "ACCENT_TINT": "#3A1040", "ACCENT_PRESSED": "#D40094", "ON_ACCENT": "#FFFFFF",
+        "DANGER": "#FF4D6D", "OK": "#00E5D4", "WARN": "#FFB020",
+        "SIDEBAR_TOP": "#160725", "SIDEBAR_BOTTOM": "#0A0410", "HOVER": "#241236",
+        "DANGER_BG": "#2E0F1E", "DANGER_BORDER": "#5C1E38", "DANGER_BG_HOVER": "#3D1428",
+        "OK_BG": "#06322E", "WARN_BG": "#33260A", "HERO_TOP": "#2A0B3A",
+        "BRAND_A": "#FF2FB4", "BRAND_B": "#00E5D4", "GLOW_A": "#FF2FB4", "GLOW_B": "#00E5D4",
+        "GLOW_ALPHA_A": 50, "GLOW_ALPHA_B": 32,
+        "C1": "#FF2FB4", "C2": "#00E5D4", "C3": "#8A5CFF", "C4": "#FFD24A",
+    },
+    "NORD": {
+        **_BASE,
+        "BG": "#2E3440", "PANEL": "#3B4252", "PANEL_ALT": "#434C5E", "BORDER": "#4C566A", "BORDER_HI": "#5E6B82",
+        "TEXT": "#ECEFF4", "TEXT_DIM": "#AEB8C6", "ACCENT": "#88C0D0", "ACCENT_HOVER": "#9ED2E0",
+        "ACCENT_TINT": "#3A4C57", "ACCENT_PRESSED": "#6FA9BA", "ON_ACCENT": "#2E3440",
+        "DANGER": "#BF616A", "OK": "#A3BE8C", "WARN": "#EBCB8B",
+        "SIDEBAR_TOP": "#333A47", "SIDEBAR_BOTTOM": "#2B313C", "HOVER": "#434C5E",
+        "DANGER_BG": "#3D2E30", "DANGER_BORDER": "#6A464A", "DANGER_BG_HOVER": "#4A3639",
+        "OK_BG": "#2F3A2E", "WARN_BG": "#3D3A2C", "HERO_TOP": "#3A4353",
+        "BRAND_A": "#88C0D0", "BRAND_B": "#81A1C1", "GLOW_A": "#88C0D0", "GLOW_B": "#B48EAD",
+        "GLOW_ALPHA_A": 38, "GLOW_ALPHA_B": 26,
+        "C1": "#88C0D0", "C2": "#81A1C1", "C3": "#B48EAD", "C4": "#EBCB8B",
+    },
 }
 
 THEME_LABELS: dict[str, str] = {
@@ -84,6 +123,9 @@ THEME_LABELS: dict[str, str] = {
     "GREEN": "Green Nature",
     "LIGHT": "Light",
     "AMOLED": "AMOLED",
+    "MATRIX": "Matrix",
+    "CYBERPUNK": "Cyberpunk",
+    "NORD": "Nord",
 }
 
 BG: str
@@ -137,6 +179,10 @@ globals().update(PALETTES[CURRENT_THEME])
 
 NAV_WIDTH = 232
 
+FONT_UI = '"Segoe UI Variable Text", "Segoe UI", "Inter", system-ui, sans-serif'
+FONT_DISPLAY = '"Segoe UI Variable Display", "Segoe UI Semibold", "Segoe UI", system-ui, sans-serif'
+FONT_MONO = '"Cascadia Mono", "Consolas", "Segoe UI", monospace'
+
 
 def _chevron_path(color: str) -> str:
     """Render a small down-chevron PNG (for combo boxes) and return its path for QSS url()."""
@@ -165,7 +211,7 @@ def build_stylesheet() -> str:
     CHEVRON = _chevron_path(TEXT_DIM)
     return f"""
 * {{
-    font-family: "Segoe UI Variable Text", "Segoe UI", "Inter", sans-serif;
+    font-family: {FONT_UI};
     font-size: 13px;
     color: {TEXT};
 }}
@@ -243,7 +289,7 @@ QWidget#page {{
     background: {BG};
 }}
 QLabel#pageTitle, QLabel#welcome, QLabel#heroValue, QLabel#scoreValue {{
-    font-family: "Segoe UI Variable Display", "Segoe UI Semibold", "Segoe UI", sans-serif;
+    font-family: {FONT_DISPLAY};
     letter-spacing: -0.3px;
 }}
 QLabel#pageTitle {{
@@ -258,7 +304,7 @@ QLabel#pageDesc {{
 QFrame#card {{
     background: {PANEL};
     border: 1px solid {BORDER};
-    border-radius: 14px;
+    border-radius: 16px;
 }}
 QLabel#cardTitle {{
     font-size: 12px;
@@ -346,6 +392,10 @@ QLabel#clock {{
     font-size: 22px;
     font-weight: 700;
     color: {TEXT};
+}}
+QLabel#cardValue, QLabel#gaugeValue, QLabel#heroValue, QLabel#ringValue,
+QLabel#scoreValue, QLabel#statValue, QLabel#clock {{
+    font-family: {FONT_MONO};
 }}
 QLabel#sysStatus {{
     font-size: 11px;
@@ -482,7 +532,7 @@ QFrame#card:hover {{
     border-color: {BORDER_HI};
 }}
 QTableWidget::item {{
-    padding: 6px 8px;
+    padding: 8px 10px;
 }}
 QTableWidget::item:hover {{
     background: {HOVER};
@@ -502,7 +552,7 @@ QHeaderView::section {{
     color: {TEXT_DIM};
     border: none;
     border-bottom: 1px solid {BORDER};
-    padding: 10px 8px;
+    padding: 11px 10px;
     font-size: 12px;
     font-weight: 600;
     text-align: left;

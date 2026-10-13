@@ -19,7 +19,7 @@ DEFAULTS: dict[str, Any] = {
 
 CHOICES: dict[str, tuple[str, ...]] = {
     "log_level": ("DEBUG", "INFO", "WARNING", "ERROR"),
-    "theme": ("DARK", "PURPLE", "GREEN", "LIGHT", "AMOLED"),
+    "theme": ("DARK", "PURPLE", "GREEN", "LIGHT", "AMOLED", "MATRIX", "CYBERPUNK", "NORD"),
     "language": ("UA", "EN"),
 }
 

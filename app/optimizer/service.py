@@ -10,6 +10,8 @@ from dataclasses import dataclass
 from pathlib import Path
 from typing import Callable, Sequence
 
+from app.restore import STATUS_CREATED, RestorePointService, RestoreResult
+
 GUID_BALANCED = "381b4222-f694-41f0-9685-ff5bb260df2e"
 GUID_HIGH_PERF = "8c5e7fda-e8bf-4a96-9a85-a6e23a8c635c"
 GUID_ULTIMATE = "e9a42b02-d5df-448d-aa00-03f14749eb61"
@@ -87,6 +89,7 @@ class ApplyReport:
     applied: tuple[str, ...]
     errors: tuple[str, ...]
     restore_point: str | None = None
+    restore_status: str | None = None
 
 
 def parse_active_guid(output: str) -> str | None:
@@ -104,12 +107,14 @@ class OptimizerService:
         reg_get: Callable[[str, str, str], int] | None = None,
         reg_set: Callable[[str, str, str, int], None] | None = None,
         backup_path: str | Path | None = None,
+        restore: RestorePointService | None = None,
     ) -> None:
         self._run = run or self._default_run
         self._elevate = elevate or self._default_elevate
         self._is_admin = is_admin or self._default_is_admin
         self._reg_get = reg_get or self._default_reg_get
         self._reg_set = reg_set or self._default_reg_set
+        self._restore = restore or RestorePointService(run=self._run, is_admin=self._is_admin)
         local = os.environ.get("LOCALAPPDATA", "")
         self.backup_path = Path(backup_path) if backup_path else (
             Path(local) / "PCOptimizer_PRO" / "optimizer_backup.json"
@@ -158,11 +163,19 @@ class OptimizerService:
             raise OptimizerError(f"unknown profile {profile}")
 
         restore_label: str | None = None
+        restore_status: str | None = None
         if with_restore_point:
-            try:
-                restore_label = self.create_restore_point(f"PCOptimizer_PRO {profile}")
-            except OptimizerError as e:
-                return ApplyReport(applied=(), errors=(f"restore point failed: {e}",))
+            result = self.create_restore_point(f"PCOptimizer_PRO {profile}")
+            restore_status = result.status
+            if not result.ok:
+                return ApplyReport(
+                    applied=(),
+                    errors=(f"restore point {result.status}: {result.message}",),
+                    restore_point=None,
+                    restore_status=result.status,
+                )
+            restore_label = result.label
+            restore_status = STATUS_CREATED
 
         self._save_backup()
 
@@ -201,7 +214,12 @@ class OptimizerService:
             except OptimizerError as e:
                 errors.append(str(e))
 
-        return ApplyReport(applied=tuple(applied), errors=tuple(errors), restore_point=restore_label)
+        return ApplyReport(
+            applied=tuple(applied),
+            errors=tuple(errors),
+            restore_point=restore_label,
+            restore_status=restore_status,
+        )
 
     def revert(self) -> ApplyReport:
         backup = self._load_backup()
@@ -244,19 +262,15 @@ class OptimizerService:
 
         return ApplyReport(applied=tuple(applied), errors=tuple(errors))
 
-    def create_restore_point(self, description: str) -> str:
+    def create_restore_point(self, description: str) -> RestoreResult:
         label = f"{description} {time.strftime('%Y-%m-%d %H:%M:%S')}"
-        script = (
-            "Checkpoint-Computer "
-            f"-Description '{label}' -RestorePointType MODIFY_SETTINGS"
-        )
-        code, out = self._run(
-            ("powershell", "-NoProfile", "-ExecutionPolicy", "Bypass", "-Command", script),
-            300.0,
-        )
-        if code != 0:
-            raise OptimizerError(out.strip() or f"exit {code}")
-        return label
+        return self._restore.create(label)
+
+    def restore_points(self) -> list:
+        return self._restore.list_points()
+
+    def enable_system_protection(self) -> RestoreResult:
+        return self._restore.enable_protection()
 
     def backup_exists(self) -> bool:
         return self.backup_path.exists()

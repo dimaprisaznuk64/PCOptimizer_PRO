@@ -10,6 +10,7 @@ from app.optimizer import (
     OptimizerError,
     OptimizerService,
 )
+from app.restore import STATUS_CREATED, STATUS_ERROR, RestoreResult
 from app.optimizer.service import (
     GAMEMODE_KEY,
     GAMEMODE_VALUE,
@@ -50,6 +51,7 @@ class FakeSystem:
         self.admin = False
         self.fail_powercfg = False
         self.fail_restore = False
+        self.restore = FakeRestore()
 
     def run(self, args, timeout):
         args = tuple(str(a) for a in args)
@@ -100,7 +102,28 @@ class FakeSystem:
             reg_get=self.reg_get,
             reg_set=self.reg_set,
             backup_path=tmp_path / "backup.json",
+            restore=self.restore,
         )
+
+
+class FakeRestore:
+    """Records restore-point requests without touching Windows."""
+
+    def __init__(self) -> None:
+        self.calls: list[str] = []
+        self.fail = False
+
+    def create(self, label: str) -> RestoreResult:
+        self.calls.append(label)
+        if self.fail:
+            return RestoreResult(False, STATUS_ERROR, "restore point service unavailable", label=label)
+        return RestoreResult(True, STATUS_CREATED, "created", label=label, sequence=1)
+
+    def list_points(self):
+        return []
+
+    def enable_protection(self) -> RestoreResult:
+        return RestoreResult(True, STATUS_CREATED, "enabled")
 
 
 @pytest.fixture()
@@ -197,28 +220,27 @@ def test_apply_without_restore_point(fake, tmp_path) -> None:
     service = fake.make_service(tmp_path)
     report = service.apply_profile("BALANCED", with_restore_point=False)
     assert report.restore_point is None
-    assert not any("Checkpoint-Computer" in " ".join(c) for c in fake.commands)
+    assert fake.restore.calls == []
 
 
 def test_restore_point_created_before_changes(fake, tmp_path) -> None:
     service = fake.make_service(tmp_path)
-    service.apply_profile("BALANCED")
-    kinds = ["restore" if "Checkpoint-Computer" in " ".join(c) else "other" for c in fake.commands]
-    assert "restore" in kinds
-    first_restore = kinds.index("restore")
-    first_setactive = next(
-        i for i, c in enumerate(fake.commands) if c[:2] == ("powercfg", "/setactive")
-    )
-    assert first_restore < first_setactive
-    assert any("PCOptimizer_PRO BALANCED" in " ".join(c) for c in fake.commands)
+    report = service.apply_profile("BALANCED")
+    assert fake.restore.calls, "a restore point should be requested"
+    assert "PCOptimizer_PRO BALANCED" in fake.restore.calls[0]
+    assert report.restore_point is not None
+    assert report.restore_status == STATUS_CREATED
+    # restore point happens before any actual change
+    assert any(c[:2] == ("powercfg", "/setactive") for c in fake.commands)
 
 
 def test_restore_point_failure_blocks_apply(fake, tmp_path) -> None:
-    fake.fail_restore = True
+    fake.restore.fail = True
     service = fake.make_service(tmp_path)
     report = service.apply_profile("GAMING")
     assert report.applied == ()
     assert any("restore point" in e for e in report.errors)
+    assert report.restore_status == STATUS_ERROR
     # nothing was changed
     assert fake.power_guid == GUID_BALANCED
 

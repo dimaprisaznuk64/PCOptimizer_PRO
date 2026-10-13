@@ -12,8 +12,8 @@
   <img src="https://img.shields.io/badge/platform-Windows%2010%2F11%20x64-0078D6" alt="Platform">
   <img src="https://img.shields.io/badge/python-3.13-3776AB" alt="Python">
   <img src="https://img.shields.io/badge/UI-PySide6%20(Qt%206)-41CD52" alt="PySide6">
-  <img src="https://img.shields.io/badge/tests-229%20passed-brightgreen" alt="Tests">
-  <img src="https://img.shields.io/badge/version-1.2.2-blue" alt="Version">
+  <img src="https://img.shields.io/badge/tests-238%20passed-brightgreen" alt="Tests">
+  <img src="https://img.shields.io/badge/version-1.2.4-blue" alt="Version">
 </p>
 
 Філософія проєкту: **жодних «секретних» реєстрових твіків і вигаданих +FPS**. Кожна зміна системи робиться лише після бекапу/точки відновлення і має кнопку відкату. Застосунок працює без адмін-прав — UAC запитується точково, лише для конкретних операцій.
@@ -62,6 +62,7 @@
 - Керує: схемою живлення (powercfg), Game Mode, HAGS, візуальними ефектами
 - Перед застосуванням створюється точка відновлення — якщо не вдалось, зміни блокуються
 - JSON-бекап і кнопка Revert для повернення назад
+- Кнопка ручного створення точки відновлення з чесним статусом (створено / Windows пропустив / захист вимкнено / скасовано UAC)
 - UAC — лише за потреби (HAGS / HKLM)
 
 ### Ігровий режим
@@ -89,7 +90,7 @@
 - Інтервал семплінгу: 250 мс – 5 с
 - Трей: згортання у трей, старт згорнутим, метрики в тултіпі
 - Рівень логів і перегляд логів (відкрити папку, очистити)
-- Теми: Black Cyber, Purple Neon, Green Nature, Light, AMOLED
+- Теми: Black Cyber, Purple Neon, Green Nature, Light, AMOLED, Matrix, Cyberpunk, Nord
 - Мова: українська / English — застосовується одразу
 
 ### Поза сторінками
@@ -104,15 +105,15 @@
 
 | Дашборд | Монітор системи |
 | --- | --- |
-| ![Дашборд](docs/screenshots/v1.2.2_blackcyber_dashboard.png) | ![Монітор](docs/screenshots/v1.2.2_blackcyber_monitor.png) |
+| ![Дашборд](docs/screenshots/v1.2.4_blackcyber_dashboard.png) | ![Монітор](docs/screenshots/v1.2.4_blackcyber_monitor.png) |
 
 | GPU-монітор | PC Health Score |
 | --- | --- |
-| ![GPU](docs/screenshots/v1.2.2_blackcyber_gpu.png) | ![Health](docs/screenshots/v1.2.2_blackcyber_health.png) |
+| ![GPU](docs/screenshots/v1.2.4_blackcyber_gpu.png) | ![Health](docs/screenshots/v1.2.4_blackcyber_health.png) |
 
 | Чистильник | Ігровий режим |
 | --- | --- |
-| ![Чистильник](docs/screenshots/v1.2.2_blackcyber_cleaner.png) | ![Gaming](docs/screenshots/v1.2.2_blackcyber_gaming.png) |
+| ![Чистильник](docs/screenshots/v1.2.4_blackcyber_cleaner.png) | ![Gaming](docs/screenshots/v1.2.4_blackcyber_gaming.png) |
 
 Решта сторінок: [docs/screenshots](docs/screenshots)
 
@@ -122,7 +123,7 @@
 
 - **Python 3.13** + **PySide6** (Qt 6, темна тема Black Cyber)
 - **psutil** — CPU/RAM/диски/мережа, **nvidia-ml-py** (NVML) — GPU, **WMI** — температури, **pywin32** — COM/Task Scheduler/кошик
-- **pytest** — 229 тестів
+- **pytest** — 238 тестів
 - **PyInstaller** — збірка .exe, **Inno Setup** — інсталятор
 
 ## Безпека понад усе
@@ -135,12 +136,12 @@
 
 ## Встановлення
 
-**Варіант 1 — інсталятор.** Запустити `PCOptimizer_PRO_Setup_1.2.2.exe`.
+**Варіант 1 — інсталятор.** Запустити `PCOptimizer_PRO_Setup_1.2.4.exe`.
 Встановлюється для поточного користувача (без прав адміністратора), мови EN/UA, створює ярлики та деінсталятор.
 
 > Якщо Windows показує «Windows protected your PC» (SmartScreen) — це нормально для непідписаних програм: **More info → Run anyway**. Так само деякі антивіруси можуть хибно реагувати на PyInstaller-збірки.
 
-**Варіант 2 — портативно.** Розпакувати `PCOptimizer_PRO_1.2.2_portable.zip` і запустити `PCOptimizer_PRO\PCOptimizer_PRO.exe`. Нічого не встановлюється.
+**Варіант 2 — портативно.** Розпакувати `PCOptimizer_PRO_1.2.4_portable.zip` і запустити `PCOptimizer_PRO\PCOptimizer_PRO.exe`. Нічого не встановлюється.
 
 Готові збірки — у розділі [Releases](https://github.com/dimaprisaznuk64/PCOptimizer_PRO/releases).
 

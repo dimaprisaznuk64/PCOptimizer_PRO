@@ -205,13 +205,12 @@ class GamingPage(QWidget):
     def start_toggle_mode(self) -> None:
         if self._task is not None:
             return
-        if self._service.active:
+        active = self._service.active
+        if active:
             question = tr("game_confirm_disable")
-            runner = self._service.deactivate
             running_text = tr("game_disabling")
         else:
             question = tr("game_confirm_enable")
-            runner = self._service.activate
             running_text = tr("game_enabling")
         answer = QMessageBox.question(
             self,
@@ -222,6 +221,20 @@ class GamingPage(QWidget):
         )
         if answer != QMessageBox.StandardButton.Yes:
             return
+        if active:
+            runner = self._service.deactivate
+        else:
+            want_restore = (
+                QMessageBox.question(
+                    self,
+                    tr("game_restore_ask_title"),
+                    tr("game_restore_ask_msg"),
+                    QMessageBox.StandardButton.Yes | QMessageBox.StandardButton.No,
+                    QMessageBox.StandardButton.No,
+                )
+                == QMessageBox.StandardButton.Yes
+            )
+            runner = lambda: self._service.activate(with_restore_point=want_restore)
         self.status_label.setText(running_text)
         self._set_busy(True)
         self._task = Task(runner, parent=self)
