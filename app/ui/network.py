@@ -28,6 +28,33 @@ PING_COLUMN_KEYS = ("net_col_time", "net_col_host", "net_col_avg", "net_col_loss
 DIAG_COLUMN_KEYS = ("net_col_check", "net_col_status", "net_col_detail")
 
 
+_CHECK_NAMES = {"Proxy": "net_chk_proxy", "Internet": "net_chk_internet", "Gateway": "net_chk_gateway",
+                "DNS": "net_chk_dns", "Adapters": "net_chk_adapters"}
+_CHECK_DETAIL_RULES = (
+    (r"no system proxy", "net_cd_noproxy"),
+    (r"(?P<host>\S+) avg (?P<n>\d+(?:\.\d+)?)ms", "net_cd_internet"),
+    (r"(?P<host>\S+) resolved in (?P<n>\d+(?:\.\d+)?)ms", "net_cd_dns"),
+    (r"(?P<n>\d+) up: (?P<names>.+)", "net_cd_adapters"),
+    (r"no active adapters", "net_cd_noadapters"),
+    (r"no default gateway found", "net_cd_nogateway"),
+)
+
+
+def _check_name(name: str) -> str:
+    key = _CHECK_NAMES.get(name)
+    return tr(key) if key else name
+
+
+def _check_detail(detail: str) -> str:
+    import re
+
+    for pattern, key in _CHECK_DETAIL_RULES:
+        m = re.fullmatch(pattern, detail)
+        if m:
+            return tr(key, **m.groupdict())
+    return detail
+
+
 class NetworkPage(QWidget):
     def __init__(self, service: NetworkService | None = None, parent: QWidget | None = None) -> None:
         super().__init__(parent)
@@ -236,9 +263,9 @@ class NetworkPage(QWidget):
         self.diag_table.setSortingEnabled(False)
         self.diag_table.setRowCount(len(checks))
         for row, check in enumerate(checks):
-            name_item = QTableWidgetItem(check.name)
+            name_item = QTableWidgetItem(_check_name(check.name))
             status_item = QTableWidgetItem(tr("net_ok_short") if check.ok else tr("net_fail_short"))
-            detail_item = QTableWidgetItem(check.detail)
+            detail_item = QTableWidgetItem(_check_detail(check.detail))
             detail_item.setToolTip(check.detail)
             self.diag_table.setItem(row, 0, name_item)
             self.diag_table.setItem(row, 1, status_item)

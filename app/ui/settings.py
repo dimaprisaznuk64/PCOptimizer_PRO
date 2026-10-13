@@ -58,7 +58,7 @@ class SettingsPage(QWidget):
         self._desc = desc
 
         layout.addWidget(self._build_general_card())
-        layout.addWidget(self._build_logging_card())
+        layout.addWidget(self._build_logging_card(), 1)
 
         actions = QHBoxLayout()
         actions.setSpacing(8)
@@ -91,6 +91,8 @@ class SettingsPage(QWidget):
         self._general_heading.setText(tr("set_general"))
         self._interval_label.setText(tr("set_sample_interval"))
         self._theme_label.setText(tr("set_theme"))
+        for i in range(self.theme_combo.count()):
+            self.theme_combo.setItemText(i, tr(f"theme_{self.theme_combo.itemData(i)}"))
         self._language_label.setText(tr("set_language"))
         self._level_label.setText(tr("set_log_level"))
         self._logging_heading.setText(tr("set_logging"))
@@ -130,7 +132,7 @@ class SettingsPage(QWidget):
         grid.addWidget(self._theme_label, 2, 0)
         self.theme_combo = QComboBox()
         for key, label in THEME_LABELS.items():
-            self.theme_combo.addItem(label, key)
+            self.theme_combo.addItem(tr(f"theme_{key}"), key)
         grid.addWidget(self.theme_combo, 2, 1)
 
         self._language_label = QLabel(tr("set_language"))
@@ -197,9 +199,9 @@ class SettingsPage(QWidget):
 
         self.preview = QPlainTextEdit()
         self.preview.setReadOnly(True)
-        self.preview.setMaximumHeight(180)
+        self.preview.setMinimumHeight(120)
         self.preview.setPlaceholderText(tr("set_log_empty"))
-        outer.addWidget(self.preview)
+        outer.addWidget(self.preview, 1)
         return card
 
     # ---------- values ----------
@@ -210,6 +212,7 @@ class SettingsPage(QWidget):
         self.interval_combo.setCurrentIndex(max(index, 0))
         theme_index = self.theme_combo.findData(self._service.get("theme"))
         self.theme_combo.setCurrentIndex(max(theme_index, 0))
+        self._loaded_theme = str(self._service.get("theme"))
         language_index = self.language_combo.findData(self._service.get("language"))
         self.language_combo.setCurrentIndex(max(language_index, 0))
         self.minimize_check.setChecked(self._service.get("minimize_to_tray"))
@@ -218,7 +221,6 @@ class SettingsPage(QWidget):
         level = self._service.get("log_level")
         level_index = self.level_combo.findData(level)
         self.level_combo.setCurrentIndex(level_index if level_index >= 0 else 1)
-        self._loaded_theme = str(self._service.get("theme"))
 
     def collect_values(self) -> dict[str, object]:
         return {

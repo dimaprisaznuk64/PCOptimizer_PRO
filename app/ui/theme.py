@@ -242,9 +242,9 @@ QPushButton[nav="true"] {{
     font-size: 13px;
     font-weight: 500;
 }}
-QPushButton[nav="true"]:hover {{
+QPushButton[nav="true"][hot="true"] {{
     background: {PANEL_ALT};
-    color: #FFFFFF;
+    color: {TEXT};
 }}
 QPushButton[nav="true"]:focus {{
     border: none;
@@ -466,8 +466,12 @@ QLabel#cardRow {{
     color: {TEXT};
 }}
 QLabel#errorLine {{
+    color: {WARN};
+    background: {WARN_BG};
+    border-radius: 8px;
+    padding: 6px 12px;
     font-size: 12px;
-    color: {DANGER};
+    font-weight: 600;
 }}
 QLabel#gpuName {{
     font-size: 16px;

@@ -24,6 +24,7 @@ from app.sensors import Snapshot
 from .activity import ActivityLog
 from .components import CardPanel, MetricCard, PerfChart, QuickButton, RingCard
 from .format import gb as _gb
+from .format import zone_label
 from .format import rate as _rate
 from .icons import glyph
 from .tasks import Task
@@ -623,6 +624,8 @@ class DashboardPage(QWidget):
         self.date.setAlignment(Qt.AlignmentFlag.AlignRight)
         clock_box.addWidget(self.date)
         head.addLayout(clock_box)
+        self.clock.hide()  # the clock already lives in the top bar
+        self.date.hide()
         layout.addLayout(head)
 
         # ROW 1: 4 RingCards + PC Health + Quick Actions
@@ -907,7 +910,7 @@ class DashboardPage(QWidget):
         self.verdict.setText(tr(self._verdict_key))
 
         if temps:
-            self.thermal.set_rows([(name, min(value, 100.0), f"{value:.0f}°C") for name, value in temps])
+            self.thermal.set_rows([(zone_label(name), min(value, 100.0), f"{value:.0f}°C") for name, value in temps])
 
         if s.errors:
             self.errors.setText(tr("dash_sensors_err", msg=" · ".join(f"{k}: {v}" for k, v in s.errors.items())))

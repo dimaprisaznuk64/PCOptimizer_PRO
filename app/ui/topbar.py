@@ -102,13 +102,30 @@ class TopBar(QWidget):
 
     def _build_notify_menu(self) -> QMenu:
         menu = QMenu(self)
-        menu.addAction(tr("topbar_notify_empty"))
+        menu.aboutToShow.connect(lambda m=menu: self._fill_notify_menu(m))
+        self._fill_notify_menu(menu)
         return menu
+
+    @staticmethod
+    def _fill_notify_menu(menu: QMenu) -> None:
+        """Latest in-app events (from the activity log), newest first."""
+        from .activity import ActivityLog
+
+        menu.clear()
+        entries = ActivityLog.instance().entries(limit=8)
+        if not entries:
+            action = menu.addAction(tr("topbar_notify_empty"))
+            action.setEnabled(False)
+            return
+        for e in entries:
+            mark = "✓" if e.level == "ok" else "⚠"
+            text = f"{mark}  {e.title}" + (f" — {e.detail}" if e.detail else "") + f"   {e.time_text}"
+            menu.addAction(text)
 
     def retranslate(self) -> None:
         self.notify_button.setToolTip(tr("topbar_notify_tip"))
         self.settings_button.setToolTip(tr("topbar_settings_tip"))
-        self._build_notify_menu()
+        self.notify_button.setMenu(self._build_notify_menu())
         self.set_title(self._last_title or tr("nav_dashboard"))
 
     def set_title(self, text: str) -> None:

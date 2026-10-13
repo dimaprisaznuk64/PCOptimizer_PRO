@@ -14,7 +14,7 @@ def rate(bps: float | None) -> str:
 
 
 def temp_text(c: float | None) -> str:
-    return "—" if c is None else f"{c:.0f}C"
+    return "—" if c is None else f"{c:.0f}°C"
 
 
 def uptime(seconds: float | None) -> str:
@@ -45,3 +45,13 @@ def size(n: int) -> str:
     if n >= 1024:
         return f"{n / 1024:.1f}KB"
     return f"{n}B"
+
+
+def zone_label(name: str) -> str:
+    """Windows reports ACPI thermal zones as 'zone0', 'zone1'... — give them a readable name."""
+    import re
+
+    from app.i18n import tr
+
+    m = re.fullmatch(r"zone(\d+)", name.strip(), re.IGNORECASE)
+    return tr("therm_zone", n=m.group(1)) if m else name

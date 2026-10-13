@@ -13,7 +13,7 @@
   <img src="https://img.shields.io/badge/python-3.13-3776AB" alt="Python">
   <img src="https://img.shields.io/badge/UI-PySide6%20(Qt%206)-41CD52" alt="PySide6">
   <img src="https://img.shields.io/badge/tests-238%20passed-brightgreen" alt="Tests">
-  <img src="https://img.shields.io/badge/version-1.2.4-blue" alt="Version">
+  <img src="https://img.shields.io/badge/version-1.2.5-blue" alt="Version">
 </p>
 
 Філософія проєкту: **жодних «секретних» реєстрових твіків і вигаданих +FPS**. Кожна зміна системи робиться лише після бекапу/точки відновлення і має кнопку відкату. Застосунок працює без адмін-прав — UAC запитується точково, лише для конкретних операцій.
@@ -105,15 +105,15 @@
 
 | Дашборд | Монітор системи |
 | --- | --- |
-| ![Дашборд](docs/screenshots/v1.2.4_blackcyber_dashboard.png) | ![Монітор](docs/screenshots/v1.2.4_blackcyber_monitor.png) |
+| ![Дашборд](docs/screenshots/v1.2.5_blackcyber_dashboard.png) | ![Монітор](docs/screenshots/v1.2.5_blackcyber_monitor.png) |
 
 | GPU-монітор | PC Health Score |
 | --- | --- |
-| ![GPU](docs/screenshots/v1.2.4_blackcyber_gpu.png) | ![Health](docs/screenshots/v1.2.4_blackcyber_health.png) |
+| ![GPU](docs/screenshots/v1.2.5_blackcyber_gpu.png) | ![Health](docs/screenshots/v1.2.5_blackcyber_health.png) |
 
 | Чистильник | Ігровий режим |
 | --- | --- |
-| ![Чистильник](docs/screenshots/v1.2.4_blackcyber_cleaner.png) | ![Gaming](docs/screenshots/v1.2.4_blackcyber_gaming.png) |
+| ![Чистильник](docs/screenshots/v1.2.5_blackcyber_cleaner.png) | ![Gaming](docs/screenshots/v1.2.5_blackcyber_gaming.png) |
 
 Решта сторінок: [docs/screenshots](docs/screenshots)
 
@@ -136,12 +136,12 @@
 
 ## Встановлення
 
-**Варіант 1 — інсталятор.** Запустити `PCOptimizer_PRO_Setup_1.2.4.exe`.
+**Варіант 1 — інсталятор.** Запустити `PCOptimizer_PRO_Setup_1.2.5.exe`.
 Встановлюється для поточного користувача (без прав адміністратора), мови EN/UA, створює ярлики та деінсталятор.
 
 > Якщо Windows показує «Windows protected your PC» (SmartScreen) — це нормально для непідписаних програм: **More info → Run anyway**. Так само деякі антивіруси можуть хибно реагувати на PyInstaller-збірки.
 
-**Варіант 2 — портативно.** Розпакувати `PCOptimizer_PRO_1.2.4_portable.zip` і запустити `PCOptimizer_PRO\PCOptimizer_PRO.exe`. Нічого не встановлюється.
+**Варіант 2 — портативно.** Розпакувати `PCOptimizer_PRO_1.2.5_portable.zip` і запустити `PCOptimizer_PRO\PCOptimizer_PRO.exe`. Нічого не встановлюється.
 
 Готові збірки — у розділі [Releases](https://github.com/dimaprisaznuk64/PCOptimizer_PRO/releases).
 

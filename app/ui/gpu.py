@@ -173,12 +173,14 @@ class GpuPage(QWidget):
             panel.update_gpu(gpu)
 
         if not gpus:
-            reason = s.errors.get("nvml") or s.errors.get("gpu") or tr("gpu_no_data")
-            self.empty.setText(reason)
+            reason = s.errors.get("nvml") or s.errors.get("gpu")
+            self.empty.setText(tr("gpu_unavailable", reason=reason) if reason else tr("gpu_no_data"))
         self.empty.setVisible(not gpus)
 
-        if s.errors:
-            self.errors.setText(tr("mon_sensors", msg=" · ".join(f"{k}: {v}" for k, v in s.errors.items())))
+        # When no GPU is shown, the placeholder above already explains the sensor error.
+        shown_errors = {k: v for k, v in s.errors.items() if gpus or k not in ("nvml", "gpu")}
+        if shown_errors:
+            self.errors.setText(tr("mon_sensors", msg=" · ".join(f"{k}: {v}" for k, v in shown_errors.items())))
             self.errors.setVisible(True)
         else:
             self.errors.setText("")

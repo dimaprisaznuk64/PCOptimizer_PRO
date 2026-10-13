@@ -27,6 +27,45 @@ COLUMN_KEYS = ("start_col_name", "start_col_source", "start_col_command", "start
 COLUMNS = tuple(tr(k) for k in COLUMN_KEYS)
 
 
+_REASON_RULES = (
+    (r"large target \((?P<n>\d+)MB\)", "ir_large"), (r"known heavyweight app", "ir_known"),
+    (r"medium target \((?P<n>\d+)MB\)", "ir_medium"), (r"common background app", "ir_common"),
+    (r"small target \((?P<n>\d+)KB\)", "ir_small"), (r"lightweight or unknown target", "ir_light"),
+)
+_IMPACT_RANK = {"Low": 0, "Medium": 1, "High": 2}
+
+
+def _impact_text(impact: str) -> str:
+    key = _IMPACT_TR.get(impact)
+    return tr(key) if key else impact
+
+
+def _reason_text(reason: str) -> str:
+    import re
+
+    for pattern, key in _REASON_RULES:
+        m = re.fullmatch(pattern, reason)
+        if m:
+            return tr(key, **m.groupdict())
+    return reason
+
+
+class _ImpactItem(QTableWidgetItem):
+    """Shows the translated impact but sorts Low < Medium < High."""
+
+    def __init__(self, impact: str) -> None:
+        super().__init__(_impact_text(impact))
+        self._rank = _IMPACT_RANK.get(impact, -1)
+
+    def __lt__(self, other) -> bool:
+        if isinstance(other, _ImpactItem):
+            return self._rank < other._rank
+        return super().__lt__(other)
+
+
+_IMPACT_TR = {"Low": "imp_low", "Medium": "imp_medium", "High": "imp_high"}
+
+
 class StartupPage(QWidget):
     def __init__(self, service: StartupService | None = None, parent: QWidget | None = None) -> None:
         super().__init__(parent)
@@ -272,13 +311,13 @@ class StartupPage(QWidget):
         for row, item in enumerate(self._items):
             name_item = QTableWidgetItem(item.name)
             name_item.setData(Qt.ItemDataRole.UserRole, item.id)
-            name_item.setToolTip(item.impact_reason)
+            name_item.setToolTip(_reason_text(item.impact_reason))
             self.table.setItem(row, 0, name_item)
             self.table.setItem(row, 1, QTableWidgetItem(item.source))
             command_item = QTableWidgetItem(item.command)
             command_item.setToolTip(item.command)
             self.table.setItem(row, 2, command_item)
-            impact_item = QTableWidgetItem(item.impact)
+            impact_item = _ImpactItem(item.impact)
             impact_item.setData(Qt.ItemDataRole.UserRole, item.id)
             self.table.setItem(row, 3, impact_item)
             state_item = QTableWidgetItem(tr("start_enabled_state") if item.enabled else tr("start_disabled_state"))
@@ -320,13 +359,13 @@ class StartupPage(QWidget):
             return
 
         self.detail_name.setText(item.name)
-        self.detail_badge.setText(tr("start_badge_disabled") if not item.enabled else item.impact.upper())
+        self.detail_badge.setText(tr("start_badge_disabled") if not item.enabled else _impact_text(item.impact).upper())
         self.detail_badge.setVisible(True)
         self.detail_rows["source"].setText(tr("start_detail_source", value=item.source))
         self.detail_rows["state"].setText(
             tr("start_detail_state", value=tr("start_enabled_state") if item.enabled else tr("start_disabled_state"))
         )
-        self.detail_rows["impact"].setText(tr("start_detail_impact", value=item.impact, reason=item.impact_reason))
+        self.detail_rows["impact"].setText(tr("start_detail_impact", value=_impact_text(item.impact), reason=_reason_text(item.impact_reason)))
         self.detail_rows["target"].setText(tr("start_detail_target", value=mb(item.target_size)))
         self.detail_rows["location"].setText(tr("start_detail_location", value=item.location))
         self.detail_command.setText(tr("start_detail_command", value=item.command))

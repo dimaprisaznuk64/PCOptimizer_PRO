@@ -46,7 +46,8 @@ def test_gpu_page_without_gpu_shows_reason(qapp) -> None:
     assert page._panels == []
     assert not page.empty.isHidden()
     assert "NVML init failed" in page.empty.text()
-    assert "nvml" in page.errors.text()
+    # the placeholder already explains the error, so the bottom error line stays hidden
+    assert page.errors.isHidden()
 
 
 def test_gpu_page_handles_multiple_gpus(qapp) -> None:

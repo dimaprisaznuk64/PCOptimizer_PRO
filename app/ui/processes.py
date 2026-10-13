@@ -44,6 +44,20 @@ _DETAIL_TR: dict[str, str] = {
 _REFRESH_INTERVAL_S = 2.0
 
 
+class _NumItem(QTableWidgetItem):
+    """Right-aligned number shown with a fixed format ('.' decimal) but sorted by its real value."""
+
+    def __init__(self, text: str, value: float) -> None:
+        super().__init__(text)
+        self._value = float(value)
+        self.setTextAlignment(Qt.AlignmentFlag.AlignRight | Qt.AlignmentFlag.AlignVCenter)
+
+    def __lt__(self, other) -> bool:
+        if isinstance(other, _NumItem):
+            return self._value < other._value
+        return super().__lt__(other)
+
+
 class _SizeItem(QTableWidgetItem):
     """Shows formatted text but sorts by the raw byte count."""
 
@@ -262,7 +276,7 @@ class ProcessPage(QWidget):
             name_item.setData(Qt.ItemDataRole.UserRole, p.pid)
             self.table.setItem(row, 0, name_item)
             self.table.setItem(row, 1, self._number_item(p.pid))
-            self.table.setItem(row, 2, self._number_item(round(p.cpu_percent, 1)))
+            self.table.setItem(row, 2, _NumItem(f"{p.cpu_percent:.1f}", p.cpu_percent))
             memory = _SizeItem(mb(p.memory_bytes), p.memory_bytes)
             self.table.setItem(row, 3, memory)
             self.table.setItem(row, 4, QTableWidgetItem(p.username or "—"))

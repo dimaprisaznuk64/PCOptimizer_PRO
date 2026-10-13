@@ -368,8 +368,8 @@ class _ChartCanvas(QWidget):
     @staticmethod
     def _span_text(seconds: float) -> str:
         if seconds >= 90:
-            return tr("dash_time_min", v=seconds / 60)
-        return tr("dash_time_sec", v=seconds)
+            return tr("dash_time_min", min=f"{seconds / 60:.0f}")
+        return tr("dash_time_sec", sec=f"{seconds:.0f}")
 
     def paintEvent(self, event) -> None:
         painter = QPainter(self)

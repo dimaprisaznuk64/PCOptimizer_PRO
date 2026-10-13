@@ -47,6 +47,51 @@ def grade_text(grade: str) -> str:
     return grade if text == key else text
 
 
+_CATEGORY_KEYS = {
+    "Memory": "fc_memory", "Thermal": "fc_thermal", "CPU": "fc_cpu", "Storage": "fc_storage",
+    "Startup": "fc_startup", "Power": "fc_power", "Cleanup": "fc_cleanup",
+}
+_TITLE_RULES = (
+    (r"RAM almost full", "ft_ram_full"), (r"High RAM usage", "ft_ram_high"), (r"RAM usage healthy", "ft_ram_ok"),
+    (r"Very high CPU temperature", "ft_temp_crit"), (r"High CPU temperature", "ft_temp_high"),
+    (r"Temperatures normal", "ft_temp_ok"), (r"CPU load is high right now", "ft_cpu_high"),
+    (r"(?P<mount>.+) nearly full", "ft_disk_full"), (r"(?P<mount>.+) running low", "ft_disk_low"),
+    (r"(?P<n>\d+) heavy startup apps", "ft_startup_heavy"), (r"Power saver plan is active", "ft_power_saver"),
+    (r"Lots of temporary files", "ft_junk_crit"), (r"Temporary files found", "ft_junk_warn"),
+    (r"Little temporary clutter", "ft_junk_ok"),
+)
+_DETAIL_RULES = (
+    (r"(?P<n>\d+)% of RAM in use — close heavy apps", "fd_ram_full"), (r"(?P<n>\d+)% of RAM in use", "fd_ram_high"),
+    (r"(?P<n>\d+)% used — free space now", "fd_disk_full"), (r"(?P<n>\d+)% used", "fd_used"),
+    (r"(?P<n>\d+)C — check cooling / dust", "fd_temp_crit"), (r"(?P<n>\d+)C", "fd_temp"),
+    (r"(?P<n>\d+)% — may be a background task", "fd_cpu_high"),
+    (r"They slow down logon and consume RAM", "fd_startup_warn"),
+    (r"Consider disabling the ones you do not need", "fd_startup_info"),
+    (r"Switch to Balanced or the Gaming profile for more performance", "fd_power_saver"),
+    (r"(?P<gb>[\d.]+) GB across (?P<n>\d+) locations", "fd_junk"), (r"(?P<n>\d+) MB found", "fd_junk_ok"),
+)
+
+
+def _localize(rules, text: str) -> str:
+    import re
+
+    for pattern, key in rules:
+        m = re.fullmatch(pattern, text)
+        if m:
+            return tr(key, **m.groupdict())
+    return text
+
+
+def localize_finding(finding) -> tuple[str, str, str]:
+    """The health service produces English text; translate known findings, keep unknown ones as is."""
+    key = _CATEGORY_KEYS.get(finding.category)
+    return (
+        tr(key) if key else finding.category,
+        _localize(_TITLE_RULES, finding.title),
+        _localize(_DETAIL_RULES, finding.detail),
+    )
+
+
 class HealthPage(QWidget):
     def __init__(self, service: HealthService | None = None, parent: QWidget | None = None) -> None:
         super().__init__(parent)
@@ -139,6 +184,8 @@ class HealthPage(QWidget):
         self.findings_table.setHorizontalHeaderLabels([tr(k) for k in HEALTH_COLUMN_KEYS])
         for row in range(self.findings_table.rowCount()):
             self._retranslate_finding_row(row)
+        if getattr(self, "_report", None) is not None:
+            self._render_report(self._report)
 
     def _retranslate_finding_row(self, row: int) -> None:
         item = self.findings_table.item(row, 1)
@@ -178,7 +225,7 @@ class HealthPage(QWidget):
         self.grade_label.setText(grade_text(report.grade))
         issues = sum(1 for f in report.findings if f.severity != "ok")
         self.detail_label.setText(
-            tr("health_detail", issues=issues, size=report.junk_bytes / 1024**3)
+            tr("health_detail", issues=issues, size=f"{report.junk_bytes / 1024**3:.1f}")
         )
 
         self.findings_table.setSortingEnabled(False)
@@ -194,13 +241,14 @@ class HealthPage(QWidget):
             self.status_label.setText(tr("health_nothing"))
 
     def _set_finding_row(self, row: int, finding: Finding) -> None:
-        category = QTableWidgetItem(finding.category)
+        cat_text, title_text, detail_text = localize_finding(finding)
+        category = QTableWidgetItem(cat_text)
         severity_item = QTableWidgetItem(tr(SEVERITY_TR.get(finding.severity, "health_sev_info")))
         severity_item.setData(Qt.ItemDataRole.UserRole, finding.severity)
         severity_item.setForeground(QColor(SEVERITY_COLOR.get(finding.severity, TEXT_DIM)))
-        issue = QTableWidgetItem(finding.title)
-        detail = QTableWidgetItem(finding.detail)
-        detail.setToolTip(finding.fix_hint or finding.detail)
+        issue = QTableWidgetItem(title_text)
+        detail = QTableWidgetItem(detail_text)
+        detail.setToolTip(detail_text)
         self.findings_table.setItem(row, 0, category)
         self.findings_table.setItem(row, 1, severity_item)
         self.findings_table.setItem(row, 2, issue)

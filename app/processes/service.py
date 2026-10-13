@@ -30,6 +30,12 @@ PROTECTED_NAMES = frozenset(
 )
 
 
+def _normalize_cpu(value: object) -> float:
+    """psutil reports per-process CPU as a share of ONE core (can reach 100 * cores); show it like Task Manager."""
+    cores = psutil.cpu_count(logical=True) or 1
+    return max(0.0, min(100.0, float(value or 0.0) / cores))
+
+
 class ProcessServiceError(Exception):
     pass
 
@@ -95,7 +101,7 @@ class ProcessService:
             try:
                 info = proc.info
                 pid = info["pid"]
-                if pid is None:
+                if pid is None or pid == 0:  # pid 0 is the Windows 'System Idle Process' (not a real process)
                     continue
                 name = info["name"] or ""
                 memory_info = info.get("memory_info")
@@ -106,7 +112,7 @@ class ProcessService:
                         name=name or f"pid-{pid}",
                         username=info.get("username"),
                         status="",
-                        cpu_percent=float(info.get("cpu_percent") or 0.0),
+                        cpu_percent=_normalize_cpu(info.get("cpu_percent")),
                         memory_percent=float(info.get("memory_percent") or 0.0),
                         memory_bytes=int(getattr(memory_info, "rss", 0) or 0),
                         create_time=info.get("create_time"),
@@ -155,7 +161,7 @@ class ProcessService:
             name=name or f"pid-{pid}",
             username=info.get("username"),
             status=info.get("status") or "?",
-            cpu_percent=float(info.get("cpu_percent") or 0.0),
+            cpu_percent=_normalize_cpu(info.get("cpu_percent")),
             memory_percent=float(info.get("memory_percent") or 0.0),
             memory_bytes=int(getattr(memory_info, "rss", 0) or 0),
             create_time=info.get("create_time"),

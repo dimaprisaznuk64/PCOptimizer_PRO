@@ -7,7 +7,7 @@ from app.i18n import tr
 from app.sensors import Snapshot
 
 from .components import Bar, CardPanel, Sparkline
-from .format import gb, rate
+from .format import gb, rate, zone_label
 
 from .theme import ACCENT, ACCENT_HOVER, DANGER, OK
 
@@ -48,7 +48,7 @@ class CoreBars(QWidget):
         self._layout = QGridLayout(self)
         self._layout.setContentsMargins(0, 0, 0, 0)
         self._layout.setHorizontalSpacing(10)
-        self._layout.setVerticalSpacing(4)
+        self._layout.setVerticalSpacing(8)
         self._cells: list[tuple[QLabel, Bar, QLabel]] = []
         self._count = 0
 
@@ -70,10 +70,11 @@ class CoreBars(QWidget):
             text.setText(f"{value:.0f}%")
 
     def _rebuild(self, count: int) -> None:
-        for label, bar, text in self._cells:
-            label.deleteLater()
-            bar.deleteLater()
-            text.deleteLater()
+        for cell in self._cells:
+            for w in cell:
+                w.hide()
+                self._layout.removeWidget(w)
+                w.deleteLater()
         self._cells = []
         self._count = count
         columns = 4 if count > 8 else 2
@@ -81,7 +82,11 @@ class CoreBars(QWidget):
             row, col = divmod(i, columns)
             label = QLabel(str(i))
             label.setObjectName("cardSub")
-            label.setFixedWidth(16)
+            if col == 0:
+                label.setFixedWidth(18)
+            else:  # gap between column groups so "16%" never touches the next index
+                label.setFixedWidth(42)
+                label.setContentsMargins(24, 0, 0, 0)
             bar = Bar(ACCENT)
             text = QLabel("")
             text.setObjectName("cardSub")
@@ -130,9 +135,9 @@ class MonitorPage(QWidget):
         grid.addWidget(self.thermals, 2, 2, 1, 2)
         for col in range(4):
             grid.setColumnStretch(col, 1)
-        grid.setRowStretch(0, 5)
-        grid.setRowStretch(1, 3)
-        grid.setRowStretch(2, 3)
+        grid.setRowStretch(0, 0)
+        grid.setRowStretch(1, 1)
+        grid.setRowStretch(2, 1)
         layout.addLayout(grid, 1)
 
         self.errors = QLabel("")
@@ -267,7 +272,7 @@ class MonitorPage(QWidget):
 
         if s.thermal:
             self.thermals.set_rows(
-                [(name, value, f"{value:.0f}C") for name, value in s.thermal.temperatures]
+                [(zone_label(name), value, f"{value:.0f}°C") for name, value in s.thermal.temperatures]
             )
 
         if s.errors:

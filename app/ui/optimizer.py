@@ -35,6 +35,19 @@ _PROFILE_TR = {
     "performance": "opt_profile_performance",
 }
 
+_VALUE_TR = {
+    "Balanced": "opt_val_balanced", "High performance": "opt_val_highperf", "Ultimate performance": "opt_val_ultimate",
+    "Power saver": "opt_val_saver", "Unknown": "opt_val_unknown", "Custom": "opt_val_custom",
+    "Let Windows decide": "opt_val_vis_default", "Adjust for best performance": "opt_val_vis_perf",
+    "Adjust for best appearance": "opt_val_vis_look",
+}
+
+
+def _value(text: str) -> str:
+    key = _VALUE_TR.get(text)
+    return tr(key) if key else text
+
+
 _PROFILE_DESC_TR = {
     "balanced": "opt_profdesc_balanced",
     "gaming": "opt_profdesc_gaming",
@@ -231,14 +244,14 @@ class OptimizerPage(QWidget):
         def _tri(value: bool | None, on_key: str, off_key: str, none_key: str) -> str:
             return tr(on_key) if value is True else tr(off_key) if value is False else tr(none_key)
 
-        self.state_rows["power"].setText(tr("opt_power", name=result.power_name))
+        self.state_rows["power"].setText(tr("opt_power", name=_value(result.power_name)))
         self.state_rows["game_mode"].setText(
             tr("opt_game_mode", state=_tri(result.game_mode, "opt_on", "opt_off", "opt_default"))
         )
         self.state_rows["hags"].setText(
             tr("opt_hags", state=_tri(result.hags, "opt_on", "opt_off", "opt_not_set"))
         )
-        self.state_rows["visual"].setText(tr("opt_visual", name=result.visual_name))
+        self.state_rows["visual"].setText(tr("opt_visual", name=_value(result.visual_name)))
         self.state_rows["privileges"].setText(
             tr("opt_privileges", value=tr("opt_admin") if result.is_admin else tr("opt_standard"))
         )

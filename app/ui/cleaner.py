@@ -27,6 +27,25 @@ COLUMN_KEYS = ("clean_col_target", "clean_col_category", "clean_col_files", "cle
 COLUMNS = tuple(tr(k) for k in COLUMN_KEYS)
 
 
+_TARGET_TR = {
+    "User temp files": "clean_t_user_temp",
+    "Windows temp files": "clean_t_win_temp",
+    "Windows Update downloads": "clean_t_wu",
+    "Google Chrome cache": "clean_t_chrome",
+    "Microsoft Edge cache": "clean_t_edge",
+    "Mozilla Firefox cache": "clean_t_firefox",
+    "GPU shader caches": "clean_t_gpu",
+    "Thumbnail cache": "clean_t_thumb",
+    "Recycle Bin": "clean_t_bin",
+}
+_CATEGORY_TR = {"System": "clean_c_system", "Browser": "clean_c_browser", "GPU": "clean_c_gpu"}
+
+
+def _loc(mapping: dict[str, str], text: str) -> str:
+    key = mapping.get(text)
+    return tr(key) if key else text
+
+
 class CleanerPage(QWidget):
     def __init__(self, service: CleanerService | None = None, parent: QWidget | None = None) -> None:
         super().__init__(parent)
@@ -237,13 +256,13 @@ class CleanerPage(QWidget):
             scan = self._scans.get(target.id)
             outcome = self._outcomes.get(target.id)
 
-            name_item = QTableWidgetItem(target.name)
+            name_item = QTableWidgetItem(_loc(_TARGET_TR, target.name))
             name_item.setFlags(name_item.flags() | Qt.ItemFlag.ItemIsUserCheckable)
             name_item.setCheckState(Qt.CheckState.Checked)
             if scan and scan.error:
                 name_item.setToolTip(scan.error)
             self.table.setItem(row, 0, name_item)
-            self.table.setItem(row, 1, QTableWidgetItem(target.category))
+            self.table.setItem(row, 1, QTableWidgetItem(_loc(_CATEGORY_TR, target.category)))
             num_item = QTableWidgetItem(str(scan.files) if scan else "—")
             num_item.setTextAlignment(Qt.AlignmentFlag.AlignRight | Qt.AlignmentFlag.AlignVCenter)
             self.table.setItem(row, 2, num_item)

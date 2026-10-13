@@ -1,6 +1,6 @@
 from __future__ import annotations
 
-from PySide6.QtCore import QSize, Qt, Signal
+from PySide6.QtCore import QEvent, QSize, Qt, Signal
 from PySide6.QtWidgets import QButtonGroup, QFrame, QHBoxLayout, QLabel, QPushButton, QVBoxLayout, QWidget
 
 from app.i18n import tr
@@ -111,6 +111,7 @@ class Sidebar(QWidget):
             button.setIconSize(QSize(18, 18))
             button.setCheckable(True)
             button.setCursor(Qt.CursorShape.PointingHandCursor)
+            button.installEventFilter(self)  # own hover state (Qt's :hover can get stuck)
             button.clicked.connect(lambda _=False, k=key: self.navigated.emit(k))
             layout.addWidget(button)
             self._group.addButton(button)
@@ -182,7 +183,28 @@ class Sidebar(QWidget):
             self.status.style().unpolish(self.status)
             self.status.style().polish(self.status)
 
+    def _set_hot(self, active: QPushButton | None) -> None:
+        for b in self._buttons.values():
+            hot = b is active
+            if bool(b.property("hot")) != hot:
+                b.setProperty("hot", hot)
+                b.style().unpolish(b)
+                b.style().polish(b)
+
+    def eventFilter(self, obj, event) -> bool:
+        kind = event.type()
+        if kind == QEvent.Type.Enter and obj in self._buttons.values():
+            self._set_hot(obj)
+        elif kind in (QEvent.Type.Leave, QEvent.Type.Hide, QEvent.Type.WindowDeactivate):
+            self._set_hot(None)
+        return False
+
+    def leaveEvent(self, event) -> None:
+        self._set_hot(None)
+        super().leaveEvent(event)
+
     def set_current(self, key: str) -> None:
+        self._set_hot(None)
         button = self._buttons.get(key)
         if button is not None:
             button.setChecked(True)
