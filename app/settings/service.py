@@ -2,6 +2,8 @@ from __future__ import annotations
 
 import json
 import os
+import shutil
+import sys
 from pathlib import Path
 from typing import Any
 
@@ -13,13 +15,15 @@ DEFAULTS: dict[str, Any] = {
     "start_minimized": False,
     "tray_metrics": True,
     "log_level": "INFO",
-    "theme": "DARK",
+    "theme": "GRAPHITE",
     "language": "UA",
 }
 
 CHOICES: dict[str, tuple[str, ...]] = {
     "log_level": ("DEBUG", "INFO", "WARNING", "ERROR"),
-    "theme": ("DARK", "PURPLE", "GREEN", "LIGHT", "AMOLED", "MATRIX", "CYBERPUNK", "NORD"),
+    "theme": ("GRAPHITE", "TRUE_BLACK", "SLATE", "TITANIUM", "FOREST", "BURGUNDY", "MIDNIGHT",
+              "AUBERGINE", "DEEP_TEAL", "ESPRESSO", "ARCTIC", "IVORY", "MONO", "SAGE",
+              "PERFORMANCE_RED", "CYBER", "INDUSTRIAL", "TACTICAL", "COBALT", "COPPER"),
     "language": ("UA", "EN"),
 }
 
@@ -32,9 +36,50 @@ class SettingsError(ValueError):
     pass
 
 
+def data_root() -> Path:
+    """Directory that holds settings, logs and other runtime data.
+
+    Resolution order:
+      1. PCOPTIMIZER_DATA env var (explicit override), e.g. D:\\...\\PCOptimizer_PRO\\data
+      2. <executable dir>/data — for the frozen app (portable/next-to-exe, keeps data on the same drive as the app)
+      3. <project root>/data — when running from source
+
+    A one-time migration copies settings/logs from the legacy %LOCALAPPDATA%\\PCOptimizer_PRO
+    folder so nothing is lost when switching to the new location.
+    """
+    env = os.environ.get("PCOPTIMIZER_DATA")
+    if env:
+        root = Path(env).expanduser()
+        return _migrate_legacy(root)
+    if getattr(sys, "frozen", False):
+        root = Path(sys.executable).resolve().parent / "data"
+        return _migrate_legacy(root)
+    root = Path(__file__).resolve().parents[2] / "data"
+    return root
+
+
+def _migrate_legacy(root: Path) -> Path:
+    """One-time copy of settings/logs from the old %LOCALAPPDATA% location into `root`."""
+    target = root / "settings.json"
+    if target.exists():
+        return root
+    legacy_base = Path(os.environ.get("LOCALAPPDATA") or Path.home()) / APP_NAME
+    legacy_settings = legacy_base / "settings.json"
+    if not legacy_settings.exists():
+        return root
+    try:
+        root.mkdir(parents=True, exist_ok=True)
+        shutil.copy2(legacy_settings, target)
+        legacy_logs = legacy_base / "logs"
+        if legacy_logs.exists():
+            shutil.copytree(legacy_logs, root / "logs", dirs_exist_ok=True)
+    except OSError:
+        pass
+    return root
+
+
 def default_path() -> Path:
-    base = os.environ.get("LOCALAPPDATA") or str(Path.home())
-    return Path(base) / APP_NAME / "settings.json"
+    return data_root() / "settings.json"
 
 
 class SettingsService:

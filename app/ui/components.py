@@ -18,7 +18,7 @@ from PySide6.QtWidgets import (
 from app.i18n import tr
 
 from .icons import glyph
-from .theme import ACCENT, BORDER, BORDER_HI, C1, C3, DANGER, OK, PANEL, PANEL_ALT, TEXT, TEXT_DIM, WARN
+from .theme import ACCENT, BORDER, BORDER_HI, C1, C3, DANGER, OK, PANEL, PANEL_ALT, TEXT, TEXT_DIM, WARN, fs
 
 
 def level_color(percent: float, base: str = ACCENT) -> str:
@@ -183,12 +183,12 @@ class RingCard(QFrame):
         header.addWidget(self.header_icon)
 
         self.header_title = QLabel(title)
-        self.header_title.setStyleSheet(f"font-size: 12px; font-weight: 700; color: {TEXT_DIM};")
+        self.header_title.setStyleSheet(f"font-size: {fs(12)}px; font-weight: 700; color: {TEXT_DIM};")
         header.addWidget(self.header_title)
         header.addStretch(1)
 
         self.header_arrow = QLabel("›")
-        self.header_arrow.setStyleSheet(f"font-size: 14px; font-weight: 700; color: {TEXT_DIM};")
+        self.header_arrow.setStyleSheet(f"font-size: {fs(14)}px; font-weight: 700; color: {TEXT_DIM};")
         header.addWidget(self.header_arrow)
         layout.addLayout(header)
 
@@ -201,12 +201,12 @@ class RingCard(QFrame):
 
         self.value = QLabel("—")
         self.value.setObjectName("ringValue")
-        self.value.setStyleSheet(f"font-size: 24px; font-weight: 800; color: {TEXT};")
+        self.value.setStyleSheet(f"font-size: {fs(24)}px; font-weight: 800; color: {TEXT};")
         self.value.setAlignment(Qt.AlignmentFlag.AlignCenter)
         ring_layout.addWidget(self.value)
 
         self.center_sub = QLabel("Завантаження")
-        self.center_sub.setStyleSheet(f"font-size: 11px; color: {TEXT_DIM};")
+        self.center_sub.setStyleSheet(f"font-size: {fs(11)}px; color: {TEXT_DIM};")
         self.center_sub.setAlignment(Qt.AlignmentFlag.AlignCenter)
         ring_layout.addWidget(self.center_sub)
         ring_layout.addStretch(1)
@@ -219,7 +219,7 @@ class RingCard(QFrame):
         
         self.sub = QLabel("")
         self.sub.setObjectName("ringSub")
-        self.sub.setStyleSheet(f"font-size: 11px; color: {TEXT_DIM};")
+        self.sub.setStyleSheet(f"font-size: {fs(11)}px; color: {TEXT_DIM};")
         self.sub.setAlignment(Qt.AlignmentFlag.AlignLeft)
         details_box.addWidget(self.sub)
 
@@ -227,7 +227,7 @@ class RingCard(QFrame):
 
         self.extra = QLabel("")
         self.extra.setObjectName("cardSub")
-        self.extra.setStyleSheet(f"font-size: 11px; font-weight: 600; color: {OK};")
+        self.extra.setStyleSheet(f"font-size: {fs(11)}px; font-weight: 600; color: {OK};")
         self.extra.setAlignment(Qt.AlignmentFlag.AlignRight)
         details_box.addWidget(self.extra)
         
@@ -285,7 +285,7 @@ class PerfChart(QFrame):
 
         head = QHBoxLayout()
         label = QLabel(title or tr("dash_chart_title"))
-        label.setStyleSheet(f"font-size: 13px; font-weight: 700; color: {TEXT};")
+        label.setStyleSheet(f"font-size: {fs(13)}px; font-weight: 700; color: {TEXT};")
         head.addWidget(label)
         head.addStretch(1)
         self._title_label = label
@@ -296,7 +296,7 @@ class PerfChart(QFrame):
         self._legend: dict[str, QLabel] = {}
         for name, col in (("CPU", C1), ("GPU", C3), ("RAM", OK)):
             leg_lbl = QLabel(f"● {name}")
-            leg_lbl.setStyleSheet(f"font-size: 11px; font-weight: 600; color: {col};")
+            leg_lbl.setStyleSheet(f"font-size: {fs(11)}px; font-weight: 600; color: {col};")
             legend.addWidget(leg_lbl)
             self._legend[name] = leg_lbl
         head.addLayout(legend)
@@ -386,7 +386,7 @@ class _ChartCanvas(QWidget):
         grid = QColor(BORDER)
         text = QColor(TEXT_DIM)
         font = painter.font()
-        font.setPixelSize(11)
+        font.setPixelSize(fs(11))
         painter.setFont(font)
         
         # Horizontal grid
@@ -491,7 +491,7 @@ class _EmptyHint(QLabel):
         self._key = key
         self.setWordWrap(True)
         self.setAlignment(Qt.AlignmentFlag.AlignCenter)
-        self.setStyleSheet(f"color: {TEXT_DIM}; font-size: 13px; background: transparent; padding: 24px;")
+        self.setStyleSheet(f"color: {TEXT_DIM}; font-size: {fs(13)}px; background: transparent; padding: 24px;")
         self.setAttribute(Qt.WidgetAttribute.WA_TransparentForMouseEvents)
         table.viewport().installEventFilter(self)
         model = table.model()

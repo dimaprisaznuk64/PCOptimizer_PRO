@@ -9,7 +9,7 @@ from app.sensors import GpuStat, Snapshot
 from .components import GaugeCard
 from .format import gb
 
-from .theme import C2 as VRAM_COLOR
+from .theme import C2 as VRAM_COLOR, fs
 from .theme import C3 as TEMP_COLOR
 from .theme import C4 as POWER_COLOR
 
@@ -139,7 +139,7 @@ class GpuPage(QWidget):
         self.empty = QLabel(tr("gpu_waiting"))
         self.empty.setObjectName("cardSub")
         self.empty.setAlignment(Qt.AlignmentFlag.AlignCenter)
-        self.empty.setStyleSheet("font-size: 14px;")
+        self.empty.setStyleSheet(f"font-size: {fs(14)}px;")
         self._panels_layout.addWidget(self.empty, 1)
 
         self.errors = QLabel("")

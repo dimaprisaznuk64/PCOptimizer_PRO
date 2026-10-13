@@ -7,6 +7,7 @@ from .service import (
     RANGES,
     SettingsError,
     SettingsService,
+    data_root,
     default_path,
 )
 
@@ -17,5 +18,6 @@ __all__ = [
     "RANGES",
     "SettingsError",
     "SettingsService",
+    "data_root",
     "default_path",
 ]

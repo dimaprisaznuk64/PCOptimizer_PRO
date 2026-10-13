@@ -4,7 +4,7 @@ from PySide6.QtCore import QSize, Qt, Signal
 from PySide6.QtWidgets import QHBoxLayout, QLabel, QMenu, QPushButton, QVBoxLayout, QWidget
 
 from .icons import glyph
-from .theme import ACCENT, TEXT, TEXT_DIM
+from .theme import ACCENT, TEXT, TEXT_DIM, fs
 from app.i18n import tr
 
 
@@ -38,11 +38,11 @@ class TopBar(QWidget):
         info_col.setAlignment(Qt.AlignmentFlag.AlignVCenter)
         self.title = QLabel(tr("topbar_greeting"))
         self.title.setObjectName("topBarTitle")
-        self.title.setStyleSheet(f"font-size: 14px; font-weight: 700; color: {TEXT};")
+        self.title.setStyleSheet(f"font-size: {fs(14)}px; font-weight: 700; color: {TEXT};")
         info_col.addWidget(self.title)
 
         self.subtitle = QLabel(tr("topbar_subtitle_ok"))
-        self.subtitle.setStyleSheet(f"font-size: 12px; color: {TEXT_DIM};")
+        self.subtitle.setStyleSheet(f"font-size: {fs(12)}px; color: {TEXT_DIM};")
         info_col.addWidget(self.subtitle)
         layout.addLayout(info_col)
 
@@ -60,10 +60,10 @@ class TopBar(QWidget):
         clock_box.setSpacing(0)
         clock_box.setAlignment(Qt.AlignmentFlag.AlignVCenter)
         self.clock_label = QLabel()
-        self.clock_label.setStyleSheet(f"font-size: 13px; font-weight: 700; color: {TEXT};")
+        self.clock_label.setStyleSheet(f"font-size: {fs(13)}px; font-weight: 700; color: {TEXT};")
         self.clock_label.setAlignment(Qt.AlignmentFlag.AlignRight)
         self.date_label = QLabel()
-        self.date_label.setStyleSheet(f"font-size: 11px; color: {TEXT_DIM};")
+        self.date_label.setStyleSheet(f"font-size: {fs(11)}px; color: {TEXT_DIM};")
         self.date_label.setAlignment(Qt.AlignmentFlag.AlignRight)
         clock_box.addWidget(self.clock_label)
         clock_box.addWidget(self.date_label)

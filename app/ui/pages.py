@@ -31,7 +31,7 @@ class PlaceholderPage(QWidget):
         layout.addStretch(1)
 
 
-def build_pages(settings=None) -> list[tuple[str, QWidget]]:
+def build_pages(settings=None, on_theme_applied=None) -> list[tuple[str, QWidget]]:
     from app.settings import SettingsService
 
     from .cleaner import CleanerPage
@@ -62,5 +62,5 @@ def build_pages(settings=None) -> list[tuple[str, QWidget]]:
         ("network", NetworkPage()),
         ("disk", DiskPage()),
         ("health", HealthPage()),
-        ("settings", SettingsPage(settings)),
+        ("settings", SettingsPage(settings, on_theme_applied=on_theme_applied)),
     ]

@@ -3,7 +3,7 @@ from __future__ import annotations
 import sys
 
 from PySide6.QtCore import Qt
-from PySide6.QtGui import QColor, QPainter, QRadialGradient
+from PySide6.QtGui import QColor, QGuiApplication, QPainter, QRadialGradient
 from PySide6.QtWidgets import QApplication, QHBoxLayout, QMainWindow, QStackedWidget, QVBoxLayout, QWidget
 
 from app.i18n import I18nService, tr
@@ -12,7 +12,7 @@ from app.settings import SettingsService
 from .pages import build_pages
 from .sampler import SensorSampler
 from .sidebar import NAV_ITEMS, Sidebar
-from .theme import BG, GLOW_A, GLOW_ALPHA_A, GLOW_ALPHA_B, GLOW_B, apply
+from .theme import apply
 from .topbar import TopBar
 from .tray import AppTray
 
@@ -21,12 +21,14 @@ class _GlowRoot(QWidget):
     """Window background: flat dark base with soft colored glows."""
 
     def paintEvent(self, event) -> None:
+        from . import theme
+
         painter = QPainter(self)
-        painter.fillRect(self.rect(), QColor(BG))
+        painter.fillRect(self.rect(), QColor(theme.BG))
         w, h = self.width(), self.height()
         for cx, cy, radius, color, alpha in (
-            (w * 0.92, h * 0.02, max(w, h) * 0.55, GLOW_A, GLOW_ALPHA_A),
-            (w * 0.35, h * 1.05, max(w, h) * 0.5, GLOW_B, GLOW_ALPHA_B),
+            (w * 0.92, h * 0.02, max(w, h) * 0.55, theme.GLOW_A, theme.GLOW_ALPHA_A),
+            (w * 0.35, h * 1.05, max(w, h) * 0.5, theme.GLOW_B, theme.GLOW_ALPHA_B),
         ):
             glow = QRadialGradient(cx, cy, radius)
             inner = QColor(color)
@@ -71,7 +73,7 @@ class MainWindow(QMainWindow):
         self.stack = QStackedWidget()
 
         self._index_by_key: dict[str, int] = {}
-        for i, (key, page) in enumerate(build_pages(self.settings)):
+        for i, (key, page) in enumerate(build_pages(self.settings, on_theme_applied=self.apply_theme)):
             self._index_by_key[key] = i
             self.stack.addWidget(page)
 
@@ -154,6 +156,92 @@ class MainWindow(QMainWindow):
     def page(self, key: str):
         index = self._index_by_key.get(key)
         return None if index is None else self.stack.widget(index)
+
+    # ---------- live theme switching ----------
+
+    def _reload_ui_modules(self) -> None:
+        """Re-import every module that snapshots theme tokens via 'from .theme import ...'.
+
+        importlib.reload re-executes each module's code in its shared module dict,
+        so the module-level token bindings are refreshed before pages are rebuilt.
+        """
+        import importlib
+
+        for name in (
+            "theme", "icons", "components", "monitor", "dashboard", "gpu",
+            "processes", "cleaner", "startup", "optimizer", "gaming",
+            "network", "disk", "health", "settings", "sidebar", "topbar",
+            "tray", "pages",
+        ):
+            module = sys.modules.get(f"app.ui.{name}")
+            if module is not None:
+                importlib.reload(module)
+
+    def apply_theme(self, name: str) -> None:
+        """Apply a new theme instantly (no restart): restyle the app + rebuild every page."""
+        from PySide6.QtWidgets import QApplication
+
+        from . import theme as th
+        from .icons import app_icon
+        from .pages import build_pages
+        from .sidebar import Sidebar
+        from .tasks import stop_all
+        from .topbar import TopBar
+
+        th.set_theme(name)
+        self._reload_ui_modules()
+        app = QApplication.instance()
+        if app is not None:
+            th.apply(app)
+        if self.tray is not None:
+            self.tray.tray.setIcon(app_icon())
+
+        geometry = self.geometry()
+        key = self.current_key
+
+        stop_all()
+
+        self.sidebar.deleteLater()
+        self.topbar.deleteLater()
+        while self.stack.count():
+            widget = self.stack.widget(0)
+            self.stack.removeWidget(widget)
+            widget.deleteLater()
+        self._root_layout.removeWidget(self._content)
+        self._content.deleteLater()
+
+        self.sidebar = Sidebar()
+        self.topbar = TopBar()
+        self.topbar.settings_requested.connect(lambda: self.show_page("settings"))
+        self.stack = QStackedWidget()
+        self._index_by_key = {}
+        for i, (page_key, page) in enumerate(
+            build_pages(self.settings, on_theme_applied=self.apply_theme)
+        ):
+            self._index_by_key[page_key] = i
+            self.stack.addWidget(page)
+        self.sidebar.navigated.connect(self.show_page)
+        dashboard = self.page("dashboard")
+        if dashboard is not None and hasattr(dashboard, "navigate"):
+            dashboard.navigate.connect(self.show_page)
+        self._root_layout.addWidget(self.sidebar)
+
+        self._content = QWidget()
+        self._content.setObjectName("root")
+        content_layout = QVBoxLayout(self._content)
+        content_layout.setContentsMargins(0, 0, 0, 0)
+        content_layout.setSpacing(0)
+        content_layout.addWidget(self.topbar)
+        content_layout.addWidget(self.stack, 1)
+        self._root_layout.addWidget(self._content, 1)
+
+        self.setGeometry(geometry)
+        self.show_page(key)
+        if self._last_snapshot is not None:
+            self.handle_snapshot(self._last_snapshot)
+        root = self.centralWidget()
+        if root is not None:
+            root.update()
 
     # ---------- tray ----------
 
@@ -262,6 +350,9 @@ def run(argv: list[str] | None = None) -> int:
 
     from .single_instance import SingleInstanceGuard
 
+    QGuiApplication.setHighDpiScaleFactorRoundingPolicy(
+        Qt.HighDpiScaleFactorRoundingPolicy.PassThrough
+    )
     app = QApplication(argv if argv is not None else sys.argv)
     app.setApplicationName("PCOptimizer PRO")
     app.setApplicationDisplayName("PCOptimizer PRO")

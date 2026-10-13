@@ -6,7 +6,7 @@ from PySide6.QtWidgets import QButtonGroup, QFrame, QHBoxLayout, QLabel, QPushBu
 from app.i18n import tr
 
 from .icons import nav_icon
-from .theme import BORDER, BRAND_A, BRAND_B, C1, NAV_WIDTH, OK, PANEL, TEXT, TEXT_DIM
+from .theme import BORDER, BRAND_A, BRAND_B, C1, NAV_WIDTH, OK, PANEL, TEXT, TEXT_DIM, fs
 
 NAV_KEYS: tuple[tuple[str, str], ...] = (
     ("dashboard", "nav_dashboard"),
@@ -81,12 +81,12 @@ class Sidebar(QWidget):
         title_row.setSpacing(6)
         brand = QLabel("PCOptimizer")
         brand.setObjectName("brand")
-        brand.setStyleSheet(f"font-size: 15px; font-weight: 800; color: {TEXT};")
+        brand.setStyleSheet(f"font-size: {fs(15)}px; font-weight: 800; color: {TEXT};")
         title_row.addWidget(brand)
         pro_badge = QLabel("PRO")
         pro_badge.setStyleSheet(
             f"background: qlineargradient(x1:0, y1:0, x2:1, y2:0, stop:0 {BRAND_A}, stop:1 {BRAND_B}); "
-            "color: #FFFFFF; font-size: 11px; font-weight: 800; border-radius: 4px; padding: 2px 5px;"
+            f"color: #FFFFFF; font-size: {fs(11)}px; font-weight: 800; border-radius: 4px; padding: 2px 5px;"
         )
         title_row.addWidget(pro_badge)
         title_row.addStretch(1)
@@ -95,7 +95,7 @@ class Sidebar(QWidget):
         self.brand_subtitle = QLabel(tr("app_subtitle"))
         self.brand_subtitle.setObjectName("brandSub")
         self.brand_subtitle.setWordWrap(True)
-        self.brand_subtitle.setStyleSheet(f"font-size: 11px; color: {TEXT_DIM};")
+        self.brand_subtitle.setStyleSheet(f"font-size: {fs(11)}px; color: {TEXT_DIM};")
         titles.addWidget(self.brand_subtitle)
         brand_row.addLayout(titles, 1)
         layout.addWidget(brand_box)
@@ -141,10 +141,10 @@ class Sidebar(QWidget):
         user_text.setSpacing(2)
         self.u_title = QLabel(tr("sidebar_user_title"))
         self.u_title.setWordWrap(True)
-        self.u_title.setStyleSheet(f"font-size: 12px; font-weight: 700; color: {TEXT};")
+        self.u_title.setStyleSheet(f"font-size: {fs(12)}px; font-weight: 700; color: {TEXT};")
         self.u_sub = QLabel(tr("sidebar_user_sub"))
         self.u_sub.setWordWrap(True)
-        self.u_sub.setStyleSheet(f"font-size: 11px; color: {TEXT_DIM};")
+        self.u_sub.setStyleSheet(f"font-size: {fs(11)}px; color: {TEXT_DIM};")
         user_text.addWidget(self.u_title)
         user_text.addWidget(self.u_sub)
         user_row.addLayout(user_text, 1)
@@ -154,7 +154,7 @@ class Sidebar(QWidget):
         self.status = QLabel(f"● {tr('status_healthy')}")
         self.status.setObjectName("sysStatus")
         self.status.setProperty("level", "ok")
-        self.status.setStyleSheet(f"font-size: 12px; font-weight: 600; color: {OK}; padding: 4px 18px;")
+        self.status.setStyleSheet(f"font-size: {fs(12)}px; font-weight: 600; color: {OK}; padding: 4px 18px;")
         layout.addWidget(self.status)
 
         self.select("dashboard")

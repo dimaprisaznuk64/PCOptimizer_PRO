@@ -7,7 +7,24 @@ $pyCmd = if (Get-Command py -ErrorAction SilentlyContinue) { "py -3.13" } else {
 if (-not (Test-Path (Join-Path $root "assets\app.ico"))) {
     Invoke-Expression "$pyCmd scripts/make_icon.py"
 }
+
+# Preserve user data (settings/logs live next to the exe in `<exe_dir>\data`),
+# because PyInstaller wipes dist\PCOptimizer_PRO during COLLECT.
+$dataDir = Join-Path $root "dist\PCOptimizer_PRO\data"
+$backup = if (Test-Path $dataDir) { Join-Path $env:TEMP "pcopt_data_backup_$(Get-Date -Format yyyyMMdd_HHmmss)" } else { $null }
+if ($backup) {
+    Copy-Item $dataDir $backup -Recurse -Force
+    Write-Host "Backed up data to $backup"
+}
+
 Invoke-Expression "$pyCmd -m PyInstaller --clean --noconfirm PCOptimizer_PRO.spec"
+
+if ($backup -and (Test-Path (Join-Path $root "dist\PCOptimizer_PRO"))) {
+    New-Item -ItemType Directory -Path $dataDir -Force | Out-Null
+    Copy-Item (Join-Path $backup "*") $dataDir -Recurse -Force
+    Remove-Item $backup -Recurse -Force
+    Write-Host "Restored data to $dataDir"
+}
 
 $exe = Join-Path $root "dist\PCOptimizer_PRO\PCOptimizer_PRO.exe"
 Write-Host "Done: $exe"

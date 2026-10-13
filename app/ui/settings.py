@@ -2,6 +2,7 @@ from __future__ import annotations
 
 from pathlib import Path
 
+from PySide6.QtGui import QFont
 from PySide6.QtWidgets import (
     QCheckBox,
     QComboBox,
@@ -10,7 +11,6 @@ from PySide6.QtWidgets import (
     QHBoxLayout,
     QLabel,
     QLineEdit,
-    QMessageBox,
     QPlainTextEdit,
     QPushButton,
     QVBoxLayout,
@@ -19,9 +19,9 @@ from PySide6.QtWidgets import (
 
 from app.i18n import I18nService, tr
 from app.logs import clear_logs, log_file, read_tail, setup_logging
-from app.settings import SettingsError, SettingsService
+from app.settings import SettingsError, SettingsService, data_root
 
-from .theme import CURRENT_THEME, THEME_LABELS
+from .theme import CURRENT_THEME, THEME_LABELS, fs
 
 INTERVAL_OPTIONS = (250, 500, 1000, 2000, 5000)
 LOG_LEVELS = ("DEBUG", "INFO", "WARNING", "ERROR")
@@ -34,11 +34,13 @@ class SettingsPage(QWidget):
         service: SettingsService | None = None,
         log_directory: Path | str | None = None,
         parent: QWidget | None = None,
+        on_theme_applied=None,
     ) -> None:
         super().__init__(parent)
         self.setObjectName("page")
         self._service = service or SettingsService()
         self._log_directory = Path(log_directory) if log_directory is not None else None
+        self._on_theme_applied = on_theme_applied
 
         layout = QVBoxLayout(self)
         layout.setContentsMargins(40, 36, 40, 32)
@@ -94,6 +96,8 @@ class SettingsPage(QWidget):
         for i in range(self.theme_combo.count()):
             self.theme_combo.setItemText(i, tr(f"theme_{self.theme_combo.itemData(i)}"))
         self._language_label.setText(tr("set_language"))
+        self._data_label.setText(tr("set_data_dir"))
+        self._data_label.setToolTip(tr("set_data_dir_tip"))
         self._level_label.setText(tr("set_log_level"))
         self._logging_heading.setText(tr("set_logging"))
         self.minimize_check.setText(tr("set_minimize_tray"))
@@ -142,14 +146,21 @@ class SettingsPage(QWidget):
             self.language_combo.addItem({"UA": "Українська", "EN": "English"}.get(code, code), code)
         grid.addWidget(self.language_combo, 3, 1)
 
+        self._data_label = QLabel(tr("set_data_dir"))
+        self._data_label.setToolTip(tr("set_data_dir_tip"))
+        grid.addWidget(self._data_label, 4, 0)
+        self.data_dir_edit = QLineEdit(str(data_root()))
+        self.data_dir_edit.setReadOnly(True)
+        grid.addWidget(self.data_dir_edit, 4, 1)
+
         self.minimize_check = QCheckBox(tr("set_minimize_tray"))
-        grid.addWidget(self.minimize_check, 4, 0, 1, 2)
+        grid.addWidget(self.minimize_check, 5, 0, 1, 2)
 
         self.start_minimized_check = QCheckBox(tr("set_start_minimized"))
-        grid.addWidget(self.start_minimized_check, 5, 0, 1, 2)
+        grid.addWidget(self.start_minimized_check, 6, 0, 1, 2)
 
         self.tray_metrics_check = QCheckBox(tr("set_tray_metrics"))
-        grid.addWidget(self.tray_metrics_check, 6, 0, 1, 2)
+        grid.addWidget(self.tray_metrics_check, 7, 0, 1, 2)
 
         grid.setColumnStretch(1, 1)
         return card
@@ -199,7 +210,12 @@ class SettingsPage(QWidget):
 
         self.preview = QPlainTextEdit()
         self.preview.setReadOnly(True)
-        self.preview.setMinimumHeight(120)
+        self.preview.setMinimumHeight(140)
+        self.preview.setLineWrapMode(QPlainTextEdit.LineWrapMode.NoWrap)
+        mono = QFont()
+        mono.setFamilies(["Cascadia Mono", "Consolas", "Courier New"])
+        mono.setPixelSize(fs(12))
+        self.preview.setFont(mono)
         self.preview.setPlaceholderText(tr("set_log_empty"))
         outer.addWidget(self.preview, 1)
         return card
@@ -255,31 +271,8 @@ class SettingsPage(QWidget):
         self.refresh_preview()
         if language_changed:
             I18nService.instance().set_language(language)
-        if theme_changed:
-            self._offer_restart()
-
-    def _offer_restart(self) -> None:
-        answer = QMessageBox.question(
-            self,
-            tr("set_restart_title"),
-            tr("set_restart_msg"),
-            QMessageBox.StandardButton.Yes | QMessageBox.StandardButton.No,
-            QMessageBox.StandardButton.Yes,
-        )
-        if answer != QMessageBox.StandardButton.Yes:
-            return
-        import sys
-
-        from PySide6.QtCore import QProcess
-
-        args = sys.argv[1:] if getattr(sys, "frozen", False) else sys.argv
-        if not QProcess.startDetached(sys.executable, args):
-            self.status_label.setText(tr("set_restart_failed"))
-            return
-        window = self.window()
-        quit_app = getattr(window, "quit_app", None)
-        if quit_app is not None:
-            quit_app()
+        if theme_changed and self._on_theme_applied is not None:
+            self._on_theme_applied(str(self.theme_combo.currentData()))
 
     def reset(self) -> None:
         self._service.reset()

@@ -5,7 +5,7 @@ from collections import deque
 from logging.handlers import RotatingFileHandler
 from pathlib import Path
 
-from app.settings import APP_NAME, default_path as default_settings_path
+from app.settings import APP_NAME, data_root
 
 LOGGER_NAME = "pcoptimizer"
 DEFAULT_MAX_BYTES = 1_000_000
@@ -16,7 +16,7 @@ _FORMAT = "%(asctime)s %(levelname)-7s %(name)s: %(message)s"
 
 
 def default_dir() -> Path:
-    return default_settings_path().parent / "logs"
+    return data_root() / "logs"
 
 
 def get_logger(name: str | None = None) -> logging.Logger:
