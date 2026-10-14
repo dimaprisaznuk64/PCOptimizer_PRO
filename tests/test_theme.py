@@ -16,13 +16,15 @@ EXPECTED = {
     "MIDNIGHT", "AUBERGINE", "DEEP_TEAL", "ESPRESSO", "ARCTIC", "IVORY",
     "MONO", "SAGE", "PERFORMANCE_RED", "CYBER", "INDUSTRIAL", "TACTICAL",
     "COBALT", "COPPER",
+    # legacy themes restored from v1.2.2
+    "DARK", "PURPLE", "GREEN", "LIGHT", "AMOLED",
 }
 
 
-def test_twenty_curated_themes():
+def test_curated_themes_include_legacy():
     from app.ui import theme as tract
 
-    assert len(tract.PALETTES) == 20
+    assert len(tract.PALETTES) == 25
     assert set(tract.PALETTES) == EXPECTED
 
 
@@ -55,8 +57,10 @@ def test_set_theme_updates_globals_and_resolves_aliases():
     try:
         assert tract.set_theme("FOREST") == "FOREST"
         assert tract.BG == tract.PALETTES["FOREST"]["BG"]
-        assert tract.set_theme("AMOLED") == "TRUE_BLACK"
-        assert tract.BG == tract.PALETTES["TRUE_BLACK"]["BG"]
+        assert tract.set_theme("DARK") == "DARK"
+        assert tract.BG == tract.PALETTES["DARK"]["BG"]
+        assert tract.set_theme("MATRIX") == "CYBER"
+        assert tract.BG == tract.PALETTES["CYBER"]["BG"]
         assert tract.set_theme("bogus_name") == tract.DEFAULT_THEME
     finally:
         tract.set_theme(orig)
@@ -66,8 +70,8 @@ def test_saved_theme_aliases_migrate_old_names(tmp_path, monkeypatch):
     from app.ui import theme as tract
 
     monkeypatch.setenv("PCOPTIMIZER_DATA", str(tmp_path))
-    (tmp_path / "settings.json").write_text(json.dumps({"theme": "AMOLED"}), encoding="utf-8")
-    assert tract.saved_theme() == "TRUE_BLACK"
+    (tmp_path / "settings.json").write_text(json.dumps({"theme": "NORD"}), encoding="utf-8")
+    assert tract.saved_theme() == "MIDNIGHT"
 
 
 def test_saved_theme_unknown_falls_back(tmp_path, monkeypatch):

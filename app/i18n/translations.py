@@ -24,6 +24,11 @@ TRANSLATIONS: dict[str, dict[str, str]] = {
         "theme_TACTICAL": "Tactical",
         "theme_COBALT": "Cobalt",
         "theme_COPPER": "Copper",
+        "theme_DARK": "Black Cyber",
+        "theme_PURPLE": "Purple Neon",
+        "theme_GREEN": "Green Nature",
+        "theme_LIGHT": "Light",
+        "theme_AMOLED": "AMOLED Neon",
         # App & Brand
         "app_title": "PCOptimizer PRO",
         "app_subtitle": "Your PC. Under control.",
@@ -50,7 +55,7 @@ TRANSLATIONS: dict[str, dict[str, str]] = {
         "nav_section_diagnostics": "DIAGNOSTICS",
         "nav_section_preferences": "PREFERENCES",
         "sidebar_user_title": "Your PC is in safe hands",
-        "sidebar_user_sub": "PCOptimizer PRO v1.2.6",
+        "sidebar_user_sub": "PCOptimizer PRO v1.2.7",
         "sidebar_status_ok": "System healthy",
 
         # Top bar
@@ -655,6 +660,11 @@ TRANSLATIONS: dict[str, dict[str, str]] = {
         "theme_TACTICAL": "Тактичний",
         "theme_COBALT": "Кобальт",
         "theme_COPPER": "Мідь",
+        "theme_DARK": "Чорний кібер",
+        "theme_PURPLE": "Фіолетовий неон",
+        "theme_GREEN": "Зелена природа",
+        "theme_LIGHT": "Світла",
+        "theme_AMOLED": "AMOLED неон",
         # App & Brand
         "app_title": "PCOptimizer PRO",
         "app_subtitle": "Ваш ПК. Під повним контролем.",
@@ -681,7 +691,7 @@ TRANSLATIONS: dict[str, dict[str, str]] = {
         "nav_section_diagnostics": "ДІАГНОСТИКА",
         "nav_section_preferences": "НАЛАШТУВАННЯ",
         "sidebar_user_title": "Твій ПК у надійних руках",
-        "sidebar_user_sub": "PCOptimizer PRO v1.2.6",
+        "sidebar_user_sub": "PCOptimizer PRO v1.2.7",
         "sidebar_status_ok": "Система в нормі",
 
         # Top bar

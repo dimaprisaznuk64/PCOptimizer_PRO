@@ -300,14 +300,50 @@ PALETTES: dict[str, dict] = {
         "GLOW_ALPHA_A": 40, "GLOW_ALPHA_B": 27,
         "C1": "#C97E47", "C2": "#A2643C", "C3": "#77A65E", "C4": "#8FA0C9",
     },
+    # --- Legacy themes restored from v1.2.2 (before the 20-palette refresh) ---
+    "DARK": {
+        **_BASE,
+    },
+    "PURPLE": {
+        **_BASE,
+        "BG": "#0c0817", "PANEL": "#151026", "PANEL_ALT": "#1d1736", "BORDER": "#2b2350", "BORDER_HI": "#43377a",
+        "TEXT": "#eee8ff", "TEXT_DIM": "#9d93c8", "ACCENT": "#a259ff", "ACCENT_HOVER": "#b97dff",
+        "ACCENT_TINT": "#2c1d52", "ACCENT_PRESSED": "#8640dc", "SIDEBAR_TOP": "#1a1230", "SIDEBAR_BOTTOM": "#110b22",
+        "HOVER": "#241c42", "HERO_TOP": "#2b1b52", "BRAND_A": "#c27dff", "BRAND_B": "#ff4fd8",
+        "GLOW_A": "#a259ff", "GLOW_B": "#ff4fd8", "C1": "#a259ff", "C2": "#ff4fd8", "C3": "#5ac8fa", "C4": "#ffb03a",
+    },
+    "GREEN": {
+        **_BASE,
+        "BG": "#08100d", "PANEL": "#0f1a15", "PANEL_ALT": "#15241d", "BORDER": "#1d3a2e", "BORDER_HI": "#2d5a47",
+        "TEXT": "#e3f4ec", "TEXT_DIM": "#86aa99", "ACCENT": "#2ed39a", "ACCENT_HOVER": "#55e4b2",
+        "ACCENT_TINT": "#123b2d", "ACCENT_PRESSED": "#1faa7c", "ON_ACCENT": "#04130d",
+        "SIDEBAR_TOP": "#10201a", "SIDEBAR_BOTTOM": "#0b1511", "HOVER": "#1a2d24", "HERO_TOP": "#11392b",
+        "BRAND_A": "#55e4b2", "BRAND_B": "#2f9bff", "GLOW_A": "#2ed39a", "GLOW_B": "#3fb950",
+        "C1": "#2ed39a", "C2": "#5ac8fa", "C3": "#b6e04a", "C4": "#f0a03a",
+    },
+    "LIGHT": {
+        **_BASE,
+        "BG": "#eef2f8", "PANEL": "#ffffff", "PANEL_ALT": "#f4f7fb", "BORDER": "#dde4ef", "BORDER_HI": "#c3cee0",
+        "TEXT": "#1b2433", "TEXT_DIM": "#66748b", "ACCENT": "#3b82f6", "ACCENT_HOVER": "#5a9bff",
+        "ACCENT_TINT": "#e1ecff", "ACCENT_PRESSED": "#2a6fe0", "DANGER": "#d9423a", "OK": "#1fa65a", "WARN": "#e08a00",
+        "SIDEBAR_TOP": "#ffffff", "SIDEBAR_BOTTOM": "#f6f8fc", "HOVER": "#edf2fa",
+        "DANGER_BG": "#fde8e7", "DANGER_BORDER": "#f1b4b0", "DANGER_BG_HOVER": "#fbd6d4", "WARN_BG": "#fff3d6",
+        "OK_BG": "#dcf4e5",
+        "HERO_TOP": "#dce9ff", "BRAND_A": "#5a9bff", "BRAND_B": "#8b5cf6", "GLOW_A": "#3b82f6", "GLOW_B": "#8b5cf6",
+        "GLOW_ALPHA_A": 40, "GLOW_ALPHA_B": 28, "C1": "#3b82f6", "C2": "#8b5cf6", "C3": "#14b8a6", "C4": "#f59e0b",
+    },
+    "AMOLED": {
+        **_BASE,
+        "BG": "#000000", "PANEL": "#08090b", "PANEL_ALT": "#101216", "BORDER": "#1a1d24", "BORDER_HI": "#2a2f3a",
+        "TEXT": "#f1f3f7", "TEXT_DIM": "#858c9a", "ACCENT": "#2f80ff", "ACCENT_HOVER": "#5a9bff",
+        "ACCENT_TINT": "#0f2347", "ACCENT_PRESSED": "#1f66d6", "SIDEBAR_TOP": "#050608", "SIDEBAR_BOTTOM": "#000000",
+        "HOVER": "#14171d", "DANGER_BG": "#2a0f0e", "DANGER_BORDER": "#5c2420", "DANGER_BG_HOVER": "#3a1412",
+        "OK_BG": "#0e2616", "HERO_TOP": "#0d1d3d", "BRAND_A": "#5a9bff", "BRAND_B": "#7a5cff",
+        "GLOW_ALPHA_A": 55, "GLOW_ALPHA_B": 35, "C1": "#2f80ff", "C2": "#9b6dff", "C3": "#19d3e0", "C4": "#ffb03a",
+    },
 }
 
 THEME_ALIASES: dict[str, str] = {
-    "DARK": "GRAPHITE",
-    "PURPLE": "AUBERGINE",
-    "GREEN": "FOREST",
-    "LIGHT": "ARCTIC",
-    "AMOLED": "TRUE_BLACK",
     "MATRIX": "CYBER",
     "CYBERPUNK": "CYBER",
     "NORD": "MIDNIGHT",
@@ -338,6 +374,11 @@ THEME_LABELS: dict[str, str] = {
     "TACTICAL": "Tactical",
     "COBALT": "Cobalt",
     "COPPER": "Copper",
+    "DARK": "Black Cyber",
+    "PURPLE": "Purple Neon",
+    "GREEN": "Green Nature",
+    "LIGHT": "Light",
+    "AMOLED": "AMOLED Neon",
 }
 
 BG: str
@@ -421,9 +462,9 @@ def set_theme(name: str) -> str:
 
 NAV_WIDTH = 232
 
-FONT_UI = '"Segoe UI Variable Text", "Segoe UI", "Inter", system-ui, sans-serif'
-FONT_DISPLAY = '"Segoe UI Variable Display", "Segoe UI Semibold", "Segoe UI", system-ui, sans-serif'
-FONT_MONO = '"Cascadia Mono", "Consolas", "Segoe UI", monospace'
+FONT_UI = '"Inter", "Segoe UI Variable Text", "Segoe UI", system-ui, sans-serif'
+FONT_DISPLAY = '"Inter", "Segoe UI Variable Display", "Segoe UI Semibold", "Segoe UI", system-ui, sans-serif'
+FONT_MONO = '"IBM Plex Mono", "Cascadia Mono", "Consolas", "Segoe UI", monospace'
 
 FONT_SCALE = 1.12
 BASE_FONT_PX = round(13 * FONT_SCALE)

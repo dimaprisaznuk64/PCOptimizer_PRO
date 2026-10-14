@@ -4,6 +4,7 @@ __pycache__/
 venv/
 build/
 dist/
+app_run/
 *.spec
 !PCOptimizer_PRO.spec
 logs/*.log

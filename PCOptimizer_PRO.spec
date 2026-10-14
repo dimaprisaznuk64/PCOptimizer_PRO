@@ -7,7 +7,7 @@ a = Analysis(
     [str(root / "main.py")],
     pathex=[str(root)],
     binaries=[],
-    datas=[],
+    datas=[(str(root / "assets" / "fonts"), "assets/fonts")],
     hiddenimports=[
         "wmi",
         "win32com",
