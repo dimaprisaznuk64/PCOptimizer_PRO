@@ -48,10 +48,10 @@ class MainWindow(QMainWindow):
     ) -> None:
         super().__init__(parent)
         self.setWindowTitle("PCOptimizer PRO")
-        from .fonts import load_bundled_fonts
         from .icons import app_icon
+        from .theme import load_fonts
 
-        load_bundled_fonts()
+        load_fonts()
 
         self.setWindowIcon(app_icon())
         self.setMinimumSize(1120, 680)
@@ -357,9 +357,9 @@ def run(argv: list[str] | None = None) -> int:
         Qt.HighDpiScaleFactorRoundingPolicy.PassThrough
     )
     app = QApplication(argv if argv is not None else sys.argv)
-    from .fonts import load_bundled_fonts
+    from .theme import load_fonts
 
-    load_bundled_fonts()
+    load_fonts()
     app.setApplicationName("PCOptimizer PRO")
     app.setApplicationDisplayName("PCOptimizer PRO")
     app.setAttribute(Qt.ApplicationAttribute.AA_DontShowIconsInMenus, True)

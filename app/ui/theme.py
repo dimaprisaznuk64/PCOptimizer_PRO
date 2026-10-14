@@ -462,9 +462,12 @@ def set_theme(name: str) -> str:
 
 NAV_WIDTH = 232
 
-FONT_UI = '"Inter", "Segoe UI Variable Text", "Segoe UI", system-ui, sans-serif'
-FONT_DISPLAY = '"Inter", "Segoe UI Variable Display", "Segoe UI Semibold", "Segoe UI", system-ui, sans-serif'
-FONT_MONO = '"IBM Plex Mono", "Cascadia Mono", "Consolas", "Segoe UI", monospace'
+UI_FONTS = '"Inter", "Segoe UI Variable Text", "Segoe UI", sans-serif'
+MONO_FONTS = '"JetBrains Mono", "Cascadia Mono", "Consolas", monospace'
+
+FONT_UI = UI_FONTS
+FONT_DISPLAY = UI_FONTS
+FONT_MONO = MONO_FONTS
 
 FONT_SCALE = 1.12
 BASE_FONT_PX = round(13 * FONT_SCALE)
@@ -473,6 +476,41 @@ BASE_FONT_PX = round(13 * FONT_SCALE)
 def fs(px: int) -> int:
     """Scale a design-time font size (px) by the global FONT_SCALE."""
     return max(1, round(px * FONT_SCALE))
+
+
+def _fonts_dir():
+    import sys as _sys
+    from pathlib import Path
+
+    base = Path(getattr(_sys, "_MEIPASS", Path(__file__).resolve().parents[2]))
+    return base / "assets" / "fonts"
+
+
+def load_fonts() -> list[str]:
+    """Register the bundled Inter / JetBrains Mono files (OFL) so the UI looks the same on every PC."""
+    from PySide6.QtGui import QFontDatabase
+
+    loaded: list[str] = []
+    folder = _fonts_dir()
+    if folder.is_dir():
+        for path in sorted(folder.glob("*.ttf")):
+            if QFontDatabase.addApplicationFont(str(path)) >= 0:
+                loaded.append(path.name)
+    return loaded
+
+
+def _mix(a: str, b: str, t: float) -> str:
+    """Blend two #RRGGBB colors: t=0 -> a, t=1 -> b."""
+    a, b = a.lstrip("#"), b.lstrip("#")
+    ca = [int(a[i : i + 2], 16) for i in (0, 2, 4)]
+    cb = [int(b[i : i + 2], 16) for i in (0, 2, 4)]
+    return "#" + "".join(f"{round(x + (y - x) * t):02X}" for x, y in zip(ca, cb))
+
+
+# Secondary buttons must stand out from the panel (border >= ~2.5:1), in every theme.
+BTN_FILL = _mix(PANEL_ALT, TEXT, 0.05)
+BTN_FILL_HOVER = _mix(PANEL_ALT, TEXT, 0.11)
+BTN_BORDER = _mix(PANEL, TEXT_DIM, 0.58)
 
 
 def _chevron_path(color: str) -> str:
@@ -579,9 +617,11 @@ QLabel#footerText {{
 QWidget#page {{
     background: {BG};
 }}
+QLabel#cardValue, QLabel#gaugeValue, QLabel#heroValue, QLabel#ringValue, QLabel#clock, QLabel#scoreValue, QLabel#statValue {{
+    font-family: {FONT_MONO};
+}}
 QLabel#pageTitle, QLabel#welcome, QLabel#heroValue, QLabel#scoreValue {{
-    font-family: {FONT_DISPLAY};
-    letter-spacing: -0.3px;
+    font-family: {FONT_UI};
 }}
 QLabel#pageTitle {{
     font-size: 26px;
@@ -595,13 +635,12 @@ QLabel#pageDesc {{
 QFrame#card {{
     background: {PANEL};
     border: 1px solid {BORDER};
-    border-radius: 16px;
+    border-radius: 14px;
 }}
 QLabel#cardTitle {{
     font-size: 12px;
     font-weight: 600;
     color: {TEXT_DIM};
-    letter-spacing: 1px;
 }}
 QLabel#cardValue {{
     font-size: 30px;
@@ -683,10 +722,6 @@ QLabel#clock {{
     font-size: 22px;
     font-weight: 700;
     color: {TEXT};
-}}
-QLabel#cardValue, QLabel#gaugeValue, QLabel#heroValue, QLabel#ringValue,
-QLabel#scoreValue, QLabel#statValue, QLabel#clock {{
-    font-family: {FONT_MONO};
 }}
 QLabel#sysStatus {{
     font-size: 11px;
@@ -827,7 +862,7 @@ QFrame#card:hover {{
     border-color: {BORDER_HI};
 }}
 QTableWidget::item {{
-    padding: 8px 10px;
+    padding: 6px 8px;
 }}
 QTableWidget::item:hover {{
     background: {HOVER};
@@ -847,7 +882,7 @@ QHeaderView::section {{
     color: {TEXT_DIM};
     border: none;
     border-bottom: 1px solid {BORDER};
-    padding: 11px 10px;
+    padding: 10px 8px;
     font-size: 12px;
     font-weight: 600;
     text-align: left;
@@ -864,10 +899,10 @@ QLineEdit:focus {{
     border-color: {ACCENT};
 }}
 QPushButton[secondary="true"] {{
-    background: {PANEL_ALT};
-    border: 1px solid {BORDER};
-    border-radius: 8px;
-    padding: 8px 14px;
+    background: {BTN_FILL};
+    border: 1px solid {BTN_BORDER};
+    border-radius: 10px;
+    padding: 9px 16px;
     color: {TEXT};
 }}
 QPushButton[secondary="true"]:hover {{
@@ -877,8 +912,8 @@ QPushButton[danger="true"] {{
     background: {DANGER_BG};
     color: {DANGER};
     border: 1px solid {DANGER_BORDER};
-    border-radius: 8px;
-    padding: 8px 14px;
+    border-radius: 10px;
+    padding: 9px 16px;
     font-weight: 600;
 }}
 QPushButton[danger="true"]:hover {{
@@ -890,21 +925,24 @@ QPushButton[danger="true"]:disabled {{
     border: 1px solid {BORDER};
 }}
 QPushButton {{
-    background: {PANEL_ALT};
-    border: 1px solid {BORDER};
-    border-radius: 8px;
-    padding: 8px 14px;
+    background: {BTN_FILL};
+    color: {TEXT};
+    border: 1px solid {BTN_BORDER};
+    border-radius: 10px;
+    padding: 9px 16px;
+    font-weight: 600;
 }}
 QPushButton:hover {{
     border-color: {ACCENT};
-    background: {HOVER};
+    background: {BTN_FILL_HOVER};
 }}
 QPushButton:pressed {{
     background: {ACCENT_TINT};
+    border-color: {ACCENT};
 }}
 QPushButton:disabled {{
     color: {TEXT_DIM};
-    background: {PANEL};
+    background: transparent;
     border-color: {BORDER};
 }}
 QPushButton:focus {{
@@ -912,21 +950,23 @@ QPushButton:focus {{
     border-color: {ACCENT};
 }}
 QPushButton[primary="true"] {{
-    background: {ACCENT};
-    border: 1px solid {ACCENT};
-    color: {ON_ACCENT};
-    font-weight: 600;
+    background: qlineargradient(x1:0, y1:0, x2:1, y2:0, stop:0 {BRAND_A}, stop:1 {BRAND_B});
+    border: 1px solid transparent;
+    color: #FFFFFF;
+    font-weight: 700;
+    padding: 9px 20px;
 }}
 QPushButton[primary="true"]:hover {{
-    background: {ACCENT_HOVER};
-    border-color: {ACCENT_HOVER};
+    background: qlineargradient(x1:0, y1:0, x2:1, y2:0, stop:0 {ACCENT_HOVER}, stop:1 {BRAND_B});
+    border-color: rgba(255, 255, 255, 90);
 }}
 QPushButton[primary="true"]:pressed {{
     background: {ACCENT_PRESSED};
+    border-color: transparent;
 }}
 QPushButton[primary="true"]:disabled {{
     background: {ACCENT_TINT};
-    border-color: {ACCENT_TINT};
+    border-color: transparent;
     color: {TEXT_DIM};
 }}
 QToolTip {{
@@ -997,7 +1037,6 @@ QMenu::item:selected {{
 QLabel#navSection {{
     font-size: 11px;
     font-weight: 700;
-    letter-spacing: 1.5px;
     color: {TEXT_DIM};
     padding: 16px 26px 4px 26px;
 }}
@@ -1054,18 +1093,20 @@ QScrollBar::handle:horizontal {{
     return qss
 
 
+
 def apply(app) -> None:
     from PySide6.QtGui import QColor, QPalette
 
     from PySide6.QtGui import QFont
 
     app.setStyle("Fusion")
+    load_fonts()
     base = QFont()
-    base.setFamilies(["Segoe UI Variable Text", "Segoe UI", "Inter"])
+    base.setFamilies(["Inter", "Segoe UI Variable Text", "Segoe UI"])
     base.setPixelSize(BASE_FONT_PX)
     base.setWeight(QFont.Weight.Medium)
-    base.setStyleStrategy(QFont.StyleStrategy.PreferDefault)
-    base.setHintingPreference(QFont.HintingPreference.PreferDefaultHinting)
+    base.setStyleStrategy(QFont.StyleStrategy.PreferAntialias)
+    base.setHintingPreference(QFont.HintingPreference.PreferNoHinting)
     app.setFont(base)
     app.setStyleSheet(build_stylesheet())
     palette = QPalette()

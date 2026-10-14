@@ -91,7 +91,7 @@
 - Трей: згортання у трей, старт згорнутим, метрики в тултіпі
 - Рівень логів і перегляд логів (відкрити папку, очистити)
 - 25 тем (перемикаються миттєво, без перезапуску): Graphite (за замовчуванням), True Black, Slate, Titanium, Forest, Burgundy, Midnight, Aubergine, Deep Teal, Espresso, Arctic, Ivory, Mono, Sage, Performance Red, Cyber, Industrial, Tactical, Cobalt, Copper, а також класичні Black Cyber (DARK), Purple Neon, Green Nature, Light, AMOLED Neon
-- Вбудовані шрифти **Inter** (UI) та **IBM Plex Mono** (числові значення) — однаковий вигляд незалежно від того, що встановлено в системі
+- Вбудовані шрифти **Inter** (UI) та **JetBrains Mono** (числові значення) — однаковий вигляд незалежно від того, що встановлено в системі
 - Мова: українська / English — застосовується одразу
 
 ### Поза сторінками
@@ -122,7 +122,7 @@
 
 ## Технології
 
-- **Python 3.13** + **PySide6** (Qt 6; 25 вбудованих тем, тема за замовчуванням — Graphite, вбудовані шрифти Inter / IBM Plex Mono)
+- **Python 3.13** + **PySide6** (Qt 6; 25 вбудованих тем, тема за замовчуванням — Graphite, вбудовані шрифти Inter / JetBrains Mono)
 - **psutil** — CPU/RAM/диски/мережа, **nvidia-ml-py** (NVML) — GPU, **WMI** — температури, **pywin32** — COM/Task Scheduler/кошик
 - **pytest** — 238 тестів
 - **PyInstaller** — збірка .exe, **Inno Setup** — інсталятор

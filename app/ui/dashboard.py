@@ -28,7 +28,7 @@ from .format import zone_label
 from .format import rate as _rate
 from .icons import glyph
 from .tasks import Task
-from .theme import ACCENT, BORDER, BORDER_HI, BRAND_A, BRAND_B, C1, C2, C3, C4, DANGER, HERO_TOP, OK, PANEL, PANEL_ALT, TEXT, TEXT_DIM, WARN, fs
+from .theme import ACCENT, BORDER, BORDER_HI, BRAND_A, BRAND_B, C1, C2, C3, C4, DANGER, FONT_MONO, HERO_TOP, OK, PANEL, PANEL_ALT, TEXT, TEXT_DIM, WARN, fs
 
 
 def _greeting() -> str:
@@ -84,7 +84,7 @@ class HealthWidget(QFrame):
         score_row.setAlignment(Qt.AlignmentFlag.AlignCenter)
 
         self.score_label = QLabel("—")
-        self.score_label.setStyleSheet(f"font-size: {fs(26)}px; font-weight: 800; color: {OK};")
+        self.score_label.setStyleSheet(f"font-family: {FONT_MONO}; font-size: {fs(26)}px; font-weight: 800; color: {OK};")
         score_row.addWidget(self.score_label)
 
         sub_denom = QLabel("/100")
@@ -121,7 +121,7 @@ class HealthWidget(QFrame):
             from .health import grade_text
 
             text = f"● {grade_text(grade)}"
-        self.score_label.setStyleSheet(f"font-size: {fs(26)}px; font-weight: 800; color: {color};")
+        self.score_label.setStyleSheet(f"font-family: {FONT_MONO}; font-size: {fs(26)}px; font-weight: 800; color: {color};")
         self.badge.setStyleSheet(f"font-size: {fs(12)}px; font-weight: 600; color: {color};")
         self.badge.setText(text)
 
