@@ -17,12 +17,12 @@ VSVersionInfo(
           [
             StringStruct('CompanyName', 'dimaprisaznuk64'),
             StringStruct('FileDescription', 'PCOptimizer PRO - Windows system monitor & optimizer'),
-            StringStruct('FileVersion', '1.2.7.0'),
+            StringStruct('FileVersion', '1.2.8.0'),
             StringStruct('InternalName', 'PCOptimizer_PRO'),
             StringStruct('LegalCopyright', 'Copyright (c) 2026 dimaprisaznuk64'),
             StringStruct('OriginalFilename', 'PCOptimizer_PRO.exe'),
             StringStruct('ProductName', 'PCOptimizer PRO'),
-            StringStruct('ProductVersion', '1.2.7.0')
+            StringStruct('ProductVersion', '1.2.8.0')
           ]
         )
       ]

@@ -193,7 +193,7 @@ class RingCard(QFrame):
         layout.addLayout(header)
 
         # Center ring
-        self.ring = _Ring(color, size=116)
+        self.ring = _Ring(color, size=124)
         ring_layout = QVBoxLayout(self.ring)
         ring_layout.setContentsMargins(0, 0, 0, 0)
         ring_layout.setSpacing(1)
@@ -206,7 +206,7 @@ class RingCard(QFrame):
         ring_layout.addWidget(self.value)
 
         self.center_sub = QLabel("Завантаження")
-        self.center_sub.setStyleSheet(f"font-size: {fs(11)}px; color: {TEXT_DIM};")
+        self.center_sub.setStyleSheet(f"font-size: {fs(10)}px; font-weight: 500; color: {TEXT_DIM};")
         self.center_sub.setAlignment(Qt.AlignmentFlag.AlignCenter)
         ring_layout.addWidget(self.center_sub)
         ring_layout.addStretch(1)
