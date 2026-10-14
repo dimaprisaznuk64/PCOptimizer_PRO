@@ -543,7 +543,8 @@ class _EmptyHint(QLabel):
 
         self.setText(tr(self._key))
         self.setGeometry(self._table.viewport().rect())
-        self.setVisible(self._table.rowCount() == 0)
+        row_count = getattr(self._table, "rowCount", None) or self._table.count
+        self.setVisible(row_count() == 0)
         if self.isVisible():
             self.raise_()
 

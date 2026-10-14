@@ -70,6 +70,15 @@ def _gaming(p: QPainter) -> None:
     p.drawPoint(QPointF(15, 11.5))
 
 
+def _launcher(p: QPainter) -> None:
+    p.drawRoundedRect(QRectF(2.5, 2.5, 15, 15), 3.5, 3.5)
+    path = QPainterPath(QPointF(8, 6.5))
+    path.lineTo(13.5, 10)
+    path.lineTo(8, 13.5)
+    path.closeSubpath()
+    p.drawPath(path)
+
+
 def _network(p: QPainter) -> None:
     p.drawArc(QRectF(2.5, 6, 15, 15), 45 * 16, 90 * 16)
     p.drawArc(QRectF(5.5, 9.5, 9, 9), 45 * 16, 90 * 16)
@@ -195,6 +204,7 @@ _DRAWERS = {
     "startup": _startup,
     "optimizer": _optimizer,
     "gaming": _gaming,
+    "launcher": _launcher,
     "network": _network,
     "disk": _disk,
     "health": _health,

@@ -181,7 +181,7 @@ class MainWindow(QMainWindow):
 
         for name in (
             "theme", "icons", "components", "monitor", "dashboard", "gpu",
-            "processes", "cleaner", "startup", "optimizer", "gaming",
+            "processes", "cleaner", "startup", "optimizer", "gaming", "launcher",
             "network", "disk", "health", "settings", "sidebar", "topbar",
             "tray", "pages",
         ):

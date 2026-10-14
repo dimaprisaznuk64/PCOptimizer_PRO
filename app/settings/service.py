@@ -76,7 +76,12 @@ def _migrate_legacy(root: Path) -> Path:
         legacy_logs = legacy_base / "logs"
         if legacy_logs.exists() and not (root / "logs").exists():
             shutil.copytree(legacy_logs, root / "logs", dirs_exist_ok=True)
-        for name in ("optimizer_backup.json", "gaming_custom.json"):
+        for name in (
+            "optimizer_backup.json",
+            "gaming_custom.json",
+            "gaming_favorites.json",
+            "gaming_history.json",
+        ):
             src = legacy_base / name
             dst = root / name
             if src.exists() and not dst.exists():

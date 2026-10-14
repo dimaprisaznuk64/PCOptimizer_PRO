@@ -23,6 +23,7 @@ NAV_KEYS: tuple[tuple[str, str], ...] = (
     ("processes", "nav_processes"),
     ("startup", "nav_startup"),
     ("gaming", "nav_gaming"),
+    ("launcher", "nav_launcher"),
     ("network", "nav_network"),
     ("optimizer", "nav_optimizer"),
     ("disk", "nav_disk"),

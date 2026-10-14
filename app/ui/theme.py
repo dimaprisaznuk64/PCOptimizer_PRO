@@ -703,6 +703,54 @@ QPushButton[tile="true"]:hover {{
     background: {PANEL_ALT};
     border-color: {ACCENT};
 }}
+QFrame#gameTile {{
+    background: {PANEL};
+    border: 1px solid {BORDER};
+    border-radius: 14px;
+}}
+QFrame#gameTile:hover {{
+    border-color: {BORDER_HI};
+}}
+QFrame#gameTile[selected="true"] {{
+    border-color: {ACCENT};
+    background: {PANEL_ALT};
+}}
+QLabel#tileCover {{
+    background: {PANEL_ALT};
+    border: 1px solid {BORDER};
+    border-radius: 10px;
+}}
+QPushButton#starButton {{
+    background: transparent;
+    border: 1px solid {BORDER};
+    border-radius: 8px;
+    color: {TEXT_DIM};
+    font-size: 15px;
+    padding: 2px;
+}}
+QPushButton#starButton:hover {{
+    border-color: {ACCENT};
+    color: {WARN};
+}}
+QPushButton#starButton:checked {{
+    color: {WARN};
+    border-color: {WARN};
+}}
+QListWidget#historyList {{
+    background: transparent;
+    border: none;
+    outline: none;
+}}
+QListWidget#historyList::item {{
+    color: {TEXT};
+    padding: 6px 4px;
+    border-bottom: 1px solid {BORDER};
+}}
+QListWidget#historyList::item:selected {{
+    background: {ACCENT_TINT};
+    color: {TEXT};
+    border-radius: 6px;
+}}
 QFrame#hero {{
     background: qlineargradient(x1:0, y1:0, x2:1, y2:1, stop:0 {HERO_TOP}, stop:1 {PANEL});
     border: 1px solid {BORDER_HI};

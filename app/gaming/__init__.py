@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+from .launcher import LauncherService, LaunchRecord
 from .service import (
     KNOWN_GAMES,
     DetectedGame,
@@ -14,4 +15,6 @@ __all__ = [
     "GameSpec",
     "GamingError",
     "GamingService",
+    "LaunchRecord",
+    "LauncherService",
 ]

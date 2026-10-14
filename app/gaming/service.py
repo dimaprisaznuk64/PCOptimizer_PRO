@@ -22,12 +22,15 @@ class GameSpec:
     name: str
     steam_folder: str
     exe_names: tuple[str, ...]
+    appid: str = ""
 
 
 KNOWN_GAMES: tuple[GameSpec, ...] = (
-    GameSpec("pubg", "PUBG: BATTLEGROUNDS", "PUBG", ("TslGame.exe",)),
-    GameSpec("cs2", "Counter-Strike 2", "Counter-Strike Global Offensive", ("cs2.exe",)),
-    GameSpec("dota2", "Dota 2", "dota 2", ("dota2.exe",)),
+    GameSpec("pubg", "PUBG: BATTLEGROUNDS", "PUBG", ("TslGame.exe",), "578080"),
+    GameSpec(
+        "cs2", "Counter-Strike 2", "Counter-Strike Global Offensive", ("cs2.exe",), "730"
+    ),
+    GameSpec("dota2", "Dota 2", "dota 2", ("dota2.exe",), "570"),
 )
 
 
@@ -40,6 +43,7 @@ class DetectedGame:
     installed: bool
     running: bool
     custom: bool = False
+    cover: str = ""
 
 
 def default_steam_roots() -> list[str]:
@@ -78,6 +82,23 @@ def default_steam_roots() -> list[str]:
             seen.add(normalized)
             unique.append(root)
     return unique
+
+
+def _find_cover(root: Path, appid: str) -> str:
+    """Best-effort Steam cover art lookup (portrait capsule first, then header)."""
+    if not appid:
+        return ""
+    cache = root / "appcache" / "librarycache"
+    candidates = (
+        cache / appid / "library_600x900.jpg",
+        cache / appid / "header.jpg",
+        cache / f"{appid}_header.jpg",
+        cache / f"{appid}_library_600x900.jpg",
+    )
+    for candidate in candidates:
+        if candidate.is_file():
+            return str(candidate)
+    return ""
 
 
 def _find_exe(folder: Path, exe_names: Sequence[str], depth: int = 5) -> str | None:
@@ -132,11 +153,13 @@ class GamingService:
         for spec in KNOWN_GAMES:
             exe_path: str | None = None
             location = ""
+            cover = ""
             for root in roots:
                 folder = root / "steamapps" / "common" / spec.steam_folder
                 if folder.is_dir():
                     location = str(folder)
                     exe_path = _find_exe(folder, spec.exe_names)
+                    cover = _find_cover(root, spec.appid)
                     break
             games.append(
                 DetectedGame(
@@ -146,6 +169,7 @@ class GamingService:
                     location=exe_path or location,
                     installed=bool(location),
                     running=any(name.lower() in running for name in spec.exe_names),
+                    cover=cover,
                 )
             )
 
