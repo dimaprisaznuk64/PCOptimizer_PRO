@@ -1,0 +1,14 @@
+target-version = "py313"
+line-length = 100
+
+[lint]
+select = ["E", "F", "I", "UP", "B"]
+ignore = [
+    "E501",    # line length is handled by the formatter
+    "BLE001",  # blind except: deliberate resilience around OS/hardware calls
+]
+
+[lint.per-file-ignores]
+# Theme tokens (TEXT, BG, ACCENT, ...) are injected at import time via
+# globals().update(PALETTES[...]); ruff cannot see them.
+"app/ui/theme.py" = ["F821"]

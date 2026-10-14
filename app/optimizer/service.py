@@ -6,11 +6,12 @@ import os
 import re
 import subprocess
 import time
+from collections.abc import Callable, Sequence
 from dataclasses import dataclass
 from pathlib import Path
-from typing import Callable, Sequence
 
 from app.restore import STATUS_CREATED, RestorePointService, RestoreResult
+from app.settings import data_root
 
 GUID_BALANCED = "381b4222-f694-41f0-9685-ff5bb260df2e"
 GUID_HIGH_PERF = "8c5e7fda-e8bf-4a96-9a85-a6e23a8c635c"
@@ -115,9 +116,8 @@ class OptimizerService:
         self._reg_get = reg_get or self._default_reg_get
         self._reg_set = reg_set or self._default_reg_set
         self._restore = restore or RestorePointService(run=self._run, is_admin=self._is_admin)
-        local = os.environ.get("LOCALAPPDATA", "")
         self.backup_path = Path(backup_path) if backup_path else (
-            Path(local) / "PCOptimizer_PRO" / "optimizer_backup.json"
+            data_root() / "optimizer_backup.json"
         )
 
     # ---------- state ----------
@@ -313,7 +313,7 @@ class OptimizerService:
             ("powershell", "-NoProfile", "-ExecutionPolicy", "Bypass", "-Command", script)
         )
         if not ok:
-            raise OptimizerError(f"HAGS change was cancelled at the UAC prompt")
+            raise OptimizerError("HAGS change was cancelled at the UAC prompt")
 
     def _reg_get_dword(self, hive: str, key: str, name: str) -> tuple[int | None, str | None]:
         try:

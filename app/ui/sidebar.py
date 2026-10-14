@@ -1,12 +1,20 @@
 from __future__ import annotations
 
 from PySide6.QtCore import QEvent, QSize, Qt, Signal
-from PySide6.QtWidgets import QButtonGroup, QFrame, QHBoxLayout, QLabel, QPushButton, QVBoxLayout, QWidget
+from PySide6.QtWidgets import (
+    QButtonGroup,
+    QFrame,
+    QHBoxLayout,
+    QLabel,
+    QPushButton,
+    QVBoxLayout,
+    QWidget,
+)
 
 from app.i18n import tr
 
 from .icons import nav_icon
-from .theme import BORDER, BRAND_A, BRAND_B, C1, NAV_WIDTH, OK, PANEL, TEXT, TEXT_DIM, fs
+from .theme import BORDER, BRAND_A, BRAND_B, C1, OK, PANEL, TEXT, TEXT_DIM, fs
 
 NAV_KEYS: tuple[tuple[str, str], ...] = (
     ("dashboard", "nav_dashboard"),

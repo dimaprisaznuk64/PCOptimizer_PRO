@@ -12,8 +12,8 @@
   <img src="https://img.shields.io/badge/platform-Windows%2010%2F11%20x64-0078D6" alt="Platform">
   <img src="https://img.shields.io/badge/python-3.13-3776AB" alt="Python">
   <img src="https://img.shields.io/badge/UI-PySide6%20(Qt%206)-41CD52" alt="PySide6">
-  <img src="https://img.shields.io/badge/tests-252%20passed-brightgreen" alt="Tests">
-  <img src="https://img.shields.io/badge/version-1.2.8-blue" alt="Version">
+  <img src="https://img.shields.io/badge/tests-269%20passed-brightgreen" alt="Tests">
+  <img src="https://img.shields.io/badge/version-1.2.9-blue" alt="Version">
 </p>
 
 Філософія проєкту: **жодних «секретних» реєстрових твіків і вигаданих +FPS**. Кожна зміна системи робиться лише після бекапу/точки відновлення і має кнопку відкату. Застосунок працює без адмін-прав — UAC запитується точково, лише для конкретних операцій.
@@ -24,6 +24,7 @@
 
 ### Дашборд
 - Живі метрики CPU / RAM / диск / GPU у вигляді кілець та графік продуктивності
+- Клік по картці (CPU, RAM, GPU, диск) відкриває сторінку з детальною інформацією
 - Привітання, годинник і швидкі дії
 - Стрічка останніх дій (чищення, оптимізація, перевірка мережі тощо)
 - Сповіщення про завершені операції
@@ -89,6 +90,7 @@
 ### Налаштування
 - Інтервал семплінгу: 250 мс – 5 с
 - Трей: згортання у трей, старт згорнутим, метрики в тултіпі
+- Температурні алерти: сповіщення в трей і журнал дій, коли CPU/GPU перегрівається (поріг 50–110 °C, з захистом від спаму)
 - Рівень логів і перегляд логів (відкрити папку, очистити)
 - 25 тем (перемикаються миттєво, без перезапуску): Graphite (за замовчуванням), True Black, Slate, Titanium, Forest, Burgundy, Midnight, Aubergine, Deep Teal, Espresso, Arctic, Ivory, Mono, Sage, Performance Red, Cyber, Industrial, Tactical, Cobalt, Copper, а також класичні Black Cyber (DARK), Purple Neon, Green Nature, Light, AMOLED Neon
 - Вбудовані шрифти **Inter** (UI) та **JetBrains Mono** (числові значення) — однаковий вигляд незалежно від того, що встановлено в системі
@@ -124,7 +126,7 @@
 
 - **Python 3.13** + **PySide6** (Qt 6; 25 вбудованих тем, тема за замовчуванням — Graphite, вбудовані шрифти Inter / JetBrains Mono)
 - **psutil** — CPU/RAM/диски/мережа, **nvidia-ml-py** (NVML) — GPU, **WMI** — температури, **pywin32** — COM/Task Scheduler/кошик
-- **pytest** — 238 тестів
+- **pytest** — 269 тестів
 - **PyInstaller** — збірка .exe, **Inno Setup** — інсталятор
 
 ## Безпека понад усе
@@ -180,6 +182,7 @@ app/
   ui/                    — PySide6 UI: 12 сторінок, теми, трей, topbar
   sensors/               — шар сенсорів: psutil / NVML / WMI / mock
   health/                — PC Health Score
+  alerts/                — правила температурних алертів
   cleaner/               — чистильник
   disk/                  — дисковий аналізатор
   gaming/                — ігровий режим і профілі ігор
@@ -192,7 +195,7 @@ app/
   logs/                  — ротаційне логування
   i18n/                  — локалізація UA / EN
   core/, hardware/, monitor/, health/ — допоміжні модулі
-tests/                   — pytest-тести (252)
+tests/                   — pytest-тести (269)
 scripts/                 — збірка exe/інсталятора, генерація іконки
 installer/               — скрипт Inno Setup
 docs/screenshots/        — скріншоти
@@ -212,4 +215,4 @@ docs/screenshots/        — скріншоти
 
 - Overlay (FPS/CPU) поверх гри
 - Автоматичне вмикання ігрового режиму при старті гри
-- Бенчмарки, температурні алерти, лончер ігор
+- Бенчмарки, лончер ігор

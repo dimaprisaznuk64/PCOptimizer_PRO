@@ -2,9 +2,11 @@ from __future__ import annotations
 
 import time
 
-from PySide6.QtTest import QSignalSpy
+from PySide6.QtCore import Qt
+from PySide6.QtTest import QSignalSpy, QTest
 
 from app.sensors import MockBackend, SensorManager
+from app.ui.components import RingCard
 from app.ui.dashboard import DashboardPage
 from app.ui.main_window import MainWindow
 from app.ui.sampler import SensorSampler
@@ -53,6 +55,36 @@ def test_main_window_dispatches_snapshot(qapp) -> None:
     window.handle_snapshot(SensorManager([MockBackend(cpu_percent=7.0)]).snapshot())
     page = window.stack.widget(window._index_by_key["dashboard"])
     assert page.cpu.value.text() == "7%"
+    window.close()
+
+
+def test_ring_card_emits_click(qapp) -> None:
+    card = RingCard("CPU", "#00BFFF", icon_name="cpu")
+    card.resize(160, 180)
+    spy = QSignalSpy(card.clicked)
+    QTest.mouseClick(card, Qt.MouseButton.LeftButton, pos=card.rect().center())
+    assert spy.count() == 1
+
+
+def test_dashboard_cards_emit_navigation(qapp) -> None:
+    page = DashboardPage()
+    spy = QSignalSpy(page.navigate)
+    page.cpu.clicked.emit()
+    page.ram.clicked.emit()
+    page.gpu.clicked.emit()
+    page.disk.clicked.emit()
+    assert [spy.at(i)[0] for i in range(spy.count())] == ["monitor", "monitor", "gpu", "disk"]
+
+
+def test_main_window_card_navigates_to_detail(qapp) -> None:
+    window = MainWindow()
+    page = window.page("dashboard")
+    QTest.mouseClick(page.gpu, Qt.MouseButton.LeftButton, pos=page.gpu.rect().center())
+    assert window.current_key == "gpu"
+    QTest.mouseClick(page.cpu, Qt.MouseButton.LeftButton, pos=page.cpu.rect().center())
+    assert window.current_key == "monitor"
+    QTest.mouseClick(page.disk, Qt.MouseButton.LeftButton, pos=page.disk.rect().center())
+    assert window.current_key == "disk"
     window.close()
 
 

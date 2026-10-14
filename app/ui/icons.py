@@ -3,7 +3,7 @@ from __future__ import annotations
 from PySide6.QtCore import QPointF, QRectF, Qt
 from PySide6.QtGui import QColor, QIcon, QPainter, QPainterPath, QPen, QPixmap
 
-from .theme import ACCENT, BRAND_A, BRAND_B, TEXT_DIM
+from .theme import BRAND_A, BRAND_B, TEXT_DIM
 
 _SIZE = 20
 

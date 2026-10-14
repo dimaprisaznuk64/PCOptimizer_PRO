@@ -4,8 +4,8 @@ import ctypes
 import glob
 import os
 import subprocess
+from collections.abc import Sequence
 from dataclasses import dataclass
-from typing import Sequence
 
 RECYCLE_BIN_ID = "recycle_bin"
 
@@ -40,7 +40,7 @@ class CleanOutcome:
 def _summarize(errors: list[str]) -> str | None:
     if not errors:
         return None
-    unique = list(dict.fromkeys(errors))
+    unique = list(dict.fromkeys(str(e) for e in errors))
     head = "; ".join(unique[:3])
     extra = len(unique) - 3
     return f"{head} (+{extra} more)" if extra > 0 else head
@@ -195,7 +195,7 @@ class CleanerService:
                 except OSError as e:
                     errors.append(str(e))
                 continue
-            for dirpath, _dirnames, filenames in os.walk(root, onerror=errors.append, followlinks=False):
+            for dirpath, _dirnames, filenames in os.walk(root, onerror=lambda e: errors.append(str(e)), followlinks=False):
                 for filename in filenames:
                     path = os.path.join(dirpath, filename)
                     try:

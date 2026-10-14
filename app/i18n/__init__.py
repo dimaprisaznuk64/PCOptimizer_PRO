@@ -3,4 +3,4 @@
 from .service import I18nService, tr
 from .translations import TRANSLATIONS
 
-__all__ = ["I18nService", "TRANSLATIONS", "tr"]
+__all__ = ["TRANSLATIONS", "I18nService", "tr"]

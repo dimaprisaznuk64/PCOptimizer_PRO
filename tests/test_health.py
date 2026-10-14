@@ -4,15 +4,13 @@ import time
 
 import pytest
 
-from app.cleaner import CleanTarget, CleanerService
+from app.cleaner import CleanTarget
 from app.cleaner.service import RECYCLE_BIN_ID, CleanOutcome, ScanResult
-from app.disk import DiskAnalyzer, DriveUsage
+from app.disk import DriveUsage
 from app.health import Finding, FixReport, HealthReport, HealthService, grade_for, score_from
-from app.optimizer import OptimizerService
 from app.optimizer.service import OptimizerState
 from app.sensors import Snapshot
 from app.sensors.types import CpuStat, MemoryStat, ThermalStat
-from app.startup import StartupService
 from app.startup.service import StartupItem
 from app.ui.health import HealthPage
 

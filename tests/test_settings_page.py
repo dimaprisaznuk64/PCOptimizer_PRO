@@ -108,9 +108,13 @@ def test_collect_values_shape(qapp, tmp_path) -> None:
         "minimize_to_tray",
         "start_minimized",
         "tray_metrics",
+        "temp_alerts_enabled",
+        "temp_alert_celsius",
         "log_level",
         "theme",
         "language",
     }
     assert isinstance(values["sample_interval_ms"], int)
     assert isinstance(values["minimize_to_tray"], bool)
+    assert isinstance(values["temp_alerts_enabled"], bool)
+    assert isinstance(values["temp_alert_celsius"], int)

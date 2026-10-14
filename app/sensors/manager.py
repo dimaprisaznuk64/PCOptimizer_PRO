@@ -1,7 +1,7 @@
 from __future__ import annotations
 
+from collections.abc import Iterable
 from time import time
-from typing import Iterable
 
 from .base import Backend, SensorUnavailable
 from .nvml_backend import NvmlBackend

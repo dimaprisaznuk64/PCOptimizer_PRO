@@ -1,7 +1,7 @@
 from __future__ import annotations
 
 
-def gb(n: float | int | None) -> str:
+def gb(n: float | None) -> str:
     return "—" if n is None else f"{n / 1024**3:.1f}GB"
 
 

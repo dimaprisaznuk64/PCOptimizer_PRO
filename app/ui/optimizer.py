@@ -22,10 +22,9 @@ from app.restore import (
     RestoreResult,
 )
 
-from .components import glyph_tile
 from .activity import record as log_action
+from .components import glyph_tile
 from .tasks import Task
-
 
 _PROFILE_ICONS = {"balanced": "health", "gaming": "gaming", "performance": "cpu"}
 
@@ -107,7 +106,7 @@ class OptimizerPage(QWidget):
         profiles_column = QVBoxLayout()
         profiles_column.setSpacing(8)
         self.profile_cards: dict[str, tuple[QFrame, QLabel]] = {}
-        for name, spec in PROFILES.items():
+        for name in PROFILES:
             card = QFrame()
             card.setObjectName("card")
             card_layout = QVBoxLayout(card)

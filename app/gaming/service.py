@@ -4,11 +4,12 @@ import json
 import os
 import re
 import subprocess
+from collections.abc import Callable, Sequence
 from dataclasses import dataclass
 from pathlib import Path
-from typing import Callable, Sequence
 
 from app.optimizer import ApplyReport, OptimizerService
+from app.settings import data_root
 
 
 class GamingError(Exception):
@@ -56,7 +57,7 @@ def default_steam_roots() -> list[str]:
             roots.append(candidate)
 
     libraries: list[str] = []
-    for root in list(roots):
+    for root in roots:
         vdf = Path(root) / "steamapps" / "libraryfolders.vdf"
         if not vdf.exists():
             continue
@@ -107,9 +108,8 @@ class GamingService:
         running_names: Callable[[], Sequence[str]] | None = None,
         popen: Callable[..., object] | None = None,
     ) -> None:
-        local = os.environ.get("LOCALAPPDATA", "")
         self.custom_store = Path(custom_store) if custom_store else (
-            Path(local) / "PCOptimizer_PRO" / "gaming_custom.json"
+            data_root() / "gaming_custom.json"
         )
         self._steam_roots = steam_roots or default_steam_roots
         self._optimizer = optimizer or OptimizerService()

@@ -21,10 +21,16 @@ from PySide6.QtWidgets import (
 )
 
 from app.i18n import tr
-from app.processes import ProcessInfo, ProcessService, ProcessServiceError, ProcessNotFound, ProtectedProcessError
+from app.processes import (
+    ProcessInfo,
+    ProcessNotFound,
+    ProcessService,
+    ProcessServiceError,
+    ProtectedProcessError,
+)
 
-from .format import mb, uptime
 from .components import align_numeric_headers
+from .format import mb, uptime
 from .tasks import Task
 
 COLUMN_KEYS = ("proc_col_name", "proc_col_pid", "proc_col_cpu", "proc_col_mem", "proc_col_user")
@@ -291,7 +297,7 @@ class ProcessPage(QWidget):
             self._on_selection_changed()
 
     @staticmethod
-    def _number_item(value: int | float) -> QTableWidgetItem:
+    def _number_item(value: float) -> QTableWidgetItem:
         item = QTableWidgetItem()
         item.setData(Qt.ItemDataRole.DisplayRole, value)
         item.setTextAlignment(Qt.AlignmentFlag.AlignRight | Qt.AlignmentFlag.AlignVCenter)

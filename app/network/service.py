@@ -3,8 +3,8 @@ from __future__ import annotations
 import re
 import socket
 import time
+from collections.abc import Callable, Sequence
 from dataclasses import dataclass
-from typing import Callable, Sequence
 
 DEFAULT_PING_HOST = "1.1.1.1"
 DNS_PROBE_HOST = "www.microsoft.com"

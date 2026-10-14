@@ -55,7 +55,7 @@ TRANSLATIONS: dict[str, dict[str, str]] = {
         "nav_section_diagnostics": "DIAGNOSTICS",
         "nav_section_preferences": "PREFERENCES",
         "sidebar_user_title": "Your PC is in safe hands",
-        "sidebar_user_sub": "PCOptimizer PRO v1.2.8",
+        "sidebar_user_sub": "PCOptimizer PRO v1.2.9",
         "sidebar_status_ok": "System healthy",
 
         # Top bar
@@ -498,6 +498,11 @@ TRANSLATIONS: dict[str, dict[str, str]] = {
         "set_language": "Interface Language",
         "set_data_dir": "Data folder",
         "set_data_dir_tip": "Folder where settings and logs are stored. Can be overridden with the PCOPTIMIZER_DATA environment variable.",
+        "set_temp_alerts": "Notify when the PC gets too hot",
+        "set_temp_threshold": "Overheat alert threshold",
+        "alert_temp_title": "Temperature alert",
+        "alert_temp_body": "{source} reached {temp:.0f}°C (limit {limit:.0f}°C)",
+        "act_temp_alert": "Temperature alert",
         "ir_large": "large target ({n}MB)",
         "ir_known": "known heavyweight app",
         "ir_medium": "medium target ({n}MB)",
@@ -691,7 +696,7 @@ TRANSLATIONS: dict[str, dict[str, str]] = {
         "nav_section_diagnostics": "ДІАГНОСТИКА",
         "nav_section_preferences": "НАЛАШТУВАННЯ",
         "sidebar_user_title": "Твій ПК у надійних руках",
-        "sidebar_user_sub": "PCOptimizer PRO v1.2.8",
+        "sidebar_user_sub": "PCOptimizer PRO v1.2.9",
         "sidebar_status_ok": "Система в нормі",
 
         # Top bar
@@ -1134,6 +1139,11 @@ TRANSLATIONS: dict[str, dict[str, str]] = {
         "set_language": "Мова інтерфейсу",
         "set_data_dir": "Папка даних",
         "set_data_dir_tip": "Папка, де зберігаються налаштування та журнали. Можна перевизначити змінною середовища PCOPTIMIZER_DATA.",
+        "set_temp_alerts": "Сповіщати, коли ПК перегрівається",
+        "set_temp_threshold": "Поріг сповіщення про перегрів",
+        "alert_temp_title": "Температурне сповіщення",
+        "alert_temp_body": "{source} досяг {temp:.0f}°C (поріг {limit:.0f}°C)",
+        "act_temp_alert": "Температурне сповіщення",
         "ir_large": "великий файл ({n} МБ)",
         "ir_known": "відома «важка» програма",
         "ir_medium": "середній файл ({n} МБ)",

@@ -2,9 +2,9 @@ from __future__ import annotations
 
 import os
 import stat as stat_mod
+from collections.abc import Callable, Sequence
 from dataclasses import dataclass
 from pathlib import Path
-from typing import Callable, Sequence
 
 GB = 1024**3
 DEFAULT_MIN_SIZE = 500 * 1024**2

@@ -18,10 +18,10 @@ from PySide6.QtWidgets import (
 )
 
 from app.i18n import tr
-from .components import attach_empty_hint
 from app.network import DEFAULT_PING_HOST, CheckResult, NetworkService, PingResult
 
 from .activity import record as log_action
+from .components import attach_empty_hint
 from .tasks import Task
 
 PING_COLUMN_KEYS = ("net_col_time", "net_col_host", "net_col_avg", "net_col_loss", "net_col_result")

@@ -8,10 +8,10 @@ from app.sensors import GpuStat, Snapshot
 
 from .components import GaugeCard
 from .format import gb
-
-from .theme import C2 as VRAM_COLOR, fs
+from .theme import C2 as VRAM_COLOR
 from .theme import C3 as TEMP_COLOR
 from .theme import C4 as POWER_COLOR
+from .theme import fs
 
 
 class GpuPanel(QFrame):
@@ -169,7 +169,7 @@ class GpuPage(QWidget):
         gpus = sorted(s.gpus, key=lambda g: g.index)
         if len(gpus) != len(self._panels):
             self._rebuild(len(gpus))
-        for panel, gpu in zip(self._panels, gpus):
+        for panel, gpu in zip(self._panels, gpus, strict=False):
             panel.update_gpu(gpu)
 
         if not gpus:

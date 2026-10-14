@@ -15,8 +15,8 @@ import base64
 import ctypes
 import subprocess
 import time
+from collections.abc import Callable, Sequence
 from dataclasses import dataclass
-from typing import Callable, Sequence
 
 # Status codes returned in RestoreResult.status
 STATUS_CREATED = "created"

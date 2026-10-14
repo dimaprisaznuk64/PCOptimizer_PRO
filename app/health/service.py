@@ -2,7 +2,6 @@ from __future__ import annotations
 
 import time
 from dataclasses import dataclass
-from typing import Callable
 
 from app.cleaner import CleanerService, CleanOutcome, default_targets
 from app.cleaner.service import RECYCLE_BIN_ID

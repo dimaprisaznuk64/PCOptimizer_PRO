@@ -12,7 +12,6 @@ from app.startup.service import (
 )
 from app.ui.startup import StartupPage
 
-
 # ---------- pure helpers ----------
 
 

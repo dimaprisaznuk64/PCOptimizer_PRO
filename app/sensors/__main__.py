@@ -6,7 +6,7 @@ from .manager import SensorManager
 from .types import Snapshot
 
 
-def _gb(n: int | float) -> str:
+def _gb(n: float) -> str:
     return f"{n / 1024**3:.1f}GB"
 
 

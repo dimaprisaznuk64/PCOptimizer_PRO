@@ -3,9 +3,10 @@ from __future__ import annotations
 from PySide6.QtCore import QSize, Qt, Signal
 from PySide6.QtWidgets import QHBoxLayout, QLabel, QMenu, QPushButton, QVBoxLayout, QWidget
 
+from app.i18n import tr
+
 from .icons import glyph
 from .theme import ACCENT, TEXT, TEXT_DIM, fs
-from app.i18n import tr
 
 
 class TopBar(QWidget):
@@ -55,7 +56,7 @@ class TopBar(QWidget):
         layout.addWidget(self.status, 0, Qt.AlignmentFlag.AlignVCenter)
 
         # Clock & Date
-        from PySide6.QtCore import QDateTime, QTimer
+        from PySide6.QtCore import QTimer
         clock_box = QVBoxLayout()
         clock_box.setSpacing(0)
         clock_box.setAlignment(Qt.AlignmentFlag.AlignVCenter)

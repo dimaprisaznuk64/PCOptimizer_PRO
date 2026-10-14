@@ -1,12 +1,13 @@
 from __future__ import annotations
 
+import os
 import time
 
 import pytest
 from PySide6.QtCore import Qt
 
 from app.cleaner import CleanerService, CleanTarget, default_targets
-from app.cleaner.service import RECYCLE_BIN_ID
+from app.cleaner.service import RECYCLE_BIN_ID, _summarize
 from app.ui.cleaner import CleanerPage
 
 
@@ -45,6 +46,31 @@ def test_scan_missing_path_is_empty(tmp_path) -> None:
     assert result.files == 0
     assert result.bytes == 0
     assert result.error is None
+
+
+def test_summarize_accepts_exception_objects() -> None:
+    summary = _summarize([PermissionError(13, "access denied")])
+    assert summary is not None and "access denied" in summary
+
+
+def test_scan_survives_walk_error(tmp_path, monkeypatch) -> None:
+    root = tmp_path / "cache"
+    root.mkdir()
+    (root / "ok.txt").write_bytes(b"x" * 64)
+    target = CleanTarget("walk", "Walk", "System", paths=(str(root),))
+    real_walk = os.walk
+
+    def flaky_walk(top, *args, **kwargs):
+        onerror = kwargs.get("onerror")
+        if onerror is not None:
+            onerror(PermissionError(13, "access denied"))
+        yield from real_walk(top, *args, **kwargs)
+
+    monkeypatch.setattr(os, "walk", flaky_walk)
+    result = CleanerService([target]).scan(target)
+    assert result.files == 1
+    assert result.bytes == 64
+    assert "access denied" in (result.error or "")
 
 
 def test_clean_removes_files_and_empty_dirs(cache_target) -> None:

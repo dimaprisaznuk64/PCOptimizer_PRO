@@ -8,7 +8,6 @@ from app.sensors import Snapshot
 
 from .components import Bar, CardPanel, Sparkline
 from .format import gb, rate, zone_label
-
 from .theme import ACCENT, ACCENT_HOVER, DANGER, OK
 
 

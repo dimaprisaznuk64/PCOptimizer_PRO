@@ -1,8 +1,7 @@
 from __future__ import annotations
 
 from PySide6.QtGui import QCloseEvent
-from PySide6.QtWidgets import QSystemTrayIcon
-from PySide6.QtWidgets import QApplication
+from PySide6.QtWidgets import QApplication, QSystemTrayIcon
 
 from app.settings import SettingsService
 from app.ui.main_window import MainWindow

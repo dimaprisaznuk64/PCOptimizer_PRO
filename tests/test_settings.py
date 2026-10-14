@@ -140,6 +140,24 @@ def test_migrate_legacy_localappdata(tmp_path, monkeypatch) -> None:
     assert svc.get("theme") == "CYBER"
 
 
+def test_migrate_copies_optimizer_startup_gaming_state(tmp_path, monkeypatch) -> None:
+    legacy = tmp_path / "legacy" / "PCOptimizer_PRO"
+    legacy.mkdir(parents=True)
+    (legacy / "optimizer_backup.json").write_text("{}", encoding="utf-8")
+    (legacy / "gaming_custom.json").write_text("[]", encoding="utf-8")
+    (legacy / "startup_backup").mkdir()
+    (legacy / "startup_backup" / "history.jsonl").write_text("{}\n", encoding="utf-8")
+    monkeypatch.setenv("LOCALAPPDATA", str(tmp_path / "legacy"))
+
+    root = tmp_path / "new_data"
+    monkeypatch.setenv("PCOPTIMIZER_DATA", str(root))
+
+    data_root()
+    assert (root / "optimizer_backup.json").exists()
+    assert (root / "gaming_custom.json").exists()
+    assert (root / "startup_backup" / "history.jsonl").exists()
+
+
 def test_migrate_does_not_overwrite_existing(tmp_path, monkeypatch) -> None:
     legacy = tmp_path / "legacy" / "PCOptimizer_PRO"
     legacy.mkdir(parents=True)

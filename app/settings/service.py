@@ -17,6 +17,8 @@ DEFAULTS: dict[str, Any] = {
     "log_level": "INFO",
     "theme": "GRAPHITE",
     "language": "UA",
+    "temp_alerts_enabled": True,
+    "temp_alert_celsius": 90,
 }
 
 CHOICES: dict[str, tuple[str, ...]] = {
@@ -30,6 +32,7 @@ CHOICES: dict[str, tuple[str, ...]] = {
 
 RANGES: dict[str, tuple[int, int]] = {
     "sample_interval_ms": (250, 10000),
+    "temp_alert_celsius": (50, 110),
 }
 
 
@@ -60,20 +63,28 @@ def data_root() -> Path:
 
 
 def _migrate_legacy(root: Path) -> Path:
-    """One-time copy of settings/logs from the old %LOCALAPPDATA% location into `root`."""
-    target = root / "settings.json"
-    if target.exists():
-        return root
+    """One-time copy of runtime data from the old %LOCALAPPDATA% location into `root`."""
     legacy_base = Path(os.environ.get("LOCALAPPDATA") or Path.home()) / APP_NAME
-    legacy_settings = legacy_base / "settings.json"
-    if not legacy_settings.exists():
+    if not legacy_base.exists():
         return root
     try:
-        root.mkdir(parents=True, exist_ok=True)
-        shutil.copy2(legacy_settings, target)
+        if not (root / "settings.json").exists():
+            legacy_settings = legacy_base / "settings.json"
+            if legacy_settings.exists():
+                root.mkdir(parents=True, exist_ok=True)
+                shutil.copy2(legacy_settings, root / "settings.json")
         legacy_logs = legacy_base / "logs"
-        if legacy_logs.exists():
+        if legacy_logs.exists() and not (root / "logs").exists():
             shutil.copytree(legacy_logs, root / "logs", dirs_exist_ok=True)
+        for name in ("optimizer_backup.json", "gaming_custom.json"):
+            src = legacy_base / name
+            dst = root / name
+            if src.exists() and not dst.exists():
+                root.mkdir(parents=True, exist_ok=True)
+                shutil.copy2(src, dst)
+        legacy_startup = legacy_base / "startup_backup"
+        if legacy_startup.exists() and not (root / "startup_backup").exists():
+            shutil.copytree(legacy_startup, root / "startup_backup", dirs_exist_ok=True)
     except OSError:
         pass
     return root

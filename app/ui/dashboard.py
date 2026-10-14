@@ -3,7 +3,6 @@ from __future__ import annotations
 import getpass
 
 from PySide6.QtCore import QDateTime, Qt, QTimer, Signal
-from PySide6.QtGui import QColor, QLinearGradient, QPainter, QPainterPath
 from PySide6.QtWidgets import (
     QFrame,
     QGridLayout,
@@ -22,13 +21,33 @@ from app.processes import ProcessService
 from app.sensors import Snapshot
 
 from .activity import ActivityLog
-from .components import CardPanel, MetricCard, PerfChart, QuickButton, RingCard
+from .components import CardPanel, MetricCard, PerfChart, RingCard
 from .format import gb as _gb
-from .format import zone_label
 from .format import rate as _rate
+from .format import zone_label
 from .icons import glyph
 from .tasks import Task
-from .theme import ACCENT, BORDER, BORDER_HI, BRAND_A, BRAND_B, C1, C2, C3, C4, DANGER, FONT_MONO, HERO_TOP, OK, PANEL, PANEL_ALT, TEXT, TEXT_DIM, WARN, fs
+from .theme import (
+    ACCENT,
+    BORDER,
+    BORDER_HI,
+    BRAND_A,
+    BRAND_B,
+    C1,
+    C2,
+    C3,
+    C4,
+    DANGER,
+    FONT_MONO,
+    HERO_TOP,
+    OK,
+    PANEL,
+    PANEL_ALT,
+    TEXT,
+    TEXT_DIM,
+    WARN,
+    fs,
+)
 
 
 def _greeting() -> str:
@@ -176,7 +195,7 @@ class QuickActionsWidget(QFrame):
     def retranslate(self) -> None:
         self.qa_title.setText(tr("dash_qa_title"))
         keys = ("dash_qa_clean", "dash_qa_optimize", "dash_qa_gaming", "dash_qa_cache", "dash_qa_tasks")
-        for btn, key in zip(self.buttons, keys):
+        for btn, key in zip(self.buttons, keys, strict=False):
             btn.setText(f"  {tr(key)}")
 
 
@@ -493,7 +512,7 @@ class NetworkWidget(QFrame):
         self.down_caption.setText(tr("dash_net_download"))
         self.up_caption.setText(tr("dash_net_upload"))
         keys = ("dash_net_internet", "dash_net_dns", "dash_net_gateway", "dash_net_loss", "dash_net_latency")
-        for pill, key in zip(self.diag_pills, keys):
+        for pill, key in zip(self.diag_pills, keys, strict=False):
             pill.setText(f"✓ {tr(key, pct=0)}")
 
 
@@ -641,6 +660,12 @@ class DashboardPage(QWidget):
         self.disk = RingCard(tr("dash_ring_disks"), C4, icon_name="disk")
         self.disk.set_center_sub(tr("dash_ring_full"))
 
+        # Clicking a card opens the page with the matching detail view.
+        self.cpu.clicked.connect(lambda: self.navigate.emit("monitor"))
+        self.ram.clicked.connect(lambda: self.navigate.emit("monitor"))
+        self.gpu.clicked.connect(lambda: self.navigate.emit("gpu"))
+        self.disk.clicked.connect(lambda: self.navigate.emit("disk"))
+
 
         self.health_card = HealthWidget()
         self.health_card.full_check_clicked.connect(lambda: self.navigate.emit("health"))
@@ -778,7 +803,7 @@ class DashboardPage(QWidget):
         for key, (grid, widgets) in self._grid_rows.items():
             for w in widgets:
                 grid.removeWidget(w)
-            for w, (r, c, span) in zip(widgets, spec[key]):
+            for w, (r, c, span) in zip(widgets, spec[key], strict=False):
                 grid.addWidget(w, r, c, 1, span)
             for c in range(12):
                 grid.setColumnStretch(c, 1)

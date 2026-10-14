@@ -13,6 +13,7 @@ from PySide6.QtWidgets import (
     QLineEdit,
     QPlainTextEdit,
     QPushButton,
+    QSpinBox,
     QVBoxLayout,
     QWidget,
 )
@@ -26,6 +27,7 @@ from .theme import CURRENT_THEME, THEME_LABELS, fs
 INTERVAL_OPTIONS = (250, 500, 1000, 2000, 5000)
 LOG_LEVELS = ("DEBUG", "INFO", "WARNING", "ERROR")
 LANGUAGE_OPTIONS = ("UA", "EN")
+TEMP_MIN, TEMP_MAX = 50, 110
 
 
 class SettingsPage(QWidget):
@@ -103,6 +105,8 @@ class SettingsPage(QWidget):
         self.minimize_check.setText(tr("set_minimize_tray"))
         self.start_minimized_check.setText(tr("set_start_minimized"))
         self.tray_metrics_check.setText(tr("set_tray_metrics"))
+        self.temp_alerts_check.setText(tr("set_temp_alerts"))
+        self._temp_label.setText(tr("set_temp_threshold"))
         self.save_button.setText(tr("set_save_btn"))
         self.reset_button.setText(tr("set_reset_btn"))
         self.open_logs_button.setText(tr("set_open_folder"))
@@ -135,7 +139,7 @@ class SettingsPage(QWidget):
         self._theme_label = QLabel(tr("set_theme"))
         grid.addWidget(self._theme_label, 2, 0)
         self.theme_combo = QComboBox()
-        for key, label in THEME_LABELS.items():
+        for key in THEME_LABELS:
             self.theme_combo.addItem(tr(f"theme_{key}"), key)
         grid.addWidget(self.theme_combo, 2, 1)
 
@@ -161,6 +165,16 @@ class SettingsPage(QWidget):
 
         self.tray_metrics_check = QCheckBox(tr("set_tray_metrics"))
         grid.addWidget(self.tray_metrics_check, 7, 0, 1, 2)
+
+        self.temp_alerts_check = QCheckBox(tr("set_temp_alerts"))
+        grid.addWidget(self.temp_alerts_check, 8, 0, 1, 2)
+
+        self._temp_label = QLabel(tr("set_temp_threshold"))
+        grid.addWidget(self._temp_label, 9, 0)
+        self.temp_spin = QSpinBox()
+        self.temp_spin.setRange(TEMP_MIN, TEMP_MAX)
+        self.temp_spin.setSuffix(" °C")
+        grid.addWidget(self.temp_spin, 9, 1)
 
         grid.setColumnStretch(1, 1)
         return card
@@ -234,6 +248,8 @@ class SettingsPage(QWidget):
         self.minimize_check.setChecked(self._service.get("minimize_to_tray"))
         self.start_minimized_check.setChecked(self._service.get("start_minimized"))
         self.tray_metrics_check.setChecked(self._service.get("tray_metrics"))
+        self.temp_alerts_check.setChecked(self._service.get("temp_alerts_enabled"))
+        self.temp_spin.setValue(int(self._service.get("temp_alert_celsius")))
         level = self._service.get("log_level")
         level_index = self.level_combo.findData(level)
         self.level_combo.setCurrentIndex(level_index if level_index >= 0 else 1)
@@ -245,6 +261,8 @@ class SettingsPage(QWidget):
             "minimize_to_tray": self.minimize_check.isChecked(),
             "start_minimized": self.start_minimized_check.isChecked(),
             "tray_metrics": self.tray_metrics_check.isChecked(),
+            "temp_alerts_enabled": self.temp_alerts_check.isChecked(),
+            "temp_alert_celsius": int(self.temp_spin.value()),
             "log_level": str(self.level_combo.currentData()),
             "theme": str(self.theme_combo.currentData()),
         }

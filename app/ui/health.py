@@ -18,9 +18,9 @@ from PySide6.QtWidgets import (
 from app.health import Finding, FixReport, HealthReport, HealthService
 from app.i18n import tr
 
-from .components import ScoreRing, attach_empty_hint
 from .activity import ActivityLog
 from .activity import record as log_action
+from .components import ScoreRing, attach_empty_hint
 from .tasks import Task
 from .theme import ACCENT, DANGER, OK, TEXT_DIM, WARN
 

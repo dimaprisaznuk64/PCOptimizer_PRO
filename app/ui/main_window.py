@@ -4,8 +4,16 @@ import sys
 
 from PySide6.QtCore import Qt
 from PySide6.QtGui import QColor, QGuiApplication, QPainter, QRadialGradient
-from PySide6.QtWidgets import QApplication, QHBoxLayout, QMainWindow, QStackedWidget, QVBoxLayout, QWidget
+from PySide6.QtWidgets import (
+    QApplication,
+    QHBoxLayout,
+    QMainWindow,
+    QStackedWidget,
+    QVBoxLayout,
+    QWidget,
+)
 
+from app.alerts import TemperatureAlertMonitor
 from app.i18n import I18nService, tr
 from app.settings import SettingsService
 
@@ -61,6 +69,7 @@ class MainWindow(QMainWindow):
         self.settings = settings or SettingsService()
         self._force_quit = False
         self._last_snapshot = None
+        self._temp_monitor = TemperatureAlertMonitor()
         I18nService.instance().set_language(self.settings.get("language"), emit=False)
         I18nService.instance().language_changed.connect(self._on_language_changed)
 
@@ -97,7 +106,7 @@ class MainWindow(QMainWindow):
 
         self.setCentralWidget(root)
 
-        missing = set(key for key, _ in NAV_ITEMS) - set(self._index_by_key)
+        missing = {key for key, _ in NAV_ITEMS} - set(self._index_by_key)
         if missing:
             raise RuntimeError(f"pages missing for nav keys: {sorted(missing)}")
 
@@ -280,6 +289,29 @@ class MainWindow(QMainWindow):
                 handler(snapshot)
         self._update_sidebar_health(snapshot)
         self._update_tray_tooltip(snapshot)
+        self._check_temp_alert(snapshot)
+
+    def _check_temp_alert(self, snapshot) -> None:
+        if not self.settings.get("temp_alerts_enabled"):
+            return
+        limit = float(self.settings.get("temp_alert_celsius"))
+        alert = self._temp_monitor.check(snapshot, limit)
+        if alert is None:
+            return
+        from app.logs import get_logger
+
+        from .activity import record
+        from .format import zone_label
+
+        source = zone_label(alert.source)
+        title = tr("alert_temp_title")
+        body = tr("alert_temp_body", source=source, temp=alert.temperature, limit=alert.limit)
+        if self.tray is not None:
+            self.tray.show_message(title, body)
+        record(title, body, level="warn")
+        get_logger("alerts").warning(
+            "temperature alert: %s at %.0f°C (limit %.0f°C)", source, alert.temperature, alert.limit
+        )
 
     def _update_sidebar_health(self, snapshot) -> None:
         loads = [v for v in (

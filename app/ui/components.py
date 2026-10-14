@@ -2,7 +2,16 @@ from __future__ import annotations
 
 from collections import deque
 
-from PySide6.QtCore import QEasingCurve, QEvent, QPointF, QRectF, QSize, Qt, QVariantAnimation, Signal
+from PySide6.QtCore import (
+    QEasingCurve,
+    QEvent,
+    QPointF,
+    QRectF,
+    QSize,
+    Qt,
+    QVariantAnimation,
+    Signal,
+)
 from PySide6.QtGui import QColor, QIcon, QLinearGradient, QPainter, QPainterPath, QPen
 from PySide6.QtWidgets import (
     QButtonGroup,
@@ -18,7 +27,21 @@ from PySide6.QtWidgets import (
 from app.i18n import tr
 
 from .icons import glyph
-from .theme import ACCENT, BORDER, BORDER_HI, C1, C3, DANGER, OK, PANEL, PANEL_ALT, TEXT, TEXT_DIM, WARN, fs
+from .theme import (
+    ACCENT,
+    BORDER,
+    BORDER_HI,
+    C1,
+    C3,
+    DANGER,
+    OK,
+    PANEL,
+    PANEL_ALT,
+    TEXT,
+    TEXT_DIM,
+    WARN,
+    fs,
+)
 
 
 def level_color(percent: float, base: str = ACCENT) -> str:
@@ -164,12 +187,15 @@ class _Ring(QWidget):
 class RingCard(QFrame):
     """Vertical card: header with icon/model, glowing ring with percent, bottom stats."""
 
+    clicked = Signal()
+
     def __init__(self, title: str, color: str = ACCENT, icon_name: str = "cpu", parent: QWidget | None = None) -> None:
         super().__init__(parent)
         self.setObjectName("card")
+        self.setCursor(Qt.CursorShape.PointingHandCursor)
         self.setStyleSheet(
             f"QFrame#card {{ background: {PANEL}; border: 1px solid {BORDER}; "
-            f"border-radius: 14px; }} QFrame#card:hover {{ border-color: {BORDER_HI}; }}"
+            f"border-radius: 14px; }} QFrame#card:hover {{ border-color: {ACCENT}; }}"
         )
         layout = QVBoxLayout(self)
         layout.setContentsMargins(14, 12, 14, 12)
@@ -236,6 +262,9 @@ class RingCard(QFrame):
         self.spark = Sparkline(color, points=120, height=10, value_range=(0, 100), parent=self)
         self.spark.hide()
 
+        for child in self.findChildren(QWidget):
+            child.setAttribute(Qt.WidgetAttribute.WA_TransparentForMouseEvents)
+
     def set_header(self, text: str) -> None:
         self.header_title.setText(text)
 
@@ -259,6 +288,11 @@ class RingCard(QFrame):
             self.spark.add(spark)
         else:
             self.spark.reset()
+
+    def mouseReleaseEvent(self, event) -> None:
+        if event.button() == Qt.MouseButton.LeftButton:
+            self.clicked.emit()
+        super().mouseReleaseEvent(event)
 
 
 class PerfChart(QFrame):
@@ -1018,4 +1052,4 @@ class ValueListCard(QFrame):
             self._rows[key].setText(f"{key}   {text}")
 
 
-__all__ = ["PerfChart", "QuickButton", "RingCard", "glyph_tile", "ActionTile", "ArcGauge", "GaugeCard", "LoadCard", "ScoreRing", "Bar", "level_color", "CardPanel", "MetricCard", "Sparkline", "ValueListCard"]
+__all__ = ["ActionTile", "ArcGauge", "Bar", "CardPanel", "GaugeCard", "LoadCard", "MetricCard", "PerfChart", "QuickButton", "RingCard", "ScoreRing", "Sparkline", "ValueListCard", "glyph_tile", "level_color"]

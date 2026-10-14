@@ -19,8 +19,8 @@ from PySide6.QtWidgets import (
 from app.i18n import tr
 from app.startup import StartupItem, StartupService
 
-from .format import mb
 from .components import attach_empty_hint
+from .format import mb
 from .tasks import Task
 
 COLUMN_KEYS = ("start_col_name", "start_col_source", "start_col_command", "start_col_impact", "start_col_state")

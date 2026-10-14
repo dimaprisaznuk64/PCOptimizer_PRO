@@ -10,17 +10,17 @@ from app.optimizer import (
     OptimizerError,
     OptimizerService,
 )
-from app.restore import STATUS_CREATED, STATUS_ERROR, RestoreResult
 from app.optimizer.service import (
     GAMEMODE_KEY,
     GAMEMODE_VALUE,
     HAGS_KEY,
     HAGS_VALUE,
     VISUAL_KEY,
-    VISUAL_VALUE,
     VISUAL_PERFORMANCE,
+    VISUAL_VALUE,
     parse_active_guid,
 )
+from app.restore import STATUS_CREATED, STATUS_ERROR, RestoreResult
 from app.ui.optimizer import OptimizerPage
 
 
@@ -410,3 +410,9 @@ def test_optimizer_page_revert_button_state(qapp, tmp_path, monkeypatch) -> None
     page.start_revert()
     assert _wait_until(qapp, lambda: service.revert_calls == 1)
     assert _wait_until(qapp, lambda: page._task is None)
+
+
+def test_default_backup_path_uses_data_root(tmp_path, monkeypatch) -> None:
+    monkeypatch.setenv("PCOPTIMIZER_DATA", str(tmp_path))
+    service = OptimizerService()
+    assert service.backup_path == tmp_path / "optimizer_backup.json"

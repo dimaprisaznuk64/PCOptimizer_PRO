@@ -504,7 +504,7 @@ def _mix(a: str, b: str, t: float) -> str:
     a, b = a.lstrip("#"), b.lstrip("#")
     ca = [int(a[i : i + 2], 16) for i in (0, 2, 4)]
     cb = [int(b[i : i + 2], 16) for i in (0, 2, 4)]
-    return "#" + "".join(f"{round(x + (y - x) * t):02X}" for x, y in zip(ca, cb))
+    return "#" + "".join(f"{round(x + (y - x) * t):02X}" for x, y in zip(ca, cb, strict=False))
 
 
 # Secondary buttons must stand out from the panel (border >= ~2.5:1), in every theme.
@@ -1095,9 +1095,7 @@ QScrollBar::handle:horizontal {{
 
 
 def apply(app) -> None:
-    from PySide6.QtGui import QColor, QPalette
-
-    from PySide6.QtGui import QFont
+    from PySide6.QtGui import QColor, QFont, QPalette
 
     app.setStyle("Fusion")
     load_fonts()

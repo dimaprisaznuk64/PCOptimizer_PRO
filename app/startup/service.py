@@ -4,9 +4,11 @@ import json
 import os
 import time
 import winreg
+from collections.abc import Sequence
 from dataclasses import dataclass
 from pathlib import Path
-from typing import Sequence
+
+from app.settings import data_root
 
 APPROVED_RUN = r"Software\Microsoft\Windows\CurrentVersion\Explorer\StartupApproved\Run"
 APPROVED_FOLDER = r"Software\Microsoft\Windows\CurrentVersion\Explorer\StartupApproved\StartupFolder"
@@ -133,7 +135,6 @@ def _target_size(command: str) -> int | None:
 def _resolve_lnk(path: str) -> str:
     try:
         import pythoncom
-        from win32com.shell import shell
         from win32com.client import Dispatch
 
         pythoncom.CoInitialize()
@@ -159,7 +160,6 @@ class StartupService:
     ) -> None:
         appdata = os.environ.get("APPDATA", "")
         program_data = os.environ.get("PROGRAMDATA", "")
-        local = os.environ.get("LOCALAPPDATA", "")
         self.user_startup_dir = user_startup_dir or os.path.join(
             appdata, r"Microsoft\Windows\Start Menu\Programs\Startup"
         )
@@ -167,7 +167,7 @@ class StartupService:
             program_data, r"Microsoft\Windows\Start Menu\Programs\Startup"
         )
         self.backup_dir = Path(backup_dir) if backup_dir else (
-            Path(local) / "PCOptimizer_PRO" / "startup_backup"
+            data_root() / "startup_backup"
         )
         self.run_sources = tuple(run_sources) if run_sources is not None else RUN_SOURCES
 

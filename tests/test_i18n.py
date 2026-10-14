@@ -2,9 +2,7 @@
 
 from __future__ import annotations
 
-import pytest
-
-from app.i18n import I18nService, TRANSLATIONS, tr
+from app.i18n import TRANSLATIONS, I18nService, tr
 
 
 def test_translations_dictionary_keys_match() -> None:

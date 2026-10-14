@@ -6,7 +6,7 @@ import pytest
 
 from app.gaming import DetectedGame, GamingError, GamingService
 from app.gaming.service import _find_exe, default_steam_roots
-from app.optimizer import ApplyReport, GUID_BALANCED, GUID_HIGH_PERF, OptimizerService
+from app.optimizer import ApplyReport, OptimizerService
 from app.ui.gaming import GamingPage
 
 

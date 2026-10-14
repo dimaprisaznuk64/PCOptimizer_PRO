@@ -18,9 +18,9 @@ from PySide6.QtWidgets import (
 from app.cleaner import CleanerService, CleanOutcome, CleanTarget, ScanResult
 from app.i18n import tr
 
-from .format import size
 from .activity import record as log_action
 from .components import align_numeric_headers
+from .format import size
 from .tasks import Task
 
 COLUMN_KEYS = ("clean_col_target", "clean_col_category", "clean_col_files", "clean_col_size", "clean_col_status")

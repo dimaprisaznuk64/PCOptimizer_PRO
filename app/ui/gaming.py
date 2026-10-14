@@ -234,7 +234,8 @@ class GamingPage(QWidget):
                 )
                 == QMessageBox.StandardButton.Yes
             )
-            runner = lambda: self._service.activate(with_restore_point=want_restore)
+            def runner() -> object:
+                return self._service.activate(with_restore_point=want_restore)
         self.status_label.setText(running_text)
         self._set_busy(True)
         self._task = Task(runner, parent=self)

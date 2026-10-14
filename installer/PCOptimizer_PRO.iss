@@ -2,7 +2,7 @@
 ; Build with: scripts\build_installer.ps1
 
 #define MyAppName "PCOptimizer PRO"
-#define MyAppVersion "1.2.8"
+#define MyAppVersion "1.2.9"
 #define MyAppPublisher "dimaprisaznuk64"
 #define MyAppURL "https://github.com/dimaprisaznuk64/PCOptimizer_PRO"
 #define MyAppExeName "PCOptimizer_PRO.exe"
