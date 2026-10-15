@@ -25,40 +25,58 @@ def _wait_until(qapp, cond, timeout: float = 8.0) -> bool:
     return False
 
 
+def _tiny_service() -> BenchmarkService:
+    return BenchmarkService(
+        cpu_bytes=256 * 1024,
+        ram_bytes=1024 * 1024,
+        disk_bytes=2 * 1024 * 1024,
+        runs=2,
+        disk_runs=1,
+    )
+
+
 # ---------- service ----------
 
 
-def test_cpu_benchmark_returns_result() -> None:
-    results = BenchmarkService().run(BenchmarkType.CPU)
-    assert len(results) == 1
-    result = results[0]
-    assert result.type is BenchmarkType.CPU
-    assert result.score > 0
-    assert result.units == "ops-like"
-    assert result.duration_ms >= 0
+def test_cpu_benchmark_returns_results() -> None:
+    results = _tiny_service().run(BenchmarkType.CPU)
+    assert [r.metric for r in results] == ["cpu_single", "cpu_multi"]
+    for result in results:
+        assert result.type is BenchmarkType.CPU
+        assert result.value > 0
+        assert result.unit == "MB/s"
+        assert result.runs >= 1
+        assert result.duration_ms >= 0
 
 
 def test_ram_benchmark_returns_result() -> None:
-    result = BenchmarkService().run(BenchmarkType.RAM)[0]
+    results = _tiny_service().run(BenchmarkType.RAM)
+    assert len(results) == 1
+    result = results[0]
     assert result.type is BenchmarkType.RAM
-    assert result.score > 0
-    assert result.units == "MB/s-like"
+    assert result.metric == "ram_copy"
+    assert result.value > 0
+    assert result.unit == "GB/s"
 
 
 def test_disk_benchmark_writes_and_removes_file(tmp_path) -> None:
     target = tmp_path / "bench.bin"
-    result = BenchmarkService().run(BenchmarkType.DISK, disk_path=target)[0]
-    assert result.type is BenchmarkType.DISK
-    assert result.units == "MB/s"
-    assert result.score > 0
+    results = _tiny_service().run(BenchmarkType.DISK, disk_path=target)
+    assert [r.metric for r in results] == ["disk_write", "disk_read"]
+    for result in results:
+        assert result.type is BenchmarkType.DISK
+        assert result.unit == "MB/s"
+        assert result.value > 0
     assert not target.exists()
 
 
-def test_all_benchmark_runs_three_in_order() -> None:
-    results = BenchmarkService().run(BenchmarkType.ALL)
+def test_all_benchmark_runs_in_order() -> None:
+    results = _tiny_service().run(BenchmarkType.ALL)
     assert [r.type for r in results] == [
         BenchmarkType.CPU,
+        BenchmarkType.CPU,
         BenchmarkType.RAM,
+        BenchmarkType.DISK,
         BenchmarkType.DISK,
     ]
 
@@ -86,10 +104,12 @@ class FakeBenchmarkService:
         return [
             BenchmarkResult(
                 type=btype,
-                score=123.4,
-                units="u",
+                metric="cpu_single",
+                value=123.4,
+                unit="MB/s",
                 duration_ms=11,
-                info="fake",
+                runs=1,
+                detail="fake",
             )
         ]
 
@@ -114,7 +134,7 @@ def test_page_run_cpu_renders_row(qapp) -> None:
     page.start_run(BenchmarkType.CPU)
     assert _wait_until(qapp, lambda: page.table.rowCount() == 1)
     assert service.calls == [BenchmarkType.CPU]
-    assert page.table.item(0, 0).text() == "CPU"
+    assert page.table.item(0, 0).text() == "CPU single-thread"
     assert page.table.item(0, 1).text() == "123.4"
     assert "Done" in page.status_label.text()
     assert page.cpu_btn.isEnabled()
