@@ -79,6 +79,12 @@ def _launcher(p: QPainter) -> None:
     p.drawPath(path)
 
 
+def _benchmarks(p: QPainter) -> None:
+    p.drawArc(QRectF(3, 5, 14, 14), 0, 180 * 16)
+    p.drawLine(QPointF(10, 10), QPointF(14, 6.5))
+    p.drawPoint(QPointF(10, 10))
+
+
 def _network(p: QPainter) -> None:
     p.drawArc(QRectF(2.5, 6, 15, 15), 45 * 16, 90 * 16)
     p.drawArc(QRectF(5.5, 9.5, 9, 9), 45 * 16, 90 * 16)

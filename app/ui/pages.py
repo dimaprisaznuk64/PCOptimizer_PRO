@@ -34,6 +34,7 @@ class PlaceholderPage(QWidget):
 def build_pages(settings=None, on_theme_applied=None) -> list[tuple[str, QWidget]]:
     from app.settings import SettingsService
 
+    from .benchmarks import BenchmarksPage
     from .cleaner import CleanerPage
     from .dashboard import DashboardPage
     from .disk import DiskPage
@@ -61,6 +62,7 @@ def build_pages(settings=None, on_theme_applied=None) -> list[tuple[str, QWidget
         ("optimizer", OptimizerPage()),
         ("gaming", GamingPage()),
         ("launcher", LauncherPage()),
+        ("benchmarks", BenchmarksPage()),
         ("network", NetworkPage()),
         ("disk", DiskPage()),
         ("health", HealthPage()),

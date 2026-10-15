@@ -5,14 +5,14 @@
 <h1 align="center">PCOptimizer PRO</h1>
 
 <p align="center">
-  Моніторинг і оптимізація Windows в одному застосунку: 12 розділів — від живих метрик CPU/GPU та чищення сміття до ігрового режиму й загальної оцінки здоров'я системи.
+  Моніторинг і оптимізація Windows в одному застосунку: 13 розділів — від живих метрик CPU/GPU та чищення сміття до ігрового режиму, лончера ігор, бенчмарків і загальної оцінки здоров'я системи.
 </p>
 
 <p align="center">
   <img src="https://img.shields.io/badge/platform-Windows%2010%2F11%20x64-0078D6" alt="Platform">
   <img src="https://img.shields.io/badge/python-3.13-3776AB" alt="Python">
   <img src="https://img.shields.io/badge/UI-PySide6%20(Qt%206)-41CD52" alt="PySide6">
-  <img src="https://img.shields.io/badge/tests-269%20passed-brightgreen" alt="Tests">
+  <img src="https://img.shields.io/badge/tests-294%20passed-brightgreen" alt="Tests">
   <img src="https://img.shields.io/badge/version-1.2.9-blue" alt="Version">
 </p>
 
@@ -72,6 +72,15 @@
 - Статус встановлено/запущено, кнопка запуску гри
 - Увімкнення режиму = профіль GAMING; вимкнення = відкат змін
 
+### Лончер ігор
+- Плитки ігор з обкладинками, обране та історія запусків
+- Запуск гри прямо з лончера (процес запускається з робочої теки гри)
+
+### Бенчмарки
+- Швидкі тести CPU / RAM / диска окремо або всі разом
+- Оцінка, одиниці та тривалість кожного тесту в таблиці
+- Диск-тест пише тимчасовий файл у теку даних і прибирає його за собою
+
 ### Мережа
 - Ping-тест: 4 запити, середнє й втрати, таблиця результатів
 - Діагностика: адаптери, шлюз, DNS, доступ до інтернету, проксі (інформаційно)
@@ -126,7 +135,7 @@
 
 - **Python 3.13** + **PySide6** (Qt 6; 25 вбудованих тем, тема за замовчуванням — Graphite, вбудовані шрифти Inter / JetBrains Mono)
 - **psutil** — CPU/RAM/диски/мережа, **nvidia-ml-py** (NVML) — GPU, **WMI** — температури, **pywin32** — COM/Task Scheduler/кошик
-- **pytest** — 269 тестів
+- **pytest** — 294 тести
 - **PyInstaller** — збірка .exe, **Inno Setup** — інсталятор
 
 ## Безпека понад усе
@@ -179,9 +188,10 @@ powershell -ExecutionPolicy Bypass -File scripts\build_installer.ps1
 ```
 main.py                  — точка входу
 app/
-  ui/                    — PySide6 UI: 12 сторінок, теми, трей, topbar
+  ui/                    — PySide6 UI: 13 сторінок, теми, трей, topbar
   sensors/               — шар сенсорів: psutil / NVML / WMI / mock
   health/                — PC Health Score
+  benchmarks/            — швидкі тести CPU / RAM / диска
   alerts/                — правила температурних алертів
   cleaner/               — чистильник
   disk/                  — дисковий аналізатор
@@ -195,7 +205,7 @@ app/
   logs/                  — ротаційне логування
   i18n/                  — локалізація UA / EN
   core/, hardware/, monitor/, health/ — допоміжні модулі
-tests/                   — pytest-тести (269)
+tests/                   — pytest-тести (294)
 scripts/                 — збірка exe/інсталятора, генерація іконки
 installer/               — скрипт Inno Setup
 docs/screenshots/        — скріншоти
@@ -214,4 +224,3 @@ docs/screenshots/        — скріншоти
 ## Дорожня карта
 
 - Overlay (FPS/CPU) поверх гри
-- Бенчмарки, лончер ігор
