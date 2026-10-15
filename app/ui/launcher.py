@@ -6,12 +6,15 @@ from pathlib import Path
 from PySide6.QtCore import Qt, Signal
 from PySide6.QtGui import QColor, QLinearGradient, QPainter, QPixmap
 from PySide6.QtWidgets import (
+    QCheckBox,
+    QComboBox,
     QFileDialog,
     QFrame,
     QGridLayout,
     QHBoxLayout,
     QInputDialog,
     QLabel,
+    QLineEdit,
     QListWidget,
     QListWidgetItem,
     QMessageBox,
@@ -23,6 +26,7 @@ from PySide6.QtWidgets import (
 )
 
 from app.gaming import DetectedGame, GamingError, LauncherService
+from app.gaming.launcher import SORT_MODES
 from app.i18n import tr
 
 from .activity import ActivityLog
@@ -165,6 +169,7 @@ class LauncherPage(QWidget):
         self.setObjectName("page")
         self._service = service or LauncherService()
         self._games: dict[str, DetectedGame] = {}
+        self._all_games: list[DetectedGame] = []
         self._tiles: dict[str, GameTile] = {}
         self._selected: str | None = None
         self._task: Task | None = None
@@ -198,6 +203,30 @@ class LauncherPage(QWidget):
         self.status_label.setObjectName("cardSub")
         toolbar.addWidget(self.status_label, 1)
         layout.addLayout(toolbar)
+
+        filters = QHBoxLayout()
+        filters.setSpacing(8)
+        self.search_edit = QLineEdit()
+        self.search_edit.setPlaceholderText(tr("launch_search"))
+        self.search_edit.setClearButtonEnabled(True)
+        self.search_edit.textChanged.connect(lambda _text: self._refilter())
+        filters.addWidget(self.search_edit, 1)
+        self.installed_only = QCheckBox(tr("launch_installed_only"))
+        self.installed_only.toggled.connect(lambda _checked: self._refilter())
+        filters.addWidget(self.installed_only)
+        self._sort_labels = {
+            "default": "launch_sort_default",
+            "recent": "launch_sort_recent",
+            "most_played": "launch_sort_most_played",
+            "name": "launch_sort_name",
+            "favorites": "launch_sort_favorites",
+        }
+        self.sort_combo = QComboBox()
+        for mode in SORT_MODES:
+            self.sort_combo.addItem(tr(self._sort_labels[mode]), mode)
+        self.sort_combo.currentIndexChanged.connect(lambda _index: self._refilter())
+        filters.addWidget(self.sort_combo)
+        layout.addLayout(filters)
 
         splitter = QSplitter(Qt.Orientation.Horizontal)
 
@@ -297,6 +326,10 @@ class LauncherPage(QWidget):
         self.clear_history_button.setText(tr("launch_clear"))
         self._details_title.setText(tr("launch_details"))
         self._history_title.setText(tr("launch_history"))
+        self.search_edit.setPlaceholderText(tr("launch_search"))
+        self.installed_only.setText(tr("launch_installed_only"))
+        for index, mode in enumerate(SORT_MODES):
+            self.sort_combo.setItemText(index, tr(self._sort_labels[mode]))
         for game in self._games.values():
             tile = self._tiles.get(game.id)
             if tile is not None:
@@ -311,7 +344,7 @@ class LauncherPage(QWidget):
             return
         self.status_label.setText(tr("launch_detecting"))
         self._set_busy(True)
-        self._task = Task(self._service.games, parent=self)
+        self._task = Task(self._service.detect, parent=self)
         self._task.done.connect(self._apply_games)
         self._task.failed.connect(self._on_task_failed)
         self._task.start()
@@ -322,11 +355,28 @@ class LauncherPage(QWidget):
         if not isinstance(result, list):
             self.status_label.setText(tr("launch_failed", msg=result))
             return
-        self._games = {game.id: game for game in result}
+        self._all_games = list(result)
+        self._refilter()
+
+    def _refilter(self) -> None:
+        if self._task is not None:
+            return
+        sort_mode = self.sort_combo.currentData() or "default"
+        viewed = self._service.view(
+            self._all_games,
+            search=self.search_edit.text(),
+            installed_only=self.installed_only.isChecked(),
+            sort=sort_mode,
+        )
+        self._games = {game.id: game for game in viewed}
         self._render_grid()
-        installed = sum(1 for g in self._games.values() if g.installed)
-        pinned = sum(1 for g in self._games.values() if self._service.is_favorite(g.id))
-        self.status_label.setText(tr("launch_summary", installed=installed, pinned=pinned))
+        installed = sum(1 for g in self._all_games if g.installed)
+        pinned = sum(1 for g in self._all_games if self._service.is_favorite(g.id))
+        filtered = bool(self.search_edit.text().strip()) or self.installed_only.isChecked()
+        if self._all_games and not viewed and filtered:
+            self.status_label.setText(tr("launch_no_matches"))
+        else:
+            self.status_label.setText(tr("launch_summary", installed=installed, pinned=pinned))
         self._render_history()
         self._on_selection_changed()
 
@@ -438,21 +488,10 @@ class LauncherPage(QWidget):
         tile = self._tiles.get(game_id)
         if tile is not None:
             tile.set_game(game, pinned)
+        self._refilter()
         self.status_label.setText(
             tr("launch_pinned_msg", name=game.name) if pinned else tr("launch_unpinned_msg", name=game.name)
         )
-        self._apply_order()
-
-    def _apply_order(self) -> None:
-        # Re-sort the in-memory games the same way the service does.
-        favs = self._service.favorites()
-        self._games = dict(
-            sorted(
-                self._games.items(),
-                key=lambda item: (not item[1].installed, item[0] not in favs, item[1].name.lower()),
-            )
-        )
-        self._render_grid()
 
     def start_remove_custom(self) -> None:
         game = self._games.get(self._selected) if self._selected else None

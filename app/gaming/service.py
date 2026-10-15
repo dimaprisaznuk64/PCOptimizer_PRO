@@ -44,6 +44,7 @@ class DetectedGame:
     running: bool
     custom: bool = False
     cover: str = ""
+    appid: str = ""
 
 
 def default_steam_roots() -> list[str]:
@@ -119,6 +120,15 @@ def _find_exe(folder: Path, exe_names: Sequence[str], depth: int = 5) -> str | N
     return None
 
 
+def _default_open_uri(uri: str) -> None:
+    import os
+
+    startfile = getattr(os, "startfile", None)
+    if startfile is None:
+        raise OSError("opening URIs is not supported on this platform")
+    startfile(uri)
+
+
 class GamingService:
     def __init__(
         self,
@@ -128,6 +138,7 @@ class GamingService:
         optimizer: OptimizerService | None = None,
         running_names: Callable[[], Sequence[str]] | None = None,
         popen: Callable[..., object] | None = None,
+        open_uri: Callable[[str], object] | None = None,
     ) -> None:
         self.custom_store = Path(custom_store) if custom_store else (
             data_root() / "gaming_custom.json"
@@ -136,6 +147,7 @@ class GamingService:
         self._optimizer = optimizer or OptimizerService()
         self._running_names = running_names or self._psutil_running_names
         self._popen = popen or subprocess.Popen
+        self._open_uri = open_uri or _default_open_uri
         self._active = False
         self.last_report: ApplyReport | None = None
 
@@ -170,6 +182,7 @@ class GamingService:
                     installed=bool(location),
                     running=any(name.lower() in running for name in spec.exe_names),
                     cover=cover,
+                    appid=spec.appid,
                 )
             )
 
@@ -236,6 +249,12 @@ class GamingService:
     def launch(self, game: DetectedGame) -> int:
         if not game.installed or not game.location:
             raise GamingError(f"{game.name} is not installed")
+        if game.appid:
+            try:
+                self._open_uri(f"steam://rungameid/{game.appid}")
+                return 0
+            except OSError:
+                pass
         path = Path(game.location)
         if not path.is_file():
             raise GamingError(f"{game.name} executable missing: {game.location}")

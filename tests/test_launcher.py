@@ -96,6 +96,131 @@ def test_detect_resolves_cover_for_steam_game(tmp_path) -> None:
     assert games["cs2"].cover == ""
 
 
+def test_detect_propagates_steam_appid(tmp_path) -> None:
+    game_dir = tmp_path / "steamapps" / "common" / "PUBG"
+    game_dir.mkdir(parents=True)
+    (game_dir / "TslGame.exe").write_bytes(b"MZ")
+    service = GamingService(
+        steam_roots=lambda: [str(tmp_path)],
+        custom_store=tmp_path / "custom.json",
+        optimizer=FakeOptimizer(tmp_path),
+        running_names=lambda: [],
+    )
+    games = {g.id: g for g in service.detect()}
+    assert games["pubg"].appid == "578080"
+    assert games["cs2"].appid == "730"
+
+
+# ---------- service: steam-aware launch ----------
+
+
+class _RecorderPopen:
+    def __init__(self, pid: int = 999) -> None:
+        self.pid = pid
+        self.calls: list = []
+
+    def __call__(self, *args, **kwargs):
+        self.calls.append((args, kwargs))
+        return self
+
+
+def _gaming(tmp_path, *, open_uri=None, popen=None) -> GamingService:
+    return GamingService(
+        steam_roots=lambda: [],
+        custom_store=tmp_path / "custom.json",
+        optimizer=FakeOptimizer(tmp_path),
+        running_names=lambda: [],
+        popen=popen,
+        open_uri=open_uri,
+    )
+
+
+def test_launch_steam_game_uses_uri(tmp_path) -> None:
+    opened: list[str] = []
+    popen = _RecorderPopen()
+    service = _gaming(tmp_path, open_uri=opened.append, popen=popen)
+    game = DetectedGame("pubg", "PUBG", "Steam", "C:/g/TslGame.exe", True, False, appid="578080")
+    assert service.launch(game) == 0
+    assert opened == ["steam://rungameid/578080"]
+    assert popen.calls == []
+
+
+def test_launch_without_appid_uses_exe(tmp_path) -> None:
+    exe = tmp_path / "game.exe"
+    exe.write_bytes(b"MZ")
+    popen = _RecorderPopen(pid=777)
+    service = _gaming(tmp_path, popen=popen)
+    game = DetectedGame("custom:x", "X", "Custom", str(exe), True, False, custom=True)
+    assert service.launch(game) == 777
+    assert popen.calls
+    assert popen.calls[0][0][0] == [str(exe)]
+
+
+def test_launch_falls_back_to_exe_when_uri_fails(tmp_path) -> None:
+    exe = tmp_path / "game.exe"
+    exe.write_bytes(b"MZ")
+
+    def bad_uri(uri: str) -> None:
+        raise OSError("no handler")
+
+    popen = _RecorderPopen(pid=555)
+    service = _gaming(tmp_path, open_uri=bad_uri, popen=popen)
+    game = DetectedGame("pubg", "PUBG", "Steam", str(exe), True, False, appid="578080")
+    assert service.launch(game) == 555
+    assert popen.calls
+
+
+# ---------- service: view (search / filter / sort) ----------
+
+
+def test_view_search_filters_by_name(tmp_path) -> None:
+    service = _launcher(tmp_path)
+    result = service.view(service.detect(), search="counter")
+    assert [g.id for g in result] == ["cs2"]
+
+
+def test_view_installed_only_hides_missing(tmp_path) -> None:
+    games = [
+        DetectedGame("a", "Alpha", "Steam", "C:/a.exe", True, False),
+        DetectedGame("b", "Beta", "Steam", "C:/b.exe", False, False),
+    ]
+    service = _launcher(tmp_path, games=games)
+    result = service.view(games, installed_only=True)
+    assert [g.id for g in result] == ["a"]
+
+
+def test_view_sort_name(tmp_path) -> None:
+    service = _launcher(tmp_path)
+    result = service.view(service.detect(), sort="name")
+    assert [g.id for g in result] == ["cs2", "custom:mine", "pubg"]
+
+
+def test_view_sort_recent_puts_recently_played_first(tmp_path) -> None:
+    times = iter([1000.0, 2000.0])
+    service = _launcher(tmp_path, now=lambda: next(times))
+    service.record_launch(_GAMES[0])
+    service.record_launch(_GAMES[1])
+    result = service.view(service.detect(), sort="recent")
+    assert result[0].id == "cs2"
+    assert result[-1].id == "custom:mine"
+
+
+def test_view_sort_favorites_first(tmp_path) -> None:
+    service = _launcher(tmp_path)
+    service.toggle_favorite("custom:mine")
+    result = service.view(service.detect(), sort="favorites")
+    assert result[0].id == "custom:mine"
+
+
+def test_view_sort_most_played(tmp_path) -> None:
+    service = _launcher(tmp_path)
+    service.record_launch(_GAMES[1])
+    service.record_launch(_GAMES[1])
+    service.record_launch(_GAMES[0])
+    result = service.view(service.detect(), sort="most_played")
+    assert result[0].id == "cs2"
+
+
 # ---------- service: favourites ----------
 
 
@@ -170,7 +295,7 @@ class CannedLauncher(LauncherService):
         )
         self._canned = list(_GAMES if games is None else games)
 
-    def games(self):
+    def detect(self):
         return list(self._canned)
 
 
@@ -180,7 +305,7 @@ def test_page_builds_tiles(qapp, tmp_path) -> None:
     assert _wait_until(qapp, lambda: len(page._tiles) == 3)
     assert set(page._tiles) == {"pubg", "cs2", "custom:mine"}
     assert "installed" in page.status_label.text()
-    assert page.detail_name.text() == "PUBG: BATTLEGROUNDS"
+    assert page.detail_name.text() == "Counter-Strike 2"
 
 
 def test_page_selection_updates_details(qapp, tmp_path) -> None:
@@ -191,7 +316,7 @@ def test_page_selection_updates_details(qapp, tmp_path) -> None:
     assert page.detail_name.text() == "Counter-Strike 2"
     assert "Running" in page.detail_rows["status"].text()
     assert page._tiles["cs2"].property("selected") is True
-    assert page._tiles["pubg"].property("selected") is False
+    assert not page._tiles["pubg"].property("selected")
 
 
 def test_page_launch_records_history(qapp, tmp_path) -> None:
@@ -214,6 +339,37 @@ def test_page_toggle_favorite(qapp, tmp_path) -> None:
     assert service.is_favorite("cs2") is True
     assert page._tiles["cs2"].star_button.isChecked() is True
     assert "cs2" in page.status_label.text() or "Counter" in page.status_label.text()
+
+
+def test_page_search_filters_tiles(qapp, tmp_path) -> None:
+    page = LauncherPage(CannedLauncher(tmp_path))
+    page.start_refresh()
+    assert _wait_until(qapp, lambda: len(page._tiles) == 3)
+    page.search_edit.setText("counter")
+    assert _wait_until(qapp, lambda: set(page._tiles) == {"cs2"})
+    page.search_edit.setText("zzz")
+    assert _wait_until(qapp, lambda: set(page._tiles) == set())
+    assert page.status_label.text() == "No games match the current filter"
+
+
+def test_page_installed_only_hides_missing(qapp, tmp_path) -> None:
+    games = [
+        DetectedGame("a", "Alpha", "Steam", "C:/a.exe", True, False),
+        DetectedGame("b", "Beta", "Steam", "C:/b.exe", False, False),
+    ]
+    page = LauncherPage(CannedLauncher(tmp_path, games))
+    page.start_refresh()
+    assert _wait_until(qapp, lambda: len(page._tiles) == 2)
+    page.installed_only.setChecked(True)
+    assert _wait_until(qapp, lambda: set(page._tiles) == {"a"})
+
+
+def test_page_sort_name_reorders_tiles(qapp, tmp_path) -> None:
+    page = LauncherPage(CannedLauncher(tmp_path))
+    page.start_refresh()
+    assert _wait_until(qapp, lambda: len(page._tiles) == 3)
+    page.sort_combo.setCurrentIndex(page.sort_combo.findData("name"))
+    assert _wait_until(qapp, lambda: list(page._tiles)[0] == "cs2")
 
 
 def test_page_retranslate_safe(qapp, tmp_path) -> None:

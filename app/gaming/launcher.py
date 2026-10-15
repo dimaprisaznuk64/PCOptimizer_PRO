@@ -12,6 +12,8 @@ from app.settings import data_root
 
 _HISTORY_LIMIT = 200
 
+SORT_MODES = ("default", "recent", "most_played", "name", "favorites")
+
 
 @dataclass(frozen=True, slots=True)
 class LaunchRecord:
@@ -55,11 +57,47 @@ class LauncherService:
 
     # ---------- games ----------
 
+    def detect(self) -> list[DetectedGame]:
+        return self._gaming.detect()
+
     def games(self) -> list[DetectedGame]:
-        games = self._gaming.detect()
-        favs = self.favorites()
-        games.sort(key=lambda g: (not g.installed, g.id not in favs, g.name.lower()))
-        return games
+        return self.view(self.detect())
+
+    def view(
+        self,
+        games: list[DetectedGame],
+        *,
+        search: str = "",
+        installed_only: bool = False,
+        sort: str = "default",
+    ) -> list[DetectedGame]:
+        """Filter and sort a detected game list without re-scanning the disk."""
+        query = search.strip().lower()
+        favorites = self.favorites()
+        recent: dict[str, str] = {}
+        counts: dict[str, int] = {}
+        for record in self.history(limit=0):
+            counts[record.id] = counts.get(record.id, 0) + 1
+            recent.setdefault(record.id, record.when)
+
+        items = [
+            game
+            for game in games
+            if (not installed_only or game.installed)
+            and (not query or query in game.name.lower())
+        ]
+
+        if sort == "name":
+            items.sort(key=lambda g: g.name.lower())
+        elif sort == "recent":
+            items.sort(key=lambda g: (recent.get(g.id, ""), g.name.lower()), reverse=True)
+        elif sort == "most_played":
+            items.sort(key=lambda g: (-counts.get(g.id, 0), g.name.lower()))
+        elif sort == "favorites":
+            items.sort(key=lambda g: (g.id not in favorites, g.name.lower()))
+        else:
+            items.sort(key=lambda g: (not g.installed, g.id not in favorites, g.name.lower()))
+        return items
 
     # ---------- favourites ----------
 

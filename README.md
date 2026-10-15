@@ -12,7 +12,7 @@
   <img src="https://img.shields.io/badge/platform-Windows%2010%2F11%20x64-0078D6" alt="Platform">
   <img src="https://img.shields.io/badge/python-3.13-3776AB" alt="Python">
   <img src="https://img.shields.io/badge/UI-PySide6%20(Qt%206)-41CD52" alt="PySide6">
-  <img src="https://img.shields.io/badge/tests-294%20passed-brightgreen" alt="Tests">
+  <img src="https://img.shields.io/badge/tests-307%20passed-brightgreen" alt="Tests">
   <img src="https://img.shields.io/badge/version-1.2.9-blue" alt="Version">
 </p>
 
@@ -73,12 +73,13 @@
 - Увімкнення режиму = профіль GAMING; вимкнення = відкат змін
 
 ### Лончер ігор
-- Плитки ігор з обкладинками, обране та історія запусків
-- Запуск гри прямо з лончера (процес запускається з робочої теки гри)
+- Плитки ігор з обкладинками Steam, обране та історія запусків
+- Steam-ігри запускаються через `steam://rungameid/<appid>` (коректно для anti-cheat і Steam-оверлею), інші — прямим .exe
+- Пошук за назвою, фільтр «лише встановлені», сортування (за замовчуванням / нещодавно запущені / найчастіше / назва / обране)
 
 ### Бенчмарки
-- Швидкі тести CPU / RAM / диска окремо або всі разом
-- Оцінка, одиниці та тривалість кожного тесту в таблиці
+- Реальні вимірювання CPU / RAM / диска: SHA-256 (1 потік + багатопоток, МБ/с), пропускна здатність пам'яті (ГБ/с), послідовний запис/читання диска (МБ/с)
+- Кожна метрика — медіана кількох прогонів (з відкинутим прогрівом), у таблиці видно значення, одиниці, тривалість і кількість прогонів
 - Диск-тест пише тимчасовий файл у теку даних і прибирає його за собою
 
 ### Мережа
@@ -135,7 +136,7 @@
 
 - **Python 3.13** + **PySide6** (Qt 6; 25 вбудованих тем, тема за замовчуванням — Graphite, вбудовані шрифти Inter / JetBrains Mono)
 - **psutil** — CPU/RAM/диски/мережа, **nvidia-ml-py** (NVML) — GPU, **WMI** — температури, **pywin32** — COM/Task Scheduler/кошик
-- **pytest** — 294 тести
+- **pytest** — 307 тестів
 - **PyInstaller** — збірка .exe, **Inno Setup** — інсталятор
 
 ## Безпека понад усе
@@ -205,7 +206,7 @@ app/
   logs/                  — ротаційне логування
   i18n/                  — локалізація UA / EN
   core/, hardware/, monitor/, health/ — допоміжні модулі
-tests/                   — pytest-тести (294)
+tests/                   — pytest-тести (307)
 scripts/                 — збірка exe/інсталятора, генерація іконки
 installer/               — скрипт Inno Setup
 docs/screenshots/        — скріншоти
