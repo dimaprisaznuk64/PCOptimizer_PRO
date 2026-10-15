@@ -10,6 +10,14 @@ def test_all_nav_keys_have_pages(qapp) -> None:
     assert window.stack.count() == len(NAV_ITEMS)
 
 
+def test_all_nav_keys_have_icon_drawer(qapp) -> None:
+    from app.ui.icons import _DRAWERS
+    from app.ui.sidebar import NAV_KEYS
+
+    for key, _label in NAV_KEYS:
+        assert key in _DRAWERS, f"nav item '{key}' has no icon drawer"
+
+
 def test_navigation_switches_pages(qapp) -> None:
     window = MainWindow()
     for key, _label in NAV_ITEMS:
@@ -89,3 +97,63 @@ def test_settings_save_triggers_live_theme_apply(qapp, tmp_path, monkeypatch) ->
     stored = json.loads((tmp_path / "settings.json").read_text(encoding="utf-8"))
     assert stored["theme"] == "FOREST"
     page.close()
+
+
+def _rect_in(widget, parent):
+    from PySide6.QtCore import QPoint, QRect
+
+    return QRect(widget.mapTo(parent, QPoint(0, 0)), widget.rect().size())
+
+
+def test_sidebar_nav_is_scrollable(qapp) -> None:
+    from PySide6.QtWidgets import QScrollArea
+
+    window = MainWindow()
+    sb = window.sidebar
+    assert isinstance(sb.nav_scroll, QScrollArea)
+    host = sb.nav_scroll.widget()
+    assert host is not None
+    for button in sb._buttons.values():
+        assert button.parent() is host
+    window.close()
+
+
+def test_sidebar_layout_no_overlap(qapp) -> None:
+    """Nav list, info card and status pill must never overlap at any height."""
+    window = MainWindow()
+    sb = window.sidebar
+    for _name, w, h in [
+        ("fullscreen", 1920, 1080),
+        ("normal", 1280, 800),
+        ("min", 1120, 680),
+    ]:
+        window.resize(w, h)
+        window.show()
+        qapp.processEvents()
+
+        rects = {
+            "nav": _rect_in(sb.nav_scroll, sb),
+            "card": _rect_in(sb.user_card, sb),
+            "status": _rect_in(sb.status, sb),
+        }
+        keys = list(rects)
+        for i, a in enumerate(keys):
+            for b in keys[i + 1:]:
+                assert rects[a].intersected(rects[b]).isEmpty(), (w, h, a, b)
+        for name, r in rects.items():
+            assert r.top() >= 0 and r.bottom() <= sb.height(), (w, h, name)
+    window.close()
+
+
+def test_sidebar_brand_not_clipped(qapp) -> None:
+    from PySide6.QtWidgets import QLabel
+
+    window = MainWindow()
+    window.resize(1120, 680)
+    window.show()
+    qapp.processEvents()
+    brand = window.sidebar.findChild(QLabel, "brand")
+    assert brand is not None
+    assert brand.width() >= brand.sizeHint().width()
+    window.close()
+

@@ -52,7 +52,7 @@ class BenchmarksPage(QWidget):
         toolbar = QHBoxLayout()
         toolbar.setSpacing(8)
         self.cpu_btn = QPushButton(tr("bench_cpu"))
-        self.cpu_btn.setProperty("primary", True)
+        self.cpu_btn.setProperty("secondary", True)
         self.cpu_btn.clicked.connect(lambda: self.start_run(BenchmarkType.CPU))
         toolbar.addWidget(self.cpu_btn)
         self.ram_btn = QPushButton(tr("bench_ram"))
@@ -67,6 +67,13 @@ class BenchmarksPage(QWidget):
         self.all_btn.setProperty("secondary", True)
         self.all_btn.clicked.connect(lambda: self.start_run(BenchmarkType.ALL))
         toolbar.addWidget(self.all_btn)
+        self._buttons = {
+            BenchmarkType.CPU: self.cpu_btn,
+            BenchmarkType.RAM: self.ram_btn,
+            BenchmarkType.DISK: self.disk_btn,
+            BenchmarkType.ALL: self.all_btn,
+        }
+        self._active_btn: QPushButton | None = None
         self.status_label = QLabel(tr("bench_idle"))
         self.status_label.setObjectName("cardSub")
         toolbar.addWidget(self.status_label, 1)
@@ -107,6 +114,7 @@ class BenchmarksPage(QWidget):
         if self._task is not None:
             return
         self._set_busy(True)
+        self._set_active(self._buttons.get(btype))
         self.status_label.setText(tr("bench_running"))
         path = data_root() / "bench_temp.bin" if btype in (BenchmarkType.DISK, BenchmarkType.ALL) else None
         self._task = Task(lambda p=path: self._service.run(btype, disk_path=p), parent=self)
@@ -145,3 +153,13 @@ class BenchmarksPage(QWidget):
     def _set_busy(self, busy: bool) -> None:
         for btn in (self.cpu_btn, self.ram_btn, self.disk_btn, self.all_btn):
             btn.setEnabled(not busy)
+
+    def _set_active(self, button: QPushButton | None) -> None:
+        """Highlight only the button for the currently running benchmark."""
+        self._active_btn = button
+        for btn in self._buttons.values():
+            active = btn is button
+            btn.setProperty("primary", active)
+            btn.setProperty("secondary", not active)
+            btn.style().unpolish(btn)
+            btn.style().polish(btn)

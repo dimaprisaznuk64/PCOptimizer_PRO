@@ -817,6 +817,7 @@ class DashboardPage(QWidget):
         self.greeting.setText(f"{_greeting()}, {self._user_display}!")
         self.verdict.setText(tr(self._verdict_key))
         self.cpu.set_center_sub(tr("dash_ring_load"))
+        self.cpu.set_header(tr("dash_cpu") + getattr(self, "_cpu_head_suffix", ""))
         self.ram.set_center_sub(tr("dash_ring_used"))
         self.gpu.set_center_sub(tr("dash_ring_load"))
         self.disk.set_center_sub(tr("dash_ring_full"))
@@ -849,7 +850,9 @@ class DashboardPage(QWidget):
         if s.cpu:
             c = s.cpu
             cpu_pct = c.percent
-            self.cpu.set_header(f"{c.physical_cores}C / {c.logical_cores}T" if c.freq_mhz is None else f"{c.freq_mhz / 1000:.1f} GHz")
+            freq_head = f"{c.physical_cores}C / {c.logical_cores}T" if c.freq_mhz is None else f"{c.freq_mhz / 1000:.1f} GHz"
+            self._cpu_head_suffix = f" · {freq_head}"
+            self.cpu.set_header(tr("dash_cpu") + self._cpu_head_suffix)
             self.cpu.update_metric(
                 f"{c.percent:.0f}%",
                 tr("dash_freq_sub", freq=c.freq_mhz / 1000) if c.freq_mhz else tr("dash_threads_sub", logical=c.logical_cores),

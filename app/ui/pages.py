@@ -40,6 +40,7 @@ def build_pages(settings=None, on_theme_applied=None) -> list[tuple[str, QWidget
     from .disk import DiskPage
     from .gaming import GamingPage
     from .gpu import GpuPage
+    from .hardware import HardwarePage
     from .health import HealthPage
     from .launcher import LauncherPage
     from .monitor import MonitorPage
@@ -56,6 +57,7 @@ def build_pages(settings=None, on_theme_applied=None) -> list[tuple[str, QWidget
         ("dashboard", DashboardPage()),
         ("monitor", MonitorPage()),
         ("gpu", GpuPage()),
+        ("hardware", HardwarePage()),
         ("processes", ProcessPage()),
         ("cleaner", CleanerPage()),
         ("startup", StartupPage()),

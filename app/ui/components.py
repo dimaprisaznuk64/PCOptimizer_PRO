@@ -401,9 +401,10 @@ class _ChartCanvas(QWidget):
 
     @staticmethod
     def _span_text(seconds: float) -> str:
-        if seconds >= 90:
-            return tr("dash_time_min", min=f"{seconds / 60:.0f}")
-        return tr("dash_time_sec", sec=f"{seconds:.0f}")
+        # Single formatter for every tick: >= 60 s -> minutes, else seconds.
+        if seconds >= 60:
+            return tr("dash_time_min", min=f"{round(seconds / 60):.0f}")
+        return tr("dash_time_sec", sec=f"{round(seconds):.0f}")
 
     def paintEvent(self, event) -> None:
         painter = QPainter(self)
@@ -437,10 +438,12 @@ class _ChartCanvas(QWidget):
                 painter.setPen(text)
                 painter.drawText(QRectF(0, y - 8, left - 6, 16), Qt.AlignmentFlag.AlignRight | Qt.AlignmentFlag.AlignVCenter, label)
 
-        # Fixed time window (not the growing history span), so axis labels stay stable.
-        if len(self._times) > 1:
-            dt = (self._times[-1] - self._times[0]) / (len(self._times) - 1)
-            span = round(dt * (self._points - 1) / 5.0) * 5.0 or dt * (self._points - 1)
+        # Stretch the axis to what we actually have, so the curve fills the plot
+        # honestly right after startup instead of hugging the right edge.
+        count = len(self._times)
+        if count > 1:
+            dt = (self._times[-1] - self._times[0]) / (count - 1)
+            span = dt * (count - 1)
         else:
             span = 0.0
         painter.setPen(text)
@@ -453,7 +456,7 @@ class _ChartCanvas(QWidget):
                 box = QRectF(x - 60, plot.bottom() + 4, 60, 14)
             painter.drawText(box, align | Qt.AlignmentFlag.AlignVCenter, label)
 
-        step = plot.width() / max(1, self._points - 1)
+        step = plot.width() / max(1, count - 1)
 
         def point(i: int, v: float, count: int) -> QPointF:
             x0 = plot.right() - (count - 1) * step
@@ -1042,7 +1045,10 @@ class ValueListCard(QFrame):
         wanted = [key for key, _ in items]
         for key in list(self._rows):
             if key not in wanted:
-                self._layout.removeWidget(self._rows.pop(key))
+                row = self._rows.pop(key)
+                self._layout.removeWidget(row)
+                row.setParent(None)
+                row.deleteLater()
         self._empty.setVisible(not items)
         for key, text in items:
             if key not in self._rows:

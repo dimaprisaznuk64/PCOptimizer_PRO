@@ -181,9 +181,9 @@ class MainWindow(QMainWindow):
 
         for name in (
             "theme", "icons", "components", "monitor", "dashboard", "gpu",
-            "processes", "cleaner", "startup", "optimizer", "gaming", "launcher",
-            "benchmarks", "network", "disk", "health", "settings", "sidebar", "topbar",
-            "tray", "pages",
+            "hardware", "processes", "cleaner", "startup", "optimizer", "gaming",
+            "launcher", "benchmarks", "network", "disk", "health", "settings",
+            "sidebar", "topbar", "tray", "pages",
         ):
             module = sys.modules.get(f"app.ui.{name}")
             if module is not None:

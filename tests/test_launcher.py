@@ -8,6 +8,7 @@ from PySide6.QtTest import QTest
 
 from app.gaming import DetectedGame, GamingService, LauncherService
 from app.gaming.service import _find_cover
+from app.i18n import tr
 from app.optimizer import ApplyReport, OptimizerService
 from app.ui.launcher import GameTile, LauncherPage
 
@@ -387,3 +388,25 @@ def test_tile_click_emits_game_id(qapp) -> None:
     tile.clicked.connect(received.append)
     QTest.mouseClick(tile, Qt.MouseButton.LeftButton, pos=QPoint(5, 5))
     assert received == ["pubg"]
+
+
+def test_splitter_keeps_tiles_visible(qapp, tmp_path) -> None:
+    page = LauncherPage(CannedLauncher(tmp_path))
+    # The tile pane must never collapse and the side panel must stay bounded,
+    # otherwise a long unbreakable path squeezes the tiles out of view.
+    assert not page._splitter.childrenCollapsible()
+    assert page._scroll.minimumWidth() >= 188
+    assert page._side.minimumWidth() == 280
+    assert page._side.maximumWidth() == 420
+
+
+def test_detail_path_inserts_soft_wrap(qapp, tmp_path) -> None:
+    long_path = r"D:\SteamLibrary\steamapps\common\PUBG\TslGame.exe"
+    games = [DetectedGame("pubg", "PUBG: BATTLEGROUNDS", "Steam", long_path, True, False)]
+    page = LauncherPage(CannedLauncher(tmp_path, games=games))
+    page.start_refresh()
+    assert _wait_until(qapp, lambda: len(page._tiles) == 1)
+    page.select_game("pubg")
+    text = page.detail_rows["path"].text()
+    assert "\u200b" in text
+    assert text.replace("\u200b", "") == tr("launch_path", value=long_path)

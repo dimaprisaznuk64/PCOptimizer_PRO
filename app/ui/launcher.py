@@ -20,6 +20,7 @@ from PySide6.QtWidgets import (
     QMessageBox,
     QPushButton,
     QScrollArea,
+    QSizePolicy,
     QSplitter,
     QVBoxLayout,
     QWidget,
@@ -37,6 +38,18 @@ from .tasks import Task
 _COVER_W = 168
 _COVER_H = 94
 _TILE_W = 188
+_SIDE_MIN = 280
+_SIDE_MAX = 420
+
+
+def _wrap_path(text: str) -> str:
+    """Insert zero-width spaces after separators so Qt can break a long path.
+
+    A path like ``D:\\SteamLibrary\\steamapps\\common\\PUBG\\TslGame.exe`` has no
+    spaces, so ``setWordWrap`` alone cannot wrap it and the unbreakable run
+    inflates the splitter's size hint.
+    """
+    return text.replace("\\", "\\\u200b").replace("/", "/\u200b")
 
 
 def _placeholder_cover(name: str, width: int, height: int) -> QPixmap:
@@ -229,10 +242,14 @@ class LauncherPage(QWidget):
         layout.addLayout(filters)
 
         splitter = QSplitter(Qt.Orientation.Horizontal)
+        splitter.setChildrenCollapsible(False)
 
         self._scroll = QScrollArea()
         self._scroll.setWidgetResizable(True)
         self._scroll.setFrameShape(QFrame.Shape.NoFrame)
+        # Always keep at least one full tile visible, no matter how narrow the
+        # splitter gets — otherwise the tiles collapse to a sliver.
+        self._scroll.setMinimumWidth(_TILE_W + 24)
         self._grid_host = QWidget()
         self._grid = QGridLayout(self._grid_host)
         self._grid.setContentsMargins(2, 2, 2, 2)
@@ -242,7 +259,8 @@ class LauncherPage(QWidget):
         splitter.addWidget(self._scroll)
 
         side = QWidget()
-        side.setMinimumWidth(280)
+        side.setMinimumWidth(_SIDE_MIN)
+        side.setMaximumWidth(_SIDE_MAX)
         side_layout = QVBoxLayout(side)
         side_layout.setContentsMargins(0, 0, 0, 0)
         side_layout.setSpacing(10)
@@ -258,12 +276,17 @@ class LauncherPage(QWidget):
         self.detail_name = QLabel(tr("launch_selected_hint"))
         self.detail_name.setObjectName("gpuName")
         self.detail_name.setWordWrap(True)
+        self.detail_name.setSizePolicy(QSizePolicy.Policy.Ignored, QSizePolicy.Policy.Preferred)
         details_layout.addWidget(self.detail_name)
         self.detail_rows: dict[str, QLabel] = {}
         for key in ("source", "status", "path", "last_played", "play_count"):
             row = QLabel("")
             row.setObjectName("cardRow")
             row.setWordWrap(True)
+            # Ignore sizeHint width: an unbreakable long path would otherwise
+            # force the side panel to expand and squeeze the tiles.
+            row.setSizePolicy(QSizePolicy.Policy.Ignored, QSizePolicy.Policy.Preferred)
+            row.setTextInteractionFlags(Qt.TextInteractionFlag.TextSelectableByMouse)
             self.detail_rows[key] = row
             details_layout.addWidget(row)
         self.remove_button = QPushButton(tr("launch_remove"))
@@ -295,8 +318,13 @@ class LauncherPage(QWidget):
         side_layout.addWidget(history_card, 1)
 
         splitter.addWidget(side)
+        self._splitter = splitter
+        self._side = side
         splitter.setStretchFactor(0, 3)
         splitter.setStretchFactor(1, 1)
+        # stretchFactor only applies when the user resizes; the initial split
+        # comes from sizeHint, so pin the starting sizes explicitly.
+        splitter.setSizes([900, _SIDE_MIN + 60])
         layout.addWidget(splitter, 1)
 
     # ---------- lifecycle ----------
@@ -446,7 +474,9 @@ class LauncherPage(QWidget):
             status = tr("launch_status_missing")
         self.detail_rows["source"].setText(tr("launch_source", value=game.source))
         self.detail_rows["status"].setText(tr("launch_status", value=status))
-        self.detail_rows["path"].setText(tr("launch_path", value=game.location or "—"))
+        self.detail_rows["path"].setText(
+            tr("launch_path", value=_wrap_path(game.location or "—"))
+        )
         self.detail_rows["last_played"].setText(
             tr("launch_last_played", value=self._format_when(self._service.last_played(game.id)))
         )

@@ -551,6 +551,28 @@ QWidget#sidebar {{
     background: qlineargradient(x1:0, y1:0, x2:0, y2:1, stop:0 {SIDEBAR_TOP}, stop:1 {SIDEBAR_BOTTOM});
     border-right: 1px solid {BORDER};
 }}
+QScrollArea#navScroll {{
+    background: transparent;
+    border: none;
+}}
+QScrollArea#navScroll QScrollBar:vertical {{
+    background: transparent;
+    width: 8px;
+    margin: 2px 0;
+}}
+QScrollArea#navScroll QScrollBar::handle:vertical {{
+    background: {BORDER};
+    border-radius: 4px;
+    min-height: 24px;
+}}
+QScrollArea#navScroll QScrollBar::add-line:vertical,
+QScrollArea#navScroll QScrollBar::sub-line:vertical {{
+    height: 0;
+}}
+QScrollArea#navScroll QScrollBar::add-page:vertical,
+QScrollArea#navScroll QScrollBar::sub-page:vertical {{
+    background: transparent;
+}}
 QLabel#brand {{
     font-size: 15px;
     font-weight: 700;
@@ -566,8 +588,8 @@ QPushButton[nav="true"] {{
     border-radius: 9px;
     color: {TEXT_DIM};
     text-align: left;
-    padding: 10px 14px 10px 14px;
-    margin: 2px 10px;
+    padding: 7px 14px 7px 14px;
+    margin: 1px 10px;
     font-size: 13px;
     font-weight: 500;
 }}

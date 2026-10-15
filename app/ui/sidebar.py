@@ -7,6 +7,7 @@ from PySide6.QtWidgets import (
     QHBoxLayout,
     QLabel,
     QPushButton,
+    QScrollArea,
     QVBoxLayout,
     QWidget,
 )
@@ -19,6 +20,7 @@ from .theme import BORDER, BRAND_A, BRAND_B, C1, OK, PANEL, TEXT, TEXT_DIM, fs
 NAV_KEYS: tuple[tuple[str, str], ...] = (
     ("dashboard", "nav_dashboard"),
     ("monitor", "nav_monitor"),
+    ("hardware", "nav_hardware"),
     ("cleaner", "nav_cleaner"),
     ("processes", "nav_processes"),
     ("startup", "nav_startup"),
@@ -79,24 +81,25 @@ class Sidebar(QWidget):
         brand_box = QWidget()
         brand_box.setObjectName("brandBox")
         brand_row = QHBoxLayout(brand_box)
-        brand_row.setContentsMargins(18, 12, 18, 20)
-        brand_row.setSpacing(12)
+        brand_row.setContentsMargins(16, 10, 16, 10)
+        brand_row.setSpacing(10)
 
         mark = _LogoMark()
         brand_row.addWidget(mark)
 
         titles = QVBoxLayout()
-        titles.setSpacing(2)
+        titles.setSpacing(1)
         title_row = QHBoxLayout()
         title_row.setSpacing(6)
         brand = QLabel("PCOptimizer")
         brand.setObjectName("brand")
-        brand.setStyleSheet(f"font-size: {fs(15)}px; font-weight: 800; color: {TEXT};")
+        brand.setMinimumWidth(0)
+        brand.setStyleSheet(f"font-size: {fs(14)}px; font-weight: 800; color: {TEXT};")
         title_row.addWidget(brand)
         pro_badge = QLabel("PRO")
         pro_badge.setStyleSheet(
             f"background: qlineargradient(x1:0, y1:0, x2:1, y2:0, stop:0 {BRAND_A}, stop:1 {BRAND_B}); "
-            f"color: #FFFFFF; font-size: {fs(11)}px; font-weight: 800; border-radius: 4px; padding: 2px 5px;"
+            f"color: #FFFFFF; font-size: {fs(10)}px; font-weight: 800; border-radius: 4px; padding: 1px 5px;"
         )
         title_row.addWidget(pro_badge)
         title_row.addStretch(1)
@@ -109,6 +112,14 @@ class Sidebar(QWidget):
         titles.addWidget(self.brand_subtitle)
         brand_row.addLayout(titles, 1)
         layout.addWidget(brand_box)
+
+        # Scrollable nav list so every item stays reachable when the window is
+        # short; the list scrolls instead of the bottom block getting squeezed.
+        self._nav_host = QWidget()
+        self._nav_host.setObjectName("navHost")
+        nav_layout = QVBoxLayout(self._nav_host)
+        nav_layout.setContentsMargins(0, 0, 0, 0)
+        nav_layout.setSpacing(1)
 
         self._group = QButtonGroup(self)
         self._group.setExclusive(True)
@@ -123,11 +134,23 @@ class Sidebar(QWidget):
             button.setCursor(Qt.CursorShape.PointingHandCursor)
             button.installEventFilter(self)  # own hover state (Qt's :hover can get stuck)
             button.clicked.connect(lambda _=False, k=key: self.navigated.emit(k))
-            layout.addWidget(button)
+            nav_layout.addWidget(button)
             self._group.addButton(button)
             self._buttons[key] = button
 
-        layout.addStretch(1)
+        nav_layout.addStretch(1)
+
+        self.nav_scroll = QScrollArea()
+        self.nav_scroll.setObjectName("navScroll")
+        self.nav_scroll.setWidgetResizable(True)
+        self.nav_scroll.setFrameShape(QFrame.Shape.NoFrame)
+        self.nav_scroll.setHorizontalScrollBarPolicy(Qt.ScrollBarPolicy.ScrollBarAlwaysOff)
+        self.nav_scroll.setVerticalScrollBarPolicy(Qt.ScrollBarPolicy.ScrollBarAsNeeded)
+        self.nav_scroll.setMinimumHeight(96)
+        self.nav_scroll.viewport().setAutoFillBackground(False)
+        self._nav_host.setAutoFillBackground(False)
+        self.nav_scroll.setWidget(self._nav_host)
+        layout.addWidget(self.nav_scroll, 1)
 
         # Bottom card
         user_card = QFrame()
@@ -158,21 +181,30 @@ class Sidebar(QWidget):
         user_text.addWidget(self.u_title)
         user_text.addWidget(self.u_sub)
         user_row.addLayout(user_text, 1)
-        layout.addWidget(user_card)
+
+        bottom = QWidget()
+        bottom.setObjectName("sideBottom")
+        bottom_layout = QVBoxLayout(bottom)
+        bottom_layout.setContentsMargins(0, 0, 0, 0)
+        bottom_layout.setSpacing(2)
+        bottom_layout.addWidget(user_card)
 
         # Status pill
         self.status = QLabel(f"● {tr('status_healthy')}")
         self.status.setObjectName("sysStatus")
         self.status.setProperty("level", "ok")
         self.status.setStyleSheet(f"font-size: {fs(12)}px; font-weight: 600; color: {OK}; padding: 4px 18px;")
-        layout.addWidget(self.status)
+        bottom_layout.addWidget(self.status)
+        self._bottom = bottom
+        layout.addWidget(bottom)
 
         self.select("dashboard")
 
     def resizeEvent(self, event) -> None:
         super().resizeEvent(event)
-        # Not enough height for the full menu + info card: hide the card, keep the menu intact.
-        self.user_card.setVisible(self.height() >= 760)
+        # The nav list scrolls on its own, so the info card only yields on very
+        # short windows where even the status pill would be cramped.
+        self.user_card.setVisible(self.height() >= 620)
 
     def retranslate(self) -> None:
         """Refresh static texts after a language change (nav + brand + user card)."""

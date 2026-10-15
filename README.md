@@ -5,15 +5,15 @@
 <h1 align="center">PCOptimizer PRO</h1>
 
 <p align="center">
-  Моніторинг і оптимізація Windows в одному застосунку: 13 розділів — від живих метрик CPU/GPU та чищення сміття до ігрового режиму, лончера ігор, бенчмарків і загальної оцінки здоров'я системи.
+  Моніторинг і оптимізація Windows в одному застосунку: 13 розділів — від живих метрик CPU/GPU та чищення сміття до ігрового режиму, лаунчера ігор, бенчмарків і загальної оцінки здоров'я системи.
 </p>
 
 <p align="center">
   <img src="https://img.shields.io/badge/platform-Windows%2010%2F11%20x64-0078D6" alt="Platform">
   <img src="https://img.shields.io/badge/python-3.13-3776AB" alt="Python">
   <img src="https://img.shields.io/badge/UI-PySide6%20(Qt%206)-41CD52" alt="PySide6">
-  <img src="https://img.shields.io/badge/tests-307%20passed-brightgreen" alt="Tests">
-  <img src="https://img.shields.io/badge/version-1.2.9-blue" alt="Version">
+  <img src="https://img.shields.io/badge/tests-334%20passed-brightgreen" alt="Tests">
+  <img src="https://img.shields.io/badge/version-1.3.0-blue" alt="Version">
 </p>
 
 Філософія проєкту: **жодних «секретних» реєстрових твіків і вигаданих +FPS**. Кожна зміна системи робиться лише після бекапу/точки відновлення і має кнопку відкату. Застосунок працює без адмін-прав — UAC запитується точково, лише для конкретних операцій.
@@ -72,7 +72,7 @@
 - Статус встановлено/запущено, кнопка запуску гри
 - Увімкнення режиму = профіль GAMING; вимкнення = відкат змін
 
-### Лончер ігор
+### Лаунчер ігор
 - Плитки ігор з обкладинками Steam, обране та історія запусків
 - Steam-ігри запускаються через `steam://rungameid/<appid>` (коректно для anti-cheat і Steam-оверлею), інші — прямим .exe
 - Пошук за назвою, фільтр «лише встановлені», сортування (за замовчуванням / нещодавно запущені / найчастіше / назва / обране)
@@ -128,9 +128,9 @@
 | --- | --- |
 | ![Чистильник](docs/screenshots/v1.2.9_cleaner.png) | ![Gaming](docs/screenshots/v1.2.9_gaming.png) |
 
-| Лончер ігор | Бенчмарки |
+| Лаунчер ігор | Бенчмарки |
 | --- | --- |
-| ![Лончер](docs/screenshots/v1.2.9_launcher.png) | ![Бенчмарки](docs/screenshots/v1.2.9_benchmarks.png) |
+| ![Лаунчер](docs/screenshots/v1.2.9_launcher.png) | ![Бенчмарки](docs/screenshots/v1.2.9_benchmarks.png) |
 
 Решта сторінок: [docs/screenshots](docs/screenshots)
 
@@ -140,7 +140,7 @@
 
 - **Python 3.13** + **PySide6** (Qt 6; 25 вбудованих тем, тема за замовчуванням — Graphite, вбудовані шрифти Inter / JetBrains Mono)
 - **psutil** — CPU/RAM/диски/мережа, **nvidia-ml-py** (NVML) — GPU, **WMI** — температури, **pywin32** — COM/Task Scheduler/кошик
-- **pytest** — 307 тестів
+- **pytest** — 334 тести
 - **PyInstaller** — збірка .exe, **Inno Setup** — інсталятор
 
 ## Безпека понад усе
@@ -158,7 +158,7 @@
 
 > Якщо Windows показує «Windows protected your PC» (SmartScreen) — це нормально для непідписаних програм: **More info → Run anyway**. Так само деякі антивіруси можуть хибно реагувати на PyInstaller-збірки.
 
-**Варіант 2 — портативно.** Розпакувати `PCOptimizer_PRO_1.2.8_portable.zip` і запустити `PCOptimizer_PRO\PCOptimizer_PRO.exe`. Нічого не встановлюється.
+**Варіант 2 — портативно.** Розпакувати `PCOptimizer_PRO_1.3.0_portable.zip` і запустити `PCOptimizer_PRO\PCOptimizer_PRO.exe`. Нічого не встановлюється.
 
 Готові збірки — у розділі [Releases](https://github.com/dimaprisaznuk64/PCOptimizer_PRO/releases).
 
@@ -210,7 +210,7 @@ app/
   logs/                  — ротаційне логування
   i18n/                  — локалізація UA / EN
   core/, hardware/, monitor/, health/ — допоміжні модулі
-tests/                   — pytest-тести (307)
+tests/                   — pytest-тести (334)
 scripts/                 — збірка exe/інсталятора, генерація іконки
 installer/               — скрипт Inno Setup
 docs/screenshots/        — скріншоти

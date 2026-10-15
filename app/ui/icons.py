@@ -141,6 +141,16 @@ def _ram(p: QPainter) -> None:
         p.drawLine(QPointF(x, 12.5), QPointF(x, 15))
 
 
+def _hardware(p: QPainter) -> None:
+    p.drawRoundedRect(QRectF(2.5, 4.0, 15, 12.5), 2, 2)
+    p.drawRoundedRect(QRectF(7.0, 7.5, 6.0, 5.5), 1, 1)
+    for x in (8.5, 11.5):
+        p.drawLine(QPointF(x, 4.0), QPointF(x, 2.0))
+    for y in (9.0, 12.0):
+        p.drawLine(QPointF(2.5, y), QPointF(4.5, y))
+        p.drawLine(QPointF(17.5, y), QPointF(15.5, y))
+
+
 
 def _fan(p: QPainter) -> None:
     p.drawEllipse(QRectF(3, 3, 14, 14))
@@ -202,6 +212,7 @@ def _shield(p: QPainter) -> None:
 _DRAWERS = {
     "cpu": _cpu,
     "ram": _ram,
+    "hardware": _hardware,
     "dashboard": _dashboard,
     "monitor": _monitor,
     "gpu": _gpu,
@@ -211,6 +222,7 @@ _DRAWERS = {
     "optimizer": _optimizer,
     "gaming": _gaming,
     "launcher": _launcher,
+    "benchmarks": _benchmarks,
     "network": _network,
     "disk": _disk,
     "health": _health,

@@ -48,3 +48,26 @@ def test_score_ring_color_for(qapp) -> None:
     assert ScoreRing.color_for(90) == OK
     assert ScoreRing.color_for(60) == WARN
     assert ScoreRing.color_for(20) == DANGER
+
+
+def test_chart_time_axis_single_formatter(qapp) -> None:
+    from app.ui.components import _ChartCanvas
+
+    assert _ChartCanvas._span_text(0) == "0 s"
+    assert _ChartCanvas._span_text(59) == "59 s"
+    assert _ChartCanvas._span_text(60) == "1 min"
+    assert _ChartCanvas._span_text(119) == "2 min"
+
+
+def test_chart_axis_labels_are_monotonic(qapp) -> None:
+    from app.ui.components import _ChartCanvas
+
+    labels = [_ChartCanvas._span_text(seconds) for seconds in (119, 89, 60, 30, 0)]
+
+    def to_seconds(text: str) -> float:
+        value = float(text.split()[0])
+        return value * 60 if text.endswith("min") else value
+
+    values = [to_seconds(text) for text in labels]
+    assert values == sorted(values, reverse=True)
+    assert "min" not in labels[-1]
