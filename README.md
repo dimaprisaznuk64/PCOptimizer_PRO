@@ -118,15 +118,19 @@
 
 | Дашборд | Монітор системи |
 | --- | --- |
-| ![Дашборд](docs/screenshots/v1.2.8_graphite_dashboard.png) | ![Монітор](docs/screenshots/v1.2.8_graphite_monitor.png) |
+| ![Дашборд](docs/screenshots/v1.2.9_dashboard.png) | ![Монітор](docs/screenshots/v1.2.9_monitor.png) |
 
 | GPU-монітор | PC Health Score |
 | --- | --- |
-| ![GPU](docs/screenshots/v1.2.8_graphite_gpu.png) | ![Health](docs/screenshots/v1.2.8_graphite_health.png) |
+| ![GPU](docs/screenshots/v1.2.9_gpu.png) | ![Health](docs/screenshots/v1.2.9_health.png) |
 
 | Чистильник | Ігровий режим |
 | --- | --- |
-| ![Чистильник](docs/screenshots/v1.2.8_graphite_cleaner.png) | ![Gaming](docs/screenshots/v1.2.8_graphite_gaming.png) |
+| ![Чистильник](docs/screenshots/v1.2.9_cleaner.png) | ![Gaming](docs/screenshots/v1.2.9_gaming.png) |
+
+| Лончер ігор | Бенчмарки |
+| --- | --- |
+| ![Лончер](docs/screenshots/v1.2.9_launcher.png) | ![Бенчмарки](docs/screenshots/v1.2.9_benchmarks.png) |
 
 Решта сторінок: [docs/screenshots](docs/screenshots)
 
