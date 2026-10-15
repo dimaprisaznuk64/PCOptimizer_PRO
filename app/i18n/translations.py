@@ -433,7 +433,7 @@ TRANSLATIONS: dict[str, dict[str, str]] = {
 
         # Benchmarks
         "bench_title": "Benchmarks",
-        "bench_desc": "Quick CPU/RAM/Disk tests for a rough performance snapshot.",
+        "bench_desc": "Real CPU / RAM / disk measurements: SHA-256 throughput, memory copy bandwidth and sequential disk speed.",
         "bench_cpu": "CPU",
         "bench_ram": "RAM",
         "bench_disk": "Disk",
@@ -443,11 +443,17 @@ TRANSLATIONS: dict[str, dict[str, str]] = {
         "bench_done": "Done — {count} result(s)",
         "bench_failed": "Failed: {msg}",
         "bench_empty": "No benchmark results yet — run a test above.",
-        "bench_col_type": "Type",
-        "bench_col_score": "Score",
-        "bench_col_units": "Units",
+        "bench_col_metric": "Metric",
+        "bench_col_value": "Value",
+        "bench_col_unit": "Unit",
         "bench_col_ms": "Duration (ms)",
-        "bench_col_info": "Info",
+        "bench_col_runs": "Runs",
+        "bench_col_detail": "Detail",
+        "bench_metric_cpu_single": "CPU single-thread",
+        "bench_metric_cpu_multi": "CPU multi-thread",
+        "bench_metric_ram_copy": "RAM copy",
+        "bench_metric_disk_write": "Disk write",
+        "bench_metric_disk_read": "Disk read",
 
         # Network
         "net_title": "Network",
@@ -1133,7 +1139,7 @@ TRANSLATIONS: dict[str, dict[str, str]] = {
 
         # Benchmarks
         "bench_title": "Бенчмарки",
-        "bench_desc": "Швидкі тести CPU/RAM/диска для приблизної оцінки продуктивності.",
+        "bench_desc": "Реальні вимірювання CPU / RAM / диска: швидкість SHA-256, пропускна здатність пам'яті та послідовна швидкість диска.",
         "bench_cpu": "CPU",
         "bench_ram": "RAM",
         "bench_disk": "Диск",
@@ -1143,11 +1149,17 @@ TRANSLATIONS: dict[str, dict[str, str]] = {
         "bench_done": "Готово — {count} результат(ів)",
         "bench_failed": "Помилка: {msg}",
         "bench_empty": "Результатів ще немає — запусти тест вище.",
-        "bench_col_type": "Тип",
-        "bench_col_score": "Оцінка",
-        "bench_col_units": "Одиниці",
+        "bench_col_metric": "Метрика",
+        "bench_col_value": "Значення",
+        "bench_col_unit": "Одиниці",
         "bench_col_ms": "Тривалість (мс)",
-        "bench_col_info": "Інфо",
+        "bench_col_runs": "Прогони",
+        "bench_col_detail": "Деталі",
+        "bench_metric_cpu_single": "CPU, 1 потік",
+        "bench_metric_cpu_multi": "CPU, багатопоток",
+        "bench_metric_ram_copy": "Копіювання RAM",
+        "bench_metric_disk_write": "Запис на диск",
+        "bench_metric_disk_read": "Читання з диска",
 
         # Network
         "net_title": "Мережа та інтернет",

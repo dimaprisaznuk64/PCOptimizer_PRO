@@ -315,7 +315,7 @@ class SettingsPage(QWidget):
 
     def open_log_folder(self) -> None:
         from PySide6.QtCore import QUrl
-        from PySide6.QtWidgets import QDesktopServices
+        from PySide6.QtGui import QDesktopServices
 
         folder = log_file(self._log_directory).parent
         QDesktopServices.openUrl(QUrl.fromLocalFile(str(folder)))

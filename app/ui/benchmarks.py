@@ -18,6 +18,15 @@ from app.settings import data_root
 from .components import attach_empty_hint
 from .tasks import Task
 
+_COLUMNS = (
+    "bench_col_metric",
+    "bench_col_value",
+    "bench_col_unit",
+    "bench_col_ms",
+    "bench_col_runs",
+    "bench_col_detail",
+)
+
 
 class BenchmarksPage(QWidget):
     def __init__(self, service: BenchmarkService | None = None, parent: QWidget | None = None) -> None:
@@ -63,18 +72,16 @@ class BenchmarksPage(QWidget):
         toolbar.addWidget(self.status_label, 1)
         layout.addLayout(toolbar)
 
-        self.table = QTableWidget(0, 5)
-        headers = (tr("bench_col_type"), tr("bench_col_score"), tr("bench_col_units"),
-                   tr("bench_col_ms"), tr("bench_col_info"))
-        self.table.setHorizontalHeaderLabels(list(headers))
+        self.table = QTableWidget(0, len(_COLUMNS))
+        self.table.setHorizontalHeaderLabels([tr(key) for key in _COLUMNS])
         self.table.verticalHeader().setVisible(False)
         self.table.setShowGrid(False)
         self.table.setAlternatingRowColors(True)
         self.table.setSelectionMode(QTableWidget.SelectionMode.NoSelection)
         self.table.setEditTriggers(QTableWidget.EditTrigger.NoEditTriggers)
         header = self.table.horizontalHeader()
-        for i in range(5):
-            if i in (1, 2, 3):
+        for i in range(len(_COLUMNS)):
+            if i in (1, 2, 3, 4):
                 header.setSectionResizeMode(i, QHeaderView.ResizeMode.ResizeToContents)
             else:
                 header.setSectionResizeMode(i, QHeaderView.ResizeMode.Stretch)
@@ -92,11 +99,9 @@ class BenchmarksPage(QWidget):
         self.ram_btn.setText(tr("bench_ram"))
         self.disk_btn.setText(tr("bench_disk"))
         self.all_btn.setText(tr("bench_all"))
-        if "Running" not in self.status_label.text() and "…" not in self.status_label.text():
+        if self._task is None:
             self.status_label.setText(tr("bench_idle"))
-        headers = (tr("bench_col_type"), tr("bench_col_score"), tr("bench_col_units"),
-                   tr("bench_col_ms"), tr("bench_col_info"))
-        self.table.setHorizontalHeaderLabels(list(headers))
+        self.table.setHorizontalHeaderLabels([tr(key) for key in _COLUMNS])
 
     def start_run(self, btype: BenchmarkType) -> None:
         if self._task is not None:
@@ -112,12 +117,9 @@ class BenchmarksPage(QWidget):
     def _on_done(self, result: object) -> None:
         self._task = None
         self._set_busy(False)
-        if isinstance(result, list):
-            self.status_label.setText(tr("bench_done", count=len(result)))
-            self._render_results(result)
-        else:
-            self.status_label.setText(tr("bench_failed", msg=str(result)))
-            self._render_results([])
+        results = result if isinstance(result, list) else []
+        self.status_label.setText(tr("bench_done", count=len(results)))
+        self._render_results(results)
 
     def _on_failed(self, msg: str) -> None:
         self._task = None
@@ -127,12 +129,18 @@ class BenchmarksPage(QWidget):
 
     def _render_results(self, results) -> None:
         self.table.setRowCount(len(results))
-        for i, r in enumerate(results):
-            self.table.setItem(i, 0, QTableWidgetItem(r.type.name))
-            self.table.setItem(i, 1, QTableWidgetItem(f"{r.score:.1f}"))
-            self.table.setItem(i, 2, QTableWidgetItem(r.units))
-            self.table.setItem(i, 3, QTableWidgetItem(str(r.duration_ms)))
-            self.table.setItem(i, 4, QTableWidgetItem(r.info))
+        for row, result in enumerate(results):
+            decimals = 2 if result.unit == "GB/s" else 1
+            cells = (
+                tr(f"bench_metric_{result.metric}"),
+                f"{result.value:.{decimals}f}",
+                result.unit,
+                str(result.duration_ms),
+                str(result.runs),
+                result.detail,
+            )
+            for col, text in enumerate(cells):
+                self.table.setItem(row, col, QTableWidgetItem(text))
 
     def _set_busy(self, busy: bool) -> None:
         for btn in (self.cpu_btn, self.ram_btn, self.disk_btn, self.all_btn):
