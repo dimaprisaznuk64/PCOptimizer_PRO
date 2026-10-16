@@ -3,6 +3,7 @@ from __future__ import annotations
 import ctypes
 import hashlib
 import os
+import tempfile
 import time
 from collections.abc import Callable
 from concurrent.futures import ThreadPoolExecutor
@@ -10,6 +11,7 @@ from dataclasses import dataclass
 from enum import Enum, auto
 from pathlib import Path
 from statistics import median
+from tempfile import gettempdir
 
 
 class BenchmarkError(Exception):
@@ -74,19 +76,19 @@ class BenchmarkService:
         self._max_repeats = max(1, max_repeats)
         self._workers = workers
 
-    def run(self, btype: BenchmarkType, *, disk_path: Path | None = None) -> list[BenchmarkResult]:
+    def run(self, btype: BenchmarkType, *, disk_dir: Path | None = None) -> list[BenchmarkResult]:
         if btype == BenchmarkType.ALL:
             results: list[BenchmarkResult] = []
             results.extend(self._cpu())
             results.extend(self._ram())
-            results.extend(self._disk(disk_path))
+            results.extend(self._disk(disk_dir))
             return results
         if btype == BenchmarkType.CPU:
             return self._cpu()
         if btype == BenchmarkType.RAM:
             return self._ram()
         if btype == BenchmarkType.DISK:
-            return self._disk(disk_path)
+            return self._disk(disk_dir)
         raise BenchmarkError(f"Unknown benchmark type: {btype}")
 
     # ---------- helpers ----------
@@ -246,43 +248,51 @@ class BenchmarkService:
 
     # ---------- disk ----------
 
-    def _disk(self, disk_path: Path | None) -> list[BenchmarkResult]:
-        path = Path(disk_path) if disk_path else _temp_bin_path()
-        path.parent.mkdir(parents=True, exist_ok=True)
-        block = os.urandom(_MB)
-        blocks = max(1, self.disk_bytes // _MB)
-
-        def write() -> int:
-            with open(path, "wb") as handle:
-                for _ in range(blocks):
-                    handle.write(block)
-                handle.flush()
-                os.fsync(handle.fileno())
-            return blocks * _MB
-
-        write_rate, write_ms, write_runs = self._measure(write, self.disk_runs)
-
-        # A freshly written file is served straight from the OS cache, so a
-        # plain read reports far more than the disk can actually deliver. Read
-        # with FILE_FLAG_NO_BUFFERING to bypass the cache; fall back to a
-        # buffered read (and say so) if the filesystem refuses.
-        mode = "unbuffered"
-
-        def read() -> int:
-            nonlocal mode
-            if mode == "unbuffered":
-                try:
-                    return _read_unbuffered(path)
-                except Exception:
-                    mode = "cached"
-            return _read_buffered(path)
-
-        read_rate, read_ms, read_runs = self._measure(read, self.disk_runs)
+    def _disk(self, disk_dir: Path | None) -> list[BenchmarkResult]:
+        # The caller names a *folder* (the drive to measure); a unique scratch
+        # file is created there and always removed, even if a measurement
+        # raises. No file the caller named is ever opened or deleted.
+        parent = Path(disk_dir) if disk_dir else Path(gettempdir())
+        parent.mkdir(parents=True, exist_ok=True)
+        fd, name = tempfile.mkstemp(prefix="pcoptimizer_bench_", suffix=".tmp", dir=str(parent))
+        os.close(fd)
+        path = Path(name)
 
         try:
-            path.unlink(missing_ok=True)
-        except OSError:
-            pass
+            block = os.urandom(_MB)
+            blocks = max(1, self.disk_bytes // _MB)
+
+            def write() -> int:
+                with open(path, "wb") as handle:
+                    for _ in range(blocks):
+                        handle.write(block)
+                    handle.flush()
+                    os.fsync(handle.fileno())
+                return blocks * _MB
+
+            write_rate, write_ms, write_runs = self._measure(write, self.disk_runs)
+
+            # A freshly written file is served straight from the OS cache, so a
+            # plain read reports far more than the disk can actually deliver.
+            # Read with FILE_FLAG_NO_BUFFERING to bypass the cache; fall back to
+            # a buffered read (and say so) if the filesystem refuses.
+            mode = "unbuffered"
+
+            def read() -> int:
+                nonlocal mode
+                if mode == "unbuffered":
+                    try:
+                        return _read_unbuffered(path)
+                    except Exception:
+                        mode = "cached"
+                return _read_buffered(path)
+
+            read_rate, read_ms, read_runs = self._measure(read, self.disk_runs)
+        finally:
+            try:
+                path.unlink(missing_ok=True)
+            except OSError:
+                pass
 
         size_mb = blocks
         return [
@@ -397,9 +407,3 @@ def _read_unbuffered(path: Path) -> int:
         virtual_free(buffer, 0, mem_release)
         close_handle(handle)
     return total
-
-
-def _temp_bin_path() -> Path:
-    from tempfile import gettempdir
-
-    return Path(gettempdir()) / "pcoptimizer_bench.bin"

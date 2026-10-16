@@ -107,6 +107,7 @@ class OptimizerService:
         is_admin: Callable[[], bool] | None = None,
         reg_get: Callable[[str, str, str], int] | None = None,
         reg_set: Callable[[str, str, str, int], None] | None = None,
+        reg_delete: Callable[[str, str, str], None] | None = None,
         backup_path: str | Path | None = None,
         restore: RestorePointService | None = None,
     ) -> None:
@@ -115,6 +116,7 @@ class OptimizerService:
         self._is_admin = is_admin or self._default_is_admin
         self._reg_get = reg_get or self._default_reg_get
         self._reg_set = reg_set or self._default_reg_set
+        self._reg_delete = reg_delete or self._default_reg_delete
         self._restore = restore or RestorePointService(run=self._run, is_admin=self._is_admin)
         self.backup_path = Path(backup_path) if backup_path else (
             data_root() / "optimizer_backup.json"
@@ -237,26 +239,38 @@ class OptimizerService:
                 errors.append(f"powercfg failed: {out.strip() or code}")
 
         game_mode = backup.get("game_mode")
-        if isinstance(game_mode, bool):
+        if backup.get("game_mode_read_ok", True):
             try:
-                self._reg_set_dword("HKCU", GAMEMODE_KEY, GAMEMODE_VALUE, 1 if game_mode else 0)
-                applied.append(f"Game Mode → {'on' if game_mode else 'off'}")
+                if game_mode is None:
+                    self._reg_delete_value("HKCU", GAMEMODE_KEY, GAMEMODE_VALUE)
+                    applied.append("Game Mode → removed (was unset)")
+                elif isinstance(game_mode, bool):
+                    self._reg_set_dword("HKCU", GAMEMODE_KEY, GAMEMODE_VALUE, 1 if game_mode else 0)
+                    applied.append(f"Game Mode → {'on' if game_mode else 'off'}")
             except OptimizerError as e:
                 errors.append(str(e))
 
         hags = backup.get("hags")
-        if isinstance(hags, bool):
+        if backup.get("hags_read_ok", True):
             try:
-                self._set_hags(hags)
-                applied.append(f"hardware-accelerated GPU scheduling → {'on' if hags else 'off'}")
+                if hags is None:
+                    self._delete_hags()
+                    applied.append("hardware-accelerated GPU scheduling → removed (was unset)")
+                elif isinstance(hags, bool):
+                    self._set_hags(hags)
+                    applied.append(f"hardware-accelerated GPU scheduling → {'on' if hags else 'off'}")
             except OptimizerError as e:
                 errors.append(str(e))
 
         visual = backup.get("visual_fx")
-        if isinstance(visual, int):
+        if backup.get("visual_fx_read_ok", True):
             try:
-                self._reg_set_dword("HKCU", VISUAL_KEY, VISUAL_VALUE, visual)
-                applied.append(f"visual effects → {VISUAL_NAMES.get(visual, visual)}")
+                if visual is None:
+                    self._reg_delete_value("HKCU", VISUAL_KEY, VISUAL_VALUE)
+                    applied.append("visual effects → removed (was unset)")
+                elif isinstance(visual, int):
+                    self._reg_set_dword("HKCU", VISUAL_KEY, VISUAL_VALUE, visual)
+                    applied.append(f"visual effects → {VISUAL_NAMES.get(visual, visual)}")
             except OptimizerError as e:
                 errors.append(str(e))
 
@@ -279,12 +293,21 @@ class OptimizerService:
 
     def _save_backup(self) -> None:
         state = self.state()
+        _gm, gm_err = self._reg_get_dword("HKCU", GAMEMODE_KEY, GAMEMODE_VALUE)
+        _hags, hags_err = self._reg_get_dword("HKLM", HAGS_KEY, HAGS_VALUE)
+        _vis, vis_err = self._reg_get_dword("HKCU", VISUAL_KEY, VISUAL_VALUE)
         data = {
             "ts": time.time(),
             "power_guid": state.power_guid,
             "game_mode": state.game_mode,
+            # Whether the setting could be read at all. A value that was absent
+            # (read ok, value None) must be removed on revert, not left behind;
+            # a value that could not be read is left untouched to stay safe.
+            "game_mode_read_ok": gm_err is None,
             "hags": state.hags,
+            "hags_read_ok": hags_err is None,
             "visual_fx": state.visual_fx,
+            "visual_fx_read_ok": vis_err is None,
         }
         self.backup_path.parent.mkdir(parents=True, exist_ok=True)
         self.backup_path.write_text(json.dumps(data, indent=2), encoding="utf-8")
@@ -315,6 +338,20 @@ class OptimizerService:
         if not ok:
             raise OptimizerError("HAGS change was cancelled at the UAC prompt")
 
+    def _delete_hags(self) -> None:
+        if self._is_admin():
+            self._reg_delete_value("HKLM", HAGS_KEY, HAGS_VALUE)
+            return
+        script = (
+            f"Remove-ItemProperty -Path 'HKLM:{os.sep}{HAGS_KEY}' "
+            f"-Name {HAGS_VALUE} -ErrorAction SilentlyContinue"
+        )
+        ok = self._elevate(
+            ("powershell", "-NoProfile", "-ExecutionPolicy", "Bypass", "-Command", script)
+        )
+        if not ok:
+            raise OptimizerError("HAGS restore was cancelled at the UAC prompt")
+
     def _reg_get_dword(self, hive: str, key: str, name: str) -> tuple[int | None, str | None]:
         try:
             return int(self._reg_get(hive, key, name)), None
@@ -328,6 +365,14 @@ class OptimizerService:
             self._reg_set(hive, key, name, int(value))
         except OSError as e:
             raise OptimizerError(f"cannot write {name}: {e}") from e
+
+    def _reg_delete_value(self, hive: str, key: str, name: str) -> None:
+        try:
+            self._reg_delete(hive, key, name)
+        except FileNotFoundError:
+            pass  # already absent — nothing to remove
+        except OSError as e:
+            raise OptimizerError(f"cannot remove {name}: {e}") from e
 
     @staticmethod
     def _default_reg_get(hive: str, key: str, name: str) -> int:
@@ -345,6 +390,14 @@ class OptimizerService:
         root = winreg.HKEY_CURRENT_USER if hive == "HKCU" else winreg.HKEY_LOCAL_MACHINE
         with winreg.CreateKeyEx(root, key, 0, winreg.KEY_SET_VALUE) as handle:
             winreg.SetValueEx(handle, name, 0, winreg.REG_DWORD, int(value))
+
+    @staticmethod
+    def _default_reg_delete(hive: str, key: str, name: str) -> None:
+        import winreg
+
+        root = winreg.HKEY_CURRENT_USER if hive == "HKCU" else winreg.HKEY_LOCAL_MACHINE
+        with winreg.OpenKey(root, key, 0, winreg.KEY_SET_VALUE) as handle:
+            winreg.DeleteValue(handle, name)
 
     @staticmethod
     def _default_run(args: Sequence[str], timeout: float) -> tuple[int, str]:

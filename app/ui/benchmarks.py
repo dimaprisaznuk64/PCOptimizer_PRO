@@ -116,8 +116,8 @@ class BenchmarksPage(QWidget):
         self._set_busy(True)
         self._set_active(self._buttons.get(btype))
         self.status_label.setText(tr("bench_running"))
-        path = data_root() / "bench_temp.bin" if btype in (BenchmarkType.DISK, BenchmarkType.ALL) else None
-        self._task = Task(lambda p=path: self._service.run(btype, disk_path=p), parent=self)
+        target = data_root() if btype in (BenchmarkType.DISK, BenchmarkType.ALL) else None
+        self._task = Task(lambda d=target: self._service.run(btype, disk_dir=d), parent=self)
         self._task.done.connect(self._on_done)
         self._task.failed.connect(self._on_failed)
         self._task.start()

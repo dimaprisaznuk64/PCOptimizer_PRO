@@ -61,19 +61,41 @@ def test_ram_benchmark_returns_result() -> None:
 
 
 def test_disk_benchmark_writes_and_removes_file(tmp_path) -> None:
-    target = tmp_path / "bench.bin"
-    results = _tiny_service().run(BenchmarkType.DISK, disk_path=target)
+    results = _tiny_service().run(BenchmarkType.DISK, disk_dir=tmp_path)
     assert [r.metric for r in results] == ["disk_write", "disk_read"]
     for result in results:
         assert result.type is BenchmarkType.DISK
         assert result.unit == "MB/s"
         assert result.value > 0
-    assert not target.exists()
+    # The scratch file is always cleaned up (nothing left behind).
+    assert list(tmp_path.glob("pcoptimizer_bench_*")) == []
+
+
+def test_disk_benchmark_never_touches_caller_file(tmp_path) -> None:
+    # A pre-existing file in the target folder must survive untouched.
+    keeper = tmp_path / "important.bin"
+    keeper.write_bytes(b"precious user data")
+    _tiny_service().run(BenchmarkType.DISK, disk_dir=tmp_path)
+    assert keeper.read_bytes() == b"precious user data"
+
+
+def test_disk_benchmark_cleans_up_on_failure(tmp_path, monkeypatch) -> None:
+    calls = {"n": 0}
+
+    def boom(*_args, **_kwargs):
+        calls["n"] += 1
+        raise OSError("disk exploded")
+
+    monkeypatch.setattr("app.benchmarks.service.os.fsync", boom)
+    with pytest.raises(OSError):
+        _tiny_service().run(BenchmarkType.DISK, disk_dir=tmp_path)
+    assert calls["n"] >= 1
+    # Even though the write raised, no scratch file is left behind.
+    assert list(tmp_path.glob("pcoptimizer_bench_*")) == []
 
 
 def test_disk_read_reports_cache_mode(tmp_path) -> None:
-    target = tmp_path / "bench.bin"
-    results = _tiny_service().run(BenchmarkType.DISK, disk_path=target)
+    results = _tiny_service().run(BenchmarkType.DISK, disk_dir=tmp_path)
     read = next(r for r in results if r.metric == "disk_read")
     # The read either bypasses the OS cache or says it fell back to it.
     assert "unbuffered" in read.detail or "cached" in read.detail
@@ -138,7 +160,7 @@ class FakeBenchmarkService:
         self.fail = fail
         self.calls: list[BenchmarkType] = []
 
-    def run(self, btype: BenchmarkType, *, disk_path=None) -> list[BenchmarkResult]:
+    def run(self, btype: BenchmarkType, *, disk_dir=None) -> list[BenchmarkResult]:
         self.calls.append(btype)
         if self.fail:
             raise RuntimeError("boom")
@@ -175,7 +197,7 @@ def test_page_run_cpu_renders_row(qapp) -> None:
     page.start_run(BenchmarkType.CPU)
     assert _wait_until(qapp, lambda: page.table.rowCount() == 1)
     assert service.calls == [BenchmarkType.CPU]
-    assert page.table.item(0, 0).text() == "CPU single-thread"
+    assert page.table.item(0, 0).text() == "CPU · SHA-256 single-thread"
     assert page.table.item(0, 1).text() == "123.4"
     assert "Done" in page.status_label.text()
     assert page.cpu_btn.isEnabled()

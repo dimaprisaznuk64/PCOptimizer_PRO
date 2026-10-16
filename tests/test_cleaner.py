@@ -86,6 +86,28 @@ def test_clean_removes_files_and_empty_dirs(cache_target) -> None:
     assert not (root / "sub").exists()
 
 
+def test_clean_reports_partial_result_on_walk_error(tmp_path, monkeypatch) -> None:
+    root = tmp_path / "cache"
+    root.mkdir()
+    (root / "ok.txt").write_bytes(b"x" * 64)
+    target = CleanTarget("walk", "Walk", "System", paths=(str(root),))
+    real_walk = os.walk
+
+    def flaky_walk(top, *args, **kwargs):
+        onerror = kwargs.get("onerror")
+        if onerror is not None:
+            onerror(PermissionError(13, "access denied"))
+        yield from real_walk(top, *args, **kwargs)
+
+    monkeypatch.setattr(os, "walk", flaky_walk)
+    outcome = CleanerService([target]).clean(target)
+    # The reachable file is still cleaned, but the result is flagged partial.
+    assert outcome.files_deleted == 1
+    assert outcome.error is not None
+    assert "some folders were skipped" in outcome.error
+    assert "access denied" in outcome.error
+
+
 def test_clean_skips_locked_files(tmp_path) -> None:
     root = tmp_path / "locked"
     root.mkdir()

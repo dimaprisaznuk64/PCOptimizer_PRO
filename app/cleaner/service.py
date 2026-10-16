@@ -210,6 +210,7 @@ class CleanerService:
         deleted = 0
         skipped = 0
         errors: list[str] = []
+        walk_errors: list[str] = []
         for root in _expand(target.paths):
             if not os.path.exists(root):
                 continue
@@ -224,7 +225,12 @@ class CleanerService:
                     freed += st.st_size
                     deleted += 1
                 continue
-            for dirpath, _dirnames, filenames in os.walk(root, topdown=False, followlinks=False):
+            for dirpath, _dirnames, filenames in os.walk(
+                root,
+                topdown=False,
+                onerror=lambda e: walk_errors.append(str(e)),
+                followlinks=False,
+            ):
                 for filename in filenames:
                     path = os.path.join(dirpath, filename)
                     try:
@@ -246,6 +252,11 @@ class CleanerService:
             error = _summarize(errors) or "nothing could be deleted (access denied?)"
         elif skipped:
             error = None
+        if walk_errors:
+            # Some directories could not be traversed — the result is partial
+            # and the user must know some files were never checked.
+            note = f"some folders were skipped: {_summarize(walk_errors)}"
+            error = f"{error}; {note}" if error else note
         return CleanOutcome(target.id, freed, deleted, skipped, error)
 
     @staticmethod

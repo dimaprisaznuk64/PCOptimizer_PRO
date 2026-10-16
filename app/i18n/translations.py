@@ -58,7 +58,7 @@ TRANSLATIONS: dict[str, dict[str, str]] = {
         "nav_section_diagnostics": "DIAGNOSTICS",
         "nav_section_preferences": "PREFERENCES",
         "sidebar_user_title": "Your PC is in safe hands",
-        "sidebar_user_sub": "PCOptimizer PRO v1.3.0",
+        "sidebar_user_sub": "PCOptimizer PRO v1.3.1",
         "sidebar_status_ok": "System healthy",
 
         # Top bar
@@ -458,11 +458,11 @@ TRANSLATIONS: dict[str, dict[str, str]] = {
         "bench_col_ms": "Duration (ms)",
         "bench_col_runs": "Runs",
         "bench_col_detail": "Detail",
-        "bench_metric_cpu_single": "CPU single-thread",
-        "bench_metric_cpu_multi": "CPU multi-thread",
-        "bench_metric_ram_copy": "RAM copy",
-        "bench_metric_disk_write": "Disk write",
-        "bench_metric_disk_read": "Disk read",
+        "bench_metric_cpu_single": "CPU · SHA-256 single-thread",
+        "bench_metric_cpu_multi": "CPU · SHA-256 multi-thread",
+        "bench_metric_ram_copy": "RAM · memcpy bandwidth",
+        "bench_metric_disk_write": "Disk · sequential write",
+        "bench_metric_disk_read": "Disk · sequential read",
 
         # Network
         "net_title": "Network",
@@ -823,7 +823,7 @@ TRANSLATIONS: dict[str, dict[str, str]] = {
         "nav_section_diagnostics": "ДІАГНОСТИКА",
         "nav_section_preferences": "НАЛАШТУВАННЯ",
         "sidebar_user_title": "Твій ПК у надійних руках",
-        "sidebar_user_sub": "PCOptimizer PRO v1.3.0",
+        "sidebar_user_sub": "PCOptimizer PRO v1.3.1",
         "sidebar_status_ok": "Система в нормі",
 
         # Top bar
@@ -1223,11 +1223,11 @@ TRANSLATIONS: dict[str, dict[str, str]] = {
         "bench_col_ms": "Тривалість (мс)",
         "bench_col_runs": "Прогони",
         "bench_col_detail": "Деталі",
-        "bench_metric_cpu_single": "CPU, 1 потік",
-        "bench_metric_cpu_multi": "CPU, багатопоток",
-        "bench_metric_ram_copy": "Копіювання RAM",
-        "bench_metric_disk_write": "Запис на диск",
-        "bench_metric_disk_read": "Читання з диска",
+        "bench_metric_cpu_single": "CPU · SHA-256, 1 потік",
+        "bench_metric_cpu_multi": "CPU · SHA-256, багатопоток",
+        "bench_metric_ram_copy": "RAM · копіювання (memcpy)",
+        "bench_metric_disk_write": "Диск · послідовний запис",
+        "bench_metric_disk_read": "Диск · послідовне читання",
 
         # Network
         "net_title": "Мережа та інтернет",

@@ -74,12 +74,16 @@ class FakeSystem:
     def elevate(self, args) -> bool:
         args = tuple(str(a) for a in args)
         self.elevated.append(args)
+        joined = " ".join(args)
         # elevated HKLM write
-        if any("HwSchMode" in a for a in args):
+        if "HwSchMode" in joined and "-Value" in joined:
             for a in args:
                 if "HwSchMode" in a and "-Value" in a:
                     value = int(a.split("-Value")[1].strip().strip("'\""))
                     self.reg[("HKLM", HAGS_KEY, HAGS_VALUE)] = value
+        # elevated HKLM delete
+        elif "Remove-ItemProperty" in joined and "HwSchMode" in joined:
+            self.reg.pop(("HKLM", HAGS_KEY, HAGS_VALUE), None)
         return True
 
     def reg_get(self, hive: str, key: str, name: str) -> int:
@@ -91,6 +95,12 @@ class FakeSystem:
     def reg_set(self, hive: str, key: str, name: str, value: int) -> None:
         self.reg[(hive, key, name)] = int(value)
 
+    def reg_delete(self, hive: str, key: str, name: str) -> None:
+        try:
+            del self.reg[(hive, key, name)]
+        except KeyError:
+            raise FileNotFoundError(name) from None
+
     def is_admin(self) -> bool:
         return self.admin
 
@@ -101,6 +111,7 @@ class FakeSystem:
             is_admin=self.is_admin,
             reg_get=self.reg_get,
             reg_set=self.reg_set,
+            reg_delete=self.reg_delete,
             backup_path=tmp_path / "backup.json",
             restore=self.restore,
         )
@@ -287,6 +298,37 @@ def test_revert_restores_backup(fake, tmp_path) -> None:
     assert fake.power_guid == GUID_BALANCED
     assert fake.reg[("HKCU", GAMEMODE_KEY, GAMEMODE_VALUE)] == 0
     assert fake.reg[("HKLM", HAGS_KEY, HAGS_VALUE)] == 1
+
+
+def test_revert_removes_values_that_were_absent(fake, tmp_path) -> None:
+    # HAGS and Game Mode were not present before applying; after revert the
+    # values the profile created must be removed, not left behind.
+    fake.admin = True
+    fake.reg.pop(("HKCU", GAMEMODE_KEY, GAMEMODE_VALUE), None)
+    fake.reg.pop(("HKLM", HAGS_KEY, HAGS_VALUE), None)
+    assert ("HKCU", GAMEMODE_KEY, GAMEMODE_VALUE) not in fake.reg
+    service = fake.make_service(tmp_path)
+    service.apply_profile("GAMING")
+    assert fake.reg[("HKCU", GAMEMODE_KEY, GAMEMODE_VALUE)] == 1
+    assert fake.reg[("HKLM", HAGS_KEY, HAGS_VALUE)] == 2
+
+    report = service.revert()
+    assert report.errors == ()
+    assert ("HKCU", GAMEMODE_KEY, GAMEMODE_VALUE) not in fake.reg
+    assert ("HKLM", HAGS_KEY, HAGS_VALUE) not in fake.reg
+    assert any("removed" in a for a in report.applied)
+
+
+def test_revert_removes_hags_without_admin(fake, tmp_path) -> None:
+    fake.admin = False
+    service = fake.make_service(tmp_path)
+    service.apply_profile("GAMING")
+    assert ("HKLM", HAGS_KEY, HAGS_VALUE) in fake.reg
+
+    report = service.revert()
+    assert report.errors == ()
+    assert ("HKLM", HAGS_KEY, HAGS_VALUE) not in fake.reg
+    assert any("Remove-ItemProperty" in " ".join(a) for a in fake.elevated)
 
 
 def test_revert_without_backup_raises(fake, tmp_path) -> None:
