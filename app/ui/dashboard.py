@@ -474,7 +474,7 @@ class NetworkWidget(QFrame):
         d_lbl = QLabel(tr("dash_net_download"))
         d_lbl.setStyleSheet(f"font-size: {fs(11)}px; color: {TEXT_DIM};")
         self.down_val = QLabel("—")
-        self.down_val.setStyleSheet(f"font-size: {fs(12)}px; font-weight: 700; color: {C1};")
+        self.down_val.setStyleSheet(f"font-size: {fs(12)}px; font-weight: 700; color: {C2};")
         down_col.addWidget(d_lbl)
         down_col.addWidget(self.down_val)
         speed_box.addLayout(down_col)
@@ -485,7 +485,7 @@ class NetworkWidget(QFrame):
         u_lbl = QLabel(tr("dash_net_upload"))
         u_lbl.setStyleSheet(f"font-size: {fs(11)}px; color: {TEXT_DIM};")
         self.up_val = QLabel("—")
-        self.up_val.setStyleSheet(f"font-size: {fs(12)}px; font-weight: 700; color: {C2};")
+        self.up_val.setStyleSheet(f"font-size: {fs(12)}px; font-weight: 700; color: {WARN};")
         up_col.addWidget(u_lbl)
         up_col.addWidget(self.up_val)
         speed_box.addLayout(up_col)
@@ -651,9 +651,9 @@ class DashboardPage(QWidget):
         row1 = QGridLayout()
         row1.setSpacing(12)
 
-        self.cpu = RingCard(tr("dash_cpu"), C1, icon_name="cpu")
+        self.cpu = RingCard(tr("dash_cpu"), C2, icon_name="cpu")
         self.cpu.set_center_sub(tr("dash_ring_load"))
-        self.ram = RingCard(tr("dash_mem"), C2, icon_name="ram")
+        self.ram = RingCard(tr("dash_mem"), WARN, icon_name="ram")
         self.ram.set_center_sub(tr("dash_ring_used"))
         self.gpu = RingCard(tr("dash_gpu"), C3, icon_name="gpu")
         self.gpu.set_center_sub(tr("dash_ring_load"))
@@ -910,10 +910,12 @@ class DashboardPage(QWidget):
                 tr("notif_disk_full", mount=full.mountpoint.rstrip("\\/") or full.device, pct=int(full.percent)) if full else ""
             )
 
-        net_rate = None
+        net_down = None
+        net_up = None
         if s.net:
             n = s.net
-            net_rate = n.recv_rate
+            net_down = n.recv_rate
+            net_up = n.send_rate
             self.net.update_metric(
                 f"{_rate(n.recv_rate)}/s",
                 f"up {_rate(n.send_rate)}/s · total ↓{_gb(n.bytes_recv)} ↑{_gb(n.bytes_sent)}",
@@ -923,7 +925,7 @@ class DashboardPage(QWidget):
             self.net_widget.down_val.setText(f"{_rate(n.recv_rate)}/s")
             self.net_widget.up_val.setText(f"{_rate(n.send_rate)}/s")
 
-        self.chart.push(s.ts, cpu=cpu_pct, ram=ram_pct, gpu=gpu_pct, net=net_rate)
+        self.chart.push(s.ts, cpu=cpu_pct, ram=ram_pct, gpu=gpu_pct, net_down=net_down, net_up=net_up)
 
         loads = [v for v in (cpu_pct, ram_pct) if v is not None]
         peak = max(loads) if loads else None

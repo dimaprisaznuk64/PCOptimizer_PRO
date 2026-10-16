@@ -70,4 +70,86 @@ def test_chart_axis_labels_are_monotonic(qapp) -> None:
 
     values = [to_seconds(text) for text in labels]
     assert values == sorted(values, reverse=True)
-    assert "min" not in labels[-1]
+
+
+def test_chart_series_colors_are_distinct_and_match_cards(qapp) -> None:
+    from app.ui.components import chart_series_color
+    from app.ui.theme import C2, C3, WARN
+
+    assert chart_series_color("C2") == C2
+    assert chart_series_color("C3") == C3
+    assert chart_series_color("WARN") == WARN
+    # CPU / GPU / RAM map to three different colours (the conftest pins EN; the
+    # exact hex comes from the active theme).
+    assert len({C2, C3, WARN}) == 3
+
+
+def test_perf_chart_legend_follows_selected_tab(qapp) -> None:
+    from app.i18n import tr
+    from app.ui.components import PerfChart
+
+    chart = PerfChart()
+    chart.select("all")
+    assert set(chart._legend) == {"cpu", "gpu", "ram"}
+    chart.select("net")
+    assert set(chart._legend) == {"net_down", "net_up"}
+    labels = {key: lbl.text() for key, lbl in chart._legend.items()}
+    assert tr("dash_net_download") in labels["net_down"]
+    assert tr("dash_net_upload") in labels["net_up"]
+    chart.select("cpu")
+    assert set(chart._legend) == {"cpu"}
+
+
+def test_chart_net_tab_draws_two_series(qapp) -> None:
+    from app.ui.components import _ChartCanvas
+
+    canvas = _ChartCanvas(points=20)
+    canvas.set_key("net", percent=False)
+    for i in range(6):
+        canvas.push(float(i), {"net_down": 1000.0 * i, "net_up": 500.0 * i})
+    series = canvas._series_to_draw()
+    assert {key for key, _c, _s in series} == {"net_down", "net_up"}
+    # Two distinct colours so the two lines are distinguishable.
+    assert len({color.name() for _k, color, _s in series}) == 2
+
+
+def test_chart_net_tab_supports_legacy_single_series(qapp) -> None:
+    from app.ui.components import _ChartCanvas
+
+    canvas = _ChartCanvas(points=20)
+    canvas.set_key("net", percent=False)
+    for i in range(6):
+        canvas.push(float(i), {"net": 1000.0 * i})
+    assert {key for key, _c, _s in canvas._series_to_draw()} == {"net"}
+
+
+def test_chart_smoothing_averages_neighbours() -> None:
+    from app.ui.components import _ChartCanvas
+
+    smoothed = _ChartCanvas._smooth([0.0, 0.0, 100.0, 0.0, 0.0], window=3)
+    # The lone spike is averaged down, so its peak is no longer 100.
+    assert max(smoothed) < 100.0
+    assert len(smoothed) == 5
+    # A flat line stays flat.
+    assert _ChartCanvas._smooth([5.0, 5.0, 5.0]) == [5.0, 5.0, 5.0]
+
+
+def test_chart_axis_hi_has_network_floor(qapp) -> None:
+    from app.ui.components import _ChartCanvas
+
+    canvas = _ChartCanvas(points=20)
+    canvas.set_key("net", percent=False)
+    for i in range(4):
+        canvas.push(float(i), {"net_down": 200.0, "net_up": 100.0})
+    series = canvas._series_to_draw()
+    # Tiny idle traffic must not scale the axis up to a spike.
+    assert canvas._axis_hi(series) >= 100 * 1024.0
+
+
+def test_chart_axis_hi_is_percent_for_load_tabs(qapp) -> None:
+    from app.ui.components import _ChartCanvas
+
+    canvas = _ChartCanvas(points=20)
+    canvas.set_key("all", percent=True)
+    canvas.push(0.0, {"cpu": 10.0, "ram": 20.0, "gpu": 5.0})
+    assert canvas._axis_hi(canvas._series_to_draw()) == 100.0

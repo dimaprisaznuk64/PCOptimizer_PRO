@@ -4,7 +4,13 @@ import json
 import time
 
 from app.diagnostics import DiagnosticsReport, DiagnosticsService
-from app.diagnostics.service import DISK_LIST_SCRIPT, RELIABILITY_SCRIPT, parse_events
+from app.diagnostics.service import (
+    DISK_LIST_SCRIPT,
+    PS_UTF8_PREFIX,
+    RELIABILITY_SCRIPT,
+    _decode_output,
+    parse_events,
+)
 from app.ui.diagnostics import DiagnosticsPage
 from app.ui.main_window import MainWindow
 from app.ui.sidebar import NAV_ITEMS
@@ -76,7 +82,7 @@ def _event_rows() -> list[dict]:
 
 def _service(fail: bool = False) -> DiagnosticsService:
     def run(args, timeout):
-        script = args[-1]
+        script = args[-1].removeprefix(PS_UTF8_PREFIX)
         if fail:
             return 1, ""
         if script == DISK_LIST_SCRIPT:
@@ -117,7 +123,7 @@ def test_disk_health_zero_values_become_unknown() -> None:
 
 def test_disk_health_without_reliability_counters() -> None:
     def run(args, timeout):
-        script = args[-1]
+        script = args[-1].removeprefix(PS_UTF8_PREFIX)
         if script == DISK_LIST_SCRIPT:
             return 0, json.dumps(_disk_rows())
         return 0, ""
@@ -185,6 +191,57 @@ def test_events_falls_back_to_default_log() -> None:
 
     DiagnosticsService(run=run).events("BogusLog")
     assert "LogName='System'" in captured["script"]
+
+
+def test_scripts_force_utf8_console_encoding() -> None:
+    captured: list[str] = []
+
+    def run(args, timeout):
+        captured.append(args[-1])
+        return 0, ""
+
+    service = DiagnosticsService(run=run)
+    service.disk_health()
+    service.events()
+    assert len(captured) == 3  # Reliability + Drives + Events
+    assert all(s.startswith(PS_UTF8_PREFIX) for s in captured)
+    assert "[System.Text.Encoding]::UTF8" in PS_UTF8_PREFIX
+
+
+def test_decode_output_prefers_utf8() -> None:
+    assert _decode_output("Привіт".encode()) == "Привіт"
+    assert _decode_output(b"Error 7023") == "Error 7023"
+    assert _decode_output(b"") == ""
+
+
+def test_decode_output_falls_back_to_oem_console_codepage() -> None:
+    # A redirected PowerShell console emits the OEM code page (cp866) for
+    # Cyrillic locales; those bytes are invalid UTF-8 but decode cleanly as cp866.
+    raw = "Служба завершилась з помилкою".encode("cp866")
+    decoded = _decode_output(raw)
+    assert decoded == "Служба завершилась з помилкою"
+
+
+def test_decode_output_never_leaves_replacement_chars() -> None:
+    for enc in ("cp866", "cp1251"):
+        raw = "Роботу служби завершено".encode(enc)
+        decoded = _decode_output(raw)
+        assert "\ufffd" not in decoded
+
+
+def test_parse_events_keeps_cyrillic_message() -> None:
+    payload = json.dumps([
+        {
+            "Time": "2026-10-16 12:00:00",
+            "Level": 2,
+            "ProviderName": "Служба",
+            "Id": 7023,
+            "Message": "Служба завершилась с ошибкой.",
+        }
+    ])
+    events = parse_events(payload)
+    assert events[0].source == "Служба"
+    assert events[0].message == "Служба завершилась с ошибкой."
 
 
 def test_report_collects_errors_without_raising() -> None:

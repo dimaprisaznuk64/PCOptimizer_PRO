@@ -35,6 +35,10 @@ DEFAULT_LEVELS = (1, 2)
 DEFAULT_LIMIT = 40
 ALLOWED_LOGS = ("System", "Application")
 
+# PowerShell 5.1 writes console output in the OEM code page (cp866/cp1251 for
+# Cyrillic locales). Force UTF-8 so non-ASCII event messages survive the pipe.
+PS_UTF8_PREFIX = "[Console]::OutputEncoding=[System.Text.Encoding]::UTF8;"
+
 DISK_LIST_SCRIPT = (
     "Get-PhysicalDisk | Select-Object DeviceId,FriendlyName,"
     "@{n='MediaType';e={$_.MediaType.ToString()}},Size,"
@@ -168,6 +172,28 @@ def parse_events(output: str) -> list[EventEntry]:
 # ---------- defaults ----------
 
 
+def _decode_output(raw: bytes) -> str:
+    """Decode captured PowerShell bytes: UTF-8 first (we force UTF-8 console),
+    then the OEM console code page (cp866 on Cyrillic Windows) and cp1251 as a
+    safety net. cp866 is tried before cp1251 because a redirected PowerShell
+    console emits the OEM, not the ANSI, code page."""
+    if not raw:
+        return ""
+    import locale
+
+    candidates = ["utf-8", "cp866", "cp1251", locale.getpreferredencoding(False)]
+    seen: set[str] = set()
+    for enc in candidates:
+        if not enc or enc.lower() in seen:
+            continue
+        seen.add(enc.lower())
+        try:
+            return raw.decode(enc)
+        except (UnicodeDecodeError, LookupError):
+            continue
+    return raw.decode("utf-8", errors="replace")
+
+
 def _default_run(args: Sequence[str], timeout: float) -> tuple[int, str]:
     import subprocess
 
@@ -176,22 +202,21 @@ def _default_run(args: Sequence[str], timeout: float) -> tuple[int, str]:
         proc = subprocess.run(
             list(args),
             capture_output=True,
-            text=True,
-            encoding="utf-8",
-            errors="replace",
             timeout=timeout,
             creationflags=creationflags,
         )
     except (OSError, subprocess.TimeoutExpired) as e:
         return 1, str(e)
-    return proc.returncode, (proc.stdout or "") + (proc.stderr or "")
+    raw = (proc.stdout or b"") + (proc.stderr or b"")
+    return proc.returncode, _decode_output(raw)
 
 
 def _event_script(log_name: str, levels: Sequence[int], limit: int) -> list[str]:
     """PowerShell command that dumps matching events as JSON."""
     level_arg = ",".join(str(int(lv)) for lv in levels)
     script = (
-        "$ErrorActionPreference='SilentlyContinue';"
+        PS_UTF8_PREFIX
+        + "$ErrorActionPreference='SilentlyContinue';"
         "$ev = Get-WinEvent -FilterHashtable "
         f"@{{LogName='{log_name}';Level={level_arg}}} -MaxEvents {limit};"
         "@($ev) | Select-Object "
@@ -271,7 +296,10 @@ class DiagnosticsService:
 
     def _rows(self, errors: list[str], label: str, script: str) -> list[dict[str, Any]]:
         try:
-            code, out = self._run(["powershell", "-NoProfile", "-ExecutionPolicy", "Bypass", "-Command", script], 40.0)
+            code, out = self._run(
+                ["powershell", "-NoProfile", "-ExecutionPolicy", "Bypass", "-Command", PS_UTF8_PREFIX + script],
+                40.0,
+            )
         except Exception as e:  # noqa: BLE001 - collected, never fatal
             errors.append(f"{label}: {e}")
             return []

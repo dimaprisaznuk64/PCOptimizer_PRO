@@ -12,7 +12,7 @@ from PySide6.QtCore import (
     QVariantAnimation,
     Signal,
 )
-from PySide6.QtGui import QColor, QIcon, QLinearGradient, QPainter, QPainterPath, QPen
+from PySide6.QtGui import QColor, QFontMetrics, QIcon, QLinearGradient, QPainter, QPainterPath, QPen
 from PySide6.QtWidgets import (
     QButtonGroup,
     QFrame,
@@ -31,8 +31,6 @@ from .theme import (
     ACCENT,
     BORDER,
     BORDER_HI,
-    C1,
-    C3,
     DANGER,
     OK,
     PANEL,
@@ -42,6 +40,31 @@ from .theme import (
     WARN,
     fs,
 )
+
+# Chart series palette. Colours are deliberately distinct and match the
+# dashboard ring cards / legend: CPU - blue (C2), GPU - purple (C3),
+# RAM - amber (WARN), network download - blue (C2), upload - amber (WARN).
+# Each entry is (label key, theme colour token, pen style). ``label_key`` is
+# passed through ``tr`` so network rows reuse the existing i18n strings while
+# acronyms (CPU/GPU/RAM) fall back to themselves.
+CHART_SERIES: dict[str, tuple[str, str, Qt.PenStyle]] = {
+    "cpu": ("CPU", "C2", Qt.PenStyle.SolidLine),
+    "gpu": ("GPU", "C3", Qt.PenStyle.DashLine),
+    "ram": ("RAM", "WARN", Qt.PenStyle.SolidLine),
+    "net_down": ("dash_net_download", "C2", Qt.PenStyle.SolidLine),
+    "net_up": ("dash_net_upload", "WARN", Qt.PenStyle.DashLine),
+}
+
+# Series shown in the "All" tab and which series the "Network" tab plots.
+ALL_SERIES = ("ram", "gpu", "cpu")
+NET_DOWN_KEY = "net_down"
+NET_UP_KEY = "net_up"
+
+
+def chart_series_color(token: str) -> str:
+    from . import theme
+
+    return getattr(theme, token, ACCENT)
 
 
 def level_color(percent: float, base: str = ACCENT) -> str:
@@ -324,15 +347,11 @@ class PerfChart(QFrame):
         head.addStretch(1)
         self._title_label = label
 
-        # Legend pills
+        # Legend pills (rebuilt for every selected tab)
         legend = QHBoxLayout()
         legend.setSpacing(10)
+        self._legend_layout = legend
         self._legend: dict[str, QLabel] = {}
-        for name, col in (("CPU", C1), ("GPU", C3), ("RAM", OK)):
-            leg_lbl = QLabel(f"● {name}")
-            leg_lbl.setStyleSheet(f"font-size: {fs(11)}px; font-weight: 600; color: {col};")
-            legend.addWidget(leg_lbl)
-            self._legend[name] = leg_lbl
         head.addLayout(legend)
         head.addSpacing(14)
 
@@ -363,15 +382,40 @@ class PerfChart(QFrame):
         for key, button in self._buttons.items():
             text_key = next(t for k, t, _p in self.SERIES if k == key)
             button.setText(tr(text_key))
+        self._rebuild_legend(self._canvas.key)
 
     @property
     def current(self) -> str:
         return self._canvas.key
 
+    @staticmethod
+    def _legend_keys(key: str) -> tuple[str, ...]:
+        if key == "all":
+            return ("cpu", "gpu", "ram")
+        if key == "net":
+            return (NET_DOWN_KEY, NET_UP_KEY)
+        return (key,)
+
+    def _rebuild_legend(self, key: str) -> None:
+        while self._legend_layout.count():
+            item = self._legend_layout.takeAt(0)
+            widget = item.widget()
+            if widget is not None:
+                widget.deleteLater()
+        self._legend = {}
+        for series_key in self._legend_keys(key):
+            label_key, token, _style = CHART_SERIES.get(series_key, (series_key, "ACCENT", Qt.PenStyle.SolidLine))
+            color = chart_series_color(token)
+            leg_lbl = QLabel(f"● {tr(label_key)}")
+            leg_lbl.setStyleSheet(f"font-size: {fs(11)}px; font-weight: 600; color: {color};")
+            self._legend_layout.addWidget(leg_lbl)
+            self._legend[series_key] = leg_lbl
+
     def select(self, key: str) -> None:
         percent = {k: pct for k, _t, pct in self.SERIES}.get(key, True)
         if key in self._buttons:
             self._buttons[key].setChecked(True)
+        self._rebuild_legend(key)
         self._canvas.set_key(key, percent)
 
     def push(self, ts: float, **values: float | None) -> None:
@@ -406,40 +450,90 @@ class _ChartCanvas(QWidget):
             return tr("dash_time_min", min=f"{round(seconds / 60):.0f}")
         return tr("dash_time_sec", sec=f"{round(seconds):.0f}")
 
+    def _series_to_draw(self) -> list[tuple[str, QColor, Qt.PenStyle]]:
+        """Return ``(history key, colour, pen style)`` for the active tab."""
+        if self.key == "all":
+            keys = list(ALL_SERIES)
+        elif self.key == "net":
+            keys = [k for k in (NET_DOWN_KEY, NET_UP_KEY) if self._history.get(k)]
+            if not keys and self._history.get("net"):
+                keys = ["net"]  # legacy single-line payload
+        else:
+            keys = [self.key]
+        series: list[tuple[str, QColor, Qt.PenStyle]] = []
+        for key in keys:
+            _label, token, style = CHART_SERIES.get(key, (key, "ACCENT", Qt.PenStyle.SolidLine))
+            series.append((key, QColor(chart_series_color(token)), style))
+        return series
+
+    @staticmethod
+    def _smooth(values: list[float], window: int = 3) -> list[float]:
+        """Centered moving average so sensor noise does not look like spikes."""
+        if window < 2 or len(values) < window:
+            return list(values)
+        half = window // 2
+        out: list[float] = []
+        for i in range(len(values)):
+            lo = max(0, i - half)
+            hi = min(len(values), i + half + 1)
+            segment = values[lo:hi]
+            out.append(sum(segment) / len(segment))
+        return out
+
+    def _axis_hi(self, series: list[tuple[str, QColor, Qt.PenStyle]]) -> float:
+        if self._percent:
+            return 100.0
+        peak = 0.0
+        for key, _color, _style in series:
+            vals = self._history.get(key)
+            if vals:
+                peak = max(peak, max(vals))
+        # Floor keeps tiny idle traffic a flat line instead of a spike.
+        return max(peak * 1.25, 100 * 1024.0)
+
+    def _axis_label(self, hi: float, frac: float) -> str:
+        if self._percent:
+            return f"{hi * frac:.0f}%"
+        from .format import rate
+
+        return rate(hi * frac)
+
     def paintEvent(self, event) -> None:
         painter = QPainter(self)
         painter.setRenderHint(QPainter.RenderHint.Antialiasing)
-        left, bottom = 38, 20
-        plot = QRectF(left, 6, self.width() - left - 10, self.height() - bottom - 10)
-        
-        values = self._history.get(self.key if self.key != "all" else "cpu")
-        if self._percent:
-            hi = 100.0
-        else:
-            hi = max(max(values) * 1.25 if values else 0.0, 100 * 1024.0)
 
-        grid = QColor(BORDER)
-        text = QColor(TEXT_DIM)
+        series = self._series_to_draw()
+        hi = self._axis_hi(series)
+
         font = painter.font()
         font.setPixelSize(fs(11))
         painter.setFont(font)
-        
-        # Horizontal grid
+        metrics = QFontMetrics(font)
+
+        # Reserve room for the widest Y label so nothing is clipped at the edge.
+        tick_labels = [self._axis_label(hi, frac) for frac in (1.0, 0.5, 0.0)]
+        left = max(metrics.horizontalAdvance(lbl) for lbl in tick_labels) + 12
+        bottom = 20
+        plot = QRectF(left, 6, max(10.0, self.width() - left - 10), self.height() - bottom - 10)
+
+        grid = QColor(BORDER)
+        text = QColor(TEXT_DIM)
+
+        # Horizontal grid + Y labels
         for frac in (0.0, 0.25, 0.5, 0.75, 1.0):
             y = plot.bottom() - frac * plot.height()
             painter.setPen(QPen(grid, 1, Qt.PenStyle.DashLine))
             painter.drawLine(QPointF(plot.left(), y), QPointF(plot.right(), y))
             if frac in (0.0, 0.5, 1.0):
-                if self._percent:
-                    label = f"{hi * frac:.0f}%"
-                else:
-                    from .format import rate
-                    label = rate(hi * frac)
                 painter.setPen(text)
-                painter.drawText(QRectF(0, y - 8, left - 6, 16), Qt.AlignmentFlag.AlignRight | Qt.AlignmentFlag.AlignVCenter, label)
+                painter.drawText(
+                    QRectF(0, y - 8, left - 8, 16),
+                    Qt.AlignmentFlag.AlignRight | Qt.AlignmentFlag.AlignVCenter,
+                    self._axis_label(hi, frac),
+                )
 
-        # Stretch the axis to what we actually have, so the curve fills the plot
-        # honestly right after startup instead of hugging the right edge.
+        # Stretch the time axis to what we actually have, so the curve fills the
+        # plot honestly right after startup instead of hugging the right edge.
         count = len(self._times)
         if count > 1:
             dt = (self._times[-1] - self._times[0]) / (count - 1)
@@ -456,65 +550,46 @@ class _ChartCanvas(QWidget):
                 box = QRectF(x - 60, plot.bottom() + 4, 60, 14)
             painter.drawText(box, align | Qt.AlignmentFlag.AlignVCenter, label)
 
-        step = plot.width() / max(1, count - 1)
+        multi = len(series) > 1
+        for key, color, style in series:
+            raw = self._history.get(key)
+            if not raw or len(raw) < 2:
+                continue
+            values = self._smooth(list(raw))
+            step = plot.width() / max(1, len(values) - 1)
+            x0 = plot.right() - (len(values) - 1) * step
 
-        def point(i: int, v: float, count: int) -> QPointF:
-            x0 = plot.right() - (count - 1) * step
-            ratio = max(0.0, min(1.0, v / hi))
-            return QPointF(x0 + i * step, plot.bottom() - ratio * plot.height())
+            path = QPainterPath()
+            for i, v in enumerate(values):
+                ratio = max(0.0, min(1.0, v / hi))
+                pt = QPointF(x0 + i * step, plot.bottom() - ratio * plot.height())
+                if i == 0:
+                    path.moveTo(pt)
+                else:
+                    path.lineTo(pt)
+            last_x = x0 + (len(values) - 1) * step
 
-        if self.key == "all":
-            series_cfg = [
-                ("ram", QColor(OK)),
-                ("gpu", QColor(C3)),
-                ("cpu", QColor(C1)),
-            ]
-            for s_key, s_col in series_cfg:
-                s_vals = self._history.get(s_key)
-                if not s_vals or len(s_vals) < 2:
-                    continue
-                path = QPainterPath(point(0, s_vals[0], len(s_vals)))
-                for i, v in enumerate(s_vals):
-                    path.lineTo(point(i, v, len(s_vals)))
+            # Subtle fill only for a single curve; with several curves the fills
+            # would cover each other, so they stay as thin lines.
+            if not multi:
                 fill = QPainterPath(path)
-                fill.lineTo(plot.right(), plot.bottom())
-                x0 = plot.right() - (len(s_vals) - 1) * step
-                fill.lineTo(x0, plot.bottom())
+                fill.lineTo(QPointF(last_x, plot.bottom()))
+                fill.lineTo(QPointF(x0, plot.bottom()))
                 fill.closeSubpath()
-                top = QColor(s_col)
-                top.setAlpha(35)
-                bottom_c = QColor(s_col)
-                bottom_c.setAlpha(0)
+                top = QColor(color)
+                top.setAlpha(38)
+                fade = QColor(color)
+                fade.setAlpha(0)
                 gradient = QLinearGradient(0, plot.top(), 0, plot.bottom())
                 gradient.setColorAt(0.0, top)
-                gradient.setColorAt(1.0, bottom_c)
+                gradient.setColorAt(1.0, fade)
                 painter.fillPath(fill, gradient)
-                pen = QPen(s_col, 2.0)
-                pen.setJoinStyle(Qt.PenJoinStyle.RoundJoin)
-                painter.setPen(pen)
-                painter.drawPath(path)
-        else:
-            if not values or len(values) < 2:
-                return
-            path = QPainterPath(point(0, values[0], len(values)))
-            for i, v in enumerate(values):
-                path.lineTo(point(i, v, len(values)))
-            fill = QPainterPath(path)
-            fill.lineTo(plot.right(), plot.bottom())
-            x0 = plot.right() - (len(values) - 1) * step
-            fill.lineTo(x0, plot.bottom())
-            fill.closeSubpath()
-            color = QColor(ACCENT)
-            top = QColor(color)
-            top.setAlpha(80)
-            bottom_c = QColor(color)
-            bottom_c.setAlpha(0)
-            gradient = QLinearGradient(0, plot.top(), 0, plot.bottom())
-            gradient.setColorAt(0.0, top)
-            gradient.setColorAt(1.0, bottom_c)
-            painter.fillPath(fill, gradient)
+
             pen = QPen(color, 2.0)
             pen.setJoinStyle(Qt.PenJoinStyle.RoundJoin)
+            if style == Qt.PenStyle.DashLine:
+                pen.setStyle(Qt.PenStyle.DashLine)
+                pen.setDashPattern([5.0, 4.0])
             painter.setPen(pen)
             painter.drawPath(path)
 
