@@ -186,8 +186,10 @@ class FakeDiskAnalyzer(DiskAnalyzer):
         )
         return report
 
-    def find_large_files(self, root, min_bytes=DEFAULT_MIN_SIZE, limit=200):
+    def find_large_files(self, root, min_bytes=DEFAULT_MIN_SIZE, limit=200, errors=None):
         self.large_calls.append((root, min_bytes))
+        if errors is not None:
+            errors.append("cannot read C:/test/locked")
         return list(self.large)
 
 
@@ -250,3 +252,52 @@ def test_disk_page_busy_disables_controls(qapp) -> None:
     assert _wait_until(qapp, lambda: page.scan_table.rowCount() == 2)
     assert page.scan_button.isEnabled()
     assert page.path_input.isEnabled()
+
+
+# ---------- walk errors ----------
+
+
+def test_dir_size_counts_walk_errors(tmp_path, monkeypatch) -> None:
+    import os
+
+    root = tmp_path / "folder"
+    root.mkdir()
+    (root / "a.bin").write_bytes(b"x" * 32)
+
+    real_walk = os.walk
+
+    def flaky_walk(top, *args, **kwargs):
+        onerror = kwargs.get("onerror")
+        if onerror is not None:
+            onerror(PermissionError(13, "access denied"))
+        yield from real_walk(top, *args, **kwargs)
+
+    monkeypatch.setattr(os, "walk", flaky_walk)
+    analyzer = DiskAnalyzer(partitions=lambda: [], usage=lambda m: None)
+    size, files, errors = analyzer._dir_size(root)
+    assert files == 1
+    assert size == 32
+    assert errors >= 1  # the unreadable folder is counted, not silently dropped
+
+
+def test_find_large_files_reports_walk_errors(tmp_path, monkeypatch) -> None:
+    import os
+
+    root = tmp_path / "folder"
+    root.mkdir()
+    (root / "huge.bin").write_bytes(b"x" * 64)
+
+    real_walk = os.walk
+
+    def flaky_walk(top, *args, **kwargs):
+        onerror = kwargs.get("onerror")
+        if onerror is not None:
+            onerror(PermissionError(13, "access denied"))
+        yield from real_walk(top, *args, **kwargs)
+
+    monkeypatch.setattr(os, "walk", flaky_walk)
+    errors: list[str] = []
+    analyzer = DiskAnalyzer(partitions=lambda: [], usage=lambda m: None)
+    found = analyzer.find_large_files(str(root), min_bytes=1, limit=10, errors=errors)
+    assert found
+    assert errors  # the skipped folder is reported to the caller

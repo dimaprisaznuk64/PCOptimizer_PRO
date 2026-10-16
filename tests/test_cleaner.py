@@ -81,6 +81,7 @@ def test_clean_removes_files_and_empty_dirs(cache_target) -> None:
     assert outcome.files_deleted == 2
     assert outcome.files_skipped == 0
     assert outcome.error is None
+    assert outcome.partial is False
     assert root.exists()
     assert not (root / "a.txt").exists()
     assert not (root / "sub").exists()
@@ -106,6 +107,7 @@ def test_clean_reports_partial_result_on_walk_error(tmp_path, monkeypatch) -> No
     assert outcome.error is not None
     assert "some folders were skipped" in outcome.error
     assert "access denied" in outcome.error
+    assert outcome.partial is True
 
 
 def test_clean_skips_locked_files(tmp_path) -> None:
@@ -122,6 +124,7 @@ def test_clean_skips_locked_files(tmp_path) -> None:
         outcome = CleanerService([target]).clean(target)
         assert outcome.files_skipped >= 1
         assert outcome.freed_bytes == 128
+        assert outcome.partial is True  # some files freed, some locked
         assert locked.exists()
         assert not loose.exists()
     finally:

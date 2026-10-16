@@ -279,6 +279,22 @@ def test_hags_uac_cancel_reports_error(fake, tmp_path) -> None:
     assert any("UAC" in e for e in report.errors)
 
 
+def test_hags_write_not_applied_reports_error(fake, tmp_path) -> None:
+    # Elevation "succeeds" but the value stays off — we must not claim success.
+    fake.admin = False
+
+    def ignored_write(args) -> bool:
+        fake.elevated.append(tuple(str(a) for a in args))
+        fake.reg[("HKLM", HAGS_KEY, HAGS_VALUE)] = 1  # still disabled
+        return True
+
+    fake.elevate = ignored_write
+    service = fake.make_service(tmp_path)
+    report = service.apply_profile("GAMING", with_restore_point=False)
+    assert any("HAGS" in e for e in report.errors)
+    assert not any("GPU scheduling" in a for a in report.applied)
+
+
 # ---------- revert ----------
 
 

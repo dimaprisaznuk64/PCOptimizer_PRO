@@ -282,6 +282,9 @@ def test_corrupt_store_is_ignored(tmp_path) -> None:
     service = _launcher(tmp_path)
     assert service.favorites() == set()
     assert service.history() == []
+    # The corrupt file is preserved instead of being silently overwritten.
+    assert list(tmp_path.glob("fav.json.corrupt-*"))
+    assert list(tmp_path.glob("hist.json.corrupt-*"))
 
 
 # ---------- UI ----------

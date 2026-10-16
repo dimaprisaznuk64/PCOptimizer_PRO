@@ -7,6 +7,7 @@ from app.restore import (
     STATUS_CANCELLED,
     STATUS_CREATED,
     STATUS_DISABLED,
+    STATUS_ERROR,
     STATUS_SKIPPED,
     RestorePointService,
 )
@@ -37,6 +38,7 @@ class FakeRunner:
         self.checkpoint_msg = ""
         self.add_point = True
         self.uac_cancel = False
+        self.enable_disabled = False
         self.enabled = False
         self._seq = 100
 
@@ -60,6 +62,9 @@ class FakeRunner:
                 self.points.append((self._seq, "PCOptimizer_PRO test"))
             return 0, "OK"
         if script is not None and "Enable-ComputerRestore" in script:
+            self.last_script = script
+            if self.enable_disabled:
+                return 1, "system protection is still disabled"
             self.enabled = True
             return 0, "OK"
         return 0, ""
@@ -150,3 +155,17 @@ def test_enable_protection_non_admin() -> None:
     assert result.ok
     assert runner.enabled
     assert any("Start-Process" in " ".join(c) for c in runner.calls)
+    # The script must verify the change actually landed, not just run it.
+    assert runner.last_script is not None
+    assert "DisableSR" in runner.last_script
+
+
+def test_enable_protection_reports_still_disabled() -> None:
+    # Enable-ComputerRestore returned success but the master switch stayed on:
+    # we must report an error instead of a false positive.
+    runner = FakeRunner(admin=True)
+    runner.enable_disabled = True
+    result = runner.make_service().enable_protection("C:")
+    assert not result.ok
+    assert result.status == STATUS_ERROR
+    assert "still disabled" in result.message

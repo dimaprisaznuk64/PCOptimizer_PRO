@@ -183,8 +183,21 @@ class LauncherService:
         try:
             data = json.loads(path.read_text(encoding="utf-8"))
         except (OSError, json.JSONDecodeError):
+            LauncherService._quarantine(path)
             return []
-        return data if isinstance(data, list) else []
+        if not isinstance(data, list):
+            LauncherService._quarantine(path)
+            return []
+        return data
+
+    @staticmethod
+    def _quarantine(path: Path) -> None:
+        """Move a corrupt store aside so a later save cannot destroy its data."""
+        try:
+            stamp = time.strftime("%Y%m%d_%H%M%S")
+            path.rename(path.with_name(f"{path.name}.corrupt-{stamp}"))
+        except OSError:
+            pass
 
     @staticmethod
     def _write(path: Path, data: list) -> None:

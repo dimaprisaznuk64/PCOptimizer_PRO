@@ -274,7 +274,7 @@ class CleanerPage(QWidget):
                 if outcome.files_skipped:
                     status += " · " + tr("clean_status_skipped", count=outcome.files_skipped)
                 if outcome.error:
-                    status = outcome.error
+                    status += " · " + outcome.error
             elif scan:
                 status = tr("clean_status_ready")
             else:

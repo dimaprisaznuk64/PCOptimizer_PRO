@@ -1,11 +1,16 @@
 from __future__ import annotations
 
 import json
+import logging
 import os
 import shutil
 import sys
 from pathlib import Path
 from typing import Any
+
+# NOTE: stdlib logging on purpose — importing app.logs here would create a
+# circular import (app.logs.service already imports app.settings).
+log = logging.getLogger("pcoptimizer.settings")
 
 APP_NAME = "PCOptimizer_PRO"
 
@@ -103,6 +108,7 @@ class SettingsService:
     def __init__(self, path: Path | str | None = None, data: dict[str, Any] | None = None) -> None:
         self._path = Path(path) if path is not None else default_path()
         self._data: dict[str, Any] = dict(DEFAULTS)
+        self.load_error: str | None = None
         if data is not None:
             self.merge(data)
         else:
@@ -118,13 +124,17 @@ class SettingsService:
 
     def load(self) -> dict[str, Any]:
         self._data = dict(DEFAULTS)
+        self.load_error = None
         try:
             raw = self._path.read_text(encoding="utf-8")
         except OSError:
             return self.data
         try:
             parsed = json.loads(raw)
-        except json.JSONDecodeError:
+        except json.JSONDecodeError as e:
+            # Keep the defaults running, but never swallow the problem.
+            self.load_error = f"settings file is corrupt, defaults restored: {e}"
+            log.warning("%s (%s)", self.load_error, self._path)
             return self.data
         if isinstance(parsed, dict):
             self.merge(parsed)

@@ -44,6 +44,7 @@ class DiskPage(QWidget):
         self.setObjectName("page")
         self._analyzer = analyzer or DiskAnalyzer()
         self._task: Task | None = None
+        self._large_errors: list[str] = []
 
         layout = QVBoxLayout(self)
         layout.setContentsMargins(40, 36, 40, 32)
@@ -320,9 +321,12 @@ class DiskPage(QWidget):
             return
         min_bytes = int(self.threshold_combo.currentData() or DEFAULT_MIN_SIZE)
         self.status_label.setText(tr("disk_searching", path=target))
+        self._large_errors = []
         self._set_busy(True)
         self._task = Task(
-            lambda: self._analyzer.find_large_files(target, min_bytes, DEFAULT_LIMIT),
+            lambda: self._analyzer.find_large_files(
+                target, min_bytes, DEFAULT_LIMIT, errors=self._large_errors
+            ),
             parent=self,
         )
         self._task.done.connect(self._after_large_files)
@@ -353,6 +357,10 @@ class DiskPage(QWidget):
             tr("disk_large_summary", count=len(files), min=self.threshold_combo.currentText(), total=fmt_size(total))
         )
         self.status_label.setText(tr("disk_found_n", count=len(files)))
+        if self._large_errors:
+            self.status_label.setText(
+                self.status_label.text() + " · " + tr("disk_inaccessible", count=len(self._large_errors))
+            )
 
     # ---------- misc ----------
 

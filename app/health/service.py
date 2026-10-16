@@ -134,6 +134,11 @@ class HealthService:
                 ))
             else:
                 findings.append(Finding("memory", "Memory", "ok", "RAM usage healthy", f"{percent:.0f}% used"))
+        else:
+            findings.append(Finding(
+                "memory_missing", "Memory", "info", "RAM data unavailable",
+                "The sensor did not report memory usage, so it is not scored",
+            ))
 
         temp = self._max_temperature(snapshot)
         if temp is not None:
@@ -148,6 +153,11 @@ class HealthService:
                 ))
             else:
                 findings.append(Finding("thermal", "Thermal", "ok", "Temperatures normal", f"{temp:.0f}C"))
+        else:
+            findings.append(Finding(
+                "thermal_missing", "Thermal", "info", "Temperature data unavailable",
+                "No thermal sensor reported temperatures, so they are not scored",
+            ))
 
         if snapshot.cpu is not None and snapshot.cpu.percent >= 90:
             findings.append(Finding(
@@ -280,10 +290,12 @@ class HealthService:
                 continue
             if outcome.error:
                 errors.append(f"{target.name}: {outcome.error}")
-                continue
+            elif outcome.partial:
+                errors.append(f"{target.name}: partially cleaned ({outcome.files_skipped} locked)")
             reclaimed += outcome.freed_bytes
             deleted += outcome.files_deleted
-            applied.append(f"{target.name}: {outcome.freed_bytes / 1024**2:.0f} MB")
+            if outcome.freed_bytes > 0 or outcome.files_deleted > 0:
+                applied.append(f"{target.name}: {outcome.freed_bytes / 1024**2:.0f} MB")
 
         return FixReport(
             applied=tuple(applied),

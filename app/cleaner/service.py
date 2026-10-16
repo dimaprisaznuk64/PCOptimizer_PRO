@@ -35,6 +35,7 @@ class CleanOutcome:
     files_deleted: int
     files_skipped: int
     error: str | None = None
+    partial: bool = False
 
 
 def _summarize(errors: list[str]) -> str | None:
@@ -257,7 +258,10 @@ class CleanerService:
             # and the user must know some files were never checked.
             note = f"some folders were skipped: {_summarize(walk_errors)}"
             error = f"{error}; {note}" if error else note
-        return CleanOutcome(target.id, freed, deleted, skipped, error)
+        # A partial clean (something freed, something left behind) is not a hard
+        # failure, but the caller must be able to tell the result was incomplete.
+        partial = deleted > 0 and (skipped > 0 or bool(walk_errors))
+        return CleanOutcome(target.id, freed, deleted, skipped, error, partial)
 
     @staticmethod
     def _scan_recycle(target: CleanTarget) -> ScanResult:

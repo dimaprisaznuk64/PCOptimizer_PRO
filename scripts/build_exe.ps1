@@ -17,13 +17,19 @@ if ($backup) {
     Write-Host "Backed up data to $backup"
 }
 
-Invoke-Expression "$pyCmd -m PyInstaller --clean --noconfirm PCOptimizer_PRO.spec"
-
-if ($backup -and (Test-Path (Join-Path $root "dist\PCOptimizer_PRO"))) {
-    New-Item -ItemType Directory -Path $dataDir -Force | Out-Null
-    Copy-Item (Join-Path $backup "*") $dataDir -Recurse -Force
-    Remove-Item $backup -Recurse -Force
-    Write-Host "Restored data to $dataDir"
+try {
+    Invoke-Expression "$pyCmd -m PyInstaller --clean --noconfirm PCOptimizer_PRO.spec"
+}
+finally {
+    # Restore even if the build failed, so the user's data is never lost.
+    if ($backup -and (Test-Path $backup)) {
+        if (Test-Path (Join-Path $root "dist\PCOptimizer_PRO")) {
+            New-Item -ItemType Directory -Path $dataDir -Force | Out-Null
+            Copy-Item (Join-Path $backup "*") $dataDir -Recurse -Force
+            Write-Host "Restored data to $dataDir"
+        }
+        Remove-Item $backup -Recurse -Force
+    }
 }
 
 $exe = Join-Path $root "dist\PCOptimizer_PRO\PCOptimizer_PRO.exe"

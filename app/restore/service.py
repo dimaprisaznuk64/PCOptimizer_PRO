@@ -124,9 +124,14 @@ class RestorePointService:
 
     def enable_protection(self, drive: str = "C:") -> RestoreResult:
         letter = drive.rstrip("\\")
+        # Enable-ComputerRestore can report success while protection stays off.
+        # Re-read the master switch (DisableSR) so we never report a no-op as
+        # success. If the value is missing we assume it is enabled by default.
         script = (
             "$ErrorActionPreference='Stop'; "
             f"Enable-ComputerRestore -Drive '{letter}\\'; "
+            f"$d=(Get-ItemProperty -Path 'HKLM:\\{RESTORE_KEY}' -Name DisableSR -ErrorAction SilentlyContinue).DisableSR; "
+            "if ($d -eq 1) { Write-Output 'system protection is still disabled'; exit 1 }; "
             "Write-Output 'OK'"
         )
         result = self._invoke(script, 120.0)

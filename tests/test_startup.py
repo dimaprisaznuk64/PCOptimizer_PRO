@@ -134,6 +134,25 @@ def test_registry_remove_and_undo(tmp_path) -> None:
         service.undo_last()
 
 
+def test_registry_remove_rollback_when_delete_fails(tmp_path) -> None:
+    service = FakeRegistryService(tmp_path, {("HKCU", RUN_KEY, "Doomed"): (r"C:\bin\doomed.exe", 1)})
+
+    def refuse_delete(hive, key_path, name):
+        raise OSError("access denied")
+
+    service._reg_delete = refuse_delete  # type: ignore[method-assign]
+    items, _ = service.list_items()
+    item = next(i for i in items if i.name == "Doomed")
+
+    with pytest.raises(StartupError):
+        service.remove(item)
+
+    # Nothing changed, and no bogus undo entry was left behind.
+    assert ("HKCU", RUN_KEY, "Doomed") in service.reg
+    history = service.backup_dir / "history.jsonl"
+    assert not history.exists() or not history.read_text(encoding="utf-8").strip()
+
+
 # ---------- folder service ----------
 
 
@@ -201,6 +220,130 @@ def test_remove_task_raises(tmp_path) -> None:
     )
     with pytest.raises(StartupError):
         StartupService(backup_dir=tmp_path / "b", run_sources=()).remove(item)
+
+
+def test_folder_remove_rollback_when_move_fails(tmp_path, monkeypatch) -> None:
+    monkeypatch.setattr("app.startup.service._resolve_lnk", lambda p: p)
+    service, startup = _make_folder_service(tmp_path)
+    item = service._folder_items(str(startup), "Startup folder")[0]
+
+    def refuse_move(src, dst):
+        raise OSError("sharing violation")
+
+    monkeypatch.setattr("pathlib.Path.replace", refuse_move)
+    with pytest.raises(StartupError):
+        service.remove(item)
+
+    # The shortcut is still in place and no bogus undo entry was left behind.
+    assert (startup / "helper.lnk").exists()
+    history = service.backup_dir / "history.jsonl"
+    assert not history.exists() or not history.read_text(encoding="utf-8").strip()
+
+
+def test_task_items_walks_subfolders(tmp_path, monkeypatch) -> None:
+    import sys
+    import types as _types
+
+    class FakeTrigger:
+        def __init__(self, type_):
+            self.Type = type_
+
+    class FakeTriggers:
+        def __init__(self, types_):
+            self._items = [FakeTrigger(t) for t in types_]
+            self.Count = len(self._items)
+
+        def Item(self, i):
+            return self._items[i - 1]
+
+    class FakeAction:
+        def __init__(self, path):
+            self.Path = path
+            self.Arguments = ""
+
+    class FakeActions:
+        def __init__(self, actions):
+            self._items = actions
+            self.Count = len(actions)
+
+        def Item(self, i):
+            return self._items[i - 1]
+
+    class FakeDefinition:
+        def __init__(self, types_, actions):
+            self.Triggers = FakeTriggers(types_)
+            self.Actions = FakeActions(actions)
+
+    class FakeTask:
+        def __init__(self, name, path, types_, actions):
+            self.Name = name
+            self.Path = path
+            self.Enabled = True
+            self.Definition = FakeDefinition(types_, actions)
+
+    class FakeTasks:
+        def __init__(self, tasks):
+            self._items = tasks
+            self.Count = len(tasks)
+
+        def Item(self, i):
+            return self._items[i - 1]
+
+    class _Folders:
+        def __init__(self, folders):
+            self._items = folders
+            self.Count = len(folders)
+
+        def Item(self, i):
+            return self._items[i - 1]
+
+    class FakeFolder:
+        def __init__(self, tasks=(), folders=()):
+            self._tasks = FakeTasks(tasks)
+            self._folders = list(folders)
+
+        def GetTasks(self, flags):
+            return self._tasks
+
+        def GetFolders(self, flags):
+            return _Folders(self._folders)
+
+    root_task = FakeTask("RootTask", r"\RootTask", [8], [FakeAction(r"C:\root.exe")])
+    sub_task = FakeTask("SubTask", r"\Folder\SubTask", [9], [FakeAction(r"C:\sub.exe")])
+    root = FakeFolder(tasks=[root_task], folders=[FakeFolder(tasks=[sub_task])])
+
+    fake_pythoncom = _types.ModuleType("pythoncom")
+    fake_pythoncom.CoInitialize = lambda: None
+    fake_pythoncom.CoUninitialize = lambda: None
+
+    class FakeDispatch:
+        def __init__(self, name):
+            pass
+
+        def Connect(self):
+            pass
+
+        def GetFolder(self, path):
+            return root
+
+    fake_client = _types.ModuleType("win32com.client")
+    fake_client.Dispatch = FakeDispatch
+    fake_win32com = _types.ModuleType("win32com")
+    fake_win32com.client = fake_client
+
+    monkeypatch.setitem(sys.modules, "pythoncom", fake_pythoncom)
+    monkeypatch.setitem(sys.modules, "win32com", fake_win32com)
+    monkeypatch.setitem(sys.modules, "win32com.client", fake_client)
+
+    service = StartupService(
+        user_startup_dir=str(tmp_path / "missing"),
+        common_startup_dir=str(tmp_path / "missing2"),
+        backup_dir=tmp_path / "backup",
+        run_sources=(),
+    )
+    items = service._task_items()
+    names = {i.name for i in items}
+    assert {"RootTask", "SubTask"} <= names
 
 # ---------- live smoke ----------
 

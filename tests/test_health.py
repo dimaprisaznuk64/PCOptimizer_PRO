@@ -7,7 +7,15 @@ import pytest
 from app.cleaner import CleanTarget
 from app.cleaner.service import RECYCLE_BIN_ID, CleanOutcome, ScanResult
 from app.disk import DriveUsage
-from app.health import Finding, FixReport, HealthReport, HealthService, grade_for, score_from
+from app.health import (
+    SEVERITY_PENALTY,
+    Finding,
+    FixReport,
+    HealthReport,
+    HealthService,
+    grade_for,
+    score_from,
+)
 from app.optimizer.service import OptimizerState
 from app.sensors import Snapshot
 from app.sensors.types import CpuStat, MemoryStat, ThermalStat
@@ -223,6 +231,19 @@ def test_scan_collects_errors_without_crashing() -> None:
     assert report.score <= 100
 
 
+def test_scan_flags_missing_sensor_data() -> None:
+    class EmptySensors:
+        def snapshot(self):
+            return Snapshot(ts=0.0, cpu=None, memory=None, thermal=None)
+
+    report = _service(sensors=EmptySensors()).scan()
+    by_id = {f.id: f for f in report.findings}
+    assert by_id["memory_missing"].severity == "info"
+    assert by_id["thermal_missing"].severity == "info"
+    # Missing data must not silently yield a perfect score.
+    assert report.score == 100 - SEVERITY_PENALTY["info"] * 2
+
+
 # ---------- fix ----------
 
 
@@ -244,6 +265,31 @@ def test_fix_all_include_recycle_bin() -> None:
     report = _service(cleaner=cleaner).fix_all(include_recycle_bin=True)
     assert RECYCLE_BIN_ID in cleaner.cleaned
     assert report.reclaimed_bytes >= 5 * gb
+
+
+def test_fix_all_counts_partial_cleanup() -> None:
+    # A partial clean frees bytes but leaves some files locked: the reclaimed
+    # amount must still be counted and the user told it was incomplete.
+    class PartialCleaner:
+        def __init__(self) -> None:
+            self.cleaned: list[str] = []
+
+        def scan(self, target):
+            return ScanResult(target.id, 3, 2048)
+
+        def clean(self, target, known_bytes=0):
+            self.cleaned.append(target.id)
+            return CleanOutcome(
+                target.id, freed_bytes=512, files_deleted=1, files_skipped=1,
+                error=None, partial=True,
+            )
+
+    cleaner = PartialCleaner()
+    report = _service(cleaner=cleaner).fix_all()
+    assert report.reclaimed_bytes > 0
+    assert report.files_deleted > 0
+    assert report.applied
+    assert any("partially cleaned" in e for e in report.errors)
 
 
 # ---------- UI ----------

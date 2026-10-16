@@ -13,7 +13,7 @@
   <img src="https://img.shields.io/badge/python-3.13-3776AB" alt="Python">
   <img src="https://img.shields.io/badge/UI-PySide6%20(Qt%206)-41CD52" alt="PySide6">
   <img src="https://img.shields.io/badge/tests-334%20passed-brightgreen" alt="Tests">
-  <img src="https://img.shields.io/badge/version-1.3.1-blue" alt="Version">
+  <img src="https://img.shields.io/badge/version-1.3.2-blue" alt="Version">
 </p>
 
 Філософія проєкту: **жодних «секретних» реєстрових твіків і вигаданих +FPS**. Кожна зміна системи робиться лише після бекапу/точки відновлення і має кнопку відкату. Застосунок працює без адмін-прав — UAC запитується точково, лише для конкретних операцій.
@@ -122,23 +122,23 @@
 
 | Дашборд | Монітор системи |
 | --- | --- |
-| ![Дашборд](docs/screenshots/v1.3.1_dashboard.png) | ![Монітор](docs/screenshots/v1.3.1_monitor.png) |
+| ![Дашборд](docs/screenshots/v1.3.2_dashboard.png) | ![Монітор](docs/screenshots/v1.3.2_monitor.png) |
 
 | Залізо (Hardware) | GPU-монітор |
 | --- | --- |
-| ![Залізо](docs/screenshots/v1.3.1_hardware.png) | ![GPU](docs/screenshots/v1.3.1_gpu.png) |
+| ![Залізо](docs/screenshots/v1.3.2_hardware.png) | ![GPU](docs/screenshots/v1.3.2_gpu.png) |
 
 | PC Health Score | Чистильник |
 | --- | --- |
-| ![Health](docs/screenshots/v1.3.1_health.png) | ![Чистильник](docs/screenshots/v1.3.1_cleaner.png) |
+| ![Health](docs/screenshots/v1.3.2_health.png) | ![Чистильник](docs/screenshots/v1.3.2_cleaner.png) |
 
 | Ігровий режим | Лаунчер ігор |
 | --- | --- |
-| ![Gaming](docs/screenshots/v1.3.1_gaming.png) | ![Лаунчер](docs/screenshots/v1.3.1_launcher.png) |
+| ![Gaming](docs/screenshots/v1.3.2_gaming.png) | ![Лаунчер](docs/screenshots/v1.3.2_launcher.png) |
 
 | Бенчмарки | Мережа |
 | --- | --- |
-| ![Бенчмарки](docs/screenshots/v1.3.1_benchmarks.png) | ![Мережа](docs/screenshots/v1.3.1_network.png) |
+| ![Бенчмарки](docs/screenshots/v1.3.2_benchmarks.png) | ![Мережа](docs/screenshots/v1.3.2_network.png) |
 
 Решта сторінок: [docs/screenshots](docs/screenshots)
 
@@ -148,7 +148,7 @@
 
 - **Python 3.13** + **PySide6** (Qt 6; 25 вбудованих тем, тема за замовчуванням — Graphite, вбудовані шрифти Inter / JetBrains Mono)
 - **psutil** — CPU/RAM/диски/мережа, **nvidia-ml-py** (NVML) — GPU, **WMI** — температури, **pywin32** — COM/Task Scheduler/кошик
-- **pytest** — 339 тестів
+- **pytest** — 351 тестів
 - **PyInstaller** — збірка .exe, **Inno Setup** — інсталятор
 
 ## Безпека понад усе
@@ -161,12 +161,12 @@
 
 ## Встановлення
 
-**Варіант 1 — інсталятор.** Запустити `PCOptimizer_PRO_Setup_1.3.1.exe`.
+**Варіант 1 — інсталятор.** Запустити `PCOptimizer_PRO_Setup_1.3.2.exe`.
 Встановлюється для поточного користувача (без прав адміністратора), мови EN/UA, створює ярлики та деінсталятор.
 
 > Якщо Windows показує «Windows protected your PC» (SmartScreen) — це нормально для непідписаних програм: **More info → Run anyway**. Так само деякі антивіруси можуть хибно реагувати на PyInstaller-збірки.
 
-**Варіант 2 — портативно.** Розпакувати `PCOptimizer_PRO_1.3.1_portable.zip` і запустити `PCOptimizer_PRO\PCOptimizer_PRO.exe`. Нічого не встановлюється.
+**Варіант 2 — портативно.** Розпакувати `PCOptimizer_PRO_1.3.2_portable.zip` і запустити `PCOptimizer_PRO\PCOptimizer_PRO.exe`. Нічого не встановлюється.
 
 Готові збірки — у розділі [Releases](https://github.com/dimaprisaznuk64/PCOptimizer_PRO/releases).
 

@@ -172,3 +172,21 @@ def test_migrate_does_not_overwrite_existing(tmp_path, monkeypatch) -> None:
     data_root()
     svc = SettingsService()
     assert svc.get("theme") == "COBALT"
+
+
+def test_corrupt_settings_reports_load_error(tmp_path) -> None:
+    path = tmp_path / "settings.json"
+    path.write_text("{ not json", encoding="utf-8")
+    svc = SettingsService(path)
+    # Defaults are still usable, but the problem is surfaced, not swallowed.
+    assert svc.get("theme") == DEFAULTS["theme"]
+    assert svc.load_error is not None
+    assert "corrupt" in svc.load_error
+
+
+def test_load_error_is_none_for_good_file(tmp_path) -> None:
+    path = tmp_path / "settings.json"
+    path.write_text(json.dumps({"theme": "ARCTIC"}), encoding="utf-8")
+    svc = SettingsService(path)
+    assert svc.get("theme") == "ARCTIC"
+    assert svc.load_error is None

@@ -327,16 +327,21 @@ class OptimizerService:
         value = 2 if enabled else 1
         if self._is_admin():
             self._reg_set_dword("HKLM", HAGS_KEY, HAGS_VALUE, value)
-            return
-        script = (
-            f"Set-ItemProperty -Path 'HKLM:{os.sep}{HAGS_KEY}' "
-            f"-Name {HAGS_VALUE} -Value {value}"
-        )
-        ok = self._elevate(
-            ("powershell", "-NoProfile", "-ExecutionPolicy", "Bypass", "-Command", script)
-        )
-        if not ok:
-            raise OptimizerError("HAGS change was cancelled at the UAC prompt")
+        else:
+            script = (
+                f"Set-ItemProperty -Path 'HKLM:{os.sep}{HAGS_KEY}' "
+                f"-Name {HAGS_VALUE} -Value {value}"
+            )
+            ok = self._elevate(
+                ("powershell", "-NoProfile", "-ExecutionPolicy", "Bypass", "-Command", script)
+            )
+            if not ok:
+                raise OptimizerError("HAGS change was cancelled at the UAC prompt")
+        # An elevated process can exit 0 without the write actually landing
+        # (e.g. denied by policy). Verify the value changed.
+        current, err = self._reg_get_dword("HKLM", HAGS_KEY, HAGS_VALUE)
+        if err is None and current is not None and current != value:
+            raise OptimizerError(f"HAGS change did not apply (expected {value}, found {current})")
 
     def _delete_hags(self) -> None:
         if self._is_admin():

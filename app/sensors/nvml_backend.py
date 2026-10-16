@@ -20,8 +20,18 @@ class NvmlBackend(Backend):
         try:
             self._handles = [pynvml.nvmlDeviceGetHandleByIndex(i) for i in range(pynvml.nvmlDeviceGetCount())]
         except pynvml.NVMLError as e:
+            # nvmlInit() already succeeded; release it so a failed probe does
+            # not leak the NVML refcount (it would prevent a later re-init).
+            try:
+                pynvml.nvmlShutdown()
+            except pynvml.NVMLError:
+                pass
             raise SensorUnavailable(f"NVML device query failed: {e}") from e
         if not self._handles:
+            try:
+                pynvml.nvmlShutdown()
+            except pynvml.NVMLError:
+                pass
             raise SensorUnavailable("no NVIDIA GPUs reported by NVML")
         self._last: dict[int, GpuStat] = {}
 

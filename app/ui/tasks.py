@@ -16,10 +16,20 @@ def stop_all(timeout_ms: int = 5000) -> None:
 
     Without this, QThreads still running while the interpreter tears down
     can crash (native psutil GC race) — see GamingPage.detect.
+
+    A task is only dropped from the registry once it has really stopped: if it
+    is still running after *timeout_ms* we keep it (dropping it would let the
+    interpreter destroy a live QThread and crash) and log a warning.
     """
     for task in list(_RUNNING):
         if task.isRunning():
-            task.wait(timeout_ms)
+            if not task.wait(timeout_ms):
+                log.warning(
+                    "task %s did not stop within %d ms; kept registered",
+                    getattr(task._fn, "__name__", task._fn),
+                    timeout_ms,
+                )
+                continue
         _RUNNING.discard(task)
 
 

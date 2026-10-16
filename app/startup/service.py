@@ -265,48 +265,64 @@ class StartupService:
             try:
                 service = Dispatch("Schedule.Service")
                 service.Connect()
-                folder = service.GetFolder("\\")
-                tasks = folder.GetTasks(0)
-                count = tasks.Count
-                for index in range(1, count + 1):
-                    try:
-                        task = tasks.Item(index)
-                        triggers = task.Definition.Triggers
-                        trigger_types = [triggers.Item(i).Type for i in range(1, triggers.Count + 1)]
-                        if not any(t in (8, 9) for t in trigger_types):
-                            continue
-                        actions = task.Definition.Actions
-                        command = ""
-                        if actions.Count >= 1:
-                            action = actions.Item(1)
-                            command = str(getattr(action, "Path", "") or "")
-                            arguments = str(getattr(action, "Arguments", "") or "")
-                            if arguments:
-                                command = f"{command} {arguments}".strip()
-                        size = _target_size(command) if command else None
-                        impact, reason = impact_of(task.Name, size)
-                        items.append(
-                            StartupItem(
-                                id=f"task:{task.Path}".lower(),
-                                name=task.Name,
-                                source="Task Scheduler",
-                                kind="task",
-                                command=command,
-                                location=task.Path,
-                                enabled=bool(task.Enabled),
-                                impact=impact,
-                                impact_reason=reason,
-                                target_size=size,
-                                task_path=task.Path,
-                            )
-                        )
-                    except Exception:
-                        continue
+                # Startup tasks can live in subfolders of the root, not only
+                # directly under "\", so walk the tree recursively.
+                self._collect_tasks(service.GetFolder("\\"), items)
             finally:
                 pythoncom.CoUninitialize()
         except Exception:
             pass
         return items
+
+    def _collect_tasks(self, folder, items: list[StartupItem]) -> None:
+        try:
+            tasks = folder.GetTasks(0)
+            count = tasks.Count
+            for index in range(1, count + 1):
+                try:
+                    task = tasks.Item(index)
+                    triggers = task.Definition.Triggers
+                    trigger_types = [triggers.Item(i).Type for i in range(1, triggers.Count + 1)]
+                    if not any(t in (8, 9) for t in trigger_types):
+                        continue
+                    actions = task.Definition.Actions
+                    command = ""
+                    if actions.Count >= 1:
+                        action = actions.Item(1)
+                        command = str(getattr(action, "Path", "") or "")
+                        arguments = str(getattr(action, "Arguments", "") or "")
+                        if arguments:
+                            command = f"{command} {arguments}".strip()
+                    size = _target_size(command) if command else None
+                    impact, reason = impact_of(task.Name, size)
+                    items.append(
+                        StartupItem(
+                            id=f"task:{task.Path}".lower(),
+                            name=task.Name,
+                            source="Task Scheduler",
+                            kind="task",
+                            command=command,
+                            location=task.Path,
+                            enabled=bool(task.Enabled),
+                            impact=impact,
+                            impact_reason=reason,
+                            target_size=size,
+                            task_path=task.Path,
+                        )
+                    )
+                except Exception:
+                    continue
+        except Exception:
+            return
+        try:
+            subfolders = folder.GetFolders(0)
+            for index in range(1, subfolders.Count + 1):
+                try:
+                    self._collect_tasks(subfolders.Item(index), items)
+                except Exception:
+                    continue
+        except Exception:
+            return
 
     def set_enabled(self, item: StartupItem, enabled: bool) -> None:
         if item.kind == "registry":
@@ -384,11 +400,14 @@ class StartupService:
             "data_hex": data_hex,
             "description": f"registry value {item.name}",
         }
+        # Record the undo data BEFORE the destructive step, so a crash between
+        # the write and the journal entry can never lose the original value.
+        self._append_history(entry)
         try:
             self._reg_delete(item.hive, item.key_path, item.approved_name)
         except OSError as e:
+            self._drop_last_history()
             raise StartupError(f"cannot remove {item.name}: {e} (administrator rights may be required)") from e
-        self._append_history(entry)
         return f"removed {item.name} (backup saved)"
 
     def _remove_folder(self, item: StartupItem) -> str:
@@ -401,10 +420,6 @@ class StartupService:
         removed_dir.mkdir(parents=True, exist_ok=True)
         stamp = time.strftime("%Y%m%d_%H%M%S")
         stored = removed_dir / f"{stamp}_{source.name}"
-        try:
-            source.replace(stored)
-        except OSError as e:
-            raise StartupError(f"cannot move {item.name}: {e}") from e
         entry = {
             "action": "folder",
             "ts": time.time(),
@@ -412,7 +427,14 @@ class StartupService:
             "stored": str(stored),
             "description": f"startup shortcut {item.name}",
         }
+        # Journal before moving the file so the undo data exists even if the
+        # move itself fails midway.
         self._append_history(entry)
+        try:
+            source.replace(stored)
+        except OSError as e:
+            self._drop_last_history()
+            raise StartupError(f"cannot move {item.name}: {e}") from e
         return f"removed {item.name} (backup saved)"
 
     def _history_path(self) -> Path:
@@ -423,6 +445,16 @@ class StartupService:
         history = self._history_path()
         with history.open("a", encoding="utf-8") as f:
             f.write(json.dumps(entry, ensure_ascii=False) + "\n")
+
+    def _drop_last_history(self) -> None:
+        """Roll back the most recent journal entry (the change it describes failed)."""
+        history = self._history_path()
+        if not history.exists():
+            return
+        lines = [line for line in history.read_text(encoding="utf-8").splitlines() if line.strip()]
+        if not lines:
+            return
+        history.write_text("\n".join(lines[:-1]) + ("\n" if len(lines) > 1 else ""), encoding="utf-8")
 
     def _approved_get(self, hive: str, key_path: str, name: str) -> bytes | None:
         try:

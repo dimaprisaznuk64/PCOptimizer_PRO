@@ -150,7 +150,12 @@ class DiskAnalyzer:
         size = 0
         files = 0
         errors = 0
-        for dirpath, dirnames, filenames in os.walk(folder, followlinks=False, onerror=None):
+
+        def _onerror(_error: OSError) -> None:
+            nonlocal errors
+            errors += 1
+
+        for dirpath, dirnames, filenames in os.walk(folder, followlinks=False, onerror=_onerror):
             dirnames[:] = [d for d in dirnames if not _skip(Path(dirpath) / d)]
             for name in filenames:
                 file_path = Path(dirpath) / name
@@ -168,14 +173,22 @@ class DiskAnalyzer:
     # ---------- large files ----------
 
     def find_large_files(
-        self, root: str, min_bytes: int = DEFAULT_MIN_SIZE, limit: int = DEFAULT_LIMIT
+        self,
+        root: str,
+        min_bytes: int = DEFAULT_MIN_SIZE,
+        limit: int = DEFAULT_LIMIT,
+        errors: list[str] | None = None,
     ) -> list[LargeFile]:
         path = Path(root)
         if not path.is_dir():
             raise DiskError(f"not a directory: {root}")
 
+        def _onerror(error: OSError) -> None:
+            if errors is not None:
+                errors.append(str(error))
+
         found: list[LargeFile] = []
-        for dirpath, dirnames, filenames in os.walk(path, followlinks=False, onerror=None):
+        for dirpath, dirnames, filenames in os.walk(path, followlinks=False, onerror=_onerror):
             dirnames[:] = [d for d in dirnames if not _skip(Path(dirpath) / d)]
             for name in filenames:
                 file_path = Path(dirpath) / name
