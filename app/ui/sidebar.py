@@ -30,6 +30,7 @@ NAV_KEYS: tuple[tuple[str, str], ...] = (
     ("network", "nav_network"),
     ("optimizer", "nav_optimizer"),
     ("disk", "nav_disk"),
+    ("diagnostics", "nav_diagnostics"),
     ("settings", "nav_settings"),
     ("gpu", "nav_gpu"),
     ("health", "nav_health"),

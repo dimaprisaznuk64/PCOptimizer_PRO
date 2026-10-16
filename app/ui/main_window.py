@@ -182,7 +182,8 @@ class MainWindow(QMainWindow):
         for name in (
             "theme", "icons", "components", "monitor", "dashboard", "gpu",
             "hardware", "processes", "cleaner", "startup", "optimizer", "gaming",
-            "launcher", "benchmarks", "network", "disk", "health", "settings",
+            "launcher", "benchmarks", "network", "disk", "diagnostics", "health",
+            "settings",
             "sidebar", "topbar", "tray", "pages",
         ):
             module = sys.modules.get(f"app.ui.{name}")

@@ -151,6 +151,14 @@ def _hardware(p: QPainter) -> None:
         p.drawLine(QPointF(17.5, y), QPointF(15.5, y))
 
 
+def _diagnostics(p: QPainter) -> None:
+    p.drawRoundedRect(QRectF(2.5, 3.0, 15, 14), 2.5, 2.5)
+    path = QPainterPath(QPointF(4.5, 11))
+    for x, y in ((7, 11), (8.7, 6.5), (11.3, 14), (13, 11), (15.5, 11)):
+        path.lineTo(x, y)
+    p.drawPath(path)
+
+
 
 def _fan(p: QPainter) -> None:
     p.drawEllipse(QRectF(3, 3, 14, 14))
@@ -213,6 +221,7 @@ _DRAWERS = {
     "cpu": _cpu,
     "ram": _ram,
     "hardware": _hardware,
+    "diagnostics": _diagnostics,
     "dashboard": _dashboard,
     "monitor": _monitor,
     "gpu": _gpu,
