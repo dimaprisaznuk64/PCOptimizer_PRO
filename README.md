@@ -12,8 +12,8 @@
   <img src="https://img.shields.io/badge/platform-Windows%2010%2F11%20x64-0078D6" alt="Platform">
   <img src="https://img.shields.io/badge/python-3.13-3776AB" alt="Python">
   <img src="https://img.shields.io/badge/UI-PySide6%20(Qt%206)-41CD52" alt="PySide6">
-  <img src="https://img.shields.io/badge/tests-416%20passed-brightgreen" alt="Tests">
-  <img src="https://img.shields.io/badge/version-1.3.5-blue" alt="Version">
+  <img src="https://img.shields.io/badge/tests-420%20passed-brightgreen" alt="Tests">
+  <img src="https://img.shields.io/badge/version-1.4.0-blue" alt="Version">
 </p>
 
 Філософія проєкту: **жодних «секретних» реєстрових твіків і вигаданих +FPS**. Кожна зміна системи робиться лише після бекапу/точки відновлення і має кнопку відкату. Застосунок працює без адмін-прав — UAC запитується точково, лише для конкретних операцій.
@@ -130,27 +130,27 @@
 
 | Дашборд | Монітор системи |
 | --- | --- |
-| ![Дашборд](docs/screenshots/v1.3.5_dashboard.png) | ![Монітор](docs/screenshots/v1.3.5_monitor.png) |
+| ![Дашборд](docs/screenshots/v1.4.0_dashboard.png) | ![Монітор](docs/screenshots/v1.4.0_monitor.png) |
 
 | Залізо (Hardware) | GPU-монітор |
 | --- | --- |
-| ![Залізо](docs/screenshots/v1.3.5_hardware.png) | ![GPU](docs/screenshots/v1.3.5_gpu.png) |
+| ![Залізо](docs/screenshots/v1.4.0_hardware.png) | ![GPU](docs/screenshots/v1.4.0_gpu.png) |
 
 | PC Health Score | Чистильник |
 | --- | --- |
-| ![Health](docs/screenshots/v1.3.5_health.png) | ![Чистильник](docs/screenshots/v1.3.5_cleaner.png) |
+| ![Health](docs/screenshots/v1.4.0_health.png) | ![Чистильник](docs/screenshots/v1.4.0_cleaner.png) |
 
 | Ігровий режим | Лаунчер ігор |
 | --- | --- |
-| ![Gaming](docs/screenshots/v1.3.5_gaming.png) | ![Лаунчер](docs/screenshots/v1.3.5_launcher.png) |
+| ![Gaming](docs/screenshots/v1.4.0_gaming.png) | ![Лаунчер](docs/screenshots/v1.4.0_launcher.png) |
 
 | Бенчмарки | Мережа |
 | --- | --- |
-| ![Бенчмарки](docs/screenshots/v1.3.5_benchmarks.png) | ![Мережа](docs/screenshots/v1.3.5_network.png) |
+| ![Бенчмарки](docs/screenshots/v1.4.0_benchmarks.png) | ![Мережа](docs/screenshots/v1.4.0_network.png) |
 
 | Діагностика | Диски та сховище |
 | --- | --- |
-| ![Діагностика](docs/screenshots/v1.3.5_diagnostics.png) | ![Диски](docs/screenshots/v1.3.5_disk.png) |
+| ![Діагностика](docs/screenshots/v1.4.0_diagnostics.png) | ![Диски](docs/screenshots/v1.4.0_disk.png) |
 
 Решта сторінок: [docs/screenshots](docs/screenshots)
 
@@ -160,7 +160,7 @@
 
 - **Python 3.13** + **PySide6** (Qt 6; 25 вбудованих тем, тема за замовчуванням — Graphite, вбудовані шрифти Inter / JetBrains Mono)
 - **psutil** — CPU/RAM/диски/мережа, **nvidia-ml-py** (NVML) — GPU, **WMI** — температури, **pywin32** — COM/Task Scheduler/кошик
-- **pytest** — 416 тестів
+- **pytest** — 420 тестів
 - **PyInstaller** — збірка .exe, **Inno Setup** — інсталятор
 
 ## Безпека понад усе
@@ -173,12 +173,12 @@
 
 ## Встановлення
 
-**Варіант 1 — інсталятор.** Запустити `PCOptimizer_PRO_Setup_1.3.5.exe`.
+**Варіант 1 — інсталятор.** Запустити `PCOptimizer_PRO_Setup_1.4.0.exe`.
 Встановлюється для поточного користувача (без прав адміністратора), мови EN/UA, створює ярлики та деінсталятор.
 
 > Якщо Windows показує «Windows protected your PC» (SmartScreen) — це нормально для непідписаних програм: **More info → Run anyway**. Так само деякі антивіруси можуть хибно реагувати на PyInstaller-збірки.
 
-**Варіант 2 — портативно.** Розпакувати `PCOptimizer_PRO_1.3.5_portable.zip` і запустити `PCOptimizer_PRO\PCOptimizer_PRO.exe`. Нічого не встановлюється.
+**Варіант 2 — портативно.** Розпакувати `PCOptimizer_PRO_1.4.0_portable.zip` і запустити `PCOptimizer_PRO\PCOptimizer_PRO.exe`. Нічого не встановлюється.
 
 Готові збірки — у розділі [Releases](https://github.com/dimaprisaznuk64/PCOptimizer_PRO/releases).
 
@@ -230,7 +230,7 @@ app/
   logs/                  — ротаційне логування
   i18n/                  — локалізація UA / EN
   core/, hardware/, monitor/, health/, diagnostics/, alerts/, benchmarks/, gaming/ — допоміжні модулі
-tests/                   — pytest-тести (410)
+tests/                   — pytest-тести (420)
 scripts/                 — збірка exe/інсталятора, генерація іконки
 installer/               — скрипт Inno Setup
 docs/screenshots/        — скріншоти

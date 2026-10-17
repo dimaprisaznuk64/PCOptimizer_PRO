@@ -59,7 +59,7 @@ TRANSLATIONS: dict[str, dict[str, str]] = {
         "nav_section_diagnostics": "DIAGNOSTICS",
         "nav_section_preferences": "PREFERENCES",
         "sidebar_user_title": "Your PC is in safe hands",
-        "sidebar_user_sub": "PCOptimizer PRO v1.3.5",
+        "sidebar_user_sub": "PCOptimizer PRO v1.4.0",
         "sidebar_status_ok": "System healthy",
 
         # Top bar
@@ -901,7 +901,7 @@ TRANSLATIONS: dict[str, dict[str, str]] = {
         "nav_section_diagnostics": "ДІАГНОСТИКА",
         "nav_section_preferences": "НАЛАШТУВАННЯ",
         "sidebar_user_title": "Твій ПК у надійних руках",
-        "sidebar_user_sub": "PCOptimizer PRO v1.3.5",
+        "sidebar_user_sub": "PCOptimizer PRO v1.4.0",
         "sidebar_status_ok": "Система в нормі",
 
         # Top bar
