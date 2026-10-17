@@ -2,16 +2,18 @@ from __future__ import annotations
 
 import os
 
-os.environ.setdefault("QT_QPA_PLATFORM", "offscreen")
-
 import pytest
-from PySide6.QtWidgets import QApplication
 
 from app.i18n.service import I18nService
 
 
 @pytest.fixture(scope="session")
 def qapp():
+    os.environ.setdefault("QT_QPA_PLATFORM", "offscreen")
+    try:
+        from PySide6.QtWidgets import QApplication
+    except Exception as e:  # pragma: no cover
+        pytest.skip(f"PySide6 not available: {e}")
     app = QApplication.instance() or QApplication([])
     yield app
     for widget in list(app.topLevelWidgets()):
