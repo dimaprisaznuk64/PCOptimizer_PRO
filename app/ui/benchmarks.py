@@ -1,8 +1,11 @@
 from __future__ import annotations
 
+from pathlib import Path
+
 from PySide6.QtCore import Qt
 from PySide6.QtGui import QColor
 from PySide6.QtWidgets import (
+    QFileDialog,
     QFrame,
     QHBoxLayout,
     QHeaderView,
@@ -18,6 +21,7 @@ from PySide6.QtWidgets import (
 
 from app.benchmarks import BenchmarkHistory, BenchmarkService, BenchmarkType
 from app.i18n import tr
+from app.reports import ReportError, export_history, timestamp_name
 from app.settings import data_root
 
 from .components import attach_empty_hint
@@ -143,6 +147,10 @@ class BenchmarksPage(QWidget):
         self.clear_button.setProperty("secondary", True)
         self.clear_button.clicked.connect(self.clear_history)
         history_head.addWidget(self.clear_button)
+        self.export_button = QPushButton(tr("bench_export_btn"))
+        self.export_button.setProperty("secondary", True)
+        self.export_button.clicked.connect(self.export_history)
+        history_head.addWidget(self.export_button)
         history_layout.addLayout(history_head)
 
         self.history_table = self._build_table(_HISTORY_COLUMNS, "bench_history_empty")
@@ -251,6 +259,48 @@ class BenchmarksPage(QWidget):
         self._refresh_history()
         self.status_label.setText(tr("bench_history_cleared"))
 
+    def export_history(self) -> None:
+        entries = self._history.entries(limit=0)
+        if not entries:
+            self.status_label.setText(tr("exp_nothing"))
+            return
+        path = self._ask_save_path(timestamp_name("benchmark_history", "csv"))
+        if not path:
+            return
+
+        def _delta_of(e):
+            if e.baseline:
+                return None
+            return self._history.delta_pct(e.metric, e.value)
+
+        try:
+            target = export_history(
+                entries,
+                path,
+                localize=_metric_text,
+                delta_of=_delta_of,
+                header=(
+                    tr("exp_hist_time"), tr("exp_hist_metric"), tr("exp_hist_value"),
+                    tr("exp_hist_unit"), tr("exp_hist_detail"), tr("exp_hist_baseline"),
+                    tr("exp_hist_delta"),
+                ),
+            )
+        except ReportError as e:
+            self.status_label.setText(tr("exp_failed", msg=str(e)))
+            return
+        self.status_label.setText(tr("exp_done", path=str(target)))
+
+    def _ask_save_path(self, default_name: str) -> str:
+        path, selected = QFileDialog.getSaveFileName(
+            self, tr("exp_dialog_title"), default_name, tr("exp_filter")
+        )
+        if not path:
+            return ""
+        if not Path(path).suffix:
+            fmt = "json" if "json" in (selected or "").lower() else "csv"
+            path = f"{path}.{fmt}"
+        return path
+
     def _refresh_history(self) -> None:
         entries = self._history.entries(limit=100)
         self.history_table.setRowCount(len(entries))
@@ -287,6 +337,7 @@ class BenchmarksPage(QWidget):
     def _set_busy(self, busy: bool) -> None:
         for btn in (self.cpu_btn, self.ram_btn, self.disk_btn, self.all_btn):
             btn.setEnabled(not busy)
+        self.export_button.setEnabled(not busy)
 
     def _set_active(self, button: QPushButton | None) -> None:
         """Highlight only the button for the currently running benchmark."""
@@ -311,6 +362,7 @@ class BenchmarksPage(QWidget):
         self.history_title.setText(tr("bench_history_title").upper())
         self.baseline_button.setText(tr("bench_set_baseline"))
         self.clear_button.setText(tr("bench_clear_history"))
+        self.export_button.setText(tr("bench_export_btn"))
         if self._task is None:
             self.status_label.setText(tr("bench_idle"))
         self.table.setHorizontalHeaderLabels([tr(key) for key in _COLUMNS])

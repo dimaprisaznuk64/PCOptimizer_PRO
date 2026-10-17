@@ -1,8 +1,11 @@
 from __future__ import annotations
 
+from pathlib import Path
+
 from PySide6.QtCore import Qt
 from PySide6.QtGui import QColor
 from PySide6.QtWidgets import (
+    QFileDialog,
     QFrame,
     QHBoxLayout,
     QHeaderView,
@@ -17,6 +20,7 @@ from PySide6.QtWidgets import (
 
 from app.health import Finding, FixReport, HealthReport, HealthService
 from app.i18n import tr
+from app.reports import ReportError, export_health, timestamp_name
 
 from .activity import ActivityLog
 from .activity import record as log_action
@@ -148,6 +152,11 @@ class HealthPage(QWidget):
         self.fix_button.setEnabled(False)
         self.fix_button.clicked.connect(self.start_fix)
         buttons.addWidget(self.fix_button)
+        self.export_button = QPushButton(tr("health_export_btn"))
+        self.export_button.setProperty("secondary", True)
+        self.export_button.setEnabled(False)
+        self.export_button.clicked.connect(self.export_report)
+        buttons.addWidget(self.export_button)
         score_layout.addLayout(buttons)
         layout.addWidget(score_card)
 
@@ -181,6 +190,7 @@ class HealthPage(QWidget):
         self._desc.setText(tr("health_desc"))
         self.scan_button.setText(tr("health_scan_btn"))
         self.fix_button.setText(tr("health_fix_btn"))
+        self.export_button.setText(tr("health_export_btn"))
         self.findings_table.setHorizontalHeaderLabels([tr(k) for k in HEALTH_COLUMN_KEYS])
         for row in range(self.findings_table.rowCount()):
             self._retranslate_finding_row(row)
@@ -235,6 +245,8 @@ class HealthPage(QWidget):
         self.findings_table.setSortingEnabled(True)
 
         self.fix_button.setEnabled(report.fixable_count > 0)
+        self.export_button.setEnabled(True)
+        self.export_button.setEnabled(True)
         if report.fixable_count:
             self.status_label.setText(tr("health_fix_available", count=report.fixable_count))
         else:
@@ -297,6 +309,41 @@ class HealthPage(QWidget):
         )
         return answer == QMessageBox.StandardButton.Yes
 
+    # ---------- export ----------
+
+    def export_report(self) -> None:
+        if self._report is None:
+            self.status_label.setText(tr("exp_nothing"))
+            return
+        path = self._ask_save_path(timestamp_name("health_report", "csv"))
+        if not path:
+            return
+        try:
+            target = export_health(
+                self._report,
+                path,
+                localize=localize_finding,
+                header=(
+                    tr("exp_health_category"), tr("exp_health_severity"),
+                    tr("exp_health_issue"), tr("exp_health_detail"), tr("exp_health_fixable"),
+                ),
+            )
+        except ReportError as e:
+            self.status_label.setText(tr("exp_failed", msg=str(e)))
+            return
+        self.status_label.setText(tr("exp_done", path=str(target)))
+
+    def _ask_save_path(self, default_name: str) -> str:
+        path, selected = QFileDialog.getSaveFileName(
+            self, tr("exp_dialog_title"), default_name, tr("exp_filter")
+        )
+        if not path:
+            return ""
+        if not Path(path).suffix:
+            fmt = "json" if "json" in (selected or "").lower() else "csv"
+            path = f"{path}.{fmt}"
+        return path
+
     # ---------- misc ----------
 
     def _on_task_failed(self, message: str) -> None:
@@ -307,3 +354,5 @@ class HealthPage(QWidget):
     def _set_busy(self, busy: bool) -> None:
         self.scan_button.setEnabled(not busy)
         self.fix_button.setEnabled(not busy and self._report is not None and self._report.fixable_count > 0)
+        self.export_button.setEnabled(not busy and self._report is not None)
+        self.export_button.setEnabled(not busy and self._report is not None)

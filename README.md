@@ -12,7 +12,7 @@
   <img src="https://img.shields.io/badge/platform-Windows%2010%2F11%20x64-0078D6" alt="Platform">
   <img src="https://img.shields.io/badge/python-3.13-3776AB" alt="Python">
   <img src="https://img.shields.io/badge/UI-PySide6%20(Qt%206)-41CD52" alt="PySide6">
-  <img src="https://img.shields.io/badge/tests-410%20passed-brightgreen" alt="Tests">
+  <img src="https://img.shields.io/badge/tests-416%20passed-brightgreen" alt="Tests">
   <img src="https://img.shields.io/badge/version-1.3.5-blue" alt="Version">
 </p>
 
@@ -86,6 +86,7 @@
 - Кожна метрика — медіана кількох прогонів (з відкинутим прогрівом), у таблиці видно значення, одиниці, тривалість і кількість прогонів
 - Диск-тест пише тимчасовий файл у теку даних і прибирає його за собою
 - Історія прогонів «до/після оптимізації»: кожен запуск зберігається з часом, можна закріпити базову лінію та бачити зміну у % по кожній метриці (зелене — швидше, червоне — повільніше)
+- Експорт історії у CSV / JSON (кнопка «Експорт історії»)
 
 ### Мережа
 - Ping-тест: 4 запити, середнє й втрати, таблиця результатів
@@ -106,6 +107,7 @@
 - Загальна оцінка 0–100 і грейд
 - Findings: RAM, температури, диски, автозавантаження, живлення, сміття — з рівнями важливості
 - Fix All: чистить сміття (кошик не чіпає) та автоматично пересканює систему
+- Експорт звіту сканування у CSV / JSON (кнопка «Експорт звіту»)
 
 ### Налаштування
 - Інтервал семплінгу: 250 мс – 5 с
@@ -158,7 +160,7 @@
 
 - **Python 3.13** + **PySide6** (Qt 6; 25 вбудованих тем, тема за замовчуванням — Graphite, вбудовані шрифти Inter / JetBrains Mono)
 - **psutil** — CPU/RAM/диски/мережа, **nvidia-ml-py** (NVML) — GPU, **WMI** — температури, **pywin32** — COM/Task Scheduler/кошик
-- **pytest** — 410 тестів
+- **pytest** — 416 тестів
 - **PyInstaller** — збірка .exe, **Inno Setup** — інсталятор
 
 ## Безпека понад усе
