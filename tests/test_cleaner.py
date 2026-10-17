@@ -7,7 +7,7 @@ import pytest
 from PySide6.QtCore import Qt
 
 from app.cleaner import CleanerService, CleanTarget, default_targets
-from app.cleaner.service import RECYCLE_BIN_ID, _summarize
+from app.cleaner.service import RECYCLE_BIN_ID, _summarize, is_safe_root
 from app.ui.cleaner import CleanerPage
 
 
@@ -152,6 +152,89 @@ def test_default_targets_have_unique_ids_and_recycle_bin() -> None:
     assert len(ids) == len(set(ids))
     assert RECYCLE_BIN_ID in ids
     assert all(t.paths for t in targets if t.kind == "files")
+
+
+# ---------- path safety (defense in depth) ----------
+
+
+def test_is_safe_root_allows_temp_subdir(tmp_path) -> None:
+    assert is_safe_root(str(tmp_path / "cache"))
+    assert is_safe_root(str(tmp_path / "cache" / "sub"))
+
+
+def test_is_safe_root_rejects_dangerous_roots() -> None:
+    home = os.path.expanduser("~")
+    assert not is_safe_root(home)
+    assert not is_safe_root("")
+    # Drive root, e.g. "C:\" / "C:"
+    root = os.path.splitdrive(os.path.abspath(os.sep))[0] + os.sep
+    assert not is_safe_root(root)
+    assert not is_safe_root(os.path.splitdrive(os.path.abspath(os.sep))[0])
+
+
+def test_clean_refuses_drive_root(tmp_path) -> None:
+    root = os.path.splitdrive(os.path.abspath(os.sep))[0] + os.sep
+    target = CleanTarget("bad", "Bad", "System", paths=(root,))
+    outcome = CleanerService([target]).clean(target)
+    assert outcome.freed_bytes == 0
+    assert outcome.files_deleted == 0
+    assert outcome.error is not None and "refused unsafe" in outcome.error
+    assert outcome.partial is True
+
+
+def test_clean_refuses_home_root() -> None:
+    home = os.path.expanduser("~")
+    target = CleanTarget("home", "Home", "System", paths=(home,))
+    outcome = CleanerService([target]).clean(target)
+    assert outcome.freed_bytes == 0
+    assert outcome.files_deleted == 0
+    assert outcome.error is not None and "refused unsafe" in outcome.error
+
+
+def test_scan_refuses_unsafe_path() -> None:
+    home = os.path.expanduser("~")
+    target = CleanTarget("home", "Home", "System", paths=(home,))
+    result = CleanerService([target]).scan(target)
+    assert result.files == 0
+    assert result.bytes == 0
+    assert result.error is not None and "refusing unsafe" in result.error
+
+
+def test_clean_partial_when_walk_error_and_nothing_deleted(tmp_path, monkeypatch) -> None:
+    root = tmp_path / "cache"
+    root.mkdir()
+    target = CleanTarget("walk", "Walk", "System", paths=(str(root),))
+
+    def flaky_walk(top, *args, **kwargs):
+        onerror = kwargs.get("onerror")
+        if onerror is not None:
+            onerror(PermissionError(13, "access denied"))
+        yield from ()
+
+    monkeypatch.setattr(os, "walk", flaky_walk)
+    outcome = CleanerService([target]).clean(target)
+    # Nothing was deleted, yet the walk was incomplete -> still partial.
+    assert outcome.files_deleted == 0
+    assert outcome.partial is True
+    assert outcome.error is not None
+    assert "some folders were skipped" in outcome.error
+
+
+def test_recycle_reports_scanned_counts(monkeypatch) -> None:
+    import types
+
+    shell32 = types.SimpleNamespace()
+
+    def fake_empty(*_args):
+        return 0
+
+    shell32.SHEmptyRecycleBinW = fake_empty
+    monkeypatch.setattr("app.cleaner.service.ctypes.windll.shell32", shell32, raising=False)
+    target = CleanTarget(RECYCLE_BIN_ID, "Recycle Bin", "System", kind="recycle")
+    outcome = CleanerService([target]).clean(target, known_bytes=1234, known_files=7)
+    assert outcome.freed_bytes == 1234
+    assert outcome.files_deleted == 7
+    assert outcome.error is None
 
 
 def test_default_service_scan_runs() -> None:

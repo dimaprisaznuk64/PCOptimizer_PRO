@@ -169,3 +169,21 @@ def test_enable_protection_reports_still_disabled() -> None:
     assert not result.ok
     assert result.status == STATUS_ERROR
     assert "still disabled" in result.message
+
+
+def test_enable_protection_rejects_invalid_drive() -> None:
+    runner = FakeRunner(admin=True)
+    bad = "C:\\'; Remove-Item 'C:\\' -Recurse -Force; '"
+    result = runner.make_service().enable_protection(bad)
+    assert not result.ok
+    assert result.status == STATUS_ERROR
+    assert "invalid drive" in result.message
+    # The malformed drive must never reach PowerShell.
+    assert runner.calls == []
+
+
+def test_enable_protection_accepts_trailing_slash_and_bare_letter() -> None:
+    assert FakeRunner(admin=True).make_service().enable_protection("C:\\").ok
+    assert FakeRunner(admin=True).make_service().enable_protection("d:").ok
+    assert not FakeRunner(admin=True).make_service().enable_protection("CD:").ok
+    assert not FakeRunner(admin=True).make_service().enable_protection("C:\\Windows").ok

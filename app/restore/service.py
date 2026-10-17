@@ -13,6 +13,7 @@ from __future__ import annotations
 
 import base64
 import ctypes
+import re
 import subprocess
 import time
 from collections.abc import Callable, Sequence
@@ -24,6 +25,8 @@ STATUS_SKIPPED = "skipped"
 STATUS_DISABLED = "disabled"
 STATUS_CANCELLED = "cancelled"
 STATUS_ERROR = "error"
+
+_DRIVE_RE = re.compile(r"^[A-Za-z]:$")
 
 RESTORE_KEY = r"SOFTWARE\Microsoft\Windows NT\CurrentVersion\SystemRestore"
 FREQUENCY_VALUE = "SystemRestorePointCreationFrequency"
@@ -123,7 +126,11 @@ class RestorePointService:
         return RestoreResult(False, STATUS_ERROR, text.strip() or f"exit {code}", label=label)
 
     def enable_protection(self, drive: str = "C:") -> RestoreResult:
-        letter = drive.rstrip("\\")
+        # ``drive`` ends up inside a PowerShell string, so it must be a bare
+        # drive letter ("C:") — never arbitrary text.
+        letter = (drive or "").strip().rstrip("\\")
+        if not _DRIVE_RE.match(letter):
+            return RestoreResult(False, STATUS_ERROR, f"invalid drive: {drive!r}")
         # Enable-ComputerRestore can report success while protection stays off.
         # Re-read the master switch (DisableSR) so we never report a no-op as
         # success. If the value is missing we assume it is enabled by default.

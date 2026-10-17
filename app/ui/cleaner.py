@@ -195,7 +195,7 @@ class CleanerPage(QWidget):
             outcomes = []
             for target in selected:
                 scan = self._scans.get(target.id)
-                outcomes.append(self._service.clean(target, known_bytes=scan.bytes if scan else 0))
+                outcomes.append(self._service.clean(target, known_bytes=scan.bytes if scan else 0, known_files=scan.files if scan else 0))
             return outcomes
 
         self._task = Task(run, parent=self)
