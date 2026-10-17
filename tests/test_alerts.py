@@ -1,6 +1,11 @@
 from __future__ import annotations
 
-from app.alerts import TemperatureAlertMonitor, max_thermal
+from app.alerts import (
+    TemperatureAlertMonitor,
+    max_cpu_thermal,
+    max_gpu_thermal,
+    max_thermal,
+)
 from app.sensors import GpuStat, Snapshot, ThermalStat
 
 
@@ -27,6 +32,41 @@ def test_max_thermal_considers_gpu() -> None:
 
 def test_max_thermal_none_without_readings() -> None:
     assert max_thermal(_snap()) is None
+
+
+def test_max_cpu_thermal_ignores_gpu() -> None:
+    snap = _snap(
+        thermal=[("cpu", 70.0)],
+        gpus=[GpuStat(0, "RTX", 30.0, 1, 2, temperature=99.0)],
+    )
+    assert max_cpu_thermal(snap) == (70.0, "cpu")
+
+
+def test_max_gpu_thermal_ignores_cpu_zones() -> None:
+    snap = _snap(
+        thermal=[("cpu", 99.0)],
+        gpus=[GpuStat(0, "RTX", 30.0, 1, 2, temperature=75.0)],
+    )
+    assert max_gpu_thermal(snap) == (75.0, "RTX")
+
+
+def test_max_cpu_thermal_none_without_zones() -> None:
+    snap = _snap(gpus=[GpuStat(0, "RTX", 30.0, 1, 2, temperature=75.0)])
+    assert max_cpu_thermal(snap) is None
+
+
+def test_max_gpu_thermal_none_without_gpus() -> None:
+    assert max_gpu_thermal(_snap(thermal=[("cpu", 50.0)])) is None
+
+
+def test_monitor_uses_custom_reading_selector() -> None:
+    monitor = TemperatureAlertMonitor(clock=lambda: 0.0, reading=max_gpu_thermal)
+    # CPU is hot but GPU is cool → GPU-only monitor must stay silent.
+    snap = _snap(
+        thermal=[("cpu", 99.0)],
+        gpus=[GpuStat(0, "RTX", 30.0, 1, 2, temperature=50.0)],
+    )
+    assert monitor.check(snap, 90.0) is None
 
 
 def test_alert_fires_when_crossing_limit() -> None:
@@ -92,14 +132,39 @@ def test_main_window_alerts_on_hot_snapshot(qapp) -> None:
     from app.settings import SettingsService
     from app.ui.main_window import MainWindow
 
-    settings = SettingsService(data={"temp_alerts_enabled": True, "temp_alert_celsius": 90})
+    settings = SettingsService(
+        data={"temp_alerts_enabled": True, "temp_alert_cpu": 90, "temp_alert_gpu": 90}
+    )
+    window = MainWindow(settings=settings)
+    tray = _StubTray()
+    window.tray = tray
+    snap = SensorManager([MockBackend(temperature_c=99.0)]).snapshot()
+    window.handle_snapshot(snap)
+    # MockBackend reports both a hot CPU zone and a hot GPU → two independent alerts.
+    assert len(tray.messages) == 2
+    bodies = " ".join(body for _, body in tray.messages)
+    assert "cpu" in bodies.lower()
+    assert "gpu" in bodies.lower()
+    assert all("99" in body for _, body in tray.messages)
+
+
+def test_main_window_separate_cpu_gpu_thresholds(qapp) -> None:
+    from app.sensors import SensorManager
+    from app.sensors.mock_backend import MockBackend
+    from app.settings import SettingsService
+    from app.ui.main_window import MainWindow
+
+    # CPU limit low (fires), GPU limit high (silent) even though both read 99°C.
+    settings = SettingsService(
+        data={"temp_alerts_enabled": True, "temp_alert_cpu": 90, "temp_alert_gpu": 100}
+    )
     window = MainWindow(settings=settings)
     tray = _StubTray()
     window.tray = tray
     snap = SensorManager([MockBackend(temperature_c=99.0)]).snapshot()
     window.handle_snapshot(snap)
     assert len(tray.messages) == 1
-    assert "99" in tray.messages[0][1]
+    assert "cpu" in tray.messages[0][1].lower()
 
 
 def test_main_window_respects_disabled_alerts(qapp) -> None:

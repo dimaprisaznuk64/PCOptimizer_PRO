@@ -84,6 +84,24 @@ def test_load_ignores_invalid_entries(tmp_path) -> None:
     assert svc.get("sample_interval_ms") == DEFAULTS["sample_interval_ms"]
 
 
+def test_migrate_legacy_single_temp_threshold(tmp_path) -> None:
+    path = tmp_path / "settings.json"
+    path.write_text(json.dumps({"temp_alert_celsius": 77}), encoding="utf-8")
+    svc = SettingsService(path)
+    assert svc.get("temp_alert_cpu") == 77
+    assert svc.get("temp_alert_gpu") == DEFAULTS["temp_alert_gpu"]
+
+
+def test_migrate_legacy_temp_does_not_override_explicit(tmp_path) -> None:
+    path = tmp_path / "settings.json"
+    path.write_text(
+        json.dumps({"temp_alert_celsius": 77, "temp_alert_cpu": 88}),
+        encoding="utf-8",
+    )
+    svc = SettingsService(path)
+    assert svc.get("temp_alert_cpu") == 88
+
+
 def test_reset_restores_defaults(tmp_path) -> None:
     svc = SettingsService(tmp_path / "settings.json")
     svc.set("sample_interval_ms", 5000)

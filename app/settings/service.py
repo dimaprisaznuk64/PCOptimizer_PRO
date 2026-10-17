@@ -23,7 +23,8 @@ DEFAULTS: dict[str, Any] = {
     "theme": "GRAPHITE",
     "language": "UA",
     "temp_alerts_enabled": True,
-    "temp_alert_celsius": 90,
+    "temp_alert_cpu": 90,
+    "temp_alert_gpu": 87,
 }
 
 CHOICES: dict[str, tuple[str, ...]] = {
@@ -37,7 +38,8 @@ CHOICES: dict[str, tuple[str, ...]] = {
 
 RANGES: dict[str, tuple[int, int]] = {
     "sample_interval_ms": (250, 10000),
-    "temp_alert_celsius": (50, 110),
+    "temp_alert_cpu": (50, 110),
+    "temp_alert_gpu": (50, 110),
 }
 
 
@@ -137,8 +139,16 @@ class SettingsService:
             log.warning("%s (%s)", self.load_error, self._path)
             return self.data
         if isinstance(parsed, dict):
+            self._migrate_temp_split(parsed)
             self.merge(parsed)
         return self.data
+
+    @staticmethod
+    def _migrate_temp_split(parsed: dict[str, Any]) -> None:
+        """Seed the new CPU threshold from the legacy single `temp_alert_celsius`."""
+        legacy = parsed.get("temp_alert_celsius")
+        if isinstance(legacy, int) and "temp_alert_cpu" not in parsed:
+            parsed["temp_alert_cpu"] = legacy
 
     def merge(self, values: dict[str, Any]) -> None:
         for key, value in values.items():

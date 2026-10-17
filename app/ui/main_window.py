@@ -13,7 +13,7 @@ from PySide6.QtWidgets import (
     QWidget,
 )
 
-from app.alerts import TemperatureAlertMonitor
+from app.alerts import TemperatureAlertMonitor, max_cpu_thermal, max_gpu_thermal
 from app.i18n import I18nService, tr
 from app.settings import SettingsService
 
@@ -69,7 +69,8 @@ class MainWindow(QMainWindow):
         self.settings = settings or SettingsService()
         self._force_quit = False
         self._last_snapshot = None
-        self._temp_monitor = TemperatureAlertMonitor()
+        self._cpu_monitor = TemperatureAlertMonitor(reading=max_cpu_thermal)
+        self._gpu_monitor = TemperatureAlertMonitor(reading=max_gpu_thermal)
         I18nService.instance().set_language(self.settings.get("language"), emit=False)
         I18nService.instance().language_changed.connect(self._on_language_changed)
 
@@ -295,10 +296,16 @@ class MainWindow(QMainWindow):
     def _check_temp_alert(self, snapshot) -> None:
         if not self.settings.get("temp_alerts_enabled"):
             return
-        limit = float(self.settings.get("temp_alert_celsius"))
-        alert = self._temp_monitor.check(snapshot, limit)
-        if alert is None:
-            return
+        checks = (
+            (self._cpu_monitor, float(self.settings.get("temp_alert_cpu"))),
+            (self._gpu_monitor, float(self.settings.get("temp_alert_gpu"))),
+        )
+        for monitor, limit in checks:
+            alert = monitor.check(snapshot, limit)
+            if alert is not None:
+                self._emit_temp_alert(alert)
+
+    def _emit_temp_alert(self, alert) -> None:
         from app.logs import get_logger
 
         from .activity import record

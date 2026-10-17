@@ -12,7 +12,7 @@
   <img src="https://img.shields.io/badge/platform-Windows%2010%2F11%20x64-0078D6" alt="Platform">
   <img src="https://img.shields.io/badge/python-3.13-3776AB" alt="Python">
   <img src="https://img.shields.io/badge/UI-PySide6%20(Qt%206)-41CD52" alt="PySide6">
-  <img src="https://img.shields.io/badge/tests-393%20passed-brightgreen" alt="Tests">
+  <img src="https://img.shields.io/badge/tests-410%20passed-brightgreen" alt="Tests">
   <img src="https://img.shields.io/badge/version-1.3.5-blue" alt="Version">
 </p>
 
@@ -110,7 +110,7 @@
 ### Налаштування
 - Інтервал семплінгу: 250 мс – 5 с
 - Трей: згортання у трей, старт згорнутим, метрики в тултіпі
-- Температурні алерти: сповіщення в трей і журнал дій, коли CPU/GPU перегрівається (поріг 50–110 °C, з захистом від спаму)
+- Температурні алерти: сповіщення в трей і журнал дій, коли CPU/GPU перегрівається (окремі пороги CPU та GPU, 50–110 °C, захист від спаму)
 - Рівень логів і перегляд логів (відкрити папку, очистити)
 - 25 тем (перемикаються миттєво, без перезапуску): Graphite (за замовчуванням), True Black, Slate, Titanium, Forest, Burgundy, Midnight, Aubergine, Deep Teal, Espresso, Arctic, Ivory, Mono, Sage, Performance Red, Cyber, Industrial, Tactical, Cobalt, Copper, а також класичні Black Cyber (DARK), Purple Neon, Green Nature, Light, AMOLED Neon
 - Вбудовані шрифти **Inter** (UI) та **JetBrains Mono** (числові значення) — однаковий вигляд незалежно від того, що встановлено в системі
@@ -158,7 +158,7 @@
 
 - **Python 3.13** + **PySide6** (Qt 6; 25 вбудованих тем, тема за замовчуванням — Graphite, вбудовані шрифти Inter / JetBrains Mono)
 - **psutil** — CPU/RAM/диски/мережа, **nvidia-ml-py** (NVML) — GPU, **WMI** — температури, **pywin32** — COM/Task Scheduler/кошик
-- **pytest** — 393 тести
+- **pytest** — 410 тестів
 - **PyInstaller** — збірка .exe, **Inno Setup** — інсталятор
 
 ## Безпека понад усе
@@ -228,7 +228,7 @@ app/
   logs/                  — ротаційне логування
   i18n/                  — локалізація UA / EN
   core/, hardware/, monitor/, health/, diagnostics/, alerts/, benchmarks/, gaming/ — допоміжні модулі
-tests/                   — pytest-тести (393)
+tests/                   — pytest-тести (410)
 scripts/                 — збірка exe/інсталятора, генерація іконки
 installer/               — скрипт Inno Setup
 docs/screenshots/        — скріншоти

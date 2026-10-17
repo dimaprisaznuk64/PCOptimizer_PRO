@@ -16,6 +16,25 @@ class TempAlert:
     limit: float
 
 
+def max_cpu_thermal(snapshot: Snapshot) -> tuple[float, str] | None:
+    """Hottest ACPI thermal zone (CPU/system) as ``(celsius, source)`` or ``None``."""
+    if snapshot.thermal is None or not snapshot.thermal.temperatures:
+        return None
+    return max(((value, name) for name, value in snapshot.thermal.temperatures), key=lambda i: i[0])
+
+
+def max_gpu_thermal(snapshot: Snapshot) -> tuple[float, str] | None:
+    """Hottest GPU core temperature as ``(celsius, source)`` or ``None``."""
+    readings = [
+        (gpu.temperature, gpu.name or f"GPU {gpu.index}")
+        for gpu in snapshot.gpus
+        if gpu.temperature is not None
+    ]
+    if not readings:
+        return None
+    return max(readings, key=lambda item: item[0])
+
+
 def max_thermal(snapshot: Snapshot) -> tuple[float, str] | None:
     """Return the hottest reading in *snapshot* as ``(celsius, source)``.
 
@@ -23,11 +42,12 @@ def max_thermal(snapshot: Snapshot) -> tuple[float, str] | None:
     when no temperature is available.
     """
     readings: list[tuple[float, str]] = []
-    if snapshot.thermal is not None:
-        readings.extend((value, name) for name, value in snapshot.thermal.temperatures)
-    for gpu in snapshot.gpus:
-        if gpu.temperature is not None:
-            readings.append((gpu.temperature, gpu.name or f"GPU {gpu.index}"))
+    cpu = max_cpu_thermal(snapshot)
+    if cpu is not None:
+        readings.append(cpu)
+    gpu = max_gpu_thermal(snapshot)
+    if gpu is not None:
+        readings.append(gpu)
     if not readings:
         return None
     return max(readings, key=lambda item: item[0])
@@ -45,14 +65,16 @@ class TemperatureAlertMonitor:
         self,
         cooldown_s: float = 300.0,
         clock: Callable[[], float] = time.monotonic,
+        reading: Callable[[Snapshot], tuple[float, str] | None] = max_thermal,
     ) -> None:
         self._cooldown = cooldown_s
         self._clock = clock
+        self._reading = reading
         self._last_alert: float | None = None
         self._above = False
 
     def check(self, snapshot: Snapshot, limit: float) -> TempAlert | None:
-        reading = max_thermal(snapshot)
+        reading = self._reading(snapshot)
         if reading is None:
             return None
         value, source = reading

@@ -106,7 +106,8 @@ class SettingsPage(QWidget):
         self.start_minimized_check.setText(tr("set_start_minimized"))
         self.tray_metrics_check.setText(tr("set_tray_metrics"))
         self.temp_alerts_check.setText(tr("set_temp_alerts"))
-        self._temp_label.setText(tr("set_temp_threshold"))
+        self._temp_cpu_label.setText(tr("set_temp_cpu"))
+        self._temp_gpu_label.setText(tr("set_temp_gpu"))
         self.save_button.setText(tr("set_save_btn"))
         self.reset_button.setText(tr("set_reset_btn"))
         self.open_logs_button.setText(tr("set_open_folder"))
@@ -169,12 +170,19 @@ class SettingsPage(QWidget):
         self.temp_alerts_check = QCheckBox(tr("set_temp_alerts"))
         grid.addWidget(self.temp_alerts_check, 8, 0, 1, 2)
 
-        self._temp_label = QLabel(tr("set_temp_threshold"))
-        grid.addWidget(self._temp_label, 9, 0)
-        self.temp_spin = QSpinBox()
-        self.temp_spin.setRange(TEMP_MIN, TEMP_MAX)
-        self.temp_spin.setSuffix(" °C")
-        grid.addWidget(self.temp_spin, 9, 1)
+        self._temp_cpu_label = QLabel(tr("set_temp_cpu"))
+        grid.addWidget(self._temp_cpu_label, 9, 0)
+        self.temp_cpu_spin = QSpinBox()
+        self.temp_cpu_spin.setRange(TEMP_MIN, TEMP_MAX)
+        self.temp_cpu_spin.setSuffix(" °C")
+        grid.addWidget(self.temp_cpu_spin, 9, 1)
+
+        self._temp_gpu_label = QLabel(tr("set_temp_gpu"))
+        grid.addWidget(self._temp_gpu_label, 10, 0)
+        self.temp_gpu_spin = QSpinBox()
+        self.temp_gpu_spin.setRange(TEMP_MIN, TEMP_MAX)
+        self.temp_gpu_spin.setSuffix(" °C")
+        grid.addWidget(self.temp_gpu_spin, 10, 1)
 
         grid.setColumnStretch(1, 1)
         return card
@@ -249,7 +257,8 @@ class SettingsPage(QWidget):
         self.start_minimized_check.setChecked(self._service.get("start_minimized"))
         self.tray_metrics_check.setChecked(self._service.get("tray_metrics"))
         self.temp_alerts_check.setChecked(self._service.get("temp_alerts_enabled"))
-        self.temp_spin.setValue(int(self._service.get("temp_alert_celsius")))
+        self.temp_cpu_spin.setValue(int(self._service.get("temp_alert_cpu")))
+        self.temp_gpu_spin.setValue(int(self._service.get("temp_alert_gpu")))
         level = self._service.get("log_level")
         level_index = self.level_combo.findData(level)
         self.level_combo.setCurrentIndex(level_index if level_index >= 0 else 1)
@@ -262,7 +271,8 @@ class SettingsPage(QWidget):
             "start_minimized": self.start_minimized_check.isChecked(),
             "tray_metrics": self.tray_metrics_check.isChecked(),
             "temp_alerts_enabled": self.temp_alerts_check.isChecked(),
-            "temp_alert_celsius": int(self.temp_spin.value()),
+            "temp_alert_cpu": int(self.temp_cpu_spin.value()),
+            "temp_alert_gpu": int(self.temp_gpu_spin.value()),
             "log_level": str(self.level_combo.currentData()),
             "theme": str(self.theme_combo.currentData()),
         }
