@@ -59,7 +59,7 @@ TRANSLATIONS: dict[str, dict[str, str]] = {
         "nav_section_diagnostics": "DIAGNOSTICS",
         "nav_section_preferences": "PREFERENCES",
         "sidebar_user_title": "Your PC is in safe hands",
-        "sidebar_user_sub": "PCOptimizer PRO v1.3.4",
+        "sidebar_user_sub": "PCOptimizer PRO v1.3.5",
         "sidebar_status_ok": "System healthy",
 
         # Top bar
@@ -464,6 +464,19 @@ TRANSLATIONS: dict[str, dict[str, str]] = {
         "bench_metric_ram_copy": "RAM · memcpy bandwidth",
         "bench_metric_disk_write": "Disk · sequential write",
         "bench_metric_disk_read": "Disk · sequential read",
+        "bench_results_title": "Results",
+        "bench_history_title": "History",
+        "bench_history_empty": "No saved runs yet — run a benchmark to start tracking.",
+        "bench_set_baseline": "Set baseline",
+        "bench_baseline_set": "Baseline pinned for {count} metric(s)",
+        "bench_clear_history": "Clear history",
+        "bench_history_cleared": "History cleared",
+        "bench_confirm_clear": "Delete the whole benchmark history? This cannot be undone.",
+        "bench_hist_col_time": "Time",
+        "bench_hist_col_metric": "Metric",
+        "bench_hist_col_value": "Value",
+        "bench_hist_col_unit": "Unit",
+        "bench_hist_col_delta": "Δ vs baseline",
 
         # Network
         "net_title": "Network",
@@ -866,7 +879,7 @@ TRANSLATIONS: dict[str, dict[str, str]] = {
         "nav_section_diagnostics": "ДІАГНОСТИКА",
         "nav_section_preferences": "НАЛАШТУВАННЯ",
         "sidebar_user_title": "Твій ПК у надійних руках",
-        "sidebar_user_sub": "PCOptimizer PRO v1.3.4",
+        "sidebar_user_sub": "PCOptimizer PRO v1.3.5",
         "sidebar_status_ok": "Система в нормі",
 
         # Top bar
@@ -1271,6 +1284,19 @@ TRANSLATIONS: dict[str, dict[str, str]] = {
         "bench_metric_ram_copy": "RAM · копіювання (memcpy)",
         "bench_metric_disk_write": "Диск · послідовний запис",
         "bench_metric_disk_read": "Диск · послідовне читання",
+        "bench_results_title": "Результати",
+        "bench_history_title": "Історія",
+        "bench_history_empty": "Збережених прогонів ще немає — запусти бенчмарк, щоб почати відстеження.",
+        "bench_set_baseline": "Задати базову",
+        "bench_baseline_set": "Базову закріплено для {count} метрик",
+        "bench_clear_history": "Очистити історію",
+        "bench_history_cleared": "Історію очищено",
+        "bench_confirm_clear": "Видалити всю історію бенчмарків? Цю дію не можна скасувати.",
+        "bench_hist_col_time": "Час",
+        "bench_hist_col_metric": "Метрика",
+        "bench_hist_col_value": "Значення",
+        "bench_hist_col_unit": "Одиниці",
+        "bench_hist_col_delta": "Δ до базової",
 
         # Network
         "net_title": "Мережа та інтернет",

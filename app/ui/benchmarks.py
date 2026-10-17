@@ -1,22 +1,28 @@
 from __future__ import annotations
 
+from PySide6.QtCore import Qt
+from PySide6.QtGui import QColor
 from PySide6.QtWidgets import (
+    QFrame,
     QHBoxLayout,
     QHeaderView,
     QLabel,
+    QMessageBox,
     QPushButton,
+    QSplitter,
     QTableWidget,
     QTableWidgetItem,
     QVBoxLayout,
     QWidget,
 )
 
-from app.benchmarks import BenchmarkService, BenchmarkType
+from app.benchmarks import BenchmarkHistory, BenchmarkService, BenchmarkType
 from app.i18n import tr
 from app.settings import data_root
 
 from .components import attach_empty_hint
 from .tasks import Task
+from .theme import DANGER, OK
 
 _COLUMNS = (
     "bench_col_metric",
@@ -26,13 +32,44 @@ _COLUMNS = (
     "bench_col_runs",
     "bench_col_detail",
 )
+_HISTORY_COLUMNS = (
+    "bench_hist_col_time",
+    "bench_hist_col_metric",
+    "bench_hist_col_value",
+    "bench_hist_col_unit",
+    "bench_hist_col_delta",
+)
+_MISSING = "—"
+_BASELINE_MARK = "★"
+
+
+def _metric_text(metric: str) -> str:
+    key = f"bench_metric_{metric}"
+    text = tr(key)
+    return metric if text == key else text
+
+
+def _delta_text(delta: float | None) -> str:
+    return _MISSING if delta is None else f"{delta:+.1f}%"
+
+
+def _delta_color(delta: float | None) -> str | None:
+    if delta is None or abs(delta) < 2.0:
+        return None
+    return OK if delta > 0 else DANGER
 
 
 class BenchmarksPage(QWidget):
-    def __init__(self, service: BenchmarkService | None = None, parent: QWidget | None = None) -> None:
+    def __init__(
+        self,
+        service: BenchmarkService | None = None,
+        history: BenchmarkHistory | None = None,
+        parent: QWidget | None = None,
+    ) -> None:
         super().__init__(parent)
         self.setObjectName("page")
         self._service = service or BenchmarkService()
+        self._history = history or BenchmarkHistory()
         self._task: Task | None = None
 
         layout = QVBoxLayout(self)
@@ -79,36 +116,84 @@ class BenchmarksPage(QWidget):
         toolbar.addWidget(self.status_label, 1)
         layout.addLayout(toolbar)
 
-        self.table = QTableWidget(0, len(_COLUMNS))
-        self.table.setHorizontalHeaderLabels([tr(key) for key in _COLUMNS])
-        self.table.verticalHeader().setVisible(False)
-        self.table.setShowGrid(False)
-        self.table.setAlternatingRowColors(True)
-        self.table.setSelectionMode(QTableWidget.SelectionMode.NoSelection)
-        self.table.setEditTriggers(QTableWidget.EditTrigger.NoEditTriggers)
-        header = self.table.horizontalHeader()
-        for i in range(len(_COLUMNS)):
-            if i in (1, 2, 3, 4):
-                header.setSectionResizeMode(i, QHeaderView.ResizeMode.ResizeToContents)
-            else:
-                header.setSectionResizeMode(i, QHeaderView.ResizeMode.Stretch)
-        attach_empty_hint(self.table, "bench_empty")
-        layout.addWidget(self.table, 1)
+        splitter = QSplitter(Qt.Orientation.Vertical)
+
+        results_card, self.results_title, self.table = self._make_card(
+            "bench_results_title", _COLUMNS, "bench_empty"
+        )
+        splitter.addWidget(results_card)
+
+        history_card = QFrame()
+        history_card.setObjectName("card")
+        history_layout = QVBoxLayout(history_card)
+        history_layout.setContentsMargins(18, 14, 18, 14)
+        history_layout.setSpacing(8)
+
+        history_head = QHBoxLayout()
+        history_head.setSpacing(8)
+        self.history_title = QLabel(tr("bench_history_title").upper())
+        self.history_title.setObjectName("cardTitle")
+        history_head.addWidget(self.history_title)
+        history_head.addStretch(1)
+        self.baseline_button = QPushButton(tr("bench_set_baseline"))
+        self.baseline_button.setProperty("secondary", True)
+        self.baseline_button.clicked.connect(self.set_baseline)
+        history_head.addWidget(self.baseline_button)
+        self.clear_button = QPushButton(tr("bench_clear_history"))
+        self.clear_button.setProperty("secondary", True)
+        self.clear_button.clicked.connect(self.clear_history)
+        history_head.addWidget(self.clear_button)
+        history_layout.addLayout(history_head)
+
+        self.history_table = self._build_table(_HISTORY_COLUMNS, "bench_history_empty")
+        history_layout.addWidget(self.history_table, 1)
+        splitter.addWidget(history_card)
+
+        splitter.setStretchFactor(0, 3)
+        splitter.setStretchFactor(1, 2)
+        layout.addWidget(splitter, 1)
+
+        self._refresh_history()
 
     @property
     def service(self) -> BenchmarkService:
         return self._service
 
-    def retranslate(self) -> None:
-        self._title.setText(tr("bench_title"))
-        self._desc.setText(tr("bench_desc"))
-        self.cpu_btn.setText(tr("bench_cpu"))
-        self.ram_btn.setText(tr("bench_ram"))
-        self.disk_btn.setText(tr("bench_disk"))
-        self.all_btn.setText(tr("bench_all"))
-        if self._task is None:
-            self.status_label.setText(tr("bench_idle"))
-        self.table.setHorizontalHeaderLabels([tr(key) for key in _COLUMNS])
+    @property
+    def history(self) -> BenchmarkHistory:
+        return self._history
+
+    # ---------- layout helpers ----------
+
+    def _build_table(self, column_keys: tuple[str, ...], hint: str) -> QTableWidget:
+        table = QTableWidget(0, len(column_keys))
+        attach_empty_hint(table, hint)
+        table.setHorizontalHeaderLabels([tr(key) for key in column_keys])
+        table.verticalHeader().setVisible(False)
+        table.setShowGrid(False)
+        table.setAlternatingRowColors(True)
+        table.setSelectionMode(QTableWidget.SelectionMode.NoSelection)
+        table.setEditTriggers(QTableWidget.EditTrigger.NoEditTriggers)
+        header = table.horizontalHeader()
+        for i in range(len(column_keys) - 1):
+            header.setSectionResizeMode(i, QHeaderView.ResizeMode.ResizeToContents)
+        header.setSectionResizeMode(len(column_keys) - 1, QHeaderView.ResizeMode.Stretch)
+        return table
+
+    def _make_card(self, title_key: str, column_keys: tuple[str, ...], hint: str):
+        card = QFrame()
+        card.setObjectName("card")
+        body = QVBoxLayout(card)
+        body.setContentsMargins(18, 14, 18, 14)
+        body.setSpacing(8)
+        title = QLabel(tr(title_key).upper())
+        title.setObjectName("cardTitle")
+        body.addWidget(title)
+        table = self._build_table(column_keys, hint)
+        body.addWidget(table, 1)
+        return card, title, table
+
+    # ---------- runs ----------
 
     def start_run(self, btype: BenchmarkType) -> None:
         if self._task is not None:
@@ -126,8 +211,10 @@ class BenchmarksPage(QWidget):
         self._task = None
         self._set_busy(False)
         results = result if isinstance(result, list) else []
-        self.status_label.setText(tr("bench_done", count=len(results)))
         self._render_results(results)
+        self._history.record(results)
+        self._refresh_history()
+        self.status_label.setText(tr("bench_done", count=len(results)))
 
     def _on_failed(self, msg: str) -> None:
         self._task = None
@@ -140,7 +227,7 @@ class BenchmarksPage(QWidget):
         for row, result in enumerate(results):
             decimals = 2 if result.unit == "GB/s" else 1
             cells = (
-                tr(f"bench_metric_{result.metric}"),
+                _metric_text(result.metric),
                 f"{result.value:.{decimals}f}",
                 result.unit,
                 str(result.duration_ms),
@@ -149,6 +236,53 @@ class BenchmarksPage(QWidget):
             )
             for col, text in enumerate(cells):
                 self.table.setItem(row, col, QTableWidgetItem(text))
+
+    # ---------- history ----------
+
+    def set_baseline(self) -> None:
+        marked = self._history.set_baseline()
+        self._refresh_history()
+        self.status_label.setText(tr("bench_baseline_set", count=marked))
+
+    def clear_history(self) -> None:
+        if not self._ask_confirm():
+            return
+        self._history.clear()
+        self._refresh_history()
+        self.status_label.setText(tr("bench_history_cleared"))
+
+    def _refresh_history(self) -> None:
+        entries = self._history.entries(limit=100)
+        self.history_table.setRowCount(len(entries))
+        for row, entry in enumerate(entries):
+            delta = None if entry.baseline else self._history.delta_pct(entry.metric, entry.value)
+            metric = _metric_text(entry.metric)
+            if entry.baseline:
+                metric = f"{metric} {_BASELINE_MARK}"
+            cells = (
+                QTableWidgetItem(entry.when.replace("T", " ")),
+                QTableWidgetItem(metric),
+                QTableWidgetItem(_format_value(entry.value, entry.unit)),
+                QTableWidgetItem(entry.unit),
+                QTableWidgetItem(_delta_text(delta) if not entry.baseline else _MISSING),
+            )
+            color = _delta_color(delta)
+            if color is not None:
+                cells[4].setForeground(QColor(color))
+            for col, item in enumerate(cells):
+                self.history_table.setItem(row, col, item)
+
+    def _ask_confirm(self) -> bool:
+        answer = QMessageBox.question(
+            self,
+            tr("bench_clear_history"),
+            tr("bench_confirm_clear"),
+            QMessageBox.StandardButton.Yes | QMessageBox.StandardButton.No,
+            QMessageBox.StandardButton.No,
+        )
+        return answer == QMessageBox.StandardButton.Yes
+
+    # ---------- state ----------
 
     def _set_busy(self, busy: bool) -> None:
         for btn in (self.cpu_btn, self.ram_btn, self.disk_btn, self.all_btn):
@@ -163,3 +297,27 @@ class BenchmarksPage(QWidget):
             btn.setProperty("secondary", not active)
             btn.style().unpolish(btn)
             btn.style().polish(btn)
+
+    # ---------- i18n ----------
+
+    def retranslate(self) -> None:
+        self._title.setText(tr("bench_title"))
+        self._desc.setText(tr("bench_desc"))
+        self.cpu_btn.setText(tr("bench_cpu"))
+        self.ram_btn.setText(tr("bench_ram"))
+        self.disk_btn.setText(tr("bench_disk"))
+        self.all_btn.setText(tr("bench_all"))
+        self.results_title.setText(tr("bench_results_title").upper())
+        self.history_title.setText(tr("bench_history_title").upper())
+        self.baseline_button.setText(tr("bench_set_baseline"))
+        self.clear_button.setText(tr("bench_clear_history"))
+        if self._task is None:
+            self.status_label.setText(tr("bench_idle"))
+        self.table.setHorizontalHeaderLabels([tr(key) for key in _COLUMNS])
+        self.history_table.setHorizontalHeaderLabels([tr(key) for key in _HISTORY_COLUMNS])
+        self._refresh_history()
+
+
+def _format_value(value: float, unit: str) -> str:
+    decimals = 2 if unit == "GB/s" else 1
+    return f"{value:.{decimals}f}"

@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+from .history import BenchmarkHistory, HistoryEntry
 from .service import (
     BenchmarkError,
     BenchmarkResult,
@@ -9,7 +10,9 @@ from .service import (
 
 __all__ = [
     "BenchmarkError",
+    "BenchmarkHistory",
     "BenchmarkResult",
     "BenchmarkService",
     "BenchmarkType",
+    "HistoryEntry",
 ]
