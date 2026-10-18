@@ -359,6 +359,33 @@ def test_backup_exists(fake, tmp_path) -> None:
     assert service.backup_exists()
 
 
+def test_revert_clears_backup_when_clean(fake, tmp_path) -> None:
+    fake.admin = True
+    service = fake.make_service(tmp_path)
+    service.apply_profile("GAMING")
+    assert service.backup_exists()
+    service.revert()
+    assert not service.backup_exists()
+
+
+def test_revert_keeps_backup_on_errors(fake, tmp_path) -> None:
+    fake.admin = True
+    service = fake.make_service(tmp_path)
+    service.apply_profile("GAMING")
+    fake.fail_powercfg = True
+    report = service.revert()
+    assert report.errors
+    # A partial revert must keep the backup so the user can retry.
+    assert service.backup_exists()
+
+
+def test_backup_profile_recorded(fake, tmp_path) -> None:
+    service = fake.make_service(tmp_path)
+    assert service.backup_profile() is None
+    service.apply_profile("GAMING", with_restore_point=False)
+    assert service.backup_profile() == "GAMING"
+
+
 # ---------- UI ----------
 
 

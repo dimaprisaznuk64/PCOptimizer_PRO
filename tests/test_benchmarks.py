@@ -103,6 +103,38 @@ def test_disk_read_reports_cache_mode(tmp_path) -> None:
     assert "unbuffered" in read.detail or "cached" in read.detail
 
 
+def test_disk_write_uses_distinct_random_blocks(tmp_path, monkeypatch) -> None:
+    import os
+
+    import app.benchmarks.service as svc
+
+    calls: list[int] = []
+    real = os.urandom
+
+    def spy(n: int) -> bytes:
+        calls.append(n)
+        return real(n)
+
+    monkeypatch.setattr(svc.os, "urandom", spy)
+    _tiny_service().run(BenchmarkType.DISK, disk_dir=tmp_path)
+    # A rotating pool — not one reused buffer that a compressing controller
+    # would squeeze into a phantom speedup.
+    assert len(calls) >= 2
+
+
+def test_disk_benchmark_refuses_when_disk_full(tmp_path, monkeypatch) -> None:
+    import shutil
+
+    import app.benchmarks.service as svc
+
+    usage = shutil.disk_usage(tmp_path)
+    monkeypatch.setattr(svc.shutil, "disk_usage", lambda _p: usage._replace(free=1))
+    with pytest.raises(BenchmarkError, match="free space"):
+        _tiny_service().run(BenchmarkType.DISK, disk_dir=tmp_path)
+    # The scratch file (created before the check) is still cleaned up.
+    assert list(tmp_path.glob("pcoptimizer_bench_*")) == []
+
+
 def test_read_helpers_return_full_size(tmp_path) -> None:
     from app.benchmarks.service import _read_buffered, _read_unbuffered
 

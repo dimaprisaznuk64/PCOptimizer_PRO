@@ -148,7 +148,9 @@ class GamingService:
         self._running_names = running_names or self._psutil_running_names
         self._popen = popen or subprocess.Popen
         self._open_uri = open_uri or _default_open_uri
-        self._active = False
+        # The applied-profile backup survives restarts; if it was a GAMING profile
+        # the mode really is still on, so restore the flag instead of lying "off".
+        self._active = self._optimizer.backup_profile() == "GAMING"
         self.last_report: ApplyReport | None = None
 
     @property

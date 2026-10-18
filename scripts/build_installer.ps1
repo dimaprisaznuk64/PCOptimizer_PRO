@@ -35,6 +35,12 @@ if (-not $iscc) {
     throw "ISCC.exe (Inno Setup 6) not found. Install Inno Setup 6 first."
 }
 
+$appDir = Join-Path $root "dist\PCOptimizer_PRO"
+$exe = Join-Path $appDir "PCOptimizer_PRO.exe"
+if (-not (Test-Path $exe)) {
+    throw "Built app not found at $exe. Run scripts\build_exe.ps1 first, then re-run this script."
+}
+
 $iss = Join-Path $root "installer\PCOptimizer_PRO.iss"
 & $iscc $iss
 Write-Host "Done. Installer in $root\dist\installer"

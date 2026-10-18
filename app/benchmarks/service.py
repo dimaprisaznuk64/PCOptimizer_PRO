@@ -3,6 +3,7 @@ from __future__ import annotations
 import ctypes
 import hashlib
 import os
+import shutil
 import tempfile
 import time
 from collections.abc import Callable
@@ -259,13 +260,24 @@ class BenchmarkService:
         path = Path(name)
 
         try:
-            block = os.urandom(_MB)
             blocks = max(1, self.disk_bytes // _MB)
+
+            free = shutil.disk_usage(parent).free
+            if free < self.disk_bytes * 5 // 2:
+                raise BenchmarkError(
+                    f"not enough free space on {parent}: "
+                    f"{free // _MB} MB free, need ~{self.disk_bytes * 5 // 2 // _MB} MB"
+                )
+
+            # A rotating pool of distinct random blocks defeats SSD-controller
+            # compression / dedup — writing the same 1 MB block N times would
+            # report a phantom speedup on compressing hardware.
+            pool = [os.urandom(_MB) for _ in range(min(16, max(2, blocks)))]
 
             def write() -> int:
                 with open(path, "wb") as handle:
-                    for _ in range(blocks):
-                        handle.write(block)
+                    for i in range(blocks):
+                        handle.write(pool[i % len(pool)])
                     handle.flush()
                     os.fsync(handle.fileno())
                 return blocks * _MB

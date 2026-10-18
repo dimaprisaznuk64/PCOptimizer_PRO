@@ -235,6 +235,23 @@ def test_deactivate_reverts(tmp_path) -> None:
     assert report.applied
 
 
+def test_active_restored_from_backup_after_restart(tmp_path) -> None:
+    # A GAMING-profile backup surviving on disk means the mode really is still on.
+    fake = FakeOptimizer(tmp_path)
+    fake.backup_path.write_text('{"profile": "GAMING"}', encoding="utf-8")
+    assert _service(tmp_path, fake_opt=fake).active is True
+
+
+def test_inactive_after_restart_without_backup(tmp_path) -> None:
+    assert _service(tmp_path).active is False
+
+
+def test_inactive_after_restart_when_backup_is_other_profile(tmp_path) -> None:
+    fake = FakeOptimizer(tmp_path)
+    fake.backup_path.write_text('{"profile": "BALANCED"}', encoding="utf-8")
+    assert _service(tmp_path, fake_opt=fake).active is False
+
+
 # ---------- UI ----------
 
 

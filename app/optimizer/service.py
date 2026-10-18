@@ -179,7 +179,7 @@ class OptimizerService:
             restore_label = result.label
             restore_status = STATUS_CREATED
 
-        self._save_backup()
+        self._save_backup(profile)
 
         applied: list[str] = []
         errors: list[str] = []
@@ -274,6 +274,11 @@ class OptimizerService:
             except OptimizerError as e:
                 errors.append(str(e))
 
+        if not errors:
+            # Everything restored cleanly — drop the backup so "revert available"
+            # (and the Gaming page's active state) reflects reality, not history.
+            self._clear_backup()
+
         return ApplyReport(applied=tuple(applied), errors=tuple(errors))
 
     def create_restore_point(self, description: str) -> RestoreResult:
@@ -289,15 +294,24 @@ class OptimizerService:
     def backup_exists(self) -> bool:
         return self.backup_path.exists()
 
+    def backup_profile(self) -> str | None:
+        """Profile name recorded in the backup (e.g. 'GAMING'), if a backup exists."""
+        backup = self._load_backup()
+        if not backup:
+            return None
+        profile = backup.get("profile")
+        return str(profile) if profile else None
+
     # ---------- backup ----------
 
-    def _save_backup(self) -> None:
+    def _save_backup(self, profile: str | None = None) -> None:
         state = self.state()
         _gm, gm_err = self._reg_get_dword("HKCU", GAMEMODE_KEY, GAMEMODE_VALUE)
         _hags, hags_err = self._reg_get_dword("HKLM", HAGS_KEY, HAGS_VALUE)
         _vis, vis_err = self._reg_get_dword("HKCU", VISUAL_KEY, VISUAL_VALUE)
         data = {
             "ts": time.time(),
+            "profile": profile,
             "power_guid": state.power_guid,
             "game_mode": state.game_mode,
             # Whether the setting could be read at all. A value that was absent
@@ -320,6 +334,12 @@ class OptimizerService:
         except (OSError, json.JSONDecodeError):
             return None
         return data if isinstance(data, dict) else None
+
+    def _clear_backup(self) -> None:
+        try:
+            self.backup_path.unlink(missing_ok=True)
+        except OSError:
+            pass
 
     # ---------- primitives ----------
 
