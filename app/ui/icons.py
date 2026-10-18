@@ -197,6 +197,11 @@ def _info(p: QPainter) -> None:
     p.drawPoint(QPointF(10, 6))
 
 
+def _error(p: QPainter) -> None:
+    p.drawLine(QPointF(5.5, 5.5), QPointF(14.5, 14.5))
+    p.drawLine(QPointF(14.5, 5.5), QPointF(5.5, 14.5))
+
+
 def _bolt(p: QPainter) -> None:
     path = QPainterPath(QPointF(11, 2.5))
     path.lineTo(5.5, 10.5)
@@ -241,6 +246,7 @@ _DRAWERS = {
     "thermometer": _thermometer,
     "check": _check,
     "warning": _warning,
+    "error": _error,
     "info": _info,
     "bolt": _bolt,
     "shield": _shield,

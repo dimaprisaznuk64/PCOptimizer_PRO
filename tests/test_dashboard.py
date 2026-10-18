@@ -133,6 +133,29 @@ def test_dashboard_notifications_hidden_when_empty(qapp) -> None:
     log.clear()  # do not leak the warning into other tests
 
 
+def test_dashboard_error_entry_shows_in_notifications(qapp) -> None:
+    from app.ui.activity import ActivityLog
+
+    log = ActivityLog.instance()
+    log.clear()
+    page = DashboardPage()
+    # Failed operations (level=error) must be visible in the bell card too.
+    page.notif_widget._render()
+    assert page.notif_widget.isHidden()
+    log.record("Apply failed", "powercfg denied", level="error")
+    assert not page.notif_widget.isHidden()
+    log.clear()
+
+
+def test_activity_style_levels(qapp) -> None:
+    from app.ui.dashboard import _activity_style
+    from app.ui.theme import DANGER, OK, WARN
+
+    assert _activity_style("ok") == (OK, "check")
+    assert _activity_style("warn") == (WARN, "warning")
+    assert _activity_style("error") == (DANGER, "error")
+
+
 def test_dashboard_disk_extra_color_follows_level(qapp) -> None:
     from app.sensors.types import DiskStat, Snapshot
     from app.ui.theme import WARN

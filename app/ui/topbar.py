@@ -120,7 +120,7 @@ class TopBar(QWidget):
             action.setEnabled(False)
             return
         for e in entries:
-            mark = "✓" if e.level == "ok" else "⚠"
+            mark = {"ok": "✓", "warn": "⚠", "error": "✕"}.get(e.level, "⚠")
             text = f"{mark}  {e.title}" + (f" — {e.detail}" if e.detail else "") + f"   {e.time_text}"
             menu.addAction(text)
 

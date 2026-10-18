@@ -18,6 +18,7 @@ from PySide6.QtWidgets import (
 from app.cleaner import CleanerService, CleanOutcome, CleanTarget, ScanResult
 from app.i18n import tr
 
+from .activity import outcome_level
 from .activity import record as log_action
 from .components import align_numeric_headers
 from .format import size
@@ -222,7 +223,7 @@ class CleanerPage(QWidget):
         if errors:
             message += f" · {errors}"
         self.status_label.setText(message)
-        log_action(tr("act_clean"), size(freed), "warn" if errors else "ok")
+        log_action(tr("act_clean"), size(freed), outcome_level(has_errors=bool(errors), achieved=bool(freed)))
 
     def _selected_targets(self) -> list[CleanTarget]:
         selected: list[CleanTarget] = []

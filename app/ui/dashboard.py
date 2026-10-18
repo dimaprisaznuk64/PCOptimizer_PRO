@@ -77,6 +77,15 @@ def _level_color(value: float) -> str:
     return OK
 
 
+def _activity_style(level: str) -> tuple[str, str]:
+    """(color, glyph) for an activity-log entry level: ok / warn / error."""
+    if level == "ok":
+        return OK, "check"
+    if level == "error":
+        return DANGER, "error"
+    return WARN, "warning"
+
+
 class HealthWidget(QFrame):
     """PC Health card with cybernetic illustration and full check button."""
 
@@ -325,11 +334,11 @@ class RecentActionsWidget(QFrame):
             self._rows.addWidget(empty)
             return
         for e in entries:
-            color = OK if e.level == "ok" else WARN
+            color, icon = _activity_style(e.level)
             r = QHBoxLayout()
             r.setSpacing(8)
             chk = QLabel()
-            chk.setPixmap(glyph("check" if e.level == "ok" else "warning", color).scaled(14, 14, Qt.AspectRatioMode.KeepAspectRatio, Qt.TransformationMode.SmoothTransformation))
+            chk.setPixmap(glyph(icon, color).scaled(14, 14, Qt.AspectRatioMode.KeepAspectRatio, Qt.TransformationMode.SmoothTransformation))
             r.addWidget(chk)
             t_lbl = QLabel(e.title)
             t_lbl.setStyleSheet(f"font-size: {fs(12)}px; color: {TEXT};")
@@ -562,8 +571,11 @@ class NotificationsWidget(QFrame):
         items = []
         if self._live:
             items.append(("warning", WARN, self._live, "", ""))
-        for e in self._log.entries(level="warn", limit=3):
-            items.append(("warning", WARN, e.title, e.detail, e.time_text))
+        # Warnings AND errors — a failed operation must be visible here too.
+        events = self._log.entries(level="warn", limit=3) + self._log.entries(level="error", limit=3)
+        for e in sorted(events, key=lambda e: e.ts, reverse=True):
+            color, icon = _activity_style(e.level)
+            items.append((icon, color, e.title, e.detail, e.time_text))
         # An empty notifications card just wastes space — hide it instead.
         self.setVisible(bool(items))
         if not items:

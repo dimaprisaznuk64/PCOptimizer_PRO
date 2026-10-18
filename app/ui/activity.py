@@ -12,7 +12,7 @@ from PySide6.QtCore import QObject, Signal
 @dataclass(frozen=True, slots=True)
 class Entry:
     ts: float
-    level: str  # "ok" | "warn"
+    level: str  # "ok" | "warn" (partial) | "error" (nothing worked)
     title: str
     detail: str
 
@@ -101,3 +101,14 @@ class ActivityLog(QObject):
 
 def record(title: str, detail: str = "", level: str = "ok") -> None:
     ActivityLog.instance().record(title, detail, level)
+
+
+def outcome_level(*, has_errors: bool, achieved: bool) -> str:
+    """Map an operation outcome to an activity-log level.
+
+    Nothing worked and there were errors -> "error"; something was still done
+    despite errors -> "warn"; clean run -> "ok".
+    """
+    if not has_errors:
+        return "ok"
+    return "warn" if achieved else "error"

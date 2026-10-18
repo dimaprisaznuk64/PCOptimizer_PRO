@@ -20,7 +20,7 @@ from PySide6.QtWidgets import (
 from app.gaming.service import DetectedGame, GamingError, GamingService
 from app.i18n import tr
 
-from .activity import ActivityLog
+from .activity import ActivityLog, outcome_level
 from .activity import record as log_action
 from .components import attach_empty_hint
 from .tasks import Task
@@ -255,7 +255,11 @@ class GamingPage(QWidget):
         else:
             self.status_label.setText(tr("game_changes", count=len(applied)))
         ActivityLog.instance().gaming_active = self._service.active
-        log_action(tr("act_game"), tr("game_mode_on") if self._service.active else tr("game_mode_off"), "warn" if errors else "ok")
+        log_action(
+            tr("act_game"),
+            tr("game_mode_on") if self._service.active else tr("game_mode_off"),
+            outcome_level(has_errors=bool(errors), achieved=bool(applied)),
+        )
         self._update_mode_label()
 
     def start_launch(self) -> None:
