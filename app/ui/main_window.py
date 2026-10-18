@@ -446,7 +446,9 @@ def run(argv: list[str] | None = None) -> int:
         log.info("another instance is already running — exiting")
         return 0
 
-    log.info("starting PCOptimizer PRO (settings: %s, log: %s)", settings.path, log_file)
+    from app import __version__
+
+    log.info("starting PCOptimizer PRO %s (settings: %s, log: %s)", __version__, settings.path, log_file)
 
     manager = SensorManager.with_defaults()
     window = MainWindow(settings=settings)

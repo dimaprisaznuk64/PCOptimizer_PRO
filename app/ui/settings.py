@@ -74,6 +74,11 @@ class SettingsPage(QWidget):
         self.reset_button.setProperty("secondary", True)
         self.reset_button.clicked.connect(self.reset)
         actions.addWidget(self.reset_button)
+        self.admin_button = QPushButton(tr("set_restart_admin"))
+        self.admin_button.setProperty("secondary", True)
+        self.admin_button.setToolTip(tr("set_restart_admin_tip"))
+        self.admin_button.clicked.connect(self.restart_as_admin)
+        actions.addWidget(self.admin_button)
         actions.addStretch(1)
         layout.addLayout(actions)
 
@@ -110,6 +115,8 @@ class SettingsPage(QWidget):
         self._temp_gpu_label.setText(tr("set_temp_gpu"))
         self.save_button.setText(tr("set_save_btn"))
         self.reset_button.setText(tr("set_reset_btn"))
+        self.admin_button.setText(tr("set_restart_admin"))
+        self.admin_button.setToolTip(tr("set_restart_admin_tip"))
         self.open_logs_button.setText(tr("set_open_folder"))
         self.refresh_button.setText(tr("set_refresh_log"))
         self.clear_button.setText(tr("set_clear_log"))
@@ -329,3 +336,23 @@ class SettingsPage(QWidget):
 
         folder = log_file(self._log_directory).parent
         QDesktopServices.openUrl(QUrl.fromLocalFile(str(folder)))
+
+    def restart_as_admin(self) -> None:
+        """Restart the app elevated (UAC prompt), so some operations need no extra prompts."""
+        import ctypes
+        import sys
+
+        from PySide6.QtWidgets import QApplication
+
+        if getattr(sys, "frozen", False):
+            exe = sys.executable
+            args = ""
+        else:
+            exe = sys.executable
+            args = " ".join(f'"{a}"' for a in sys.argv)
+        try:
+            ctypes.windll.shell32.ShellExecuteW(None, "runas", exe, args, None, 1)
+        except OSError:
+            self.status_label.setText(tr("set_save_failed", msg="ShellExecuteW failed"))
+            return
+        QApplication.quit()

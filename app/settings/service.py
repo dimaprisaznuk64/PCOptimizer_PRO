@@ -64,13 +64,36 @@ def data_root() -> Path:
         return _migrate_legacy(root)
     if getattr(sys, "frozen", False):
         root = Path(sys.executable).resolve().parent / "data"
+        if _is_writable(root):
+            return _migrate_legacy(root)
+        # Installed under Program Files — exe folder is not writable without admin.
+        root = Path(os.environ.get("LOCALAPPDATA") or Path.home()) / APP_NAME
         return _migrate_legacy(root)
     root = Path(__file__).resolve().parents[2] / "data"
     return root
 
 
+def _is_writable(directory: Path) -> bool:
+    """True if we can create/write files in *directory* (creating it if needed)."""
+    try:
+        directory.mkdir(parents=True, exist_ok=True)
+        probe = directory / ".write_probe"
+        probe.write_text("ok", encoding="utf-8")
+        probe.unlink()
+        return True
+    except OSError:
+        return False
+
+
+_migrated_roots: set[str] = set()
+
+
 def _migrate_legacy(root: Path) -> Path:
     """One-time copy of runtime data from the old %LOCALAPPDATA% location into `root`."""
+    key = str(root)
+    if key in _migrated_roots:
+        return root
+    _migrated_roots.add(key)
     legacy_base = Path(os.environ.get("LOCALAPPDATA") or Path.home()) / APP_NAME
     if not legacy_base.exists():
         return root

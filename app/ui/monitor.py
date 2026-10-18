@@ -232,7 +232,7 @@ class MonitorPage(QWidget):
     def apply_snapshot(self, s: Snapshot) -> None:
         if s.cpu:
             c = s.cpu
-            freq = f" · {c.freq_mhz:.0f}MHz" if c.freq_mhz else ""
+            freq = tr("mon_freq_base", mhz=f"{c.freq_mhz:.0f}") if c.freq_mhz else ""
             self.cpu_value.setText(f"{c.percent:.0f}%")
             self.cpu_sub.setText(tr("mon_cores", physical=c.physical_cores, logical=c.logical_cores) + freq)
             self.cpu_spark.add(c.percent)

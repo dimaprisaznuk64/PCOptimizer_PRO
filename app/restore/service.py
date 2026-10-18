@@ -205,7 +205,10 @@ class RestorePointService:
             (self._ps, "-NoProfile", "-ExecutionPolicy", "Bypass", "-Command", self._elevated_script(script)),
             timeout,
         )
-        if code == UAC_CANCELLED_CODE or "cancel" in out.lower():
+        # UAC cancel: the wrapper exits with 1223; the message check is only a
+        # fallback for lost exit codes — match the precise Start-Process text,
+        # not any word "cancel" (which could appear in unrelated output).
+        if code == UAC_CANCELLED_CODE or "operation was canceled" in out.lower():
             return None
         return code, out
 
