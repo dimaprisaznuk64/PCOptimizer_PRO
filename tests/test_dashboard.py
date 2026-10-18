@@ -100,3 +100,58 @@ def test_sampler_emits_snapshots(qapp) -> None:
     snapshot = spy.at(1)[0]
     assert snapshot.cpu is not None
     assert snapshot.gpu is not None
+
+
+def test_dashboard_thermal_rows_show_cpu_and_gpu(qapp) -> None:
+    from app.sensors.types import GpuStat, Snapshot, ThermalStat
+
+    page = DashboardPage()
+    s = Snapshot(
+        ts=0.0,
+        thermal=ThermalStat(source="wmi_acpi", temperatures=(("zone0", 66.0),)),
+        gpus=(GpuStat(index=0, name="RTX", utilization=0.0, memory_used=0, memory_total=1, temperature=79.0),),
+    )
+    page.apply_snapshot(s)
+    keys = list(page.thermal._rows)
+    # The lone ACPI zone is promoted to a CPU row; GPU comes from NVML.
+    assert keys[0].startswith("CPU")
+    assert any(k.startswith("GPU") for k in keys)
+
+
+def test_dashboard_notifications_hidden_when_empty(qapp) -> None:
+    from app.ui.activity import ActivityLog
+
+    log = ActivityLog.instance()
+    log.clear()
+    log.health = None
+    page = DashboardPage()
+    # No warnings recorded -> the notifications card collapses.
+    page.notif_widget._render()
+    assert page.notif_widget.isHidden()
+    log.record("Problem", "disk full", level="warn")
+    assert not page.notif_widget.isHidden()
+    log.clear()  # do not leak the warning into other tests
+
+
+def test_dashboard_disk_extra_color_follows_level(qapp) -> None:
+    from app.sensors.types import DiskStat, Snapshot
+    from app.ui.theme import WARN
+
+    page = DashboardPage()
+    s = Snapshot(
+        ts=0.0,
+        disks=(
+            DiskStat(
+                device="C:\\",
+                mountpoint="C:\\",
+                fstype="NTFS",
+                total=100 * 1024**3,
+                used=86 * 1024**3,
+                free=14 * 1024**3,
+                percent=86.0,
+            ),
+        ),
+    )
+    page.apply_snapshot(s)
+    assert "86%" in page.disk.value.text()
+    assert WARN in page.disk.extra.styleSheet()

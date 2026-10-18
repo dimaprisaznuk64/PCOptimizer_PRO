@@ -96,10 +96,11 @@ class TopBar(QWidget):
         layout.addWidget(self.settings_button)
 
     def _update_clock(self) -> None:
-        from PySide6.QtCore import QDateTime
+        from PySide6.QtCore import QDateTime, QLocale
+
         now = QDateTime.currentDateTime()
         self.clock_label.setText(now.toString("HH:mm"))
-        self.date_label.setText(now.toString("ddd, d MMM"))
+        self.date_label.setText(QLocale().toString(now, "ddd d MMM"))
 
     def _build_notify_menu(self) -> QMenu:
         menu = QMenu(self)

@@ -351,6 +351,36 @@ class MainWindow(QMainWindow):
         if parts:
             self.tray.set_tooltip("PCOptimizer PRO\n" + " · ".join(parts))
 
+    # ---------- startup health ----------
+
+    def schedule_health_scan(self, delay_ms: int = 2500) -> None:
+        """Fill the dashboard health card once at startup (light scan, no junk walk)."""
+        from PySide6.QtCore import QTimer
+
+        QTimer.singleShot(delay_ms, self._auto_health_scan)
+
+    def _auto_health_scan(self) -> None:
+        from app.health import HealthService
+
+        from .activity import ActivityLog
+        from .tasks import Task
+
+        if ActivityLog.instance().health is not None:
+            return
+        service = HealthService()
+        task = Task(lambda: service.scan(include_junk=False), parent=self)
+        task.done.connect(self._on_auto_health)
+        task.failed.connect(lambda _msg: None)
+        task.start()
+
+    def _on_auto_health(self, report) -> None:
+        from .activity import ActivityLog
+
+        try:
+            ActivityLog.instance().set_health(report.score, str(report.grade))
+        except (AttributeError, RuntimeError):
+            pass
+
     # ---------- lifecycle ----------
 
     def closeEvent(self, event) -> None:
@@ -433,6 +463,7 @@ def run(argv: list[str] | None = None) -> int:
         window.showMinimized()
     else:
         window.show()
+    window.schedule_health_scan()
     sampler.start()
     try:
         return app.exec()

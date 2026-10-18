@@ -28,3 +28,14 @@ def i18n_english():
     I18nService.instance().set_language("EN", emit=False)
     yield
     I18nService.instance().set_language("EN", emit=False)
+
+
+@pytest.fixture(autouse=True)
+def isolated_data_root(tmp_path, monkeypatch):
+    """Keep runtime data (health result etc.) out of the project tree and reset the log singleton."""
+    monkeypatch.setenv("PCOPTIMIZER_DATA", str(tmp_path / "data"))
+    from app.ui.activity import ActivityLog
+
+    ActivityLog._instance = None
+    yield
+    ActivityLog._instance = None

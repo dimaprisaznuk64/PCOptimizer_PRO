@@ -301,10 +301,12 @@ class RingCard(QFrame):
         percent: float | None = None,
         spark: float | None = None,
         extra: str = "",
+        extra_color: str = OK,
     ) -> None:
         self.value.setText(value)
         self.sub.setText(sub)
         self.extra.setText(extra)
+        self.extra.setStyleSheet(f"font-size: {fs(11)}px; font-weight: 600; color: {extra_color};")
         self.extra.setVisible(bool(extra))
         self.ring.set_percent(percent)
         if spark is not None:
@@ -370,6 +372,7 @@ class PerfChart(QFrame):
         layout.addLayout(head)
 
         self._canvas = _ChartCanvas(points)
+        self._hidden: set[str] = set()
         layout.addWidget(self._canvas, 1)
         self.select("all")
 
@@ -406,10 +409,42 @@ class PerfChart(QFrame):
         for series_key in self._legend_keys(key):
             label_key, token, _style = CHART_SERIES.get(series_key, (series_key, "ACCENT", Qt.PenStyle.SolidLine))
             color = chart_series_color(token)
-            leg_lbl = QLabel(f"● {tr(label_key)}")
-            leg_lbl.setStyleSheet(f"font-size: {fs(11)}px; font-weight: 600; color: {color};")
-            self._legend_layout.addWidget(leg_lbl)
-            self._legend[series_key] = leg_lbl
+            pill = QPushButton(f"● {tr(label_key)}")
+            pill.setCheckable(True)
+            pill.setChecked(series_key not in self._hidden)
+            pill.setCursor(Qt.CursorShape.PointingHandCursor)
+            pill.setStyleSheet(
+                f"QPushButton {{ background: transparent; border: none; font-size: {fs(11)}px; "
+                f"font-weight: 600; color: {color if series_key not in self._hidden else TEXT_DIM}; padding: 0px; }}"
+                f"QPushButton:hover {{ color: {TEXT}; }}"
+            )
+            pill.clicked.connect(lambda _=False, k=series_key: self._toggle_series(k))
+            self._legend_layout.addWidget(pill)
+            self._legend[series_key] = pill
+
+    def _toggle_series(self, key: str) -> None:
+        """Legend pills toggle series visibility (never hide the last one)."""
+        currently_hidden = key in self._hidden
+        if currently_hidden:
+            self._hidden.discard(key)
+        else:
+            visible = [k for k in self._legend if k not in self._hidden and k != key]
+            if not visible:
+                # Keep at least one series on screen: restore this one instead.
+                self._hidden.discard(key)
+            else:
+                self._hidden.add(key)
+        pill = self._legend.get(key)
+        if pill is not None:
+            on = key not in self._hidden
+            pill.setChecked(on)
+            label_key, token, _style = CHART_SERIES.get(key, (key, "ACCENT", Qt.PenStyle.SolidLine))
+            pill.setStyleSheet(
+                f"QPushButton {{ background: transparent; border: none; font-size: {fs(11)}px; "
+                f"font-weight: 600; color: {chart_series_color(token) if on else TEXT_DIM}; padding: 0px; }}"
+                f"QPushButton:hover {{ color: {TEXT}; }}"
+            )
+        self._canvas.set_hidden(self._hidden)
 
     def select(self, key: str) -> None:
         percent = {k: pct for k, _t, pct in self.SERIES}.get(key, True)
@@ -422,33 +457,48 @@ class PerfChart(QFrame):
         self._canvas.push(ts, values)
 
 
+def _fmt_rate(value: float) -> str:
+    from .format import rate
+
+    return rate(value)
+
+
 class _ChartCanvas(QWidget):
     def __init__(self, points: int, parent: QWidget | None = None) -> None:
         super().__init__(parent)
         self.setMinimumHeight(130)
+        self.setMouseTracking(True)
         self.key = "all"
         self._percent = True
+        self._hidden: set[str] = set()
         self._history: dict[str, deque[float]] = {}
         self._times: deque[float] = deque(maxlen=points)
         self._points = points
+        self._hover_x: float | None = None
 
     def set_key(self, key: str, percent: bool) -> None:
         self.key = key
         self._percent = percent
         self.update()
 
+    def set_hidden(self, keys: set[str]) -> None:
+        self._hidden = set(keys)
+        self.update()
+
     def push(self, ts: float, values: dict[str, float | None]) -> None:
         self._times.append(ts)
         for key, value in values.items():
-            self._history.setdefault(key, deque(maxlen=self._points)).append(0.0 if value is None else float(value))
+            hist = self._history.setdefault(key, deque(maxlen=self._points))
+            if value is None:
+                value = hist[-1] if hist else 0.0  # a missed reading must not look like a drop to 0
+            hist.append(float(value))
         self.update()
 
     @staticmethod
     def _span_text(seconds: float) -> str:
-        # Single formatter for every tick: >= 60 s -> minutes, else seconds.
-        if seconds >= 60:
-            return tr("dash_time_min", min=f"{round(seconds / 60):.0f}")
-        return tr("dash_time_sec", sec=f"{round(seconds):.0f}")
+        # One format for every tick (-m:ss) so units never mix on the axis.
+        total = max(0, int(round(seconds)))
+        return f"-{total // 60}:{total % 60:02d}"
 
     def _series_to_draw(self) -> list[tuple[str, QColor, Qt.PenStyle]]:
         """Return ``(history key, colour, pen style)`` for the active tab."""
@@ -460,6 +510,7 @@ class _ChartCanvas(QWidget):
                 keys = ["net"]  # legacy single-line payload
         else:
             keys = [self.key]
+        keys = [k for k in keys if k not in self._hidden]
         series: list[tuple[str, QColor, Qt.PenStyle]] = []
         for key in keys:
             _label, token, style = CHART_SERIES.get(key, (key, "ACCENT", Qt.PenStyle.SolidLine))
@@ -498,6 +549,75 @@ class _ChartCanvas(QWidget):
 
         return rate(hi * frac)
 
+    def _plot_metrics(self) -> tuple[float, float]:
+        """(left margin, bottom margin) matching what paintEvent reserves."""
+        font = self.font()
+        font.setPixelSize(fs(11))
+        metrics = QFontMetrics(font)
+        hi = 100.0 if self._percent else self._axis_hi(self._series_to_draw())
+        tick_labels = [self._axis_label(hi, frac) for frac in (1.0, 0.5, 0.0)]
+        left = max(metrics.horizontalAdvance(lbl) for lbl in tick_labels) + 12
+        return left, 20.0
+
+    def _plot_rect(self) -> QRectF:
+        left, bottom = self._plot_metrics()
+        return QRectF(left, 6, max(10.0, self.width() - left - 10), self.height() - bottom - 10)
+
+    def mouseMoveEvent(self, event) -> None:
+        self._hover_x = event.position().x()
+        self.update()
+
+    def leaveEvent(self, event) -> None:
+        self._hover_x = None
+        self.update()
+
+    def _paint_hover(self, painter: QPainter, plot: QRectF, series: list) -> None:
+        """Vertical crosshair + drawn value box under the cursor."""
+        from datetime import datetime
+
+        count = max((len(self._history.get(k, ())) for k, _c, _s in series), default=0)
+        if self._hover_x is None or count < 2 or not plot.left() <= self._hover_x <= plot.right():
+            return
+        idx = round((self._hover_x - plot.left()) / plot.width() * (count - 1))
+        x = plot.left() + idx / (count - 1) * plot.width()
+        painter.setPen(QPen(QColor(TEXT_DIM), 1, Qt.PenStyle.DotLine))
+        painter.drawLine(QPointF(x, plot.top()), QPointF(x, plot.bottom()))
+        rows: list[tuple[str, QColor]] = []
+        time_text = (
+            datetime.fromtimestamp(self._times[idx]).strftime("%H:%M:%S")
+            if len(self._times) == count and 0 <= idx < len(self._times)
+            else ""
+        )
+        if time_text:
+            rows.append((time_text, QColor(TEXT_DIM)))
+        for key, color, _style in series:
+            vals = self._history.get(key)
+            if not vals or idx >= len(vals):
+                continue
+            label_key = CHART_SERIES.get(key, (key, "ACCENT", Qt.PenStyle.SolidLine))[0]
+            value = vals[idx]
+            shown = f"{value:.0f}%" if self._percent else f"{_fmt_rate(value)}/s"
+            rows.append((f"{tr(label_key)}: {shown}", color))
+        if not rows:
+            return
+        metrics = painter.fontMetrics()
+        width = max(metrics.horizontalAdvance(t) for t, _c in rows) + 16
+        height = len(rows) * (metrics.height() + 2) + 8
+        bx = x + 10 if x + 10 + width <= plot.right() else x - 10 - width
+        box = QRectF(bx, plot.top() + 2, width, height)
+        painter.setPen(QPen(QColor(BORDER_HI), 1))
+        painter.setBrush(QColor(PANEL))
+        painter.drawRoundedRect(box, 6, 6)
+        y = box.top() + 4
+        for text_, color in rows:
+            painter.setPen(color)
+            painter.drawText(
+                QRectF(box.left() + 8, y, width - 12, metrics.height()),
+                Qt.AlignmentFlag.AlignVCenter,
+                text_,
+            )
+            y += metrics.height() + 2
+
     def paintEvent(self, event) -> None:
         painter = QPainter(self)
         painter.setRenderHint(QPainter.RenderHint.Antialiasing)
@@ -508,13 +628,10 @@ class _ChartCanvas(QWidget):
         font = painter.font()
         font.setPixelSize(fs(11))
         painter.setFont(font)
-        metrics = QFontMetrics(font)
 
         # Reserve room for the widest Y label so nothing is clipped at the edge.
-        tick_labels = [self._axis_label(hi, frac) for frac in (1.0, 0.5, 0.0)]
-        left = max(metrics.horizontalAdvance(lbl) for lbl in tick_labels) + 12
-        bottom = 20
-        plot = QRectF(left, 6, max(10.0, self.width() - left - 10), self.height() - bottom - 10)
+        plot = self._plot_rect()
+        left = plot.left()
 
         grid = QColor(BORDER)
         text = QColor(TEXT_DIM)
@@ -560,13 +677,17 @@ class _ChartCanvas(QWidget):
             x0 = plot.right() - (len(values) - 1) * step
 
             path = QPainterPath()
+            prev = None
             for i, v in enumerate(values):
                 ratio = max(0.0, min(1.0, v / hi))
                 pt = QPointF(x0 + i * step, plot.bottom() - ratio * plot.height())
-                if i == 0:
+                if prev is None:
                     path.moveTo(pt)
                 else:
-                    path.lineTo(pt)
+                    # Smooth cubic segment through the midpoint -> no jagged spikes.
+                    mid = (prev.x() + pt.x()) / 2
+                    path.cubicTo(QPointF(mid, prev.y()), QPointF(mid, pt.y()), pt)
+                prev = pt
             last_x = x0 + (len(values) - 1) * step
 
             # Subtle fill only for a single curve; with several curves the fills
@@ -592,6 +713,8 @@ class _ChartCanvas(QWidget):
                 pen.setDashPattern([5.0, 4.0])
             painter.setPen(pen)
             painter.drawPath(path)
+
+        self._paint_hover(painter, plot, series)
 
 
 class _EmptyHint(QLabel):

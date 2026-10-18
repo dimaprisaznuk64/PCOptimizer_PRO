@@ -53,10 +53,12 @@ def test_score_ring_color_for(qapp) -> None:
 def test_chart_time_axis_single_formatter(qapp) -> None:
     from app.ui.components import _ChartCanvas
 
-    assert _ChartCanvas._span_text(0) == "0 s"
-    assert _ChartCanvas._span_text(59) == "59 s"
-    assert _ChartCanvas._span_text(60) == "1 min"
-    assert _ChartCanvas._span_text(119) == "2 min"
+    # Uniform -m:ss labels — mixing "min"/"s" units confused users.
+    assert _ChartCanvas._span_text(0) == "-0:00"
+    assert _ChartCanvas._span_text(59) == "-0:59"
+    assert _ChartCanvas._span_text(60) == "-1:00"
+    assert _ChartCanvas._span_text(119) == "-1:59"
+    assert _ChartCanvas._span_text(120) == "-2:00"
 
 
 def test_chart_axis_labels_are_monotonic(qapp) -> None:
@@ -65,8 +67,8 @@ def test_chart_axis_labels_are_monotonic(qapp) -> None:
     labels = [_ChartCanvas._span_text(seconds) for seconds in (119, 89, 60, 30, 0)]
 
     def to_seconds(text: str) -> float:
-        value = float(text.split()[0])
-        return value * 60 if text.endswith("min") else value
+        minutes, secs = text.lstrip("-").split(":")
+        return float(minutes) * 60 + float(secs)
 
     values = [to_seconds(text) for text in labels]
     assert values == sorted(values, reverse=True)
@@ -153,3 +155,66 @@ def test_chart_axis_hi_is_percent_for_load_tabs(qapp) -> None:
     canvas.set_key("all", percent=True)
     canvas.push(0.0, {"cpu": 10.0, "ram": 20.0, "gpu": 5.0})
     assert canvas._axis_hi(canvas._series_to_draw()) == 100.0
+
+
+def test_chart_hidden_series_are_filtered(qapp) -> None:
+    from app.ui.components import _ChartCanvas
+
+    canvas = _ChartCanvas(points=20)
+    canvas.set_key("all", percent=True)
+    for i in range(4):
+        canvas.push(float(i), {"cpu": 10.0, "ram": 20.0, "gpu": 5.0})
+    canvas.set_hidden({"gpu"})
+    assert {key for key, _c, _s in canvas._series_to_draw()} == {"ram", "cpu"}
+
+
+def test_chart_missing_reading_repeats_last_value(qapp) -> None:
+    from app.ui.components import _ChartCanvas
+
+    canvas = _ChartCanvas(10)
+    canvas.push(0.0, {"gpu": 42.0})
+    canvas.push(1.0, {"gpu": None})
+    # A missed reading must not look like a drop to 0.
+    assert list(canvas._history["gpu"]) == [42.0, 42.0]
+
+
+def test_chart_hover_paints_without_error(qapp) -> None:
+    from PySide6.QtGui import QPixmap
+
+    from app.ui.components import _ChartCanvas
+
+    canvas = _ChartCanvas(30)
+    canvas.resize(500, 200)
+    for i in range(20):
+        canvas.push(float(i), {"cpu": 10.0 + i, "ram": 50.0, "gpu": 5.0})
+    canvas._hover_x = 250.0
+    pixmap = QPixmap(canvas.size())
+    canvas.render(pixmap)
+    assert not pixmap.isNull()
+
+
+def test_perf_chart_legend_pill_toggles_series(qapp) -> None:
+    from app.ui.components import PerfChart
+
+    chart = PerfChart()
+    chart.select("all")
+    for i in range(4):
+        chart.push(float(i), cpu=10.0, ram=20.0, gpu=5.0)
+    chart._toggle_series("gpu")
+    assert "gpu" in chart._hidden
+    assert {key for key, _c, _s in chart._canvas._series_to_draw()} == {"ram", "cpu"}
+    # Toggling back on restores the series.
+    chart._toggle_series("gpu")
+    assert "gpu" not in chart._hidden
+    assert {key for key, _c, _s in chart._canvas._series_to_draw()} == {"ram", "cpu", "gpu"}
+
+
+def test_perf_chart_legend_never_hides_last_series(qapp) -> None:
+    from app.ui.components import PerfChart
+
+    chart = PerfChart()
+    chart.select("cpu")
+    chart._toggle_series("cpu")
+    # The last visible series must stay on screen.
+    assert "cpu" not in chart._hidden
+    assert {key for key, _c, _s in chart._canvas._series_to_draw()} == {"cpu"}

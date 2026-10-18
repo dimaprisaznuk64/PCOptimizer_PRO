@@ -69,6 +69,14 @@ def _user_name() -> str:
     return name.replace(".", " ").replace("_", " ").title() or tr("dash_user_fallback")
 
 
+def _level_color(value: float) -> str:
+    if value >= 95:
+        return DANGER
+    if value >= 85:
+        return WARN
+    return OK
+
+
 class HealthWidget(QFrame):
     """PC Health card with cybernetic illustration and full check button."""
 
@@ -556,6 +564,8 @@ class NotificationsWidget(QFrame):
             items.append(("warning", WARN, self._live, "", ""))
         for e in self._log.entries(level="warn", limit=3):
             items.append(("warning", WARN, e.title, e.detail, e.time_text))
+        # An empty notifications card just wastes space — hide it instead.
+        self.setVisible(bool(items))
         if not items:
             empty = QLabel(tr("notif_empty"))
             empty.setStyleSheet(f"font-size: {fs(12)}px; color: {TEXT_DIM};")
@@ -837,14 +847,29 @@ class DashboardPage(QWidget):
             widget.retranslate()
 
     def apply_snapshot(self, s: Snapshot) -> None:
+        from PySide6.QtCore import QLocale
+
         now = QDateTime.currentDateTime()
         self.clock.setText(now.toString("HH:mm"))
-        self.date.setText(now.toString("ddd, d MMM"))
+        self.date.setText(QLocale().toString(now, "ddd d MMM"))
 
         temps = list(s.thermal.temperatures) if s.thermal else []
-        cpu_temp = next((v for n, v in temps if "cpu" in n.lower() or "core" in n.lower() or "package" in n.lower()), None)
-        if cpu_temp is None and temps:
-            cpu_temp = temps[0][1]
+
+        def _is_cpu_zone(name: str) -> bool:
+            lowered = name.lower()
+            return "cpu" in lowered or "core" in lowered or "package" in lowered
+
+        named_cpu = [v for n, v in temps if _is_cpu_zone(n)]
+        anon_zones = [(n, v) for n, v in temps if not _is_cpu_zone(n)]
+        if named_cpu:
+            cpu_temp = named_cpu[0]
+        elif len(anon_zones) == 1:
+            # A single anonymous ACPI zone is almost always the CPU package.
+            cpu_temp = anon_zones[0][1]
+            anon_zones = []
+        else:
+            cpu_temp = None
+        gpu_temp = s.gpu.temperature if s.gpu is not None and s.gpu.temperature is not None else None
 
         cpu_pct = ram_pct = gpu_pct = None
         if s.cpu:
@@ -859,6 +884,7 @@ class DashboardPage(QWidget):
                 percent=c.percent,
                 spark=c.percent,
                 extra=f"{cpu_temp:.0f}°C" if cpu_temp is not None else "",
+                extra_color=_level_color(cpu_temp) if cpu_temp is not None else OK,
             )
 
         if s.memory:
@@ -885,6 +911,7 @@ class DashboardPage(QWidget):
                 percent=g.utilization,
                 spark=g.utilization,
                 extra=f"{g.temperature:.0f}°C" if g.temperature is not None else "",
+                extra_color=_level_color(g.temperature) if g.temperature is not None else OK,
             )
         else:
             self.gpu.set_header("GPU")
@@ -899,13 +926,14 @@ class DashboardPage(QWidget):
                 percent=main.percent,
                 spark=main.percent,
                 extra=tr("dash_free", size=_gb(main.free)),
+                extra_color=_level_color(main.percent),
             )
             rows = [
                 (d.mountpoint.rstrip("\\/") or d.device, d.percent, f"{_gb(d.used)} / {_gb(d.total)}")
                 for d in s.disks
             ]
             self.disks.set_rows(rows)
-            full = next((d for d in s.disks if d.percent >= 85), None)
+            full = next((d for d in s.disks if d.percent >= 80), None)
             self.notif_widget.set_live_warning(
                 tr("notif_disk_full", mount=full.mountpoint.rstrip("\\/") or full.device, pct=int(full.percent)) if full else ""
             )
@@ -939,8 +967,15 @@ class DashboardPage(QWidget):
             self._verdict_key = "dash_verdict_ok"
         self.verdict.setText(tr(self._verdict_key))
 
-        if temps:
-            self.thermal.set_rows([(zone_label(name), min(value, 100.0), f"{value:.0f}°C") for name, value in temps])
+        thermal_rows: list[tuple[str, float | None, str]] = []
+        if cpu_temp is not None:
+            thermal_rows.append((tr("CPU"), min(cpu_temp, 100.0), f"{cpu_temp:.0f}°C"))
+        if gpu_temp is not None:
+            thermal_rows.append((tr("GPU"), min(gpu_temp, 100.0), f"{gpu_temp:.0f}°C"))
+        for name, value in anon_zones:
+            thermal_rows.append((zone_label(name), min(value, 100.0), f"{value:.0f}°C"))
+        if thermal_rows:
+            self.thermal.set_rows(thermal_rows)
 
         if s.errors:
             self.errors.setText(tr("dash_sensors_err", msg=" · ".join(f"{k}: {v}" for k, v in s.errors.items())))
