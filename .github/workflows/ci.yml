@@ -25,6 +25,10 @@ jobs:
       - name: Ruff
         run: python -m ruff check .
 
+      - name: Mypy
+        run: python -m mypy app --ignore-missing-imports
+        continue-on-error: true
+
       - name: Pytest
         env:
           QT_QPA_PLATFORM: offscreen

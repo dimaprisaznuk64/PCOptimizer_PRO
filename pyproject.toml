@@ -1,0 +1,48 @@
+[project]
+name = "pcoptimizer-pro"
+dynamic = ["version"]
+description = "Windows system monitor, cleaner, optimizer, and gaming tool"
+readme = "README.md"
+license = { text = "MIT" }
+requires-python = ">=3.13"
+dependencies = [
+    "psutil>=6.1",
+    "PySide6>=6.8",
+    "nvidia-ml-py>=12.560",
+    "WMI>=1.5.1; sys_platform == 'win32'",
+    "pywin32>=306; sys_platform == 'win32'",
+]
+
+[project.urls]
+Homepage = "https://github.com/dimaprisaznuk64/PCOptimizer_PRO"
+Repository = "https://github.com/dimaprisaznuk64/PCOptimizer_PRO"
+Issues = "https://github.com/dimaprisaznuk64/PCOptimizer_PRO/issues"
+
+[project.gui-scripts]
+pcoptimizer-pro = "app:main"
+
+[build-system]
+requires = ["setuptools>=68"]
+build-backend = "setuptools.build_meta"
+
+[tool.setuptools.dynamic]
+version = { attr = "app.__version__" }
+
+[tool.setuptools.packages.find]
+include = ["app*"]
+
+[tool.mypy]
+python_version = "3.13"
+warn_return_any = true
+warn_unused_configs = true
+ignore_missing_imports = true
+check_untyped_defs = false
+disallow_untyped_defs = false
+
+[[tool.mypy.overrides]]
+module = "app.sensors.*"
+disallow_untyped_defs = false
+
+[[tool.mypy.overrides]]
+module = "tests.*"
+disallow_untyped_defs = false
