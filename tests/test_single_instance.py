@@ -1,13 +1,19 @@
 from __future__ import annotations
 
-from PySide6.QtCore import QTimer
+import time
 
 from app.ui.single_instance import SingleInstanceGuard
 
 
-def _spin(qapp, ms: int = 400) -> None:
-    QTimer.singleShot(ms, qapp.quit)
-    qapp.exec()
+def _wait_for(qapp, predicate, timeout_s: float = 5.0) -> bool:
+    """Pump the event loop until the predicate holds or the deadline passes."""
+    deadline = time.monotonic() + timeout_s
+    while time.monotonic() < deadline:
+        if predicate():
+            return True
+        qapp.processEvents()
+        time.sleep(0.01)
+    return predicate()
 
 
 def test_second_instance_is_rejected(qapp) -> None:
@@ -37,7 +43,6 @@ def test_first_instance_emits_show_signal(qapp) -> None:
     try:
         secondary = SingleInstanceGuard(name="pco_test_show", parent=qapp)
         assert secondary.acquire() is False
-        _spin(qapp)
-        assert requested == [1]
+        assert _wait_for(qapp, lambda: requested == [1])
     finally:
         primary.close()

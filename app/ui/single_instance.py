@@ -25,15 +25,22 @@ class SingleInstanceGuard(QObject):
         self._server: QLocalServer | None = None
 
     def acquire(self) -> bool:
-        """True if this process becomes the primary instance."""
-        probe = QLocalSocket(self)
-        probe.connectToServer(self._name)
-        if probe.waitForConnected(300):
-            probe.write(_SHOW)
-            probe.flush()
-            probe.waitForBytesWritten(300)
-            probe.disconnectFromServer()
-            return False
+        """True if this process becomes the primary instance.
+
+        The connect is retried a few times: on a busy machine the first probe can
+        time out even though a primary instance is alive, and treating that as
+        "no primary" would let two copies run at once.
+        """
+        for _ in range(4):
+            probe = QLocalSocket(self)
+            probe.connectToServer(self._name)
+            if probe.waitForConnected(500):
+                probe.write(_SHOW)
+                probe.flush()
+                probe.waitForBytesWritten(500)
+                probe.disconnectFromServer()
+                return False
+            probe.abort()
         QLocalServer.removeServer(self._name)
         server = QLocalServer(self)
         server.newConnection.connect(self._on_connection)
