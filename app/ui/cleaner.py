@@ -38,8 +38,14 @@ _TARGET_TR = {
     "GPU shader caches": "clean_t_gpu",
     "Thumbnail cache": "clean_t_thumb",
     "Recycle Bin": "clean_t_bin",
+    "Standby RAM cache": "clean_t_standby",
 }
-_CATEGORY_TR = {"System": "clean_c_system", "Browser": "clean_c_browser", "GPU": "clean_c_gpu"}
+_CATEGORY_TR = {
+    "System": "clean_c_system",
+    "Browser": "clean_c_browser",
+    "GPU": "clean_c_gpu",
+    "Memory": "clean_c_memory",
+}
 
 
 def _loc(mapping: dict[str, str], text: str) -> str:
