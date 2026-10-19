@@ -674,3 +674,29 @@ def test_health_page_buttons_follow_rows_after_sort(qapp) -> None:
             labels = {b.text() for b in widget.findChildren(QPushButton)}
             assert labels == {_label_for(kind)}, issue
     assert "fix" in seen and "go" in seen
+
+
+def test_health_page_action_column_fits_its_buttons(qapp) -> None:
+    """Regression: the action column and row must show the whole button label.
+
+    The table stylesheet pads items by 8px horizontally and 6px vertically and
+    Qt applies that to cell widgets too, so a "ResizeToContents" column clipped
+    the «Виправити» button. The width is now measured from the button itself.
+    """
+    service = UiFakeHealth(sizes={"user_temp": 3 * 1024**3})
+    page = HealthPage(service=service)
+    page.resize(1440, 900)
+    page.show()
+    page.start_scan()
+    assert _wait_until(qapp, lambda: page._report is not None)
+    qapp.processEvents()
+
+    table = page.findings_table
+    for row in range(table.rowCount()):
+        button = _action_button(page, row)
+        if button is None:
+            continue
+        hint = button.sizeHint()
+        assert button.width() >= hint.width(), "button label would be clipped horizontally"
+        assert button.height() >= hint.height(), "button label would be clipped vertically"
+        assert table.rowHeight(row) >= button.height(), "row too short for the button"

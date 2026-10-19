@@ -978,6 +978,10 @@ QPushButton[secondary="true"] {{
 QPushButton[secondary="true"]:hover {{
     border-color: {ACCENT};
 }}
+QPushButton[compact="true"] {{
+    padding: 4px 12px;
+    border-radius: 8px;
+}}
 QPushButton[danger="true"] {{
     background: {DANGER_BG};
     color: {DANGER};

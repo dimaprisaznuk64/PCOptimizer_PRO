@@ -32,6 +32,11 @@ HEALTH_COLUMN_KEYS = (
     "health_col_category", "health_col_severity", "health_col_issue",
     "health_col_details", "health_col_action",
 )
+_ACTION_COLUMN = 4
+# The stylesheet gives table items a 6px/8px padding that Qt also applies to
+# cell widgets, so a row has to be tall enough for the button plus that padding.
+_ACTION_ROW_HEIGHT = 42
+_ACTION_PADDING = 16  # left + right cell padding
 
 SEVERITY_COLOR = {
     "critical": DANGER,
@@ -206,7 +211,9 @@ class HealthPage(QWidget):
         header.setSectionResizeMode(1, QHeaderView.ResizeMode.ResizeToContents)
         header.setSectionResizeMode(2, QHeaderView.ResizeMode.Stretch)
         header.setSectionResizeMode(3, QHeaderView.ResizeMode.Stretch)
-        header.setSectionResizeMode(4, QHeaderView.ResizeMode.ResizeToContents)
+        header.setSectionResizeMode(_ACTION_COLUMN, QHeaderView.ResizeMode.Fixed)
+        self.findings_table.verticalHeader().setDefaultSectionSize(_ACTION_ROW_HEIGHT)
+        self._fit_action_column()
         layout.addWidget(self.findings_table, 1)
 
         self.status_label = QLabel(tr("health_idle"))
@@ -225,10 +232,38 @@ class HealthPage(QWidget):
         self.fix_button.setText(tr("health_fix_btn"))
         self.export_button.setText(tr("health_export_btn"))
         self.findings_table.setHorizontalHeaderLabels([tr(k) for k in HEALTH_COLUMN_KEYS])
+        self._fit_action_column()
         for row in range(self.findings_table.rowCount()):
             self._retranslate_finding_row(row)
         if getattr(self, "_report", None) is not None:
             self._render_report(self._report)
+
+    def _fit_action_column(self) -> None:
+        """Size the action column so the row buttons are never clipped.
+
+        Qt's ``ResizeToContents`` ignores cell widgets, so both the width and the
+        row height are measured from the real action buttons (plus the cell
+        padding the stylesheet adds around cell widgets).
+        """
+        fm = self.findings_table.fontMetrics()
+        header_w = fm.horizontalAdvance(tr("health_col_action")) + _ACTION_PADDING
+        widths: list[int] = []
+        heights: list[int] = []
+        for key in ("health_btn_fix", "health_btn_go"):
+            probe = self._make_action_button(tr(key))
+            hint = probe.sizeHint()
+            widths.append(hint.width())
+            heights.append(hint.height())
+        width = max([header_w, *(w + _ACTION_PADDING + 10 for w in widths)])
+        self.findings_table.horizontalHeader().resizeSection(_ACTION_COLUMN, width)
+        self.findings_table.verticalHeader().setDefaultSectionSize(max(heights) + 14)
+
+    @staticmethod
+    def _make_action_button(text: str) -> QPushButton:
+        button = QPushButton(text)
+        button.setProperty("secondary", True)
+        button.setProperty("compact", True)
+        return button
 
     def _retranslate_finding_row(self, row: int) -> None:
         item = self.findings_table.item(row, 1)
@@ -273,13 +308,13 @@ class HealthPage(QWidget):
 
         self.findings_table.setSortingEnabled(False)
         self._clear_action_cells()
+        self._fit_action_column()
         self.findings_table.setRowCount(len(report.findings))
         for row, finding in enumerate(report.findings):
             self._set_finding_row(row, finding)
         self.findings_table.setSortingEnabled(True)
 
         self.fix_button.setEnabled(report.fixable_count > 0)
-        self.export_button.setEnabled(True)
         self.export_button.setEnabled(True)
         if report.fixable_count:
             self.status_label.setText(tr("health_fix_available", count=report.fixable_count))
@@ -322,9 +357,7 @@ class HealthPage(QWidget):
         self.findings_table.setItem(row, 4, QTableWidgetItem(""))
         if not kind:
             return
-        button = QPushButton(tr("health_btn_fix") if kind == "fix" else tr("health_btn_go"))
-        button.setProperty("secondary", True)
-        button.setFixedHeight(26)
+        button = self._make_action_button(tr("health_btn_fix") if kind == "fix" else tr("health_btn_go"))
         if kind == "fix":
             button.setToolTip(finding.fix_hint or tr("health_btn_fix"))
             button.clicked.connect(
@@ -337,7 +370,7 @@ class HealthPage(QWidget):
         host = QWidget()
         host.setObjectName("healthActionCell")
         row_layout = QHBoxLayout(host)
-        row_layout.setContentsMargins(0, 0, 8, 0)
+        row_layout.setContentsMargins(0, 0, 0, 0)
         row_layout.setAlignment(Qt.AlignmentFlag.AlignLeft | Qt.AlignmentFlag.AlignVCenter)
         row_layout.addWidget(button)
         self.findings_table.setCellWidget(row, 4, host)
