@@ -93,9 +93,7 @@ class MainWindow(QMainWindow):
             self.stack.addWidget(page)
 
         self.sidebar.navigated.connect(self.show_page)
-        dashboard = self.page("dashboard")
-        if dashboard is not None and hasattr(dashboard, "navigate"):
-            dashboard.navigate.connect(self.show_page)
+        self._connect_page_navigation()
         self._root_layout.addWidget(self.sidebar)
 
         self._content = QWidget()
@@ -172,6 +170,13 @@ class MainWindow(QMainWindow):
         index = self._index_by_key.get(key)
         return None if index is None else self.stack.widget(index)
 
+    def _connect_page_navigation(self) -> None:
+        """Let any page that exposes a `navigate` signal jump to another page."""
+        for i in range(self.stack.count()):
+            signal = getattr(self.stack.widget(i), "navigate", None)
+            if signal is not None:
+                signal.connect(self.show_page)
+
     # ---------- live theme switching ----------
 
     def _reload_ui_modules(self) -> None:
@@ -237,9 +242,7 @@ class MainWindow(QMainWindow):
             self._index_by_key[page_key] = i
             self.stack.addWidget(page)
         self.sidebar.navigated.connect(self.show_page)
-        dashboard = self.page("dashboard")
-        if dashboard is not None and hasattr(dashboard, "navigate"):
-            dashboard.navigate.connect(self.show_page)
+        self._connect_page_navigation()
         self._root_layout.addWidget(self.sidebar)
 
         self._content = QWidget()

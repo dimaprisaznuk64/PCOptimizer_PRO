@@ -285,6 +285,54 @@ class HealthService:
 
     # ---------- fix ----------
 
+    def fix_finding(self, finding: Finding) -> FixReport:
+        """Fix a single finding chosen by the user (never applied without their confirmation)."""
+        if finding.id == "junk":
+            return self.fix_all()
+        if finding.id == "power":
+            return self._fix_power()
+        if finding.id == "startup":
+            return self._fix_startup()
+        raise HealthError(f"finding '{finding.id}' cannot be fixed automatically")
+
+    def _fix_power(self) -> FixReport:
+        # No restore point here: Windows throttles them (1/24h) and the UAC prompt
+        # would block a one-click fix — the JSON backup still makes this revertible.
+        try:
+            report = self._optimizer.apply_profile("BALANCED", with_restore_point=False)
+        except Exception as e:
+            return FixReport(applied=(), errors=(str(e),), reclaimed_bytes=0, files_deleted=0)
+        return FixReport(
+            applied=tuple(report.applied),
+            errors=tuple(report.errors),
+            reclaimed_bytes=0,
+            files_deleted=0,
+        )
+
+    def _fix_startup(self) -> FixReport:
+        applied: list[str] = []
+        errors: list[str] = []
+        try:
+            items, list_errors = self._startup.list_items()
+        except Exception as e:
+            return FixReport(applied=(), errors=(str(e),), reclaimed_bytes=0, files_deleted=0)
+        errors.extend(f"startup: {e}" for e in list_errors)
+        for item in items:
+            if not (item.enabled and item.impact == "High"):
+                continue
+            try:
+                self._startup.set_enabled(item, False)
+            except Exception as e:
+                errors.append(f"{item.name}: {e}")
+                continue
+            applied.append(item.name)
+        return FixReport(
+            applied=tuple(applied),
+            errors=tuple(errors),
+            reclaimed_bytes=0,
+            files_deleted=0,
+        )
+
     def fix_all(self, *, include_recycle_bin: bool = False) -> FixReport:
         targets = default_targets()
         applied: list[str] = []

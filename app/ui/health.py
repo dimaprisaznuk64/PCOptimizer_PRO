@@ -2,7 +2,7 @@ from __future__ import annotations
 
 from pathlib import Path
 
-from PySide6.QtCore import Qt
+from PySide6.QtCore import Qt, Signal
 from PySide6.QtGui import QColor
 from PySide6.QtWidgets import (
     QFileDialog,
@@ -28,7 +28,10 @@ from .components import ScoreRing, attach_empty_hint
 from .tasks import Task
 from .theme import ACCENT, DANGER, OK, TEXT_DIM, WARN
 
-HEALTH_COLUMN_KEYS = ("health_col_category", "health_col_severity", "health_col_issue", "health_col_details")
+HEALTH_COLUMN_KEYS = (
+    "health_col_category", "health_col_severity", "health_col_issue",
+    "health_col_details", "health_col_action",
+)
 
 SEVERITY_COLOR = {
     "critical": DANGER,
@@ -43,6 +46,26 @@ SEVERITY_TR = {
     "info": "health_sev_info",
     "ok": "health_sev_ok",
 }
+
+# Findings that only make sense as a jump to the page that handles them.
+_GO_PAGES = {
+    "disk": "cleaner",
+    "memory": "monitor", "memory_missing": "monitor",
+    "cpu_load": "monitor", "thermal": "monitor",
+    "thermal_missing": "monitor", "thermal_gpu": "monitor", "gpu_load": "monitor",
+}
+
+
+def action_for(finding) -> tuple[str, str]:
+    """('fix', '') when HealthService.fix_finding can apply it, ('go', page) for navigation."""
+    if finding.severity == "ok":
+        return ("", "")
+    if finding.fixable or finding.id in ("power", "startup"):
+        return ("fix", "")
+    page = _GO_PAGES.get(finding.id.split(":", 1)[0] if finding.id.startswith("disk:") else finding.id)
+    if page:
+        return ("go", page)
+    return ("", "")
 
 
 def grade_text(grade: str) -> str:
@@ -102,12 +125,16 @@ def localize_finding(finding) -> tuple[str, str, str]:
 
 
 class HealthPage(QWidget):
+    navigate = Signal(str)
+
     def __init__(self, service: HealthService | None = None, parent: QWidget | None = None) -> None:
         super().__init__(parent)
         self.setObjectName("page")
         self._service = service or HealthService()
         self._task: Task | None = None
         self._report: HealthReport | None = None
+        self._action_buttons: list[QPushButton] = []
+        self._action_cells: list[QWidget] = []
 
         layout = QVBoxLayout(self)
         layout.setContentsMargins(40, 36, 40, 32)
@@ -179,6 +206,7 @@ class HealthPage(QWidget):
         header.setSectionResizeMode(1, QHeaderView.ResizeMode.ResizeToContents)
         header.setSectionResizeMode(2, QHeaderView.ResizeMode.Stretch)
         header.setSectionResizeMode(3, QHeaderView.ResizeMode.Stretch)
+        header.setSectionResizeMode(4, QHeaderView.ResizeMode.ResizeToContents)
         layout.addWidget(self.findings_table, 1)
 
         self.status_label = QLabel(tr("health_idle"))
@@ -244,6 +272,7 @@ class HealthPage(QWidget):
         )
 
         self.findings_table.setSortingEnabled(False)
+        self._clear_action_cells()
         self.findings_table.setRowCount(len(report.findings))
         for row, finding in enumerate(report.findings):
             self._set_finding_row(row, finding)
@@ -270,6 +299,50 @@ class HealthPage(QWidget):
         self.findings_table.setItem(row, 1, severity_item)
         self.findings_table.setItem(row, 2, issue)
         self.findings_table.setItem(row, 3, detail)
+        self._set_action_cell(row, finding, title_text)
+
+    def _clear_action_cells(self) -> None:
+        """Detach and delete the row action widgets.
+
+        Qt keeps the cell-widget pointer inside the table, and neither a row
+        resize nor a plain ``setCellWidget`` deletes the old widget, so the table
+        must be told to forget every cell before we can safely delete them
+        (otherwise restyling hits a dangling pointer).
+        """
+        for row in range(self.findings_table.rowCount()):
+            self.findings_table.setCellWidget(row, 4, None)
+        for cell in self._action_cells:
+            cell.hide()
+            cell.deleteLater()
+        self._action_cells = []
+        self._action_buttons = []
+
+    def _set_action_cell(self, row: int, finding: Finding, title_text: str) -> None:
+        kind, page = action_for(finding)
+        self.findings_table.setItem(row, 4, QTableWidgetItem(""))
+        if not kind:
+            return
+        button = QPushButton(tr("health_btn_fix") if kind == "fix" else tr("health_btn_go"))
+        button.setProperty("secondary", True)
+        button.setFixedHeight(26)
+        if kind == "fix":
+            button.setToolTip(finding.fix_hint or tr("health_btn_fix"))
+            button.clicked.connect(
+                lambda _checked=False, f=finding, title=title_text: self.start_fix_one(f, title)
+            )
+        else:
+            button.clicked.connect(
+                lambda _checked=False, target=page: self.navigate.emit(target)
+            )
+        host = QWidget()
+        host.setObjectName("healthActionCell")
+        row_layout = QHBoxLayout(host)
+        row_layout.setContentsMargins(0, 0, 8, 0)
+        row_layout.setAlignment(Qt.AlignmentFlag.AlignLeft | Qt.AlignmentFlag.AlignVCenter)
+        row_layout.addWidget(button)
+        self.findings_table.setCellWidget(row, 4, host)
+        self._action_cells.append(host)
+        self._action_buttons.append(button)
 
     # ---------- fix ----------
 
@@ -290,14 +363,38 @@ class HealthPage(QWidget):
         self._task.failed.connect(self._on_task_failed)
         self._task.start()
 
+    def start_fix_one(self, finding: Finding, title: str = "") -> None:
+        """Fix just the finding the user picked in its row (after a Yes/No confirmation)."""
+        if self._task is not None:
+            return
+        if not self._ask_confirm(
+            tr("health_fix_one_title"),
+            tr("health_fix_one_msg", issue=title or finding.title),
+        ):
+            return
+        self.status_label.setText(tr("health_fixing"))
+        self._set_busy(True)
+        self._task = Task(lambda: self._service.fix_finding(finding), parent=self)
+        self._task.done.connect(self._after_fix)
+        self._task.failed.connect(self._on_task_failed)
+        self._task.start()
+
     def _after_fix(self, result: object) -> None:
         self._task = None
         if not isinstance(result, FixReport):
             self._set_busy(False)
             self.status_label.setText(tr("health_fix_failed", msg=result))
             return
-        reclaimed = result.reclaimed_bytes / 1024**3
-        message = tr("health_freed", size=reclaimed, files=result.files_deleted)
+        if result.reclaimed_bytes or result.files_deleted:
+            message = tr(
+                "health_freed",
+                size=result.reclaimed_bytes / 1024**3,
+                files=result.files_deleted,
+            )
+        elif result.applied:
+            message = tr("health_fix_one_done", what=", ".join(result.applied))
+        else:
+            message = tr("health_nothing")
         if result.errors:
             message += " · " + tr("health_errors_n", count=len(result.errors))
         self.status_label.setText(message)
@@ -360,4 +457,5 @@ class HealthPage(QWidget):
         self.scan_button.setEnabled(not busy)
         self.fix_button.setEnabled(not busy and self._report is not None and self._report.fixable_count > 0)
         self.export_button.setEnabled(not busy and self._report is not None)
-        self.export_button.setEnabled(not busy and self._report is not None)
+        for button in self._action_buttons:
+            button.setEnabled(not busy)

@@ -3,6 +3,8 @@ from __future__ import annotations
 import time
 
 import pytest
+from PySide6.QtCore import Qt
+from PySide6.QtWidgets import QPushButton
 
 from app.cleaner import CleanTarget
 from app.cleaner.service import RECYCLE_BIN_ID, CleanOutcome, ScanResult
@@ -11,16 +13,18 @@ from app.health import (
     SEVERITY_PENALTY,
     Finding,
     FixReport,
+    HealthError,
     HealthReport,
     HealthService,
     grade_for,
     score_from,
 )
-from app.optimizer.service import OptimizerState
+from app.i18n import tr
+from app.optimizer.service import ApplyReport, OptimizerState
 from app.sensors import Snapshot
 from app.sensors.types import CpuStat, GpuStat, MemoryStat, ThermalStat
 from app.startup.service import StartupItem
-from app.ui.health import HealthPage
+from app.ui.health import HealthPage, action_for, localize_finding
 
 
 def _wait_until(qapp, cond, timeout: float = 8.0) -> bool:
@@ -355,6 +359,7 @@ class UiFakeHealth(HealthService):
         )
         self.scan_calls = 0
         self.fix_calls = 0
+        self.fix_one_calls = 0
 
     def scan(self, *, include_junk: bool = True) -> HealthReport:
         self.scan_calls += 1
@@ -363,6 +368,20 @@ class UiFakeHealth(HealthService):
     def fix_all(self, *, include_recycle_bin: bool = False) -> FixReport:
         self.fix_calls += 1
         return super().fix_all(include_recycle_bin=include_recycle_bin)
+
+    def fix_finding(self, finding: Finding) -> FixReport:
+        self.fix_one_calls += 1
+        return super().fix_finding(finding)
+
+
+def _healthy_service() -> HealthService:
+    return HealthService(
+        sensors=FakeSensors(),
+        disks=FakeDisks(percents=(40.0,)),
+        startup=FakeStartup(),
+        optimizer=FakeOptimizer(),
+        cleaner=FakeCleaner(),
+    )
 
 
 def test_health_page_scan_renders(qapp) -> None:
@@ -401,3 +420,257 @@ def test_health_page_fix_flow_rescans(qapp) -> None:
     assert _wait_until(qapp, lambda: service.fix_calls >= 1 and service.scan_calls >= 2)
     assert "user_temp" in service._fake_cleaner.cleaned
     assert page.scan_button.isEnabled()
+
+
+# ---------- per-finding fix ----------
+
+
+def test_fix_finding_junk_cleans_only_junk() -> None:
+    gb = 1024**3
+    cleaner = FakeCleaner(sizes={"user_temp": 2 * gb})
+    service = _service(cleaner=cleaner)
+    finding = Finding("junk", "Cleanup", "warning", "Temporary files found", "d", fixable=True)
+    report = service.fix_finding(finding)
+    assert "user_temp" in cleaner.cleaned
+    assert RECYCLE_BIN_ID not in cleaner.cleaned
+    assert report.reclaimed_bytes >= 2 * gb
+
+
+def test_fix_finding_power_uses_backup_without_restore_point() -> None:
+    calls = []
+
+    class Opt(FakeOptimizer):
+        def apply_profile(self, profile, *, with_restore_point: bool = True):
+            calls.append((profile, with_restore_point))
+            return ApplyReport(
+                applied=("power plan → Balanced",), errors=(),
+                restore_point=None, restore_status=None,
+            )
+
+    report = _service(optimizer=Opt(power_name="Power saver")).fix_finding(
+        Finding("power", "Power", "info", "Power saver plan is active", "d")
+    )
+    assert calls == [("BALANCED", False)]
+    assert report.applied == ("power plan → Balanced",)
+    assert report.errors == ()
+
+
+def test_fix_finding_power_reports_errors() -> None:
+    class Opt(FakeOptimizer):
+        def apply_profile(self, profile, *, with_restore_point: bool = True):
+            raise RuntimeError("no powercfg")
+
+    report = _service(optimizer=Opt()).fix_finding(
+        Finding("power", "Power", "info", "Power saver plan is active", "d")
+    )
+    assert report.applied == ()
+    assert any("no powercfg" in e for e in report.errors)
+
+
+class RecordingStartup(FakeStartup):
+    def __init__(self, heavy=0, failing=()) -> None:
+        super().__init__(heavy=heavy)
+        self.disabled: list[str] = []
+        self.failing = set(failing)
+
+    def set_enabled(self, item, enabled: bool) -> None:
+        if item.name in self.failing:
+            raise RuntimeError("access denied")
+        self.disabled.append(item.name)
+
+
+def test_fix_finding_startup_disables_heavy_items() -> None:
+    startup = RecordingStartup(heavy=5)
+    report = _service(startup=startup).fix_finding(
+        Finding("startup", "Startup", "warning", "5 heavy startup apps", "d")
+    )
+    assert startup.disabled == ["app0", "app1", "app2", "app3", "app4"]
+    assert report.applied == ("app0", "app1", "app2", "app3", "app4")
+    assert report.errors == ()
+
+
+def test_fix_finding_startup_collects_failures() -> None:
+    startup = RecordingStartup(heavy=3, failing={"app1"})
+    report = _service(startup=startup).fix_finding(
+        Finding("startup", "Startup", "warning", "3 heavy startup apps", "d")
+    )
+    assert report.applied == ("app0", "app2")
+    assert any("app1" in e for e in report.errors)
+
+
+def test_fix_finding_rejects_non_fixable() -> None:
+    service = _service()
+    with pytest.raises(HealthError):
+        service.fix_finding(Finding("thermal", "Thermal", "warning", "High CPU temperature", "d"))
+    with pytest.raises(HealthError):
+        service.fix_finding(Finding("disk:C:", "Storage", "critical", "C: nearly full", "d"))
+
+
+def test_action_for_maps_findings() -> None:
+    assert action_for(Finding("junk", "Cleanup", "warning", "t", "d", fixable=True)) == ("fix", "")
+    assert action_for(Finding("power", "Power", "info", "t", "d")) == ("fix", "")
+    assert action_for(Finding("startup", "Startup", "warning", "t", "d")) == ("fix", "")
+    assert action_for(Finding("disk:C:", "Storage", "critical", "t", "d")) == ("go", "cleaner")
+    assert action_for(Finding("thermal", "Thermal", "warning", "t", "d")) == ("go", "monitor")
+    assert action_for(Finding("thermal_missing", "Thermal", "info", "t", "d")) == ("go", "monitor")
+    assert action_for(Finding("memory", "Memory", "ok", "t", "d")) == ("", "")
+    assert action_for(Finding("mystery", "Other", "info", "t", "d")) == ("", "")
+
+
+def _action_button(page, row: int):
+    host = page.findings_table.cellWidget(row, 4)
+    return None if host is None else host.findChild(QPushButton)
+
+
+def _row_expectations(page) -> dict[str, tuple[str, str]]:
+    """Localized issue text -> (kind, page) as produced by action_for()."""
+    expected: dict[str, tuple[str, str]] = {}
+    for finding in page._report.findings:
+        title = localize_finding(finding)[1]
+        expected[title] = action_for(finding)
+    return expected
+
+
+def _label_for(kind: str) -> str:
+    return {"fix": tr("health_btn_fix"), "go": tr("health_btn_go")}.get(kind, "")
+
+
+def test_health_page_shows_per_row_buttons(qapp) -> None:
+    service = UiFakeHealth(sizes={"user_temp": 3 * 1024**3})
+    page = HealthPage(service=service)
+    page.start_scan()
+    assert _wait_until(qapp, lambda: page._report is not None)
+
+    table = page.findings_table
+    expected = _row_expectations(page)
+    kinds = set()
+    for row in range(table.rowCount()):
+        issue = table.item(row, 2).text()
+        kind, _page = expected[issue]
+        button = _action_button(page, row)
+        kinds.add(kind)
+        if kind:
+            assert button is not None and button.text() == _label_for(kind), issue
+        else:
+            assert button is None, issue
+    # the report must exercise all three states: fix, go and no action
+    assert {"fix", "go", ""} <= kinds | {""}
+
+
+def _row_of_finding(page, finding_id: str) -> int:
+    title = next(localize_finding(f)[1] for f in page._report.findings if f.id == finding_id)
+    table = page.findings_table
+    return next(r for r in range(table.rowCount()) if table.item(r, 2).text() == title)
+
+
+def test_health_page_fix_button_starts_single_fix(qapp) -> None:
+    gb = 1024**3
+    service = UiFakeHealth(sizes={"user_temp": 3 * gb})
+    page = HealthPage(service=service)
+    page._ask_confirm = lambda *a, **k: True
+    page.start_scan()
+    assert _wait_until(qapp, lambda: page._report is not None)
+
+    _action_button(page, _row_of_finding(page, "junk")).click()
+    assert _wait_until(qapp, lambda: service.fix_one_calls >= 1 and service.scan_calls >= 2)
+    assert "user_temp" in service._fake_cleaner.cleaned
+
+
+def test_health_page_fix_button_cancelled_does_nothing(qapp) -> None:
+    service = UiFakeHealth(sizes={"user_temp": 3 * 1024**3})
+    page = HealthPage(service=service)
+    page._ask_confirm = lambda *a, **k: False
+    page.start_scan()
+    assert _wait_until(qapp, lambda: page._report is not None)
+
+    _action_button(page, _row_of_finding(page, "junk")).click()
+    qapp.processEvents()
+    assert service.fix_one_calls == 0
+    assert service._fake_cleaner.cleaned == []
+
+
+def test_health_page_go_button_emits_navigate(qapp) -> None:
+    service = UiFakeHealth()
+    page = HealthPage(service=service)
+    targets: list[str] = []
+    page.navigate.connect(targets.append)
+    page.start_scan()
+    assert _wait_until(qapp, lambda: page._report is not None)
+
+    expected = _row_expectations(page)
+    row = next(
+        r for r in range(page.findings_table.rowCount())
+        if expected[page.findings_table.item(r, 2).text()][0] == "go"
+    )
+    _action_button(page, row).click()
+    assert targets == [expected[page.findings_table.item(row, 2).text()][1]]
+
+
+def test_health_page_healthy_rows_have_no_buttons(qapp) -> None:
+    page = HealthPage(service=_healthy_service())
+    page.start_scan()
+    assert _wait_until(qapp, lambda: page._report is not None)
+    assert page.findings_table.rowCount() > 0
+    for row in range(page.findings_table.rowCount()):
+        assert _action_button(page, row) is None
+
+
+def test_health_page_rerender_detaches_action_cells(qapp) -> None:
+    service = UiFakeHealth(sizes={"user_temp": 3 * 1024**3})
+    page = HealthPage(service=service)
+    page.start_scan()
+    assert _wait_until(qapp, lambda: page._report is not None)
+    unhealthy = page._report
+    assert page._action_buttons
+
+    healthy = _healthy_service().scan()
+    page._render_report(healthy)
+    qapp.processEvents()
+    for row in range(page.findings_table.rowCount()):
+        assert page.findings_table.cellWidget(row, 4) is None
+        assert _action_button(page, row) is None
+
+    page._render_report(unhealthy)
+    qapp.processEvents()
+    assert page._action_buttons
+    expected = _row_expectations(page)
+    for row in range(page.findings_table.rowCount()):
+        issue = page.findings_table.item(row, 2).text()
+        kind, _page = expected[issue]
+        assert (_action_button(page, row) is not None) == bool(kind), issue
+    assert all(cell.parent() is not None for cell in page._action_cells)
+
+
+def test_health_page_busy_disables_row_buttons(qapp) -> None:
+    service = UiFakeHealth(sizes={"user_temp": 3 * 1024**3})
+    page = HealthPage(service=service)
+    page.start_scan()
+    assert _wait_until(qapp, lambda: page._report is not None)
+
+    page._set_busy(True)
+    assert all(not b.isEnabled() for b in page._action_buttons)
+    page._set_busy(False)
+    assert all(b.isEnabled() for b in page._action_buttons)
+
+
+def test_health_page_buttons_follow_rows_after_sort(qapp) -> None:
+    service = UiFakeHealth(sizes={"user_temp": 3 * 1024**3})
+    page = HealthPage(service=service)
+    page.start_scan()
+    assert _wait_until(qapp, lambda: page._report is not None)
+
+    table = page.findings_table
+    expected = _row_expectations(page)
+    table.sortItems(1, Qt.SortOrder.AscendingOrder)  # severity column
+    qapp.processEvents()
+    seen = set()
+    for row in range(table.rowCount()):
+        issue = table.item(row, 2).text()
+        kind, _page = expected[issue]
+        seen.add(kind)
+        widget = table.cellWidget(row, 4)
+        if kind:
+            assert widget is not None, issue
+            labels = {b.text() for b in widget.findChildren(QPushButton)}
+            assert labels == {_label_for(kind)}, issue
+    assert "fix" in seen and "go" in seen
