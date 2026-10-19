@@ -19,15 +19,12 @@ jobs:
           cache: pip
 
       - name: Verify tag matches __version__
-        shell: bash
+        shell: pwsh
         run: |
-          TAG="${GITHUB_REF_NAME#v}"
-          VER=$(python -c "from app import __version__; print(__version__)")
-          echo "Tag: $TAG  Version: $VER"
-          if [ "$TAG" != "$VER" ]; then
-            echo "ERROR: tag v$TAG does not match app.__version__ $VER"
-            exit 1
-          fi
+          $tag = "${{ github.ref_name }}".TrimStart("v")
+          $ver = python -c "from app import __version__; print(__version__)"
+          Write-Host "Tag: $tag  Version: $ver"
+          if ($tag -ne $ver) { throw "Tag $tag != app.__version__ $ver" }
 
       - name: Install dependencies
         run: |
@@ -45,37 +42,27 @@ jobs:
 
       - name: Build exe
         shell: pwsh
-        run: python -m PyInstaller PCOptimizer_PRO.spec --noconfirm
+        run: ./scripts/build_exe.ps1
 
-      - name: Build portable zip
-        shell: pwsh
-        run: |
-          $ver = python -c "from app import __version__; print(__version__)"
-          Compress-Archive -Path "dist\PCOptimizer_PRO\*" `
-            -DestinationPath "dist\PCOptimizer_PRO_${ver}_portable.zip" `
-            -CompressionLevel Optimal
+      - name: Install Inno Setup
+        run: choco install innosetup -y --no-progress
 
       - name: Build installer
         shell: pwsh
-        run: |
-          $iscc = @(
-            "$env:ProgramFiles(x86)\Inno Setup 6\ISCC.exe",
-            "$env:LOCALAPPDATA\Programs\Inno Setup 6\ISCC.exe",
-            "D:\ПРАГРАМИ\Inno Setup 6\ISCC.exe"
-          ) | Where-Object { Test-Path $_ } | Select-Object -First 1
-          if (-not $iscc) { Write-Error "ISCC.exe not found"; exit 1 }
-          & $iscc "installer\PCOptimizer_PRO.iss"
+        run: ./scripts/build_installer.ps1
 
-      - name: Collect artifacts
+      - name: Portable zip
         shell: pwsh
         run: |
-          $ver = python -c "from app import __version__; print(__version__)"
-          New-Item -ItemType Directory -Force -Path release-assets | Out-Null
-          Copy-Item "dist\installer\PCOptimizer_PRO_Setup_${ver}.exe" release-assets/
-          Copy-Item "dist\PCOptimizer_PRO_${ver}_portable.zip" release-assets/
+          $v = "${{ github.ref_name }}".TrimStart("v")
+          Compress-Archive -Path "dist\PCOptimizer_PRO\*" `
+            -DestinationPath "dist\PCOptimizer_PRO_${v}_portable.zip" `
+            -CompressionLevel Optimal
 
       - name: Create GitHub Release
         uses: softprops/action-gh-release@v2
         with:
           generate_release_notes: true
-          files: release-assets/*
+          files: |
+            dist/installer/PCOptimizer_PRO_Setup_*.exe
+            dist/PCOptimizer_PRO_*_portable.zip

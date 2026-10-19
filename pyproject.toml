@@ -13,6 +13,9 @@ dependencies = [
     "pywin32>=306; sys_platform == 'win32'",
 ]
 
+[project.optional-dependencies]
+dev = ["pytest>=8", "pyinstaller>=6.0", "pillow>=10.0", "ruff>=0.6", "mypy>=1.11"]
+
 [project.urls]
 Homepage = "https://github.com/dimaprisaznuk64/PCOptimizer_PRO"
 Repository = "https://github.com/dimaprisaznuk64/PCOptimizer_PRO"
@@ -31,18 +34,13 @@ version = { attr = "app.__version__" }
 [tool.setuptools.packages.find]
 include = ["app*"]
 
+# ruff and pytest stay in ruff.toml / pytest.ini (they take precedence).
+
 [tool.mypy]
 python_version = "3.13"
-warn_return_any = true
-warn_unused_configs = true
+platform = "win32"
 ignore_missing_imports = true
-check_untyped_defs = false
-disallow_untyped_defs = false
-
-[[tool.mypy.overrides]]
-module = "app.sensors.*"
-disallow_untyped_defs = false
-
-[[tool.mypy.overrides]]
-module = "tests.*"
-disallow_untyped_defs = false
+warn_unused_ignores = true
+warn_return_any = true
+check_untyped_defs = true
+exclude = ["^tests/", "^scripts/", "^build/", "^dist/", "^app_run/"]
