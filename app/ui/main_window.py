@@ -14,6 +14,7 @@ from PySide6.QtWidgets import (
 )
 
 from app.alerts import TemperatureAlertMonitor, max_cpu_thermal, max_gpu_thermal
+from app.history import PerformanceHistory
 from app.i18n import I18nService, tr
 from app.settings import SettingsService
 
@@ -69,6 +70,7 @@ class MainWindow(QMainWindow):
         self.settings = settings or SettingsService()
         self._force_quit = False
         self._last_snapshot = None
+        self._history = PerformanceHistory()
         self._cpu_monitor = TemperatureAlertMonitor(reading=max_cpu_thermal)
         self._gpu_monitor = TemperatureAlertMonitor(reading=max_gpu_thermal)
         I18nService.instance().set_language(self.settings.get("language"), emit=False)
@@ -183,7 +185,7 @@ class MainWindow(QMainWindow):
         for name in (
             "theme", "icons", "components", "monitor", "dashboard", "gpu",
             "hardware", "processes", "cleaner", "startup", "optimizer", "gaming",
-            "launcher", "benchmarks", "network", "disk", "diagnostics", "health",
+            "launcher", "benchmarks", "history", "network", "disk", "diagnostics", "health",
             "settings",
             "sidebar", "topbar", "tray", "pages",
         ):
@@ -285,6 +287,7 @@ class MainWindow(QMainWindow):
 
     def handle_snapshot(self, snapshot) -> None:
         self._last_snapshot = snapshot
+        self._history.record(snapshot)
         for i in range(self.stack.count()):
             handler = getattr(self.stack.widget(i), "apply_snapshot", None)
             if handler is not None:

@@ -713,6 +713,23 @@ TRANSLATIONS: dict[str, dict[str, str]] = {
         "exp_hist_baseline": "Baseline",
         "exp_hist_delta": "Delta %",
 
+        # Performance History
+        "nav_history": "History",
+        "hist_title": "Performance History",
+        "hist_desc": "Persistent log of CPU, RAM, GPU and temperature readings recorded every 30 seconds. Charts show trends over the selected time range.",
+        "hist_range_1h": "1 hour",
+        "hist_range_6h": "6 hours",
+        "hist_range_24h": "24 hours",
+        "hist_cpu": "CPU",
+        "hist_ram": "RAM",
+        "hist_gpu": "GPU",
+        "hist_temp": "Temperature",
+        "hist_chart_title": "Usage over time",
+        "hist_samples": "{count} samples recorded",
+        "hist_no_data": "No data recorded yet. Keep the app running — samples are saved every 30 seconds.",
+        "hist_max_min": "max {max:.0f}% · min {min:.0f}%",
+        "hist_max_only": "max {max:.0f}°C",
+
         # Settings
         "set_title": "Settings",
         "set_desc": "Application preferences, language and logging configuration",
@@ -1589,6 +1606,23 @@ TRANSLATIONS: dict[str, dict[str, str]] = {
         "exp_hist_detail": "Деталі",
         "exp_hist_baseline": "Базова",
         "exp_hist_delta": "Дельта %",
+
+        # Історія продуктивності
+        "nav_history": "Історія",
+        "hist_title": "Історія продуктивності",
+        "hist_desc": "Постійний журнал показників CPU, RAM, GPU та температур, що записуються кожні 30 секунд. Графіки показують тенденції за обраний період.",
+        "hist_range_1h": "1 година",
+        "hist_range_6h": "6 годин",
+        "hist_range_24h": "24 години",
+        "hist_cpu": "CPU",
+        "hist_ram": "RAM",
+        "hist_gpu": "GPU",
+        "hist_temp": "Температура",
+        "hist_chart_title": "Навантаження в часі",
+        "hist_samples": "Записано {count} зразків",
+        "hist_no_data": "Дані ще не записані. Залиште програму працювати — зразки зберігаються кожні 30 секунд.",
+        "hist_max_min": "макс {max:.0f}% · мін {min:.0f}%",
+        "hist_max_only": "макс {max:.0f}°C",
 
         # Settings
         "set_title": "Налаштування",

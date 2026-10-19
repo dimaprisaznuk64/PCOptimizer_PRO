@@ -222,6 +222,12 @@ def _shield(p: QPainter) -> None:
     p.drawPath(path)
 
 
+def _history(p: QPainter) -> None:
+    p.drawEllipse(QRectF(3, 3, 14, 14))
+    p.drawLine(QPointF(10, 6), QPointF(10, 10))
+    p.drawLine(QPointF(10, 10), QPointF(13.5, 12))
+
+
 _DRAWERS = {
     "cpu": _cpu,
     "ram": _ram,
@@ -250,6 +256,7 @@ _DRAWERS = {
     "info": _info,
     "bolt": _bolt,
     "shield": _shield,
+    "history": _history,
 }
 
 
