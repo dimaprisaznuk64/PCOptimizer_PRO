@@ -110,19 +110,24 @@ class TopBar(QWidget):
 
     @staticmethod
     def _fill_notify_menu(menu: QMenu) -> None:
-        """Latest in-app events (from the activity log), newest first."""
+        """Latest notifications and activity events."""
         from .activity import ActivityLog
 
         menu.clear()
-        entries = ActivityLog.instance().entries(limit=8)
+        entries = ActivityLog.instance().entries(limit=10)
         if not entries:
             action = menu.addAction(tr("topbar_notify_empty"))
             action.setEnabled(False)
             return
+
         for e in entries:
             mark = {"ok": "✓", "warn": "⚠", "error": "✕"}.get(e.level, "⚠")
             text = f"{mark}  {e.title}" + (f" — {e.detail}" if e.detail else "") + f"   {e.time_text}"
             menu.addAction(text)
+
+        menu.addSeparator()
+        clear_action = menu.addAction(tr("topbar_notify_clear"))
+        clear_action.triggered.connect(ActivityLog.instance().clear)
 
     def retranslate(self) -> None:
         self.notify_button.setToolTip(tr("topbar_notify_tip"))
