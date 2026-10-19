@@ -12,10 +12,10 @@
   <img src="https://img.shields.io/badge/platform-Windows%2010%2F11%20x64-0078D6" alt="Platform">
   <img src="https://img.shields.io/badge/python-3.13-3776AB" alt="Python">
   <img src="https://img.shields.io/badge/UI-PySide6%20(Qt%206)-41CD52" alt="PySide6">
-  <img src="https://img.shields.io/badge/tests-467%20passed-brightgreen" alt="Tests">
+  <img src="https://img.shields.io/badge/tests-504%20passed-brightgreen" alt="Tests">
   <a href="https://github.com/dimaprisaznuk64/PCOptimizer_PRO/actions/workflows/ci.yml"><img src="https://github.com/dimaprisaznuk64/PCOptimizer_PRO/actions/workflows/ci.yml/badge.svg" alt="CI"></a>
   <img src="https://img.shields.io/badge/license-MIT-green" alt="License">
-  <img src="https://img.shields.io/badge/version-1.4.2-blue" alt="Version">
+  <img src="https://img.shields.io/badge/version-1.5.0-blue" alt="Version">
 </p>
 
 Філософія проєкту: **жодних «секретних» реєстрових твіків і вигаданих +FPS**. Кожна зміна системи робиться лише після бекапу/точки відновлення і має кнопку відкату. Застосунок працює без адмін-прав — UAC запитується точково, лише для конкретних операцій.
@@ -105,6 +105,11 @@
 - Журнал подій Windows у режимі лише читання: System / Application, фільтр за рівнем (критичні / помилки / попередження), таблиця час–рівень–джерело–ID–повідомлення
 - Усе через PowerShell, працює без прав адміністратора; права не змінюються
 
+### Історія продуктивності
+- Запис метрик (CPU, RAM, GPU, температура) з тротлінгом кожні 30 с, автообрізання старших за 24 год
+- Діапазони 1 год / 6 год / 24 год, картки статистики (поточне / середнє / пік) і графіки по кожній метриці
+- Дані зберігаються в теці застосунку (`data/performance_history.jsonl`)
+
 ### PC Health Score
 - Загальна оцінка 0–100 і грейд
 - Findings: RAM, температури, диски, автозавантаження, живлення, сміття — з рівнями важливості
@@ -133,29 +138,29 @@
 
 | Дашборд | Монітор системи |
 | --- | --- |
-| ![Дашборд](docs/screenshots/v1.4.2_dashboard.png) | ![Монітор](docs/screenshots/v1.4.2_monitor.png) |
+| ![Дашборд](docs/screenshots/v1.5.0_dashboard.png) | ![Монітор](docs/screenshots/v1.5.0_monitor.png) |
 
 | Залізо (Hardware) | GPU-монітор |
 | --- | --- |
-| ![Залізо](docs/screenshots/v1.4.2_hardware.png) | ![GPU](docs/screenshots/v1.4.2_gpu.png) |
+| ![Залізо](docs/screenshots/v1.5.0_hardware.png) | ![GPU](docs/screenshots/v1.5.0_gpu.png) |
 
 | PC Health Score | Чистильник |
 | --- | --- |
-| ![Health](docs/screenshots/v1.4.2_health.png) | ![Чистильник](docs/screenshots/v1.4.2_cleaner.png) |
+| ![Health](docs/screenshots/v1.5.0_health.png) | ![Чистильник](docs/screenshots/v1.5.0_cleaner.png) |
 
 | Ігровий режим | Лаунчер ігор |
 | --- | --- |
-| ![Gaming](docs/screenshots/v1.4.2_gaming.png) | ![Лаунчер](docs/screenshots/v1.4.2_launcher.png) |
+| ![Gaming](docs/screenshots/v1.5.0_gaming.png) | ![Лаунчер](docs/screenshots/v1.5.0_launcher.png) |
 
 | Бенчмарки | Мережа |
 | --- | --- |
-| ![Бенчмарки](docs/screenshots/v1.4.2_benchmarks.png) | ![Мережа](docs/screenshots/v1.4.2_network.png) |
+| ![Бенчмарки](docs/screenshots/v1.5.0_benchmarks.png) | ![Мережа](docs/screenshots/v1.5.0_network.png) |
 
 | Діагностика | Диски та сховище |
 | --- | --- |
-| ![Діагностика](docs/screenshots/v1.4.2_diagnostics.png) | ![Диски](docs/screenshots/v1.4.2_disk.png) |
+| ![Діагностика](docs/screenshots/v1.5.0_diagnostics.png) | ![Диски](docs/screenshots/v1.5.0_disk.png) |
 
-Решта сторінок: [docs/screenshots](docs/screenshots)
+Решта сторінок (Огляд, Процеси, Автозавантаження, Історія продуктивності, Налаштування): [docs/screenshots](docs/screenshots)
 
 ---
 
@@ -163,7 +168,7 @@
 
 - **Python 3.13** + **PySide6** (Qt 6; 25 вбудованих тем, тема за замовчуванням — Graphite, вбудовані шрифти Inter / JetBrains Mono)
 - **psutil** — CPU/RAM/диски/мережа, **nvidia-ml-py** (NVML) — GPU, **WMI** — температури, **pywin32** — COM/Task Scheduler/кошик
-- **pytest** — 503 тести
+- **pytest** — 504 тести
 - **PyInstaller** — збірка .exe, **Inno Setup** — інсталятор
 
 ## Безпека понад усе
@@ -176,12 +181,12 @@
 
 ## Встановлення
 
-**Варіант 1 — інсталятор.** Запустити `PCOptimizer_PRO_Setup_1.4.2.exe`.
+**Варіант 1 — інсталятор.** Запустити `PCOptimizer_PRO_Setup_1.5.0.exe`.
 Встановлюється для поточного користувача (без прав адміністратора), мови EN/UA, створює ярлики та деінсталятор.
 
 > Якщо Windows показує «Windows protected your PC» (SmartScreen) — це нормально для непідписаних програм: **More info → Run anyway**. Так само деякі антивіруси можуть хибно реагувати на PyInstaller-збірки.
 
-**Варіант 2 — портативно.** Розпакувати `PCOptimizer_PRO_1.4.2_portable.zip` і запустити `PCOptimizer_PRO\PCOptimizer_PRO.exe`. Нічого не встановлюється.
+**Варіант 2 — портативно.** Розпакувати `PCOptimizer_PRO_1.5.0_portable.zip` і запустити `PCOptimizer_PRO\PCOptimizer_PRO.exe`. Нічого не встановлюється.
 
 Готові збірки — у розділі [Releases](https://github.com/dimaprisaznuk64/PCOptimizer_PRO/releases).
 
@@ -216,10 +221,12 @@ powershell -ExecutionPolicy Bypass -File scripts\build_installer.ps1
 ```
 main.py                  — точка входу
 app/
-  ui/                    — PySide6 UI: 16 сторінок, теми, трей, topbar
+  ui/                    — PySide6 UI: 17 сторінок, теми, трей, topbar
   sensors/               — шар сенсорів: psutil / NVML / WMI / mock
   health/                — PC Health Score
   benchmarks/            — швидкі тести CPU / RAM / диска
+  history/               — історія продуктивності (JSONL + графіки)
+  reports/               — експорт звітів у CSV / JSON
   alerts/                — правила температурних алертів
   cleaner/               — чистильник
   disk/                  — дисковий аналізатор
@@ -233,7 +240,7 @@ app/
   logs/                  — ротаційне логування
   i18n/                  — локалізація UA / EN
   core/, hardware/, monitor/, health/, diagnostics/, alerts/, benchmarks/, gaming/ — допоміжні модулі
-tests/                   — pytest-тести (503)
+tests/                   — pytest-тести (504)
 scripts/                 — збірка exe/інсталятора, генерація іконки
 installer/               — скрипт Inno Setup
 docs/screenshots/        — скріншоти
