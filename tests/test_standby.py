@@ -1,9 +1,10 @@
 from __future__ import annotations
 
 from unittest import mock
+
 import pytest
 
-from app.cleaner.standby import purge_standby_list, StandbyListError
+from app.cleaner.standby import StandbyListError, purge_standby_list
 
 
 def test_purge_standby_list_success():

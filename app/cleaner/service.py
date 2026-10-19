@@ -366,7 +366,7 @@ class CleanerService:
 
     @staticmethod
     def _purge_memory(target: CleanTarget) -> CleanOutcome:
-        from app.cleaner.standby import purge_standby_list, StandbyListError
+        from app.cleaner.standby import StandbyListError, purge_standby_list
         try:
             purge_standby_list()
             return CleanOutcome(target.id, 0, 0, 0, error=None, partial=False)
