@@ -18,7 +18,7 @@ from app.health import (
 )
 from app.optimizer.service import OptimizerState
 from app.sensors import Snapshot
-from app.sensors.types import CpuStat, MemoryStat, ThermalStat
+from app.sensors.types import CpuStat, GpuStat, MemoryStat, ThermalStat
 from app.startup.service import StartupItem
 from app.ui.health import HealthPage
 
@@ -49,14 +49,21 @@ def _thermal(temp) -> ThermalStat:
 
 
 class FakeSensors:
-    def __init__(self, cpu_percent=10.0, mem_percent=40.0, temp=55.0) -> None:
+    def __init__(self, cpu_percent=10.0, mem_percent=40.0, temp=55.0, gpus=()) -> None:
         self._snapshot = Snapshot(
             ts=0.0, cpu=_cpu(cpu_percent), memory=_memory(mem_percent),
-            thermal=None if temp is None else _thermal(temp),
+            thermal=None if temp is None else _thermal(temp), gpus=tuple(gpus),
         )
 
     def snapshot(self) -> Snapshot:
         return self._snapshot
+
+
+def _gpu(utilization=10.0, temperature=50.0) -> GpuStat:
+    return GpuStat(
+        index=0, name="Test GPU", utilization=utilization,
+        memory_used=1, memory_total=2, temperature=temperature,
+    )
 
 
 class FakeDisks:
@@ -140,11 +147,17 @@ def test_score_from_penalties() -> None:
 
 @pytest.mark.parametrize(
     "score,expected",
-    [(100, "Excellent"), (90, "Excellent"), (89, "Good"), (75, "Good"),
+    [(100, "Excellent"), (95, "Excellent"), (94, "Good"), (75, "Good"),
      (74, "Fair"), (50, "Fair"), (49, "Poor"), (0, "Poor")],
 )
 def test_grade_for(score, expected) -> None:
     assert grade_for(score) == expected
+
+
+def test_any_warning_no_longer_excellent() -> None:
+    # A warning costs 10 points -> 90 must not read as "Excellent" any more.
+    findings = [Finding("a", "X", "warning", "t", "d")]
+    assert grade_for(score_from(findings)) == "Good"
 
 
 # ---------- scan ----------
@@ -173,6 +186,41 @@ def test_scan_flags_memory_and_disk_and_temp() -> None:
     assert by_id["disk:C:\\"].severity == "critical"
     assert by_id["cpu_load"].severity == "info"
     assert report.score == 100 - 30 - 30 - 30 - 3
+
+
+def test_scan_flags_gpu_temp_and_load() -> None:
+    # The reviewer's real case: GPU 86 C + 91% load must not score 90/Excellent.
+    report = _service(sensors=FakeSensors(gpus=(_gpu(utilization=91.0, temperature=86.0),))).scan()
+    by_id = {f.id: f for f in report.findings}
+    assert by_id["thermal_gpu"].severity == "warning"
+    assert by_id["gpu_load"].severity == "info"
+    assert report.score == 100 - 10 - 3
+    assert report.grade == "Good"
+
+
+def test_scan_gpu_critical_temperature() -> None:
+    report = _service(sensors=FakeSensors(gpus=(_gpu(utilization=50.0, temperature=92.0),))).scan()
+    by_id = {f.id: f for f in report.findings}
+    assert by_id["thermal_gpu"].severity == "critical"
+    # Cool GPU + light load contributes nothing.
+    report = _service(sensors=FakeSensors(gpus=(_gpu(utilization=40.0, temperature=60.0),))).scan()
+    ids = {f.id for f in report.findings}
+    assert "thermal_gpu" not in ids
+    assert "gpu_load" not in ids
+    assert report.score == 100
+
+
+def test_scan_localizes_gpu_findings() -> None:
+    from app.ui.health import localize_finding
+
+    report = _service(sensors=FakeSensors(gpus=(_gpu(utilization=95.0, temperature=86.0),))).scan()
+    by_id = {f.id: f for f in report.findings}
+    _cat, title, detail = localize_finding(by_id["thermal_gpu"])
+    assert title == "High GPU temperature"
+    assert "86°C" in detail and "86C" not in detail
+    _cat, title, detail = localize_finding(by_id["gpu_load"])
+    assert title == "GPU load is high right now"
+    assert "95%" in detail
 
 
 def test_scan_startup_heavy_counts() -> None:

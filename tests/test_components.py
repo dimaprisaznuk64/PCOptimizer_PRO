@@ -218,3 +218,128 @@ def test_perf_chart_legend_never_hides_last_series(qapp) -> None:
     # The last visible series must stay on screen.
     assert "cpu" not in chart._hidden
     assert {key for key, _c, _s in chart._canvas._series_to_draw()} == {"cpu"}
+
+
+# ---------- review batch: axis / line weights / threshold / hover ----------
+
+
+def test_time_step_for_round_steps() -> None:
+    from app.ui.components import time_step_for
+
+    assert time_step_for(8) == 5
+    assert time_step_for(40) == 10
+    assert time_step_for(60) == 10
+    assert time_step_for(120) == 30
+    assert time_step_for(700) == 120
+    assert time_step_for(100_000) == 1800
+
+
+def test_chart_line_spec_emphasizes_only_cpu_when_multi() -> None:
+    from app.ui.components import chart_line_spec
+
+    # Uniform pen width; only the fill differs (CPU / single series).
+    assert chart_line_spec("cpu", multi=True) == (True, 2.5)
+    assert chart_line_spec("ram", multi=True) == (False, 2.5)
+    assert chart_line_spec("gpu", multi=True) == (False, 2.5)
+    assert chart_line_spec("ram", multi=False) == (True, 2.5)
+
+
+def test_time_ticks_are_aligned_and_uniform(qapp) -> None:
+    from app.ui.components import _ChartCanvas
+
+    canvas = _ChartCanvas(120)
+    # Short span -> round pure-second labels.
+    ticks = canvas._time_ticks(40.0, 600.0)
+    assert [label for _x, label in ticks] == ["-10s", "-20s", "-30s"]
+    xs = [x for x, _ in ticks]
+    assert xs == sorted(xs, reverse=True)
+    assert all(x <= 600.0 - 70 for x in xs)
+    # Long span -> uniform -m:ss labels (no unit mixing within one view).
+    ticks = canvas._time_ticks(120.0, 600.0)
+    assert [label for _x, label in ticks] == ["-0:30", "-1:00", "-1:30"]
+    # Empty / tiny buffer draws nothing.
+    assert canvas._time_ticks(0.0, 600.0) == []
+
+
+def test_ring_keeps_series_color_and_marks_threshold_only(qapp) -> None:
+    from PySide6.QtGui import QColor, QPixmap
+
+    from app.ui.components import _Ring
+
+    ring = _Ring(ACCENT, size=124)
+    ring.resize(124, 124)
+    ring.set_percent(95.0)
+    pixmap = QPixmap(ring.size())
+    ring.render(pixmap)
+    image = pixmap.toImage()
+    danger = QColor(DANGER)
+    accent = QColor(ACCENT)
+    danger_hits = accent_hits = 0
+    for y in range(image.height()):
+        for x in range(image.width()):
+            px = QColor(image.pixel(x, y))
+            if px.alpha() < 160:
+                continue
+            if (px.red(), px.green(), px.blue()) == (danger.red(), danger.green(), danger.blue()):
+                danger_hits += 1
+            elif (px.red(), px.green(), px.blue()) == (accent.red(), accent.green(), accent.blue()):
+                accent_hits += 1
+    # The 95% arc stays series-coloured; red appears only as the 90% tick.
+    assert accent_hits >= 50
+    assert danger_hits < 100
+
+
+def test_bar_marker_and_card_panel_propagation(qapp) -> None:
+    from app.ui.components import Bar, CardPanel
+
+    bar = Bar()
+    bar.set_marker(85.0)
+    assert bar._marker == 85.0
+    bar.set_marker(150.0)
+    assert bar._marker == 100.0
+    bar.set_marker(None)
+    assert bar._marker is None
+
+    panel = CardPanel("Thermals")
+    panel.set_rows([("CPU", 70.0, "70 C"), ("GPU", 86.0, "86 C")], marker=85.0)
+    assert [b._marker for _l, b, _t in panel._rows.values()] == [85.0, 85.0]
+    panel.set_rows([("CPU", 70.0, "70 C")])
+    assert [b._marker for _l, b, _t in panel._rows.values()] == [None]
+
+
+def test_ring_card_border_is_property_driven(qapp) -> None:
+    card = RingCard("CPU", ACCENT)
+    # No CSS :hover (it could get stuck) — explicit hot property instead.
+    assert "hover" not in card.styleSheet()
+    assert '[hot="true"]' in card.styleSheet()
+    assert card.property("hot") is False
+    card._set_hot(True)
+    assert card.property("hot") is True
+    card._set_hot(False)
+    assert card.property("hot") is False
+
+
+def test_chart_hover_mouse_move_sets_hover_x(qapp) -> None:
+    from PySide6.QtCore import QEvent, QPointF, Qt
+    from PySide6.QtGui import QMouseEvent
+
+    from app.ui.components import _ChartCanvas
+
+    canvas = _ChartCanvas(30)
+    canvas.resize(500, 200)
+    for i in range(10):
+        canvas.push(float(i), {"cpu": 30.0})
+    pos = QPointF(250, 100)
+    canvas.mouseMoveEvent(
+        QMouseEvent(
+            QEvent.Type.MouseMove, pos, pos, pos,
+            Qt.MouseButton.NoButton, Qt.MouseButton.NoButton,
+            Qt.KeyboardModifier.NoModifier,
+        )
+    )
+    assert canvas._hover_x == 250.0
+    from PySide6.QtGui import QPixmap
+
+    pixmap = QPixmap(canvas.size())
+    canvas.render(pixmap)
+    assert not pixmap.isNull()

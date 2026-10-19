@@ -328,10 +328,14 @@ class RecentActionsWidget(QFrame):
         _clear_layout(self._rows)
         entries = self._log.entries(limit=4)
         if not entries:
+            # Center the hint so the card does not read as "big and empty".
+            self._rows.addStretch(1)
             empty = QLabel(tr("act_empty"))
             empty.setWordWrap(True)
+            empty.setAlignment(Qt.AlignmentFlag.AlignCenter)
             empty.setStyleSheet(f"font-size: {fs(12)}px; color: {TEXT_DIM};")
             self._rows.addWidget(empty)
+            self._rows.addStretch(1)
             return
         for e in entries:
             color, icon = _activity_style(e.level)
@@ -807,19 +811,19 @@ class DashboardPage(QWidget):
                 "row1": [(0, 0, 2), (0, 2, 2), (0, 4, 2), (0, 6, 2), (0, 8, 2), (0, 10, 2)],
                 "row2": [(0, 0, 8), (0, 8, 4)],
                 "row3": [(0, 0, 4), (0, 4, 4), (0, 8, 4)],
-                "row4": [(0, 0, 5), (0, 5, 4), (0, 9, 3)],
+                "row4": [(0, 0, 4), (0, 4, 4), (0, 8, 4)],
             },
             "mid": {
                 "row1": [(0, 0, 4), (0, 4, 4), (0, 8, 4), (1, 0, 4), (1, 4, 4), (1, 8, 4)],
                 "row2": [(0, 0, 12), (1, 0, 12)],
                 "row3": [(0, 0, 4), (0, 4, 4), (0, 8, 4)],
-                "row4": [(0, 0, 12), (1, 0, 7), (1, 7, 5)],
+                "row4": [(0, 0, 12), (1, 0, 6), (1, 6, 6)],
             },
             "compact": {
                 "row1": [(0, 0, 6), (0, 6, 6), (1, 0, 6), (1, 6, 6), (2, 0, 6), (2, 6, 6)],
                 "row2": [(0, 0, 12), (1, 0, 12)],
                 "row3": [(0, 0, 12), (1, 0, 6), (1, 6, 6)],
-                "row4": [(0, 0, 12), (1, 0, 7), (1, 7, 5)],
+                "row4": [(0, 0, 12), (1, 0, 6), (1, 6, 6)],
             },
         }[mode]
         for key, (grid, widgets) in self._grid_rows.items():
@@ -987,7 +991,7 @@ class DashboardPage(QWidget):
         for name, value in anon_zones:
             thermal_rows.append((zone_label(name), min(value, 100.0), f"{value:.0f}°C"))
         if thermal_rows:
-            self.thermal.set_rows(thermal_rows)
+            self.thermal.set_rows(thermal_rows, marker=85.0)
 
         if s.errors:
             self.errors.setText(tr("dash_sensors_err", msg=" · ".join(f"{k}: {v}" for k, v in s.errors.items())))

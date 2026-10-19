@@ -178,3 +178,46 @@ def test_dashboard_disk_extra_color_follows_level(qapp) -> None:
     page.apply_snapshot(s)
     assert "86%" in page.disk.value.text()
     assert WARN in page.disk.extra.styleSheet()
+
+
+def _row4_spans(page: DashboardPage, width: int) -> list[int]:
+    page._relayout(width)
+    grid, widgets = page._grid_rows["row4"]
+    spans: list[int] = []
+    for w in widgets:
+        for i in range(grid.count()):
+            if grid.itemAt(i).widget() is w:
+                spans.append(grid.getItemPosition(i)[3])
+                break
+    return spans
+
+
+def test_dashboard_row4_widgets_are_equal_width(qapp) -> None:
+    # Review: gaming banner / network / notifications must align on the grid.
+    page = DashboardPage()
+    assert _row4_spans(page, 1600) == [4, 4, 4]  # wide
+    assert _row4_spans(page, 1200) == [12, 6, 6]  # mid: net and notif equal
+    assert _row4_spans(page, 800) == [12, 6, 6]  # compact
+
+
+def test_recent_actions_empty_hint_is_centered(qapp) -> None:
+    from app.ui.activity import ActivityLog
+
+    ActivityLog.instance().clear()
+    from app.ui.dashboard import RecentActionsWidget
+
+    widget = RecentActionsWidget()
+    # stretch + hint + stretch (the card no longer reads as "big and empty")
+    assert widget._rows.count() == 3
+    hint = widget._rows.itemAt(1).widget()
+    assert hint.alignment() & Qt.AlignmentFlag.AlignCenter
+
+
+def test_dashboard_thermal_bars_have_threshold_marker(qapp) -> None:
+    from app.sensors.types import Snapshot, ThermalStat
+
+    page = DashboardPage()
+    snap = Snapshot(ts=1.0, thermal=ThermalStat(source="t", temperatures=(("CPU", 70.0),)))
+    page.apply_snapshot(snap)
+    markers = [b._marker for _l, b, _t in page.thermal._rows.values()]
+    assert markers and all(m == 85.0 for m in markers)

@@ -53,12 +53,14 @@ def grade_text(grade: str) -> str:
 
 _CATEGORY_KEYS = {
     "Memory": "fc_memory", "Thermal": "fc_thermal", "CPU": "fc_cpu", "Storage": "fc_storage",
-    "Startup": "fc_startup", "Power": "fc_power", "Cleanup": "fc_cleanup",
+    "Startup": "fc_startup", "Power": "fc_power", "Cleanup": "fc_cleanup", "GPU": "fc_gpu",
 }
 _TITLE_RULES = (
     (r"RAM almost full", "ft_ram_full"), (r"High RAM usage", "ft_ram_high"), (r"RAM usage healthy", "ft_ram_ok"),
     (r"Very high CPU temperature", "ft_temp_crit"), (r"High CPU temperature", "ft_temp_high"),
+    (r"Very high GPU temperature", "ft_gpu_temp_crit"), (r"High GPU temperature", "ft_gpu_temp_high"),
     (r"Temperatures normal", "ft_temp_ok"), (r"CPU load is high right now", "ft_cpu_high"),
+    (r"GPU load is high right now", "ft_gpu_high"),
     (r"(?P<mount>.+) nearly full", "ft_disk_full"), (r"(?P<mount>.+) running low", "ft_disk_low"),
     (r"(?P<n>\d+) heavy startup apps", "ft_startup_heavy"), (r"Power saver plan is active", "ft_power_saver"),
     (r"Lots of temporary files", "ft_junk_crit"), (r"Temporary files found", "ft_junk_warn"),
@@ -68,7 +70,10 @@ _DETAIL_RULES = (
     (r"(?P<n>\d+)% of RAM in use — close heavy apps", "fd_ram_full"), (r"(?P<n>\d+)% of RAM in use", "fd_ram_high"),
     (r"(?P<n>\d+)% used — free space now", "fd_disk_full"), (r"(?P<n>\d+)% used", "fd_used"),
     (r"(?P<n>\d+)C — check cooling / dust", "fd_temp_crit"), (r"(?P<n>\d+)C", "fd_temp"),
+    (r"(?P<n>\d+)C — GPU is close to throttling", "fd_gpu_temp_crit"),
+    (r"(?P<n>\d+)C — normal while gaming, not at idle", "fd_gpu_temp"),
     (r"(?P<n>\d+)% — may be a background task", "fd_cpu_high"),
+    (r"(?P<n>\d+)% — normal in games, check temperatures if constant", "fd_gpu_high"),
     (r"They slow down logon and consume RAM", "fd_startup_warn"),
     (r"Consider disabling the ones you do not need", "fd_startup_info"),
     (r"Switch to Balanced or the Gaming profile for more performance", "fd_power_saver"),

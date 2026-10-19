@@ -37,9 +37,15 @@ DISK_COLUMN_KEYS = (
 EVENT_COLUMN_KEYS = (
     "diag_col_time",
     "diag_col_level",
+    "diag_col_kind",
     "diag_col_source",
     "diag_col_id",
     "diag_col_message",
+)
+UPDATE_COLUMN_KEYS = (
+    "diag_up_title",
+    "diag_up_sev",
+    "diag_up_kb",
 )
 
 LOG_CHOICES = ("System", "Application")
@@ -63,6 +69,28 @@ _EVENT_LEVEL_COLORS = {
     "error": DANGER,
     "warning": WARN,
 }
+_KIND_KEYS = {
+    "kernel_power": "diag_kind_kernel_power",
+    "bsod": "diag_kind_bsod",
+    "unexpected_shutdown": "diag_kind_unexpected_shutdown",
+    "app_crash": "diag_kind_app_crash",
+    "app_hang": "diag_kind_app_hang",
+    "disk_error": "diag_kind_disk_error",
+    "service_fail": "diag_kind_service_fail",
+    "memory_error": "diag_kind_memory_error",
+    "update_error": "diag_kind_update_error",
+}
+_KIND_COLORS = {
+    "kernel_power": WARN,
+    "bsod": DANGER,
+    "unexpected_shutdown": WARN,
+    "app_crash": WARN,
+    "app_hang": WARN,
+    "disk_error": DANGER,
+    "service_fail": WARN,
+    "memory_error": DANGER,
+    "update_error": WARN,
+}
 _HEALTH_KEYS = {
     "healthy": "diag_health_healthy",
     "warning": "diag_health_warning",
@@ -73,6 +101,16 @@ _HEALTH_COLORS = {
     "healthy": OK,
     "warning": WARN,
     "unhealthy": DANGER,
+}
+_UP_SEV_KEYS = {
+    "critical": "diag_up_sev_critical",
+    "important": "diag_up_sev_important",
+    "moderate": "diag_up_sev_moderate",
+    "low": "diag_up_sev_low",
+}
+_UP_SEV_COLORS = {
+    "critical": DANGER,
+    "important": WARN,
 }
 
 _MISSING = "—"
@@ -99,6 +137,13 @@ def _temperature(value: int | None) -> str:
     return _MISSING if value is None else f"{value}°C"
 
 
+def _severity_text(severity: str) -> str:
+    key = _UP_SEV_KEYS.get(severity)
+    if key:
+        return tr(key)
+    return _MISSING if not severity else severity.capitalize()
+
+
 class DiagnosticsPage(QWidget):
     def __init__(
         self, service: DiagnosticsService | None = None, parent: QWidget | None = None
@@ -108,6 +153,7 @@ class DiagnosticsPage(QWidget):
         self._service = service or DiagnosticsService()
         self._task: Task | None = None
         self._report: DiagnosticsReport | None = None
+        self._updates: list = []
         self._loaded = False
 
         layout = QVBoxLayout(self)
@@ -176,8 +222,34 @@ class DiagnosticsPage(QWidget):
 
         self.events_title = evt_title
         splitter.addWidget(evt_card)
+
+        up_card = QFrame()
+        up_card.setObjectName("card")
+        up_layout = QVBoxLayout(up_card)
+        up_layout.setContentsMargins(18, 14, 18, 14)
+        up_layout.setSpacing(8)
+
+        up_head = QHBoxLayout()
+        up_head.setSpacing(8)
+        up_title = QLabel(tr("diag_up_title").upper())
+        up_title.setObjectName("cardTitle")
+        up_head.addWidget(up_title)
+        up_head.addStretch(1)
+        self.check_button = QPushButton(tr("diag_up_btn"))
+        self.check_button.setProperty("secondary", True)
+        self.check_button.clicked.connect(self.start_updates)
+        up_head.addWidget(self.check_button)
+        up_layout.addLayout(up_head)
+
+        self.updates_table = self._build_table(UPDATE_COLUMN_KEYS, "diag_up_empty")
+        up_layout.addWidget(self.updates_table, 1)
+
+        self.updates_title = up_title
+        splitter.addWidget(up_card)
+
         splitter.setStretchFactor(0, 2)
         splitter.setStretchFactor(1, 3)
+        splitter.setStretchFactor(2, 2)
         layout.addWidget(splitter, 1)
 
     # ---------- table helpers ----------
@@ -253,9 +325,30 @@ class DiagnosticsPage(QWidget):
         self._set_busy(False)
         self.status_label.setText(tr("diag_failed", msg=message))
 
+    def start_updates(self) -> None:
+        if self._task is not None:
+            return
+        self.status_label.setText(tr("diag_up_loading"))
+        self._set_busy(True)
+        self._task = Task(self._service.windows_updates, parent=self)
+        self._task.done.connect(self._apply_updates)
+        self._task.failed.connect(self._on_failed)
+        self._task.start()
+
+    def _apply_updates(self, updates: object) -> None:
+        self._task = None
+        self._set_busy(False)
+        if not isinstance(updates, list):
+            self.status_label.setText(tr("diag_up_failed", msg=updates))
+            return
+        self._updates = updates
+        self._render_updates()
+        self.status_label.setText(tr("diag_up_status", count=len(updates)))
+
     def _set_busy(self, busy: bool) -> None:
         self.refresh_button.setEnabled(not busy)
         self.events_button.setEnabled(not busy)
+        self.check_button.setEnabled(not busy)
         self.log_combo.setEnabled(not busy)
         self.level_combo.setEnabled(not busy)
 
@@ -293,9 +386,11 @@ class DiagnosticsPage(QWidget):
         self.events_table.setRowCount(len(events))
         for row, event in enumerate(events):
             name = _event_level_text(event.level_name, event.level)
+            kind_key = _KIND_KEYS.get(event.kind)
             cells = (
                 QTableWidgetItem(event.time),
                 QTableWidgetItem(name),
+                QTableWidgetItem(tr(kind_key) if kind_key else _MISSING),
                 QTableWidgetItem(event.source),
                 QTableWidgetItem(str(event.event_id) if event.event_id else ""),
                 QTableWidgetItem(event.message),
@@ -304,9 +399,26 @@ class DiagnosticsPage(QWidget):
             if color is not None:
                 cells[1].setForeground(QColor(color))
                 cells[0].setForeground(QColor(color))
-            cells[4].setToolTip(event.message)
+            kind_color = _KIND_COLORS.get(event.kind)
+            if kind_color is not None:
+                cells[2].setForeground(QColor(kind_color))
+            cells[5].setToolTip(event.message)
             for col, item in enumerate(cells):
                 self.events_table.setItem(row, col, item)
+
+    def _render_updates(self) -> None:
+        self.updates_table.setRowCount(len(self._updates))
+        for row, upd in enumerate(self._updates):
+            cells = (
+                QTableWidgetItem(upd.title),
+                QTableWidgetItem(_severity_text(upd.severity)),
+                QTableWidgetItem(upd.kb or _MISSING),
+            )
+            color = _UP_SEV_COLORS.get(upd.severity)
+            if color is not None:
+                cells[1].setForeground(QColor(color))
+            for col, item in enumerate(cells):
+                self.updates_table.setItem(row, col, item)
 
     # ---------- i18n ----------
 
@@ -317,11 +429,16 @@ class DiagnosticsPage(QWidget):
         self.disk_title.setText(tr("diag_disk_title").upper())
         self.events_title.setText(tr("diag_evt_title").upper())
         self.events_button.setText(tr("diag_evt_btn"))
+        self.updates_title.setText(tr("diag_up_title").upper())
+        self.check_button.setText(tr("diag_up_btn"))
         for index, log in enumerate(LOG_CHOICES):
             self.log_combo.setItemText(index, tr(_LOG_KEYS[log]))
         for index, levels in enumerate(LEVEL_CHOICES):
             self.level_combo.setItemText(index, tr(_LEVEL_KEYS[levels]))
         self.disk_table.setHorizontalHeaderLabels([tr(k) for k in DISK_COLUMN_KEYS])
         self.events_table.setHorizontalHeaderLabels([tr(k) for k in EVENT_COLUMN_KEYS])
+        self.updates_table.setHorizontalHeaderLabels([tr(k) for k in UPDATE_COLUMN_KEYS])
         if self._report is not None:
             self._render()
+        if self._updates:
+            self._render_updates()

@@ -35,6 +35,11 @@ DEFAULT_LEVELS = (1, 2)
 DEFAULT_LIMIT = 40
 ALLOWED_LOGS = ("System", "Application")
 
+# Well-known event patterns we can explain in plain words (classification is
+# a best-effort read-only annotation — the raw event stays the source of truth).
+_SERVICE_FAIL_IDS = {7000, 7001, 7009, 7011, 7022, 7023, 7024, 7026, 7031, 7034}
+_DISK_SOURCES = {"disk", "ntfs", "stornvme", "storahci", "volmgr", "volsnap", "partmgr"}
+
 # PowerShell 5.1 writes console output in the OEM code page (cp866/cp1251 for
 # Cyrillic locales). Force UTF-8 so non-ASCII event messages survive the pipe.
 PS_UTF8_PREFIX = "[Console]::OutputEncoding=[System.Text.Encoding]::UTF8;"
@@ -49,6 +54,17 @@ RELIABILITY_SCRIPT = (
     "Get-PhysicalDisk | Get-StorageReliabilityCounter | Select-Object "
     "DeviceId,Temperature,Wear,PowerOnHours,ReadErrorsTotal,WriteErrorsTotal | "
     "ConvertTo-Json -Compress"
+)
+# Pending updates via the Windows Update Agent COM API (read-only search;
+# no download/install — the app never touches the update pipeline itself).
+UPDATE_SCRIPT = (
+    "$ErrorActionPreference='SilentlyContinue';"
+    "$s = New-Object -ComObject Microsoft.Update.Session;"
+    "$r = $s.CreateUpdateSearcher().Search("
+    "\"IsInstalled=0 and IsHidden=0 and Type='Software'\");"
+    "@($r.Updates) | ForEach-Object { [PSCustomObject]@{"
+    "Title=$_.Title;Severity=$_.MsrcSeverity;"
+    "Kb=($_.KBArticleIDs -join ', ')} } | ConvertTo-Json -Compress"
 )
 
 _WS_RE = re.compile(r"\s+")
@@ -80,6 +96,14 @@ class EventEntry:
     source: str = ""
     event_id: int = 0
     message: str = ""
+    kind: str = ""  # pattern id from _classify(), e.g. "kernel_power"
+
+
+@dataclass(frozen=True, slots=True)
+class PendingUpdate:
+    title: str = ""
+    severity: str = ""  # lowercased MsrcSeverity: critical/important/... or ""
+    kb: str = ""
 
 
 @dataclass(frozen=True, slots=True)
@@ -151,19 +175,61 @@ def _load_rows(output: str) -> list[dict[str, Any]]:
     return []
 
 
+def parse_updates(output: str) -> list[PendingUpdate]:
+    """Parse Windows Update Agent search JSON into pending updates."""
+    entries: list[PendingUpdate] = []
+    for row in _load_rows(output):
+        entries.append(
+            PendingUpdate(
+                title=_text(row.get("Title")),
+                severity=_text(row.get("Severity")).lower(),
+                kb=_text(row.get("Kb")),
+            )
+        )
+    return entries
+
+
+def _classify(source: str, event_id: int, message: str) -> str:
+    """Best-effort pattern id for a raw event ("" = no known pattern)."""
+    src = source.lower()
+    msg = message.lower()
+    if src == "kernel-power" and event_id == 41:
+        return "bsod" if "bugcheck" in msg else "kernel_power"
+    if src in ("microsoft-windows-wer-systemerrorreporting", "bugcheck") or "bugcheck" in msg:
+        return "bsod"
+    if event_id == 6008:
+        return "unexpected_shutdown"
+    if src == "application error" and event_id == 1000:
+        return "app_crash"
+    if src == "application error" and event_id == 1002:
+        return "app_hang"
+    if src == "microsoft-windows-memorydiagnostics-service":
+        return "memory_error"
+    if src == "microsoft-windows-windowsupdateclient":
+        return "update_error"
+    if src in _DISK_SOURCES:
+        return "disk_error"
+    if src == "service control manager" and event_id in _SERVICE_FAIL_IDS:
+        return "service_fail"
+    return ""
+
+
 def parse_events(output: str) -> list[EventEntry]:
     """Parse ``Get-WinEvent | ConvertTo-Json`` output into events."""
     entries: list[EventEntry] = []
     for row in _load_rows(output):
         level = _to_int(row.get("Level"))
+        source = _text(row.get("ProviderName"))
+        event_id = _to_int(row.get("Id"))
         entries.append(
             EventEntry(
                 time=_text(row.get("Time")),
                 level=level,
                 level_name=LEVEL_NAMES.get(level, ""),
-                source=_text(row.get("ProviderName")),
-                event_id=_to_int(row.get("Id")),
+                source=source,
+                event_id=event_id,
                 message=_clean_message(_text(row.get("Message"))),
+                kind=_classify(source, event_id, _text(row.get("Message"))),
             )
         )
     return entries
@@ -291,6 +357,33 @@ class DiagnosticsService:
             bucket.append(f"Events: exit {code}")
             return []
         return parse_events(out)
+
+    def windows_updates(self, errors: list[str] | None = None) -> list[PendingUpdate]:
+        """Search Windows Update for not-installed software updates (read-only).
+
+        The WUA search can take a while (talks to the update service), so the
+        caller should run this off the UI thread; the timeout is generous.
+        """
+        bucket = errors if errors is not None else []
+        try:
+            code, out = self._run(
+                [
+                    "powershell",
+                    "-NoProfile",
+                    "-ExecutionPolicy",
+                    "Bypass",
+                    "-Command",
+                    PS_UTF8_PREFIX + UPDATE_SCRIPT,
+                ],
+                180.0,
+            )
+        except Exception as e:  # noqa: BLE001 - collected, never fatal
+            bucket.append(f"Windows Update: {e}")
+            return []
+        if code != 0 and not out.strip():
+            bucket.append(f"Windows Update: exit {code}")
+            return []
+        return parse_updates(out)
 
     # ---------- internals ----------
 

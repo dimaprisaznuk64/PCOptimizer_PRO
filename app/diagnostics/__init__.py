@@ -1,4 +1,4 @@
-"""PCOptimizer_PRO — diagnostics package (drive health + event log)."""
+"""PCOptimizer_PRO — diagnostics package (drive health + event log + updates)."""
 
 from .service import (
     DEFAULT_LEVELS,
@@ -11,7 +11,9 @@ from .service import (
     DiagnosticsService,
     DiskHealth,
     EventEntry,
+    PendingUpdate,
     parse_events,
+    parse_updates,
 )
 
 __all__ = [
@@ -25,5 +27,7 @@ __all__ = [
     "DiagnosticsService",
     "DiskHealth",
     "EventEntry",
+    "PendingUpdate",
     "parse_events",
+    "parse_updates",
 ]

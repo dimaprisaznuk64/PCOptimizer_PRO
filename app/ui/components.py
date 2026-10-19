@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import math
 from collections import deque
 
 from PySide6.QtCore import (
@@ -49,10 +50,10 @@ from .theme import (
 # acronyms (CPU/GPU/RAM) fall back to themselves.
 CHART_SERIES: dict[str, tuple[str, str, Qt.PenStyle]] = {
     "cpu": ("CPU", "C2", Qt.PenStyle.SolidLine),
-    "gpu": ("GPU", "C3", Qt.PenStyle.DashLine),
+    "gpu": ("GPU", "C3", Qt.PenStyle.SolidLine),
     "ram": ("RAM", "WARN", Qt.PenStyle.SolidLine),
     "net_down": ("dash_net_download", "C2", Qt.PenStyle.SolidLine),
-    "net_up": ("dash_net_upload", "WARN", Qt.PenStyle.DashLine),
+    "net_up": ("dash_net_upload", "WARN", Qt.PenStyle.SolidLine),
 }
 
 # Series shown in the "All" tab and which series the "Network" tab plots.
@@ -187,10 +188,13 @@ class _Ring(QWidget):
         painter.drawArc(rect, 0, 360 * 16)
         
         if not self._has_value or self._shown <= 0:
+            self._paint_threshold(painter, rect, thickness)
             return
             
         span = int(-360 * 16 * self._shown / 100.0)
-        color = QColor(level_color(self._percent, self._color))
+        # The value arc keeps its series colour at any level; red is reserved
+        # for the threshold marker (see _paint_threshold).
+        color = QColor(self._color)
         
         # Soft outer glow
         glow = QColor(color)
@@ -206,6 +210,24 @@ class _Ring(QWidget):
         painter.setPen(arc)
         painter.drawArc(rect, 90 * 16, span)
 
+        self._paint_threshold(painter, rect, thickness)
+
+    @staticmethod
+    def _paint_threshold(painter: QPainter, rect: QRectF, thickness: float) -> None:
+        """Red tick at the 90% mark — the only red on the ring."""
+        angle = math.radians(90 - 360 * 0.9)
+        ux, uy = math.cos(angle), -math.sin(angle)
+        cx, cy = rect.center().x(), rect.center().y()
+        r = rect.width() / 2
+        half = thickness / 2 + 1
+        pen = QPen(QColor(DANGER), 2.0)
+        pen.setCapStyle(Qt.PenCapStyle.RoundCap)
+        painter.setPen(pen)
+        painter.drawLine(
+            QPointF(cx + (r - half) * ux, cy + (r - half) * uy),
+            QPointF(cx + (r + half) * ux, cy + (r + half) * uy),
+        )
+
 
 class RingCard(QFrame):
     """Vertical card: header with icon/model, glowing ring with percent, bottom stats."""
@@ -216,9 +238,13 @@ class RingCard(QFrame):
         super().__init__(parent)
         self.setObjectName("card")
         self.setCursor(Qt.CursorShape.PointingHandCursor)
+        # Hover is driven by explicit enter/leave events (property "hot"):
+        # the CSS :hover state could get stuck after repaints and left a
+        # "random" accent border on the card.
+        self.setProperty("hot", False)
         self.setStyleSheet(
             f"QFrame#card {{ background: {PANEL}; border: 1px solid {BORDER}; "
-            f"border-radius: 14px; }} QFrame#card:hover {{ border-color: {ACCENT}; }}"
+            f"border-radius: 14px; }} QFrame#card[hot=\"true\"] {{ border-color: {ACCENT}; }}"
         )
         layout = QVBoxLayout(self)
         layout.setContentsMargins(14, 12, 14, 12)
@@ -318,6 +344,27 @@ class RingCard(QFrame):
         if event.button() == Qt.MouseButton.LeftButton:
             self.clicked.emit()
         super().mouseReleaseEvent(event)
+
+    def _set_hot(self, hot: bool) -> None:
+        if self.property("hot") == hot:
+            return
+        self.setProperty("hot", hot)
+        self.style().unpolish(self)
+        self.style().polish(self)
+        self.update()
+
+    def enterEvent(self, event) -> None:
+        self._set_hot(True)
+        super().enterEvent(event)
+
+    def leaveEvent(self, event) -> None:
+        self._set_hot(False)
+        super().leaveEvent(event)
+
+    def hideEvent(self, event) -> None:
+        # Hiding while hovered (page switch) must not keep the accent border.
+        self._set_hot(False)
+        super().hideEvent(event)
 
 
 class PerfChart(QFrame):
@@ -463,6 +510,24 @@ def _fmt_rate(value: float) -> str:
     return rate(value)
 
 
+_TIME_STEPS = (5, 10, 15, 30, 60, 120, 300, 600, 1800)
+
+
+def time_step_for(span: float) -> int:
+    """Fixed tick step (seconds) so axis labels land on round values."""
+    for step in _TIME_STEPS:
+        if span / step <= 6:
+            return step
+    return _TIME_STEPS[-1]
+
+
+def chart_line_spec(key: str, multi: bool) -> tuple[bool, float]:
+    """(draw fill, pen width): lines are uniform; only CPU keeps the fill in
+    multi-series mode so the curves do not cover each other with gradients."""
+    primary = (not multi) or key == "cpu"
+    return primary, 2.5
+
+
 class _ChartCanvas(QWidget):
     def __init__(self, points: int, parent: QWidget | None = None) -> None:
         super().__init__(parent)
@@ -499,6 +564,25 @@ class _ChartCanvas(QWidget):
         # One format for every tick (-m:ss) so units never mix on the axis.
         total = max(0, int(round(seconds)))
         return f"-{total // 60}:{total % 60:02d}"
+
+    def _time_ticks(self, span: float, width: float) -> list[tuple[float, str]]:
+        """(x, label) pairs aligned to fixed second steps (right edge = now)."""
+        if span <= 1 or width <= 0:
+            return []
+        step = time_step_for(span)
+        ticks: list[tuple[float, str]] = []
+        k = 1
+        while k * step < span * 0.97:
+            x = width - (k * step) / span * width
+            if x <= width - 70 and (not ticks or ticks[-1][0] - x >= 44) and x >= 34:
+                label = (
+                    tr("chart_ago_s", n=int(k * step))
+                    if span <= 60
+                    else self._span_text(k * step)
+                )
+                ticks.append((x, label))
+            k += 1
+        return ticks
 
     def _series_to_draw(self) -> list[tuple[str, QColor, Qt.PenStyle]]:
         """Return ``(history key, colour, pen style)`` for the active tab."""
@@ -572,7 +656,7 @@ class _ChartCanvas(QWidget):
         self.update()
 
     def _paint_hover(self, painter: QPainter, plot: QRectF, series: list) -> None:
-        """Vertical crosshair + drawn value box under the cursor."""
+        """Accent crosshair, per-series dots and a drawn value box under the cursor."""
         from datetime import datetime
 
         count = max((len(self._history.get(k, ())) for k, _c, _s in series), default=0)
@@ -580,7 +664,9 @@ class _ChartCanvas(QWidget):
             return
         idx = round((self._hover_x - plot.left()) / plot.width() * (count - 1))
         x = plot.left() + idx / (count - 1) * plot.width()
-        painter.setPen(QPen(QColor(TEXT_DIM), 1, Qt.PenStyle.DotLine))
+        cross = QColor(ACCENT)
+        cross.setAlpha(170)
+        painter.setPen(QPen(cross, 1, Qt.PenStyle.DotLine))
         painter.drawLine(QPointF(x, plot.top()), QPointF(x, plot.bottom()))
         rows: list[tuple[str, QColor]] = []
         time_text = (
@@ -590,12 +676,19 @@ class _ChartCanvas(QWidget):
         )
         if time_text:
             rows.append((time_text, QColor(TEXT_DIM)))
+        hi = 100.0 if self._percent else self._axis_hi(series)
         for key, color, _style in series:
             vals = self._history.get(key)
             if not vals or idx >= len(vals):
                 continue
             label_key = CHART_SERIES.get(key, (key, "ACCENT", Qt.PenStyle.SolidLine))[0]
             value = vals[idx]
+            # Dot at the hovered sample.
+            ratio = max(0.0, min(1.0, value / hi))
+            dot = QPointF(x, plot.bottom() - ratio * plot.height())
+            painter.setPen(QPen(QColor(PANEL), 1.5))
+            painter.setBrush(color)
+            painter.drawEllipse(dot, 3.5, 3.5)
             shown = f"{value:.0f}%" if self._percent else f"{_fmt_rate(value)}/s"
             rows.append((f"{tr(label_key)}: {shown}", color))
         if not rows:
@@ -651,6 +744,7 @@ class _ChartCanvas(QWidget):
 
         # Stretch the time axis to what we actually have, so the curve fills the
         # plot honestly right after startup instead of hugging the right edge.
+        # Ticks sit on fixed second steps (-10s / -20s ... or -m:ss for long spans).
         count = len(self._times)
         if count > 1:
             dt = (self._times[-1] - self._times[0]) / (count - 1)
@@ -658,14 +752,17 @@ class _ChartCanvas(QWidget):
         else:
             span = 0.0
         painter.setPen(text)
-        for i, frac in enumerate((0.0, 0.25, 0.5, 0.75, 1.0)):
-            x = plot.left() + frac * plot.width()
-            label = tr("dash_chart_now") if frac == 1.0 else self._span_text(span * (1 - frac)) if span else ""
-            align = Qt.AlignmentFlag.AlignLeft if i == 0 else Qt.AlignmentFlag.AlignRight if frac == 1.0 else Qt.AlignmentFlag.AlignHCenter
-            box = QRectF(x - 30 if align == Qt.AlignmentFlag.AlignHCenter else x - (0 if i == 0 else 60), plot.bottom() + 4, 60, 14)
-            if align == Qt.AlignmentFlag.AlignRight:
-                box = QRectF(x - 60, plot.bottom() + 4, 60, 14)
-            painter.drawText(box, align | Qt.AlignmentFlag.AlignVCenter, label)
+        for x, label in self._time_ticks(span, plot.width()):
+            painter.drawText(
+                QRectF(plot.left() + x - 30, plot.bottom() + 4, 60, 14),
+                Qt.AlignmentFlag.AlignHCenter | Qt.AlignmentFlag.AlignVCenter,
+                label,
+            )
+        painter.drawText(
+            QRectF(plot.right() - 60, plot.bottom() + 4, 60, 14),
+            Qt.AlignmentFlag.AlignRight | Qt.AlignmentFlag.AlignVCenter,
+            tr("dash_chart_now"),
+        )
 
         multi = len(series) > 1
         for key, color, style in series:
@@ -690,9 +787,11 @@ class _ChartCanvas(QWidget):
                 prev = pt
             last_x = x0 + (len(values) - 1) * step
 
-            # Subtle fill only for a single curve; with several curves the fills
-            # would cover each other, so they stay as thin lines.
-            if not multi:
+            # Single-series tabs (and CPU in "All") get a gradient fill and a
+            # 2px line; the other series stay thin 1px lines so they do not
+            # fight the emphasized curve.
+            with_fill, pen_width = chart_line_spec(key, multi)
+            if with_fill:
                 fill = QPainterPath(path)
                 fill.lineTo(QPointF(last_x, plot.bottom()))
                 fill.lineTo(QPointF(x0, plot.bottom()))
@@ -706,8 +805,9 @@ class _ChartCanvas(QWidget):
                 gradient.setColorAt(1.0, fade)
                 painter.fillPath(fill, gradient)
 
-            pen = QPen(color, 2.0)
+            pen = QPen(color, pen_width)
             pen.setJoinStyle(Qt.PenJoinStyle.RoundJoin)
+            pen.setCapStyle(Qt.PenCapStyle.RoundCap)
             if style == Qt.PenStyle.DashLine:
                 pen.setStyle(Qt.PenStyle.DashLine)
                 pen.setDashPattern([5.0, 4.0])
@@ -1074,6 +1174,7 @@ class Bar(QWidget):
         self.setFixedHeight(height)
         self._color = color
         self._percent = 0.0
+        self._marker: float | None = None
 
     def set_percent(self, percent: float | None) -> None:
         self._percent = 0.0 if percent is None else max(0.0, min(100.0, float(percent)))
@@ -1081,6 +1182,11 @@ class Bar(QWidget):
 
     def set_color(self, color: str) -> None:
         self._color = color
+        self.update()
+
+    def set_marker(self, marker: float | None) -> None:
+        """Vertical threshold tick (e.g. 85 C) drawn over the fill."""
+        self._marker = None if marker is None else max(0.0, min(100.0, float(marker)))
         self.update()
 
     def paintEvent(self, event) -> None:
@@ -1096,6 +1202,13 @@ class Bar(QWidget):
             fill = QRectF(rect.left(), rect.top(), min(width, rect.width()), rect.height())
             painter.setBrush(QColor(self._color))
             painter.drawRoundedRect(fill, radius, radius)
+        if self._marker is not None and 0 < self._marker < 100:
+            x = rect.left() + rect.width() * self._marker / 100.0
+            x = min(max(x, rect.left() + 1), rect.right() - 1)
+            tick = QColor(TEXT)
+            tick.setAlpha(170)
+            painter.setPen(QPen(tick, 2))
+            painter.drawLine(QPointF(x, rect.top() + 1), QPointF(x, rect.bottom() - 1))
 
 
 class MetricCard(QFrame):
@@ -1182,11 +1295,13 @@ class CardPanel(QFrame):
         self._layout.addLayout(self.body)
         self._layout.addStretch(1)
         self._rows: dict[str, tuple[QLabel, Bar, QLabel]] = {}
+        self._marker: float | None = None
 
     def set_title(self, text: str) -> None:
         self.title_label.setText(text.upper())
 
-    def set_rows(self, items: list[tuple[str, float | None, str]]) -> None:
+    def set_rows(self, items: list[tuple[str, float | None, str]], marker: float | None = None) -> None:
+        self._marker = marker
         if not hasattr(self, "_empty_label"):
             self._empty_label = QLabel(tr("no_data"))
             self._empty_label.setObjectName("cardSub")
@@ -1216,6 +1331,7 @@ class CardPanel(QFrame):
             label, bar, text_label = self._rows[key]
             bar.set_percent(percent)
             bar.set_color(level_color(percent or 0, ACCENT))
+            bar.set_marker(marker)
             text_label.setText(text)
 
 

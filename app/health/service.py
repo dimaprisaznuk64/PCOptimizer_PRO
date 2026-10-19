@@ -15,7 +15,7 @@ JUNK_CRITICAL = 5 * 1024**3
 
 SEVERITY_PENALTY = {"critical": 30, "warning": 10, "info": 3, "ok": 0}
 
-GRADES = ((90, "Excellent"), (75, "Good"), (50, "Fair"), (0, "Poor"))
+GRADES = ((95, "Excellent"), (75, "Good"), (50, "Fair"), (0, "Poor"))
 
 
 class HealthError(Exception):
@@ -163,6 +163,28 @@ class HealthService:
             findings.append(Finding(
                 "cpu_load", "CPU", "info", "CPU load is high right now",
                 f"{snapshot.cpu.percent:.0f}% — may be a background task",
+            ))
+
+        # GPU: NVML temperature and load count too (laptops throttle near 85-90 C).
+        gpu_temps = [g.temperature for g in snapshot.gpus if g.temperature is not None]
+        if gpu_temps:
+            gpu_temp = max(gpu_temps)
+            if gpu_temp >= 90:
+                findings.append(Finding(
+                    "thermal_gpu", "Thermal", "critical", "Very high GPU temperature",
+                    f"{gpu_temp:.0f}C — GPU is close to throttling",
+                    fix_hint="Clean fans, improve airflow, lower in-game quality",
+                ))
+            elif gpu_temp >= 80:
+                findings.append(Finding(
+                    "thermal_gpu", "Thermal", "warning", "High GPU temperature",
+                    f"{gpu_temp:.0f}C — normal while gaming, not at idle",
+                ))
+        gpu_utils = [g.utilization for g in snapshot.gpus]
+        if gpu_utils and max(gpu_utils) >= 90:
+            findings.append(Finding(
+                "gpu_load", "GPU", "info", "GPU load is high right now",
+                f"{max(gpu_utils):.0f}% — normal in games, check temperatures if constant",
             ))
 
     @staticmethod
