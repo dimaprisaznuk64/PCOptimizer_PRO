@@ -9,6 +9,7 @@ from collections.abc import Sequence
 from dataclasses import dataclass
 
 RECYCLE_BIN_ID = "recycle_bin"
+STANDBY_CACHE_ID = "standby_cache"
 
 _DRIVE_ROOT_RE = re.compile(r"^[a-zA-Z]:[\\/]?$")
 
@@ -206,6 +207,15 @@ def default_targets() -> list[CleanTarget]:
             note="empties the bin on all drives",
         )
     )
+    existing.append(
+        CleanTarget(
+            STANDBY_CACHE_ID,
+            "Standby RAM cache",
+            "Memory",
+            kind="memory",
+            note="clears cached memory used by Windows for speed",
+        )
+    )
     return existing
 
 
@@ -353,6 +363,15 @@ class CleanerService:
             return ScanResult(target.id, int(count_text), int(bytes_text))
         except ValueError:
             return ScanResult(target.id, 0, 0, f"unexpected output: {line[:100]}")
+
+    @staticmethod
+    def _purge_memory(target: CleanTarget) -> CleanOutcome:
+        from app.cleaner.standby import purge_standby_list, StandbyListError
+        try:
+            purge_standby_list()
+            return CleanOutcome(target.id, 0, 0, 0, error=None, partial=False)
+        except StandbyListError as e:
+            return CleanOutcome(target.id, 0, 0, 0, error=str(e), partial=False)
 
     @staticmethod
     def _empty_recycle(target: CleanTarget, known_bytes: int, known_files: int = 0) -> CleanOutcome:
