@@ -23,6 +23,7 @@ from .activity import record as log_action
 from .components import align_numeric_headers
 from .format import size
 from .tasks import Task
+from .theme import CARD_PADDING
 
 COLUMN_KEYS = ("clean_col_target", "clean_col_category", "clean_col_files", "clean_col_size", "clean_col_status")
 COLUMNS = tuple(tr(k) for k in COLUMN_KEYS)
@@ -79,7 +80,7 @@ class CleanerPage(QWidget):
         hero = QFrame()
         hero.setObjectName("hero")
         hero_row = QHBoxLayout(hero)
-        hero_row.setContentsMargins(22, 18, 22, 18)
+        hero_row.setContentsMargins(CARD_PADDING, CARD_PADDING, CARD_PADDING, CARD_PADDING)
         hero_row.setSpacing(12)
         hero_text = QVBoxLayout()
         hero_text.setSpacing(2)

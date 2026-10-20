@@ -22,6 +22,7 @@ from app.startup import StartupItem, StartupService
 from .components import attach_empty_hint
 from .format import mb
 from .tasks import Task
+from .theme import CARD_PADDING
 
 COLUMN_KEYS = ("start_col_name", "start_col_source", "start_col_command", "start_col_impact", "start_col_state")
 COLUMNS = tuple(tr(k) for k in COLUMN_KEYS)
@@ -148,7 +149,7 @@ class StartupPage(QWidget):
         details.setObjectName("card")
         details.setMinimumWidth(320)
         details_layout = QVBoxLayout(details)
-        details_layout.setContentsMargins(18, 16, 18, 16)
+        details_layout.setContentsMargins(CARD_PADDING, CARD_PADDING, CARD_PADDING, CARD_PADDING)
         details_layout.setSpacing(8)
 
         details_title = QLabel(tr("start_details"))

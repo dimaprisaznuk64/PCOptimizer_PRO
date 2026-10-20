@@ -26,7 +26,7 @@ from app.settings import data_root
 
 from .components import attach_empty_hint
 from .tasks import Task
-from .theme import DANGER, OK
+from .theme import CARD_PADDING, DANGER, OK
 
 _COLUMNS = (
     "bench_col_metric",
@@ -130,7 +130,7 @@ class BenchmarksPage(QWidget):
         history_card = QFrame()
         history_card.setObjectName("card")
         history_layout = QVBoxLayout(history_card)
-        history_layout.setContentsMargins(18, 14, 18, 14)
+        history_layout.setContentsMargins(CARD_PADDING, CARD_PADDING, CARD_PADDING, CARD_PADDING)
         history_layout.setSpacing(8)
 
         history_head = QHBoxLayout()
@@ -192,7 +192,7 @@ class BenchmarksPage(QWidget):
         card = QFrame()
         card.setObjectName("card")
         body = QVBoxLayout(card)
-        body.setContentsMargins(18, 14, 18, 14)
+        body.setContentsMargins(CARD_PADDING, CARD_PADDING, CARD_PADDING, CARD_PADDING)
         body.setSpacing(8)
         title = QLabel(tr(title_key).upper())
         title.setObjectName("cardTitle")

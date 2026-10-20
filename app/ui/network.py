@@ -23,6 +23,7 @@ from app.network import DEFAULT_PING_HOST, CheckResult, NetworkService, PingResu
 from .activity import record as log_action
 from .components import attach_empty_hint
 from .tasks import Task
+from .theme import CARD_PADDING
 
 PING_COLUMN_KEYS = ("net_col_time", "net_col_host", "net_col_avg", "net_col_loss", "net_col_result")
 DIAG_COLUMN_KEYS = ("net_col_check", "net_col_status", "net_col_detail")
@@ -83,7 +84,7 @@ class NetworkPage(QWidget):
         ping_card = QFrame()
         ping_card.setObjectName("card")
         ping_layout = QVBoxLayout(ping_card)
-        ping_layout.setContentsMargins(18, 16, 18, 16)
+        ping_layout.setContentsMargins(CARD_PADDING, CARD_PADDING, CARD_PADDING, CARD_PADDING)
         ping_layout.setSpacing(8)
 
         ping_title = QLabel(tr("net_ping_title"))
@@ -111,7 +112,7 @@ class NetworkPage(QWidget):
         summary.addStretch(1)
         ping_layout.addLayout(summary)
 
-        self.ping_table = QTableWidget(0, len(PING_COLUMN_KEYS))
+        self.ping_table = QTableWidget(0, len(PING_COLUMN_KEYS))
         attach_empty_hint(self.ping_table, "empty_ping")
         self.ping_table.setHorizontalHeaderLabels([tr(k) for k in PING_COLUMN_KEYS])
         self.ping_table.verticalHeader().setVisible(False)
@@ -132,7 +133,7 @@ class NetworkPage(QWidget):
         diag_card = QFrame()
         diag_card.setObjectName("card")
         diag_layout = QVBoxLayout(diag_card)
-        diag_layout.setContentsMargins(18, 16, 18, 16)
+        diag_layout.setContentsMargins(CARD_PADDING, CARD_PADDING, CARD_PADDING, CARD_PADDING)
         diag_layout.setSpacing(8)
 
         diag_head = QHBoxLayout()
@@ -151,7 +152,7 @@ class NetworkPage(QWidget):
         diag_head.addWidget(self.flush_button)
         diag_layout.addLayout(diag_head)
 
-        self.diag_table = QTableWidget(0, len(DIAG_COLUMN_KEYS))
+        self.diag_table = QTableWidget(0, len(DIAG_COLUMN_KEYS))
         attach_empty_hint(self.diag_table, "empty_diag")
         self.diag_table.setHorizontalHeaderLabels([tr(k) for k in DIAG_COLUMN_KEYS])
         self.diag_table.verticalHeader().setVisible(False)

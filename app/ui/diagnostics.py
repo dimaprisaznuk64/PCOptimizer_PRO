@@ -23,7 +23,7 @@ from app.i18n import tr
 from .components import attach_empty_hint
 from .format import size as fmt_size
 from .tasks import Task
-from .theme import DANGER, OK, WARN
+from .theme import CARD_PADDING, DANGER, OK, WARN
 
 DISK_COLUMN_KEYS = (
     "diag_col_name",
@@ -191,7 +191,7 @@ class DiagnosticsPage(QWidget):
         evt_card = QFrame()
         evt_card.setObjectName("card")
         evt_layout = QVBoxLayout(evt_card)
-        evt_layout.setContentsMargins(18, 14, 18, 14)
+        evt_layout.setContentsMargins(CARD_PADDING, CARD_PADDING, CARD_PADDING, CARD_PADDING)
         evt_layout.setSpacing(8)
 
         evt_head = QHBoxLayout()
@@ -226,7 +226,7 @@ class DiagnosticsPage(QWidget):
         up_card = QFrame()
         up_card.setObjectName("card")
         up_layout = QVBoxLayout(up_card)
-        up_layout.setContentsMargins(18, 14, 18, 14)
+        up_layout.setContentsMargins(CARD_PADDING, CARD_PADDING, CARD_PADDING, CARD_PADDING)
         up_layout.setSpacing(8)
 
         up_head = QHBoxLayout()
@@ -276,7 +276,7 @@ class DiagnosticsPage(QWidget):
         card = QFrame()
         card.setObjectName("card")
         body = QVBoxLayout(card)
-        body.setContentsMargins(18, 14, 18, 14)
+        body.setContentsMargins(CARD_PADDING, CARD_PADDING, CARD_PADDING, CARD_PADDING)
         body.setSpacing(8)
 
         title = QLabel(tr(title_key).upper())

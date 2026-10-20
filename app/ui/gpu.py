@@ -11,7 +11,7 @@ from .format import gb
 from .theme import C2 as VRAM_COLOR
 from .theme import C3 as TEMP_COLOR
 from .theme import C4 as POWER_COLOR
-from .theme import fs
+from .theme import CARD_PADDING, PAGE_MARGINS, PAGE_SPACING, fs
 
 
 class GpuPanel(QFrame):
@@ -20,7 +20,7 @@ class GpuPanel(QFrame):
         self.setObjectName("card")
 
         layout = QVBoxLayout(self)
-        layout.setContentsMargins(18, 16, 18, 16)
+        layout.setContentsMargins(CARD_PADDING, CARD_PADDING, CARD_PADDING, CARD_PADDING)
         layout.setSpacing(10)
 
         header = QVBoxLayout()
@@ -118,8 +118,8 @@ class GpuPage(QWidget):
         self.setObjectName("page")
 
         layout = QVBoxLayout(self)
-        layout.setContentsMargins(40, 36, 40, 32)
-        layout.setSpacing(6)
+        layout.setContentsMargins(*PAGE_MARGINS)
+        layout.setSpacing(PAGE_SPACING)
 
         title = QLabel(tr("gpu_title"))
         title.setObjectName("pageTitle")

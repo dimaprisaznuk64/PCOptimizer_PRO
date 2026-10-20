@@ -549,6 +549,15 @@ def fs(px: int) -> int:
     return max(1, round(px * FONT_SCALE))
 
 
+# --- Canonical layout scale -------------------------------------------------
+# Every page must use these so cards, paddings and headers share one rhythm.
+PAGE_MARGINS = (40, 36, 40, 32)  # page header + outer chrome
+PAGE_SPACING = 10
+CARD_PADDING = 16  # inner padding of every card
+CARD_SPACING = 8  # spacing between rows inside a card
+CARD_GAP = 14  # spacing between sibling cards on a page
+
+
 def _fonts_dir():
     import sys as _sys
     from pathlib import Path

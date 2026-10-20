@@ -26,6 +26,7 @@ from .activity import outcome_level
 from .activity import record as log_action
 from .components import glyph_tile
 from .tasks import Task
+from .theme import CARD_PADDING
 
 _PROFILE_ICONS = {"balanced": "health", "gaming": "gaming", "performance": "cpu"}
 
@@ -111,7 +112,7 @@ class OptimizerPage(QWidget):
             card = QFrame()
             card.setObjectName("card")
             card_layout = QVBoxLayout(card)
-            card_layout.setContentsMargins(18, 14, 18, 14)
+            card_layout.setContentsMargins(CARD_PADDING, CARD_PADDING, CARD_PADDING, CARD_PADDING)
             card_layout.setSpacing(4)
 
             head = QHBoxLayout()
@@ -148,7 +149,7 @@ class OptimizerPage(QWidget):
         state_card.setObjectName("card")
         state_card.setMinimumWidth(320)
         state_layout = QVBoxLayout(state_card)
-        state_layout.setContentsMargins(18, 16, 18, 16)
+        state_layout.setContentsMargins(CARD_PADDING, CARD_PADDING, CARD_PADDING, CARD_PADDING)
         state_layout.setSpacing(8)
 
         state_title = QLabel(tr("opt_current_state"))

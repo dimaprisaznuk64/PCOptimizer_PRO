@@ -38,6 +38,7 @@ from .theme import (
     C2,
     C3,
     C4,
+    CARD_PADDING,
     DANGER,
     FONT_MONO,
     HERO_TOP,
@@ -250,7 +251,7 @@ class GamingBannerWidget(QFrame):
         )
         hud_brackets(self)
         row = QHBoxLayout(self)
-        row.setContentsMargins(18, 14, 18, 14)
+        row.setContentsMargins(CARD_PADDING, CARD_PADDING, CARD_PADDING, CARD_PADDING)
         row.setSpacing(14)
 
         icon_label = QLabel()

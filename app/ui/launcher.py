@@ -34,6 +34,7 @@ from .activity import ActivityLog
 from .activity import record as log_action
 from .components import attach_empty_hint
 from .tasks import Task
+from .theme import CARD_PADDING
 
 _COVER_W = 168
 _COVER_H = 94
@@ -268,7 +269,7 @@ class LauncherPage(QWidget):
         details = QFrame()
         details.setObjectName("card")
         details_layout = QVBoxLayout(details)
-        details_layout.setContentsMargins(18, 16, 18, 16)
+        details_layout.setContentsMargins(CARD_PADDING, CARD_PADDING, CARD_PADDING, CARD_PADDING)
         details_layout.setSpacing(8)
         self._details_title = QLabel(tr("launch_details"))
         self._details_title.setObjectName("cardTitle")
@@ -299,7 +300,7 @@ class LauncherPage(QWidget):
         history_card = QFrame()
         history_card.setObjectName("card")
         history_layout = QVBoxLayout(history_card)
-        history_layout.setContentsMargins(18, 16, 18, 16)
+        history_layout.setContentsMargins(CARD_PADDING, CARD_PADDING, CARD_PADDING, CARD_PADDING)
         history_layout.setSpacing(8)
         header = QHBoxLayout()
         self._history_title = QLabel(tr("launch_history"))

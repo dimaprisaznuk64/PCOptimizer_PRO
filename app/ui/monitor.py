@@ -8,7 +8,7 @@ from app.sensors import Snapshot
 
 from .components import Bar, CardPanel, Sparkline
 from .format import gb, rate, zone_label
-from .theme import ACCENT, ACCENT_HOVER, DANGER, OK
+from .theme import ACCENT, ACCENT_HOVER, CARD_PADDING, DANGER, OK, PAGE_MARGINS, PAGE_SPACING
 
 
 def _level_color(percent: float | None) -> str:
@@ -26,7 +26,7 @@ class _Card(QFrame):
         super().__init__(parent)
         self.setObjectName("card")
         self._layout = QVBoxLayout(self)
-        self._layout.setContentsMargins(16, 14, 16, 14)
+        self._layout.setContentsMargins(CARD_PADDING, CARD_PADDING, CARD_PADDING, CARD_PADDING)
         self._layout.setSpacing(8)
         label = QLabel(title.upper())
         label.setObjectName("cardTitle")
@@ -104,8 +104,8 @@ class MonitorPage(QWidget):
         self.setObjectName("page")
 
         layout = QVBoxLayout(self)
-        layout.setContentsMargins(40, 36, 40, 32)
-        layout.setSpacing(6)
+        layout.setContentsMargins(*PAGE_MARGINS)
+        layout.setSpacing(PAGE_SPACING)
 
         title = QLabel(tr("mon_title"))
         title.setObjectName("pageTitle")

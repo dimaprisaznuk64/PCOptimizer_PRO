@@ -27,6 +27,7 @@ from app.i18n import tr
 from .components import Bar, attach_empty_hint
 from .format import size as fmt_size
 from .tasks import Task
+from .theme import CARD_PADDING
 
 SCAN_COLUMN_KEYS = ("disk_col_name", "disk_col_type", "disk_col_size")
 LARGE_COLUMN_KEYS = ("disk_col_size", "disk_col_modified", "disk_col_path")
@@ -86,7 +87,7 @@ class DiskPage(QWidget):
         scan_card = QFrame()
         scan_card.setObjectName("card")
         scan_layout = QVBoxLayout(scan_card)
-        scan_layout.setContentsMargins(18, 16, 18, 16)
+        scan_layout.setContentsMargins(CARD_PADDING, CARD_PADDING, CARD_PADDING, CARD_PADDING)
         scan_layout.setSpacing(8)
 
         scan_head = QHBoxLayout()
@@ -106,7 +107,7 @@ class DiskPage(QWidget):
         self.scan_summary.setWordWrap(True)
         scan_layout.addWidget(self.scan_summary)
 
-        self.scan_table = QTableWidget(0, len(SCAN_COLUMN_KEYS))
+        self.scan_table = QTableWidget(0, len(SCAN_COLUMN_KEYS))
         attach_empty_hint(self.scan_table, "empty_scan")
         self.scan_table.setHorizontalHeaderLabels([tr(k) for k in SCAN_COLUMN_KEYS])
         self.scan_table.verticalHeader().setVisible(False)
@@ -132,7 +133,7 @@ class DiskPage(QWidget):
         large_card = QFrame()
         large_card.setObjectName("card")
         large_layout = QVBoxLayout(large_card)
-        large_layout.setContentsMargins(18, 16, 18, 16)
+        large_layout.setContentsMargins(CARD_PADDING, CARD_PADDING, CARD_PADDING, CARD_PADDING)
         large_layout.setSpacing(8)
 
         large_head = QHBoxLayout()
@@ -156,7 +157,7 @@ class DiskPage(QWidget):
         self.large_summary.setWordWrap(True)
         large_layout.addWidget(self.large_summary)
 
-        self.large_table = QTableWidget(0, len(LARGE_COLUMN_KEYS))
+        self.large_table = QTableWidget(0, len(LARGE_COLUMN_KEYS))
         attach_empty_hint(self.large_table, "empty_large")
         self.large_table.setHorizontalHeaderLabels([tr(k) for k in LARGE_COLUMN_KEYS])
         self.large_table.verticalHeader().setVisible(False)

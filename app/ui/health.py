@@ -26,7 +26,7 @@ from .activity import ActivityLog
 from .activity import record as log_action
 from .components import ScoreRing, attach_empty_hint
 from .tasks import Task
-from .theme import ACCENT, DANGER, OK, TEXT_DIM, WARN
+from .theme import ACCENT, CARD_PADDING, DANGER, OK, TEXT_DIM, WARN
 
 HEALTH_COLUMN_KEYS = (
     "health_col_category", "health_col_severity", "health_col_issue",
@@ -159,7 +159,7 @@ class HealthPage(QWidget):
         score_card = QFrame()
         score_card.setObjectName("hero")
         score_layout = QHBoxLayout(score_card)
-        score_layout.setContentsMargins(18, 16, 18, 16)
+        score_layout.setContentsMargins(CARD_PADDING, CARD_PADDING, CARD_PADDING, CARD_PADDING)
         score_layout.setSpacing(20)
 
         self.score_label = QLabel("—")
@@ -197,7 +197,7 @@ class HealthPage(QWidget):
         score_layout.addLayout(buttons)
         layout.addWidget(score_card)
 
-        self.findings_table = QTableWidget(0, len(HEALTH_COLUMN_KEYS))
+        self.findings_table = QTableWidget(0, len(HEALTH_COLUMN_KEYS))
         attach_empty_hint(self.findings_table, "empty_health")
         self.findings_table.setHorizontalHeaderLabels([tr(k) for k in HEALTH_COLUMN_KEYS])
         self.findings_table.verticalHeader().setVisible(False)

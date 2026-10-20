@@ -24,6 +24,7 @@ from .activity import ActivityLog, outcome_level
 from .activity import record as log_action
 from .components import attach_empty_hint
 from .tasks import Task
+from .theme import CARD_PADDING
 
 COLUMN_KEYS = ("game_col_game", "game_col_source", "game_col_status", "game_col_location")
 
@@ -103,7 +104,7 @@ class GamingPage(QWidget):
         details.setObjectName("card")
         details.setMinimumWidth(300)
         details_layout = QVBoxLayout(details)
-        details_layout.setContentsMargins(18, 16, 18, 16)
+        details_layout.setContentsMargins(CARD_PADDING, CARD_PADDING, CARD_PADDING, CARD_PADDING)
         details_layout.setSpacing(8)
 
         details_title = QLabel(tr("game_details"))

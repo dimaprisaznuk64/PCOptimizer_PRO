@@ -32,6 +32,7 @@ from app.processes import (
 from .components import align_numeric_headers
 from .format import mb, uptime
 from .tasks import Task
+from .theme import CARD_PADDING
 
 COLUMN_KEYS = ("proc_col_name", "proc_col_pid", "proc_col_cpu", "proc_col_mem", "proc_col_user")
 COLUMNS = tuple(tr(k) for k in COLUMN_KEYS)
@@ -149,7 +150,7 @@ class ProcessPage(QWidget):
         details.setObjectName("card")
         details.setMinimumWidth(320)
         details_layout = QVBoxLayout(details)
-        details_layout.setContentsMargins(18, 16, 18, 16)
+        details_layout.setContentsMargins(CARD_PADDING, CARD_PADDING, CARD_PADDING, CARD_PADDING)
         details_layout.setSpacing(8)
 
         details_title = QLabel(tr("proc_details"))

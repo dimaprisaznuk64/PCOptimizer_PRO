@@ -41,6 +41,7 @@ from .theme import (
     ACCENT,
     BORDER,
     BORDER_HI,
+    CARD_PADDING,
     DANGER,
     OK,
     PANEL,
@@ -282,11 +283,13 @@ class RingCard(QFrame):
         # "random" accent border on the card.
         self.setProperty("hot", False)
         self.setStyleSheet(
-            f"QFrame#card {{ background: {PANEL}; border: 1px solid {BORDER}; "
-            f"border-radius: 14px; }} QFrame#card[hot=\"true\"] {{ border-color: {ACCENT}; }}"
+            f"QFrame#card {{ background: qlineargradient(x1:0, y1:0, x2:0, y2:1, "
+            f"stop:0 {_mix(PANEL, TEXT, 0.035)}, stop:1 {PANEL}); "
+            f"border: 1px solid {BORDER}; border-radius: 12px; }} "
+            f"QFrame#card[hot=\"true\"] {{ border-color: {ACCENT}; }}"
         )
         layout = QVBoxLayout(self)
-        layout.setContentsMargins(14, 12, 14, 12)
+        layout.setContentsMargins(CARD_PADDING, CARD_PADDING, CARD_PADDING, CARD_PADDING)
         layout.setSpacing(6)
 
         # Header: Icon + Title + Arrow
@@ -429,11 +432,13 @@ class PerfChart(QFrame):
         card_shadow(self)
         hud_brackets(self)
         self.setStyleSheet(
-            f"QFrame#card {{ background: {PANEL}; border: 1px solid {BORDER}; "
-            f"border-radius: 14px; }} QFrame#card:hover {{ border-color: {BORDER_HI}; }}"
+            f"QFrame#card {{ background: qlineargradient(x1:0, y1:0, x2:0, y2:1, "
+            f"stop:0 {_mix(PANEL, TEXT, 0.035)}, stop:1 {PANEL}); "
+            f"border: 1px solid {BORDER}; border-radius: 12px; }} "
+            f"QFrame#card:hover {{ border-color: {BORDER_HI}; }}"
         )
         layout = QVBoxLayout(self)
-        layout.setContentsMargins(18, 14, 18, 14)
+        layout.setContentsMargins(CARD_PADDING, CARD_PADDING, CARD_PADDING, CARD_PADDING)
         layout.setSpacing(6)
 
         head = QHBoxLayout()
@@ -1005,7 +1010,7 @@ class GaugeCard(QFrame):
         card_shadow(self)
         hud_brackets(self)
         row = QHBoxLayout(self)
-        row.setContentsMargins(18, 16, 14, 14)
+        row.setContentsMargins(CARD_PADDING, CARD_PADDING, 12, 12)
         row.setSpacing(8)
 
         left = QVBoxLayout()
@@ -1288,7 +1293,7 @@ class MetricCard(QFrame):
         self._color = color
 
         layout = QVBoxLayout(self)
-        layout.setContentsMargins(16, 14, 16, 14)
+        layout.setContentsMargins(CARD_PADDING, CARD_PADDING, CARD_PADDING, CARD_PADDING)
         layout.setSpacing(4)
 
         heading = card_heading(title, color)
@@ -1347,7 +1352,7 @@ class CardPanel(QFrame):
         card_shadow(self)
         hud_brackets(self)
         self._layout = QVBoxLayout(self)
-        self._layout.setContentsMargins(16, 14, 16, 14)
+        self._layout.setContentsMargins(CARD_PADDING, CARD_PADDING, CARD_PADDING, CARD_PADDING)
         self._layout.setSpacing(8)
         heading = card_heading(title)
         self._layout.addWidget(heading)
@@ -1404,7 +1409,7 @@ class ValueListCard(QFrame):
         card_shadow(self)
         hud_brackets(self)
         self._layout = QVBoxLayout(self)
-        self._layout.setContentsMargins(16, 14, 16, 14)
+        self._layout.setContentsMargins(CARD_PADDING, CARD_PADDING, CARD_PADDING, CARD_PADDING)
         self._layout.setSpacing(6)
         heading = card_heading(title)
         self._layout.addWidget(heading)
