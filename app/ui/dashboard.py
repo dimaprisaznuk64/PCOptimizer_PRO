@@ -3,6 +3,7 @@ from __future__ import annotations
 import getpass
 
 from PySide6.QtCore import QDateTime, Qt, QTimer, Signal
+from PySide6.QtGui import QFont
 from PySide6.QtWidgets import (
     QFrame,
     QGridLayout,
@@ -47,6 +48,8 @@ from .theme import (
     TEXT_DIM,
     WARN,
     fs,
+    hud_brackets,
+    set_mono,
 )
 
 
@@ -78,12 +81,17 @@ def _level_color(value: float) -> str:
 
 
 def _activity_style(level: str) -> tuple[str, str]:
-    """(color, glyph) for an activity-log entry level: ok / warn / error."""
+    """(color, glyph) for an activity-log entry level: ok / warn / error.
+
+    Colours are read live from the theme module so a palette switch is honoured.
+    """
+    from . import theme
+
     if level == "ok":
-        return OK, "check"
+        return theme.OK, "check"
     if level == "error":
-        return DANGER, "error"
-    return WARN, "warning"
+        return theme.DANGER, "error"
+    return theme.WARN, "warning"
 
 
 class HealthWidget(QFrame):
@@ -96,8 +104,9 @@ class HealthWidget(QFrame):
         self.setObjectName("card")
         self.setStyleSheet(
             f"QFrame#card {{ background: {PANEL}; border: 1px solid {BORDER}; "
-            f"border-radius: 14px; }} QFrame#card:hover {{ border-color: {BORDER_HI}; }}"
+            f"border-radius: 12px; }} QFrame#card:hover {{ border-color: {BORDER_HI}; }}"
         )
+        hud_brackets(self)
         layout = QVBoxLayout(self)
         layout.setContentsMargins(14, 12, 14, 12)
         layout.setSpacing(6)
@@ -177,8 +186,9 @@ class QuickActionsWidget(QFrame):
         self.setObjectName("card")
         self.setStyleSheet(
             f"QFrame#card {{ background: {PANEL}; border: 1px solid {BORDER}; "
-            f"border-radius: 14px; }} QFrame#card:hover {{ border-color: {BORDER_HI}; }}"
+            f"border-radius: 12px; }} QFrame#card:hover {{ border-color: {BORDER_HI}; }}"
         )
+        hud_brackets(self)
         layout = QVBoxLayout(self)
         layout.setContentsMargins(14, 12, 14, 12)
         layout.setSpacing(6)
@@ -238,6 +248,7 @@ class GamingBannerWidget(QFrame):
             f"QFrame#card {{ background: qlineargradient(x1:0, y1:0, x2:1, y2:0, stop:0 {PANEL}, stop:1 {HERO_TOP}); "
             "border: 1px solid rgba(30, 107, 255, 0.4); border-radius: 14px; }"
         )
+        hud_brackets(self)
         row = QHBoxLayout(self)
         row.setContentsMargins(18, 14, 18, 14)
         row.setSpacing(14)
@@ -305,8 +316,9 @@ class RecentActionsWidget(QFrame):
         self.setObjectName("card")
         self.setStyleSheet(
             f"QFrame#card {{ background: {PANEL}; border: 1px solid {BORDER}; "
-            f"border-radius: 14px; }} QFrame#card:hover {{ border-color: {BORDER_HI}; }}"
+            f"border-radius: 12px; }} QFrame#card:hover {{ border-color: {BORDER_HI}; }}"
         )
+        hud_brackets(self)
         layout = QVBoxLayout(self)
         layout.setContentsMargins(16, 12, 16, 12)
         layout.setSpacing(8)
@@ -375,8 +387,9 @@ class ProcessLoadWidget(QFrame):
         self.setObjectName("card")
         self.setStyleSheet(
             f"QFrame#card {{ background: {PANEL}; border: 1px solid {BORDER}; "
-            f"border-radius: 14px; }} QFrame#card:hover {{ border-color: {BORDER_HI}; }}"
+            f"border-radius: 12px; }} QFrame#card:hover {{ border-color: {BORDER_HI}; }}"
         )
+        hud_brackets(self)
         layout = QVBoxLayout(self)
         layout.setContentsMargins(16, 12, 16, 12)
         layout.setSpacing(8)
@@ -460,8 +473,9 @@ class NetworkWidget(QFrame):
         self.setObjectName("card")
         self.setStyleSheet(
             f"QFrame#card {{ background: {PANEL}; border: 1px solid {BORDER}; "
-            f"border-radius: 14px; }} QFrame#card:hover {{ border-color: {BORDER_HI}; }}"
+            f"border-radius: 12px; }} QFrame#card:hover {{ border-color: {BORDER_HI}; }}"
         )
+        hud_brackets(self)
         layout = QVBoxLayout(self)
         layout.setContentsMargins(16, 12, 16, 12)
         layout.setSpacing(6)
@@ -545,8 +559,9 @@ class NotificationsWidget(QFrame):
         self.setObjectName("card")
         self.setStyleSheet(
             f"QFrame#card {{ background: {PANEL}; border: 1px solid {BORDER}; "
-            f"border-radius: 14px; }} QFrame#card:hover {{ border-color: {BORDER_HI}; }}"
+            f"border-radius: 12px; }} QFrame#card:hover {{ border-color: {BORDER_HI}; }}"
         )
+        hud_brackets(self)
         layout = QVBoxLayout(self)
         layout.setContentsMargins(16, 12, 16, 12)
         layout.setSpacing(8)
@@ -644,10 +659,19 @@ class DashboardPage(QWidget):
         titles = QVBoxLayout()
         titles.setSpacing(2)
         self._user_display = _user_name()
+        hud_row = QHBoxLayout()
+        hud_row.setSpacing(8)
+        hud_row.setAlignment(Qt.AlignmentFlag.AlignVCenter)
+        hud_tag = QLabel(tr("dash_hud_status"))
+        hud_tag.setObjectName("hudTag")
+        set_mono(hud_tag, size=fs(11), weight=QFont.Weight.DemiBold, spacing_pct=18.0)
+        hud_row.addWidget(hud_tag)
         self.greeting = QLabel(f"{_greeting()}, {self._user_display}!")
         self.greeting.setObjectName("welcome")
         self.greeting.setStyleSheet(f"font-size: {fs(18)}px; font-weight: 800; color: {TEXT};")
-        titles.addWidget(self.greeting)
+        hud_row.addWidget(self.greeting)
+        hud_row.addStretch(1)
+        titles.addLayout(hud_row)
         self._verdict_key = "dash_verdict_ok"
         self.verdict = QLabel(tr(self._verdict_key))
         self.verdict.setObjectName("pageDesc")

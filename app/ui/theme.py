@@ -656,6 +656,85 @@ def card_shadow(widget, blur: int = 24, dy: int = 6):
     return effect
 
 
+_OVERLAY_CLS = None
+
+
+def _overlay_class():
+    """Build (once) the Qt widget that paints HUD corner brackets."""
+    global _OVERLAY_CLS
+    if _OVERLAY_CLS is not None:
+        return _OVERLAY_CLS
+
+    from PySide6.QtCore import QEvent, Qt
+    from PySide6.QtGui import QColor, QPainter, QPen
+    from PySide6.QtWidgets import QWidget
+
+    class _BracketOverlay(QWidget):
+        """Cyber-HUD corner brackets painted over the parent card.
+
+        Cheap by design: one transparent child that tracks the parent's
+        geometry, no extra layout items.
+        """
+
+        def __init__(self, parent, arm: int = 16, width: float = 2.0, inset: int = 5, color: str | None = None) -> None:
+            super().__init__(parent)
+            self._arm = arm
+            self._width = width
+            self._inset = inset
+            self._color = QColor(color or _mix(ACCENT, BORDER_HI, 0.15))
+            self.setAttribute(Qt.WidgetAttribute.WA_TransparentForMouseEvents)
+            self.setAttribute(Qt.WidgetAttribute.WA_NoSystemBackground)
+            self.setAttribute(Qt.WidgetAttribute.WA_TranslucentBackground)
+            parent.installEventFilter(self)
+            self.setGeometry(parent.rect())
+            self.show()
+
+        def eventFilter(self, obj, event) -> bool:
+            if event.type() == QEvent.Type.Resize and self.parent() is not None:
+                self.setGeometry(self.parent().rect())
+            return False
+
+        def paintEvent(self, event) -> None:  # noqa: N802 - Qt naming
+            painter = QPainter(self)
+            painter.setRenderHint(QPainter.RenderHint.Antialiasing)
+            pen = QPen(self._color, self._width)
+            pen.setCapStyle(Qt.PenCapStyle.FlatCap)
+            painter.setPen(pen)
+            i, a = self._inset, self._arm
+            w, h = self.width(), self.height()
+            # top-left, top-right, bottom-left, bottom-right
+            painter.drawLine(i, i, i + a, i)
+            painter.drawLine(i, i, i, i + a)
+            painter.drawLine(w - i - a, i, w - i, i)
+            painter.drawLine(w - i, i, w - i, i + a)
+            painter.drawLine(i, h - i - a, i, h - i)
+            painter.drawLine(i, h - i, i + a, h - i)
+            painter.drawLine(w - i, h - i - a, w - i, h - i)
+            painter.drawLine(w - i - a, h - i, w - i, h - i)
+
+    _OVERLAY_CLS = _BracketOverlay
+    return _OVERLAY_CLS
+
+
+def hud_brackets(widget, arm: int = 16, width: float = 2.0, inset: int = 5, color: str | None = None):
+    """Attach HUD corner brackets to a card-like widget."""
+    return _overlay_class()(widget, arm=arm, width=width, inset=inset, color=color)
+
+
+def set_mono(widget, size: int | None = None, weight=None, spacing_pct: float = 6.0) -> None:
+    """Apply the bundled monospace with letter-spacing (numbers, tags, indices)."""
+    from PySide6.QtGui import QFont
+
+    font = QFont()
+    font.setFamilies(["JetBrains Mono", "Cascadia Mono", "Consolas", "monospace"])
+    if size is not None:
+        font.setPixelSize(size)
+    if weight is not None:
+        font.setWeight(weight)
+    font.setLetterSpacing(QFont.SpacingType.PercentageSpacing, spacing_pct)
+    widget.setFont(font)
+
+
 def _chevron_path(color: str) -> str:
     """Render a small down-chevron PNG (for combo boxes) and return its path for QSS url()."""
     import tempfile
@@ -747,10 +826,11 @@ QPushButton[nav="true"]:focus {{
 QPushButton[nav="true"]:checked, QPushButton[nav="true"]:checked:focus, QPushButton[nav="true"]:checked:hover {{
     background: qlineargradient(x1:0, y1:0, x2:1, y2:0, stop:0 {BRAND_A}, stop:1 {BRAND_B});
     border: none;
+    border-left: 3px solid {ON_ACCENT};
     border-radius: 9px;
     color: {ON_ACCENT};
     font-weight: 700;
-    padding-left: 14px;
+    padding-left: 11px;
 }}
 QScrollBar:vertical {{
     background: transparent;
@@ -780,7 +860,15 @@ QLabel#footerText {{
     padding: 12px 18px;
 }}
 QWidget#page {{
-    background: {BG};
+    background: transparent;
+}}
+QWidget#page QScrollArea, QWidget#page QScrollArea > QWidget > QWidget {{
+    background: transparent;
+}}
+QFrame#card {{
+    background: qlineargradient(x1:0, y1:0, x2:0, y2:1, stop:0 {_mix(PANEL, TEXT, 0.035)}, stop:1 {PANEL});
+    border: 1px solid {BORDER};
+    border-radius: 12px;
 }}
 QLabel#cardValue, QLabel#gaugeValue, QLabel#heroValue, QLabel#ringValue, QLabel#clock, QLabel#scoreValue, QLabel#statValue {{
     font-family: {FONT_MONO};
@@ -798,14 +886,16 @@ QLabel#pageDesc {{
     color: {TEXT_DIM};
 }}
 QFrame#card {{
-    background: {PANEL};
+    background: qlineargradient(x1:0, y1:0, x2:0, y2:1, stop:0 {_mix(PANEL, TEXT, 0.035)}, stop:1 {PANEL});
     border: 1px solid {BORDER};
-    border-radius: 14px;
+    border-radius: 12px;
 }}
 QLabel#cardTitle {{
+    font-family: {FONT_MONO};
     font-size: 12px;
     font-weight: 600;
     color: {TEXT_DIM};
+    letter-spacing: 0.8px;
 }}
 QLabel#cardValue {{
     font-size: 30px;
@@ -871,7 +961,7 @@ QPushButton[tile="true"]:hover {{
 QFrame#gameTile {{
     background: {PANEL};
     border: 1px solid {BORDER};
-    border-radius: 14px;
+    border-radius: 12px;
 }}
 QFrame#gameTile:hover {{
     border-color: {BORDER_HI};
@@ -919,7 +1009,7 @@ QListWidget#historyList::item:selected {{
 QFrame#hero {{
     background: qlineargradient(x1:0, y1:0, x2:1, y2:1, stop:0 {HERO_TOP}, stop:1 {PANEL});
     border: 1px solid {BORDER_HI};
-    border-radius: 14px;
+    border-radius: 12px;
 }}
 QLabel#ringValue {{
     font-size: 26px;
@@ -1075,7 +1165,7 @@ QFrame#card:hover {{
     border-color: {BORDER_HI};
 }}
 QTableWidget::item {{
-    padding: 6px 8px;
+    padding: 8px 10px;
 }}
 QTableWidget::item:hover {{
     background: {HOVER};
@@ -1095,7 +1185,8 @@ QHeaderView::section {{
     color: {TEXT_DIM};
     border: none;
     border-bottom: 1px solid {BORDER};
-    padding: 10px 8px;
+    padding: 10px 10px;
+    font-family: {FONT_MONO};
     font-size: 12px;
     font-weight: 600;
     text-align: left;
@@ -1281,25 +1372,59 @@ QMessageBox {{
 }}
 QScrollBar:vertical {{
     background: {BG};
-    width: 10px;
+    width: 8px;
     margin: 0;
 }}
 QScrollBar::handle:vertical {{
-    background: {BORDER};
-    border-radius: 5px;
+    background: {_mix(BORDER, ACCENT, 0.35)};
+    border-radius: 4px;
     min-height: 30px;
+}}
+QScrollBar::handle:vertical:hover {{
+    background: {ACCENT};
 }}
 QScrollBar::add-line:vertical, QScrollBar::sub-line:vertical {{
     height: 0;
 }}
 QScrollBar:horizontal {{
     background: {BG};
-    height: 10px;
+    height: 8px;
 }}
 QScrollBar::handle:horizontal {{
-    background: {BORDER};
-    border-radius: 5px;
+    background: {_mix(BORDER, ACCENT, 0.35)};
+    border-radius: 4px;
     min-width: 30px;
+}}
+QScrollBar::handle:horizontal:hover {{
+    background: {ACCENT};
+}}
+QLabel#hudIndex {{
+    font-family: {FONT_MONO};
+    font-size: 12px;
+    font-weight: 700;
+    color: {ACCENT};
+}}
+QLabel#hudTag {{
+    font-family: {FONT_MONO};
+    font-size: 11px;
+    color: {TEXT_DIM};
+}}
+QPushButton[ghost="true"] {{
+    background: transparent;
+    border: 1px solid transparent;
+    border-radius: 10px;
+    padding: 9px 16px;
+    color: {TEXT_DIM};
+}}
+QPushButton[ghost="true"]:hover {{
+    background: {PANEL_ALT};
+    color: {TEXT};
+    border-color: {BORDER};
+}}
+QPushButton[ghost="true"]:disabled {{
+    color: {TEXT_DIM};
+    background: transparent;
+    border-color: transparent;
 }}
 """
     qss = re.sub(

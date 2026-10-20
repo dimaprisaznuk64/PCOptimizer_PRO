@@ -39,3 +39,20 @@ def isolated_data_root(tmp_path, monkeypatch):
     ActivityLog._instance = None
     yield
     ActivityLog._instance = None
+
+
+@pytest.fixture(autouse=True)
+def reset_theme():
+    """Restore the shipped palette after each test.
+
+    Pages read theme tokens from module globals, so any test that builds a
+    MainWindow (which loads the developer's saved theme) or applies another
+    theme would otherwise leak that palette's colours into later tests.
+    """
+    from app.ui import theme
+
+    if theme.CURRENT_THEME != "GRAPHITE":
+        theme.set_theme("GRAPHITE")
+    yield
+    if theme.CURRENT_THEME != "GRAPHITE":
+        theme.set_theme("GRAPHITE")

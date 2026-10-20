@@ -158,7 +158,6 @@ def test_activity_style_levels(qapp) -> None:
 
 def test_dashboard_disk_extra_color_follows_level(qapp) -> None:
     from app.sensors.types import DiskStat, Snapshot
-    from app.ui.theme import WARN
 
     page = DashboardPage()
     s = Snapshot(
@@ -177,7 +176,12 @@ def test_dashboard_disk_extra_color_follows_level(qapp) -> None:
     )
     page.apply_snapshot(s)
     assert "86%" in page.disk.value.text()
-    assert WARN in page.disk.extra.styleSheet()
+    # The card colours RAM/disk by load level; the exact hue follows the theme,
+    # which earlier tests may have reconfigured — compare against the source.
+    from app.ui import dashboard as _dash
+
+    assert _dash.DANGER not in page.disk.extra.styleSheet()
+    assert _dash.WARN in page.disk.extra.styleSheet()
 
 
 def _row4_spans(page: DashboardPage, width: int) -> list[int]:

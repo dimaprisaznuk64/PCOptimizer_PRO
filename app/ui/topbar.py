@@ -1,7 +1,16 @@
 from __future__ import annotations
 
-from PySide6.QtCore import QSize, Qt, Signal
-from PySide6.QtWidgets import QHBoxLayout, QLabel, QMenu, QPushButton, QVBoxLayout, QWidget
+from PySide6.QtCore import QSize, Qt, QVariantAnimation, Signal
+from PySide6.QtGui import QColor
+from PySide6.QtWidgets import (
+    QGraphicsOpacityEffect,
+    QHBoxLayout,
+    QLabel,
+    QMenu,
+    QPushButton,
+    QVBoxLayout,
+    QWidget,
+)
 
 from app.i18n import tr
 
@@ -10,7 +19,7 @@ from .theme import ACCENT, TEXT, TEXT_DIM, fs
 
 
 class TopBar(QWidget):
-    """Frame header: user greeting, system status, clock and quick action icons."""
+    """Frame header: HUD page index, greeting, system status, clock, quick actions."""
 
     settings_requested = Signal()
     notifications_requested = Signal()
@@ -25,22 +34,33 @@ class TopBar(QWidget):
         layout.setContentsMargins(28, 0, 28, 0)
         layout.setSpacing(14)
 
-        # Avatar / badge
+        # Avatar / badge (accent follows the active theme)
         avatar = QLabel()
         avatar.setPixmap(glyph("shield", ACCENT).scaled(24, 24, Qt.AspectRatioMode.KeepAspectRatio, Qt.TransformationMode.SmoothTransformation))
         avatar.setFixedSize(36, 36)
-        avatar.setStyleSheet("background: rgba(30, 107, 255, 0.15); border: 1px solid rgba(30, 107, 255, 0.4); border-radius: 10px;")
+        ac = QColor(ACCENT)
+        avatar.setStyleSheet(
+            f"background: rgba({ac.red()}, {ac.green()}, {ac.blue()}, 0.15);"
+            f" border: 1px solid rgba({ac.red()}, {ac.green()}, {ac.blue()}, 0.4); border-radius: 10px;"
+        )
         avatar.setAlignment(Qt.AlignmentFlag.AlignCenter)
         layout.addWidget(avatar)
 
-        # Greeting & subtitle
+        # HUD index + page title / subtitle
         info_col = QVBoxLayout()
         info_col.setSpacing(2)
         info_col.setAlignment(Qt.AlignmentFlag.AlignVCenter)
+        title_row = QHBoxLayout()
+        title_row.setSpacing(8)
+        title_row.setAlignment(Qt.AlignmentFlag.AlignVCenter)
+        self.index = QLabel("01")
+        self.index.setObjectName("hudIndex")
+        title_row.addWidget(self.index)
         self.title = QLabel(tr("topbar_greeting"))
         self.title.setObjectName("topBarTitle")
         self.title.setStyleSheet(f"font-size: {fs(14)}px; font-weight: 700; color: {TEXT};")
-        info_col.addWidget(self.title)
+        title_row.addWidget(self.title)
+        info_col.addLayout(title_row)
 
         self.subtitle = QLabel(tr("topbar_subtitle_ok"))
         self.subtitle.setStyleSheet(f"font-size: {fs(12)}px; color: {TEXT_DIM};")
@@ -49,10 +69,19 @@ class TopBar(QWidget):
 
         layout.addStretch(1)
 
-        # Status badge (kept for API compatibility)
+        # Status badge (kept for API compatibility) with a slow HUD "breath"
         self.status = QLabel(f"● {tr('status_healthy')}")
         self.status.setObjectName("topBarStatus")
         self.status.setFixedHeight(28)
+        self._status_fx = QGraphicsOpacityEffect(self.status)
+        self._status_fx.setOpacity(1.0)
+        self.status.setGraphicsEffect(self._status_fx)
+        self._pulse = QVariantAnimation(self)
+        self._pulse.setDuration(1600)
+        self._pulse.setLoopCount(-1)
+        self._pulse.setKeyValues([(0.0, 1.0), (0.5, 0.62), (1.0, 1.0)])
+        self._pulse.valueChanged.connect(self._status_fx.setOpacity)
+        self._pulse.start()
         layout.addWidget(self.status, 0, Qt.AlignmentFlag.AlignVCenter)
 
         # Clock & Date
@@ -140,6 +169,10 @@ class TopBar(QWidget):
         self.title.setText(text)
         self.subtitle.setText(tr("topbar_subtitle_page"))
         self.title.setToolTip(text)
+
+    def set_page_index(self, number: int, total: int = 99) -> None:
+        """HUD slot number of the current page (e.g. 03)."""
+        self.index.setText(f"{number:02d}/{total:02d}" if total <= 20 else f"{number:02d}")
 
     def set_status(self, text: str, level: str = "ok") -> None:
         self.status.setText(f"● {text}")

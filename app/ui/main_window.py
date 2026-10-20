@@ -27,7 +27,7 @@ from .tray import AppTray
 
 
 class _GlowRoot(QWidget):
-    """Window background: flat dark base with soft colored glows."""
+    """Window background: flat dark base, soft coloured glows and a faint HUD grid."""
 
     def paintEvent(self, event) -> None:
         from . import theme
@@ -35,6 +35,25 @@ class _GlowRoot(QWidget):
         painter = QPainter(self)
         painter.fillRect(self.rect(), QColor(theme.BG))
         w, h = self.width(), self.height()
+
+        # Faint HUD grid (two levels for a cockpit feel).
+        grid = QColor(theme.TEXT)
+        grid.setAlpha(10)
+        painter.setPen(grid)
+        step = 44
+        for x in range(0, w, step):
+            painter.drawLine(x, 0, x, h)
+        for y in range(0, h, step):
+            painter.drawLine(0, y, w, y)
+        grid_hi = QColor(theme.TEXT)
+        grid_hi.setAlpha(16)
+        painter.setPen(grid_hi)
+        big = step * 4
+        for x in range(0, w, big):
+            painter.drawLine(x, 0, x, h)
+        for y in range(0, h, big):
+            painter.drawLine(0, y, w, y)
+
         for cx, cy, radius, color, alpha in (
             (w * 0.92, h * 0.02, max(w, h) * 0.55, theme.GLOW_A, theme.GLOW_ALPHA_A),
             (w * 0.35, h * 1.05, max(w, h) * 0.5, theme.GLOW_B, theme.GLOW_ALPHA_B),
@@ -130,6 +149,9 @@ class MainWindow(QMainWindow):
             self._fade_in(self.stack.widget(index))
         self.sidebar.set_current(key)
         self.topbar.set_title(dict(NAV_ITEMS).get(key, key))
+        nav_keys = [k for k, _ in NAV_ITEMS]
+        if key in nav_keys:
+            self.topbar.set_page_index(nav_keys.index(key) + 1, total=len(nav_keys))
 
     def _fade_in(self, page) -> None:
         """Short fade when switching pages (effect is removed afterwards)."""
