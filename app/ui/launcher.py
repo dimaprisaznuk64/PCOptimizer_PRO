@@ -32,7 +32,7 @@ from app.i18n import tr
 
 from .activity import ActivityLog
 from .activity import record as log_action
-from .components import attach_empty_hint
+from .components import CardTitleLabel, attach_empty_hint
 from .tasks import Task
 from .theme import CARD_PADDING
 
@@ -271,8 +271,7 @@ class LauncherPage(QWidget):
         details_layout = QVBoxLayout(details)
         details_layout.setContentsMargins(CARD_PADDING, CARD_PADDING, CARD_PADDING, CARD_PADDING)
         details_layout.setSpacing(8)
-        self._details_title = QLabel(tr("launch_details"))
-        self._details_title.setObjectName("cardTitle")
+        self._details_title = CardTitleLabel(tr("launch_details"))
         details_layout.addWidget(self._details_title)
         self.detail_name = QLabel(tr("launch_selected_hint"))
         self.detail_name.setObjectName("gpuName")
@@ -303,8 +302,7 @@ class LauncherPage(QWidget):
         history_layout.setContentsMargins(CARD_PADDING, CARD_PADDING, CARD_PADDING, CARD_PADDING)
         history_layout.setSpacing(8)
         header = QHBoxLayout()
-        self._history_title = QLabel(tr("launch_history"))
-        self._history_title.setObjectName("cardTitle")
+        self._history_title = CardTitleLabel(tr("launch_history"))
         header.addWidget(self._history_title)
         header.addStretch(1)
         self.clear_history_button = QPushButton(tr("launch_clear"))

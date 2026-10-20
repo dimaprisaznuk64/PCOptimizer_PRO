@@ -24,7 +24,7 @@ from app.restore import (
 
 from .activity import outcome_level
 from .activity import record as log_action
-from .components import glyph_tile
+from .components import CardTitleLabel, glyph_tile
 from .tasks import Task
 from .theme import CARD_PADDING
 
@@ -152,8 +152,7 @@ class OptimizerPage(QWidget):
         state_layout.setContentsMargins(CARD_PADDING, CARD_PADDING, CARD_PADDING, CARD_PADDING)
         state_layout.setSpacing(8)
 
-        state_title = QLabel(tr("opt_current_state"))
-        state_title.setObjectName("cardTitle")
+        state_title = CardTitleLabel(tr("opt_current_state"))
         state_layout.addWidget(state_title)
 
         self._state_title = state_title

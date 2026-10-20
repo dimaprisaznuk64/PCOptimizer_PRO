@@ -19,7 +19,7 @@ from PySide6.QtWidgets import (
 from app.hardware import HardwareReport, HardwareService
 from app.i18n import tr
 
-from .components import ValueListCard, attach_empty_hint
+from .components import CardTitleLabel, ValueListCard, attach_empty_hint
 from .format import size as fmt_size
 from .tasks import Task
 from .theme import CARD_PADDING
@@ -133,8 +133,7 @@ class HardwarePage(QWidget):
         body.setContentsMargins(CARD_PADDING, CARD_PADDING, CARD_PADDING, CARD_PADDING)
         body.setSpacing(8)
 
-        title = QLabel(tr(title_key).upper())
-        title.setObjectName("cardTitle")
+        title = CardTitleLabel(tr(title_key))
         body.addWidget(title)
 
         table = QTableWidget(0, len(column_keys))

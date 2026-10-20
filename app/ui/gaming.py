@@ -22,7 +22,7 @@ from app.i18n import tr
 
 from .activity import ActivityLog, outcome_level
 from .activity import record as log_action
-from .components import attach_empty_hint
+from .components import CardTitleLabel, attach_empty_hint
 from .tasks import Task
 from .theme import CARD_PADDING
 
@@ -107,8 +107,7 @@ class GamingPage(QWidget):
         details_layout.setContentsMargins(CARD_PADDING, CARD_PADDING, CARD_PADDING, CARD_PADDING)
         details_layout.setSpacing(8)
 
-        details_title = QLabel(tr("game_details"))
-        details_title.setObjectName("cardTitle")
+        details_title = CardTitleLabel(tr("game_details"))
         details_layout.addWidget(details_title)
 
         self._details_title = details_title

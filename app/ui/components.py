@@ -147,21 +147,46 @@ class ScoreRing(QWidget):
             painter.drawArc(rect, 90 * 16, int(-360 * 16 * self._shown / 100.0))
 
 
+class CardTitleLabel(QLabel):
+    """A ``cardTitle`` label that paints its own short accent bar on the left.
+
+    Kept as a real QLabel so pages can ``setText`` it (retranslate) exactly as
+    before — the only new behaviour is the paint-not-QSS accent bar, which
+    cannot be done in QSS for a bare QLabel (border-left doesn't render).
+    """
+
+    def __init__(self, text: str = "", accent: str = ACCENT, parent: QWidget | None = None) -> None:
+        super().__init__(text.upper(), parent)
+        self.setObjectName("cardTitle")
+        self._accent = accent
+        self.setContentsMargins(0, 0, 0, 0)
+        set_mono(self, spacing_pct=14.0)
+
+    def set_accent(self, accent: str) -> None:
+        self._accent = accent
+        self.update()
+
+    def paintEvent(self, event) -> None:  # noqa: N802 (Qt signature)
+        super().paintEvent(event)
+        painter = QPainter(self)
+        painter.setRenderHint(QPainter.RenderHint.Antialiasing, True)
+        bar_h = min(14, self.height() - 2)
+        if bar_h < 4:
+            return
+        y = (self.height() - bar_h) / 2
+        painter.setPen(Qt.PenStyle.NoPen)
+        painter.setBrush(QColor(self._accent))
+        painter.drawRoundedRect(QRectF(0.0, y, 3.0, float(bar_h)), 1.5, 1.5)
+
+
 def card_heading(text: str, accent: str = ACCENT) -> QWidget:
     """Card caption: a short accent bar + the uppercase mono title."""
     row = QWidget()
     row.setObjectName("cardHeading")
     hl = QHBoxLayout(row)
     hl.setContentsMargins(0, 0, 0, 0)
-    hl.setSpacing(8)
-    bar = QFrame()
-    bar.setObjectName("cardHeadingBar")
-    bar.setFixedSize(3, 14)
-    bar.setStyleSheet(f"background: {accent}; border: none; border-radius: 1px;")
-    hl.addWidget(bar)
-    label = QLabel(text.upper())
-    label.setObjectName("cardTitle")
-    set_mono(label, spacing_pct=14.0)
+    hl.setSpacing(0)
+    label = CardTitleLabel(text, accent)
     hl.addWidget(label)
     hl.addStretch(1)
     row._label = label  # type: ignore[attr-defined]

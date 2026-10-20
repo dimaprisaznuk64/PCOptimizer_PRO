@@ -905,6 +905,7 @@ QLabel#cardTitle {{
     font-weight: 600;
     color: {TEXT_DIM};
     letter-spacing: 0.8px;
+    padding-left: 11px;
 }}
 QLabel#cardValue {{
     font-size: 30px;

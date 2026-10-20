@@ -6,7 +6,7 @@ from PySide6.QtWidgets import QFrame, QGridLayout, QLabel, QVBoxLayout, QWidget
 from app.i18n import tr
 from app.sensors import Snapshot
 
-from .components import Bar, CardPanel, Sparkline
+from .components import Bar, CardPanel, CardTitleLabel, Sparkline
 from .format import gb, rate, zone_label
 from .theme import ACCENT, ACCENT_HOVER, CARD_PADDING, DANGER, OK, PAGE_MARGINS, PAGE_SPACING
 
@@ -28,8 +28,7 @@ class _Card(QFrame):
         self._layout = QVBoxLayout(self)
         self._layout.setContentsMargins(CARD_PADDING, CARD_PADDING, CARD_PADDING, CARD_PADDING)
         self._layout.setSpacing(8)
-        label = QLabel(title.upper())
-        label.setObjectName("cardTitle")
+        label = CardTitleLabel(title)
         self._layout.addWidget(label)
         self.title_label = label
         self.body = QVBoxLayout()
@@ -166,8 +165,7 @@ class MonitorPage(QWidget):
         self.cpu_spark = Sparkline(ACCENT, points=180, height=96)
         row.addWidget(self.cpu_spark, 0, 1)
 
-        core_label = QLabel(tr("mon_per_core"))
-        core_label.setObjectName("cardTitle")
+        core_label = CardTitleLabel(tr("mon_per_core"))
         card.body.addWidget(core_label)
         card.body.addLayout(row)
         self.cores = CoreBars()

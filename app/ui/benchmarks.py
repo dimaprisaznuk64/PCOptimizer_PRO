@@ -24,7 +24,7 @@ from app.i18n import tr
 from app.reports import ReportError, export_history, timestamp_name
 from app.settings import data_root
 
-from .components import attach_empty_hint
+from .components import CardTitleLabel, attach_empty_hint
 from .tasks import Task
 from .theme import CARD_PADDING, DANGER, OK
 
@@ -135,8 +135,7 @@ class BenchmarksPage(QWidget):
 
         history_head = QHBoxLayout()
         history_head.setSpacing(8)
-        self.history_title = QLabel(tr("bench_history_title").upper())
-        self.history_title.setObjectName("cardTitle")
+        self.history_title = CardTitleLabel(tr("bench_history_title"))
         history_head.addWidget(self.history_title)
         history_head.addStretch(1)
         self.baseline_button = QPushButton(tr("bench_set_baseline"))
@@ -194,8 +193,7 @@ class BenchmarksPage(QWidget):
         body = QVBoxLayout(card)
         body.setContentsMargins(CARD_PADDING, CARD_PADDING, CARD_PADDING, CARD_PADDING)
         body.setSpacing(8)
-        title = QLabel(tr(title_key).upper())
-        title.setObjectName("cardTitle")
+        title = CardTitleLabel(tr(title_key))
         body.addWidget(title)
         table = self._build_table(column_keys, hint)
         body.addWidget(table, 1)

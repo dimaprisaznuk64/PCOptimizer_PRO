@@ -21,7 +21,7 @@ from app.i18n import tr
 from app.network import DEFAULT_PING_HOST, CheckResult, NetworkService, PingResult
 
 from .activity import record as log_action
-from .components import attach_empty_hint
+from .components import CardTitleLabel, attach_empty_hint
 from .tasks import Task
 from .theme import CARD_PADDING
 
@@ -87,8 +87,7 @@ class NetworkPage(QWidget):
         ping_layout.setContentsMargins(CARD_PADDING, CARD_PADDING, CARD_PADDING, CARD_PADDING)
         ping_layout.setSpacing(8)
 
-        ping_title = QLabel(tr("net_ping_title"))
-        ping_title.setObjectName("cardTitle")
+        ping_title = CardTitleLabel(tr("net_ping_title"))
         ping_layout.addWidget(ping_title)
         self._ping_title = ping_title
 
@@ -137,8 +136,7 @@ class NetworkPage(QWidget):
         diag_layout.setSpacing(8)
 
         diag_head = QHBoxLayout()
-        diag_title = QLabel(tr("net_diag_title"))
-        diag_title.setObjectName("cardTitle")
+        diag_title = CardTitleLabel(tr("net_diag_title"))
         diag_head.addWidget(diag_title)
         self._diag_title = diag_title
         diag_head.addStretch(1)

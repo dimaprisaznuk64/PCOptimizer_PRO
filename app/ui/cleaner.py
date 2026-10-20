@@ -20,7 +20,7 @@ from app.i18n import tr
 
 from .activity import outcome_level
 from .activity import record as log_action
-from .components import align_numeric_headers
+from .components import CardTitleLabel, align_numeric_headers
 from .format import size
 from .tasks import Task
 from .theme import CARD_PADDING
@@ -84,8 +84,7 @@ class CleanerPage(QWidget):
         hero_row.setSpacing(12)
         hero_text = QVBoxLayout()
         hero_text.setSpacing(2)
-        self._hero_caption = QLabel(tr("clean_hero"))
-        self._hero_caption.setObjectName("cardTitle")
+        self._hero_caption = CardTitleLabel(tr("clean_hero"))
         hero_text.addWidget(self._hero_caption)
         self.hero_value = QLabel("—")
         self.hero_value.setObjectName("heroValue")

@@ -24,7 +24,7 @@ from app.disk import DEFAULT_LIMIT, DEFAULT_MIN_SIZE, DiskAnalyzer
 from app.disk.service import DriveUsage, LargeFile, ScanReport
 from app.i18n import tr
 
-from .components import Bar, attach_empty_hint
+from .components import Bar, CardTitleLabel, attach_empty_hint
 from .format import size as fmt_size
 from .tasks import Task
 from .theme import CARD_PADDING
@@ -91,8 +91,7 @@ class DiskPage(QWidget):
         scan_layout.setSpacing(8)
 
         scan_head = QHBoxLayout()
-        scan_title = QLabel(tr("disk_folder_scan"))
-        scan_title.setObjectName("cardTitle")
+        scan_title = CardTitleLabel(tr("disk_folder_scan"))
         scan_head.addWidget(scan_title)
         self._scan_title = scan_title
         scan_head.addStretch(1)
@@ -137,8 +136,7 @@ class DiskPage(QWidget):
         large_layout.setSpacing(8)
 
         large_head = QHBoxLayout()
-        large_title = QLabel(tr("disk_large_files"))
-        large_title.setObjectName("cardTitle")
+        large_title = CardTitleLabel(tr("disk_large_files"))
         large_head.addWidget(large_title)
         self._large_title = large_title
         large_head.addStretch(1)

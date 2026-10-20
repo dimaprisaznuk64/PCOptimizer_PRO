@@ -29,7 +29,7 @@ from app.processes import (
     ProtectedProcessError,
 )
 
-from .components import align_numeric_headers
+from .components import CardTitleLabel, align_numeric_headers
 from .format import mb, uptime
 from .tasks import Task
 from .theme import CARD_PADDING
@@ -165,8 +165,7 @@ class ProcessPage(QWidget):
         details_layout.setContentsMargins(CARD_PADDING, CARD_PADDING, CARD_PADDING, CARD_PADDING)
         details_layout.setSpacing(8)
 
-        details_title = QLabel(tr("proc_details"))
-        details_title.setObjectName("cardTitle")
+        details_title = CardTitleLabel(tr("proc_details"))
         details_layout.addWidget(details_title)
 
         self._details_title = details_title

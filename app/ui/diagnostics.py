@@ -20,7 +20,7 @@ from PySide6.QtWidgets import (
 from app.diagnostics import DiagnosticsReport, DiagnosticsService
 from app.i18n import tr
 
-from .components import attach_empty_hint
+from .components import CardTitleLabel, attach_empty_hint
 from .format import size as fmt_size
 from .tasks import Task
 from .theme import CARD_PADDING, DANGER, OK, WARN
@@ -196,8 +196,7 @@ class DiagnosticsPage(QWidget):
 
         evt_head = QHBoxLayout()
         evt_head.setSpacing(8)
-        evt_title = QLabel(tr("diag_evt_title").upper())
-        evt_title.setObjectName("cardTitle")
+        evt_title = CardTitleLabel(tr("diag_evt_title"))
         evt_head.addWidget(evt_title)
         evt_head.addStretch(1)
 
@@ -231,8 +230,7 @@ class DiagnosticsPage(QWidget):
 
         up_head = QHBoxLayout()
         up_head.setSpacing(8)
-        up_title = QLabel(tr("diag_up_title").upper())
-        up_title.setObjectName("cardTitle")
+        up_title = CardTitleLabel(tr("diag_up_title"))
         up_head.addWidget(up_title)
         up_head.addStretch(1)
         self.check_button = QPushButton(tr("diag_up_btn"))
@@ -279,8 +277,7 @@ class DiagnosticsPage(QWidget):
         body.setContentsMargins(CARD_PADDING, CARD_PADDING, CARD_PADDING, CARD_PADDING)
         body.setSpacing(8)
 
-        title = QLabel(tr(title_key).upper())
-        title.setObjectName("cardTitle")
+        title = CardTitleLabel(tr(title_key))
         body.addWidget(title)
 
         table = self._build_table(column_keys, hint)

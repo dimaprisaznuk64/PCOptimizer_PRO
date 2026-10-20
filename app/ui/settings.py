@@ -22,6 +22,7 @@ from app.i18n import I18nService, tr
 from app.logs import clear_logs, log_file, read_tail, setup_logging
 from app.settings import SettingsError, SettingsService, data_root
 
+from .components import CardTitleLabel
 from .theme import CURRENT_THEME, THEME_LABELS, fs
 
 INTERVAL_OPTIONS = (250, 500, 1000, 2000, 5000)
@@ -132,8 +133,7 @@ class SettingsPage(QWidget):
         grid.setHorizontalSpacing(16)
         grid.setVerticalSpacing(10)
 
-        heading = QLabel(tr("set_general"))
-        heading.setObjectName("cardTitle")
+        heading = CardTitleLabel(tr("set_general"))
         grid.addWidget(heading, 0, 0, 1, 2)
         self._general_heading = heading
 
@@ -202,8 +202,7 @@ class SettingsPage(QWidget):
         outer.setSpacing(10)
 
         head = QHBoxLayout()
-        heading = QLabel(tr("set_logging"))
-        heading.setObjectName("cardTitle")
+        heading = CardTitleLabel(tr("set_logging"))
         head.addWidget(heading)
         head.addStretch(1)
         self._logging_heading = heading
