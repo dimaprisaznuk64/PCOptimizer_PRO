@@ -18,13 +18,17 @@ EXPECTED = {
     "COBALT", "COPPER",
     # legacy themes restored from v1.2.2
     "DARK", "PURPLE", "GREEN", "LIGHT", "AMOLED",
+    "MINIMAL_DARK",
+    "NEON_PULSE",
+    "NEXUS",
+    "ELECTRIC",
 }
 
 
 def test_curated_themes_include_legacy():
     from app.ui import theme as tract
 
-    assert len(tract.PALETTES) == 25
+    assert len(tract.PALETTES) == 29
     assert set(tract.PALETTES) == EXPECTED
 
 

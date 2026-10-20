@@ -21,7 +21,7 @@ from app.settings import SettingsService
 from .pages import build_pages
 from .sampler import SensorSampler
 from .sidebar import NAV_ITEMS, Sidebar
-from .theme import apply
+from .theme import apply, set_application_fonts
 from .topbar import TopBar
 from .tray import AppTray
 
@@ -436,6 +436,8 @@ def run(argv: list[str] | None = None) -> int:
     from .theme import load_fonts
 
     load_fonts()
+    # Initialize application-wide font settings
+    set_application_fonts()
     app.setApplicationName("PCOptimizer PRO")
     app.setApplicationDisplayName("PCOptimizer PRO")
     app.setAttribute(Qt.ApplicationAttribute.AA_DontShowIconsInMenus, True)

@@ -32,7 +32,8 @@ CHOICES: dict[str, tuple[str, ...]] = {
     "theme": ("GRAPHITE", "TRUE_BLACK", "SLATE", "TITANIUM", "FOREST", "BURGUNDY", "MIDNIGHT",
               "AUBERGINE", "DEEP_TEAL", "ESPRESSO", "ARCTIC", "IVORY", "MONO", "SAGE",
               "PERFORMANCE_RED", "CYBER", "INDUSTRIAL", "TACTICAL", "COBALT", "COPPER",
-              "DARK", "PURPLE", "GREEN", "LIGHT", "AMOLED"),
+              "DARK", "PURPLE", "GREEN", "LIGHT", "AMOLED", "NEON_PULSE",
+              "ELECTRIC", "NEXUS", "MINIMAL_DARK"),
     "language": ("UA", "EN"),
 }
 

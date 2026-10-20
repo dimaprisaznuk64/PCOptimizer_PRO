@@ -341,6 +341,73 @@ PALETTES: dict[str, dict] = {
         "OK_BG": "#0e2616", "HERO_TOP": "#0d1d3d", "BRAND_A": "#5a9bff", "BRAND_B": "#7a5cff",
         "GLOW_ALPHA_A": 55, "GLOW_ALPHA_B": 35, "C1": "#2f80ff", "C2": "#9b6dff", "C3": "#19d3e0", "C4": "#ffb03a",
     },
+    # Neon HUD: near-black blue base, cyan primary + violet secondary, strong glow.
+    "NEON_PULSE": {
+        **_BASE,
+        "BG": "#07080F", "PANEL": "#0E1020", "PANEL_ALT": "#141834",
+        "BORDER": "#1F2447", "BORDER_HI": "#2C3568",
+        "TEXT": "#E8ECFF", "TEXT_DIM": "#7A82B8",
+        "ACCENT": "#00E5FF", "ACCENT_HOVER": "#4DF0FF", "ACCENT_TINT": "#062733",
+        "ACCENT_PRESSED": "#00B8CC", "ON_ACCENT": "#04121A",
+        "DANGER": "#FF2E63", "OK": "#00FF9C", "WARN": "#FFB300",
+        "SIDEBAR_TOP": "#0A0C1A", "SIDEBAR_BOTTOM": "#05060E", "HOVER": "#171B38",
+        "DANGER_BG": "#2B1020", "DANGER_BORDER": "#5A2140", "DANGER_BG_HOVER": "#3A152B",
+        "OK_BG": "#062B22", "WARN_BG": "#2E2410", "HERO_TOP": "#101836",
+        "BRAND_A": "#00E5FF", "BRAND_B": "#B300FF", "GLOW_A": "#00E5FF", "GLOW_B": "#B300FF",
+        "GLOW_ALPHA_A": 70, "GLOW_ALPHA_B": 45,
+        "C1": "#00E5FF", "C2": "#22D3EE", "C3": "#B300FF", "C4": "#FF2E63",
+    },
+    # Electric: graphite base, blue accent, green/amber/red statuses (from the redesign mockup).
+    "ELECTRIC": {
+        **_BASE,
+        "BG": "#0E1117", "PANEL": "#161B23", "PANEL_ALT": "#1A212C",
+        "BORDER": "#242C3A", "BORDER_HI": "#35405C",
+        "TEXT": "#E6EAF2", "TEXT_DIM": "#8A94A6",
+        "ACCENT": "#3B82F6", "ACCENT_HOVER": "#60A5FA", "ACCENT_TINT": "#14233F",
+        "ACCENT_PRESSED": "#2563EB", "ON_ACCENT": "#FFFFFF",
+        "DANGER": "#EF4444", "OK": "#10B981", "WARN": "#F59E0B",
+        "SIDEBAR_TOP": "#0B1018", "SIDEBAR_BOTTOM": "#0E1117", "HOVER": "#202734",
+        "DANGER_BG": "#2A1416", "DANGER_BORDER": "#5A2327", "DANGER_BG_HOVER": "#34191C",
+        "OK_BG": "#0F2A22", "WARN_BG": "#2B2310",
+        "HERO_TOP": "#16213B", "HERO_BG_A": "#16213B", "HERO_BG_B": "#101826",
+        "HERO_BORDER": "#2F4F9F",
+        "CARD_BG_HOVER": "#202836",
+        "BRAND_A": "#3B82F6", "BRAND_B": "#2563EB", "GLOW_A": "#3B82F6", "GLOW_B": "#10B981",
+        "GLOW_ALPHA_A": 28, "GLOW_ALPHA_B": 18,
+        "C1": "#3B82F6", "C2": "#60A5FA", "C3": "#10B981", "C4": "#F59E0B",
+    },
+    # Nexus: monochrome graphite, silver accent, muted status colours.
+    "NEXUS": {
+        **_BASE,
+        "BG": "#070707", "PANEL": "#111111", "PANEL_ALT": "#151515",
+        "BORDER": "#2A2A2A", "BORDER_HI": "#3A3A3A",
+        "TEXT": "#F0F0F0", "TEXT_DIM": "#929292",
+        "ACCENT": "#D8D8D8", "ACCENT_HOVER": "#FFFFFF", "ACCENT_TINT": "#1C1C1C",
+        "ACCENT_PRESSED": "#A8A8A8", "ON_ACCENT": "#111111",
+        "DANGER": "#C47878", "OK": "#9FC5AD", "WARN": "#C7AA79",
+        "SIDEBAR_TOP": "#0A0A0A", "SIDEBAR_BOTTOM": "#070707", "HOVER": "#1C1C1C",
+        "DANGER_BG": "#241617", "DANGER_BORDER": "#4A2C2E", "DANGER_BG_HOVER": "#2E1C1E",
+        "OK_BG": "#142019", "WARN_BG": "#241E12", "HERO_TOP": "#151515",
+        "BRAND_A": "#E8E8E8", "BRAND_B": "#A4A4A4", "GLOW_A": "#FFFFFF", "GLOW_B": "#B5B5B5",
+        "GLOW_ALPHA_A": 14, "GLOW_ALPHA_B": 10,
+        "C1": "#D8D8D8", "C2": "#A4A4A4", "C3": "#9FC5AD", "C4": "#C7AA79",
+    },
+    # Calm, low-contrast minimalism: one blue accent, flat surfaces, hairlines.
+    "MINIMAL_DARK": {
+        **_BASE,
+        "BG": "#0F1117", "PANEL": "#171A23", "PANEL_ALT": "#1D2130",
+        "BORDER": "#232838", "BORDER_HI": "#2F3547",
+        "TEXT": "#E6E9F2", "TEXT_DIM": "#8B92A6",
+        "ACCENT": "#6C8CFF", "ACCENT_HOVER": "#8AA5FF", "ACCENT_TINT": "#1A2440",
+        "ACCENT_PRESSED": "#5474E8", "ON_ACCENT": "#FFFFFF",
+        "DANGER": "#E5484D", "OK": "#46C68B", "WARN": "#E8A33D",
+        "SIDEBAR_TOP": "#12151D", "SIDEBAR_BOTTOM": "#0B0D13", "HOVER": "#1E2331",
+        "DANGER_BG": "#2F181C", "DANGER_BORDER": "#5E2C31", "DANGER_BG_HOVER": "#3B1E23",
+        "OK_BG": "#132A20", "WARN_BG": "#2F2614", "HERO_TOP": "#161C2C",
+        "BRAND_A": "#6C8CFF", "BRAND_B": "#9B8CFF", "GLOW_A": "#6C8CFF", "GLOW_B": "#8B7CFF",
+        "GLOW_ALPHA_A": 38, "GLOW_ALPHA_B": 24,
+        "C1": "#6C8CFF", "C2": "#8892FF", "C3": "#46C68B", "C4": "#E8A33D",
+    },
 }
 
 THEME_ALIASES: dict[str, str] = {
@@ -379,6 +446,10 @@ THEME_LABELS: dict[str, str] = {
     "GREEN": "Green Nature",
     "LIGHT": "Light",
     "AMOLED": "AMOLED Neon",
+    "MINIMAL_DARK": "Minimal Dark",
+    "NEON_PULSE": "Neon Pulse",
+    "NEXUS": "Nexus",
+    "ELECTRIC": "Electric",
 }
 
 BG: str
@@ -499,6 +570,51 @@ def load_fonts() -> list[str]:
     return loaded
 
 
+def _set_global_fonts() -> None:
+    """Set global font preferences for consistent UI appearance across platforms."""
+    from PySide6.QtGui import QFont
+    from PySide6.QtWidgets import QApplication
+
+    app = QApplication.instance()
+    if app is None:
+        return
+
+    font = QFont()
+    # Primary UI font - Inter as preferred, with system fallbacks
+    font.setFamilies([
+        "Inter",                    # First choice - custom font
+        "Segoe UI Variable Text",   # Windows 10/11 variable font
+        "Segoe UI",                 # Windows classic
+        "Arial",                    # System fallback
+        "Helvetica",                # macOS fallback
+        "Sans-serif"                # Universal fallback
+    ])
+    font.setPixelSize(BASE_FONT_PX)
+    font.setWeight(QFont.Weight.Medium)
+    font.setStyleStrategy(QFont.StyleStrategy.PreferAntialias)
+    font.setHintingPreference(QFont.HintingPreference.PreferNoHinting)
+
+    # Set application-wide font
+    app.setFont(font)
+
+    # Load custom fonts for consistent appearance
+    load_fonts()
+
+    # Set monospace font for numeric values
+    mono_font = QFont()
+    mono_font.setFamilies([
+        "JetBrains Mono",           # First choice - custom monospace
+        "Cascadia Mono",            # Windows Terminal font
+        "Consolas",                 # Windows classic monospace
+        "Courier New",             # System fallback
+        "Monaco",                   # macOS monospace
+        "Monospace"                # Universal fallback
+    ])
+    mono_font.setPixelSize(BASE_FONT_PX)
+    mono_font.setWeight(QFont.Weight.Medium)
+    mono_font.setStyleStrategy(QFont.StyleStrategy.PreferAntialias)
+
+
 def _mix(a: str, b: str, t: float) -> str:
     """Blend two #RRGGBB colors: t=0 -> a, t=1 -> b."""
     a, b = a.lstrip("#"), b.lstrip("#")
@@ -511,6 +627,33 @@ def _mix(a: str, b: str, t: float) -> str:
 BTN_FILL = _mix(PANEL_ALT, TEXT, 0.05)
 BTN_FILL_HOVER = _mix(PANEL_ALT, TEXT, 0.11)
 BTN_BORDER = _mix(PANEL, TEXT_DIM, 0.58)
+
+
+def _luminance(hex_color: str) -> float:
+    """Perceived brightness (0-255) of a #RRGGBB colour."""
+    c = hex_color.lstrip("#")
+    r, g, b = (int(c[i : i + 2], 16) for i in (0, 2, 4))
+    return 0.299 * r + 0.587 * g + 0.114 * b
+
+
+def card_shadow(widget, blur: int = 24, dy: int = 6):
+    """Soft drop shadow for large cards.
+
+    Deliberately NOT applied to table rows: shadows on hundreds of cells are
+    expensive and make dense tables unreadable. The shadow strength follows the
+    palette, so light themes get a subtle one instead of a black halo.
+    """
+    from PySide6.QtGui import QColor
+    from PySide6.QtWidgets import QGraphicsDropShadowEffect
+
+    effect = QGraphicsDropShadowEffect(widget)
+    effect.setBlurRadius(blur)
+    effect.setOffset(0, dy)
+    color = QColor(0, 0, 0)
+    color.setAlpha(60 if _luminance(BG) > 150 else 150)
+    effect.setColor(color)
+    widget.setGraphicsEffect(effect)
+    return effect
 
 
 def _chevron_path(color: str) -> str:
@@ -605,7 +748,7 @@ QPushButton[nav="true"]:checked, QPushButton[nav="true"]:checked:focus, QPushBut
     background: qlineargradient(x1:0, y1:0, x2:1, y2:0, stop:0 {BRAND_A}, stop:1 {BRAND_B});
     border: none;
     border-radius: 9px;
-    color: #FFFFFF;
+    color: {ON_ACCENT};
     font-weight: 700;
     padding-left: 14px;
 }}
@@ -1026,7 +1169,7 @@ QPushButton:focus {{
 QPushButton[primary="true"] {{
     background: qlineargradient(x1:0, y1:0, x2:1, y2:0, stop:0 {BRAND_A}, stop:1 {BRAND_B});
     border: 1px solid transparent;
-    color: #FFFFFF;
+    color: {ON_ACCENT};
     font-weight: 700;
     padding: 9px 20px;
 }}
@@ -1169,17 +1312,12 @@ QScrollBar::handle:horizontal {{
 
 
 def apply(app) -> None:
-    from PySide6.QtGui import QColor, QFont, QPalette
+    from PySide6.QtGui import QColor, QPalette
 
     app.setStyle("Fusion")
     load_fonts()
-    base = QFont()
-    base.setFamilies(["Inter", "Segoe UI Variable Text", "Segoe UI"])
-    base.setPixelSize(BASE_FONT_PX)
-    base.setWeight(QFont.Weight.Medium)
-    base.setStyleStrategy(QFont.StyleStrategy.PreferAntialias)
-    base.setHintingPreference(QFont.HintingPreference.PreferNoHinting)
-    app.setFont(base)
+    # Apply global font settings
+    _set_global_fonts()
     app.setStyleSheet(build_stylesheet())
     palette = QPalette()
     palette.setColor(QPalette.ColorRole.Window, QColor(BG))
@@ -1195,3 +1333,12 @@ def apply(app) -> None:
     palette.setColor(QPalette.ColorRole.ToolTipText, QColor(TEXT))
     palette.setColor(QPalette.ColorRole.PlaceholderText, QColor(TEXT_DIM))
     app.setPalette(palette)
+
+
+def set_application_fonts() -> None:
+    """Initialize application-wide font settings.
+
+    This function should be called early in application startup to ensure
+    consistent font rendering across different platforms and systems.
+    """
+    _set_global_fonts()

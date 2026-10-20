@@ -29,7 +29,11 @@ TRANSLATIONS: dict[str, dict[str, str]] = {
         "theme_GREEN": "Green Nature",
         "theme_LIGHT": "Light",
         "theme_AMOLED": "AMOLED Neon",
+        "theme_MINIMAL_DARK": "Minimal Dark",
+        "theme_NEON_PULSE": "Neon Pulse",
         # App & Brand
+        "theme_NEXUS": "Nexus",
+        "theme_ELECTRIC": "Electric",
         "app_title": "PCOptimizer PRO",
         "app_subtitle": "Your PC. Under control.",
         "brand_badge": "PRO / DESKTOP",
@@ -929,6 +933,10 @@ TRANSLATIONS: dict[str, dict[str, str]] = {
         "theme_GREEN": "Зелена природа",
         "theme_LIGHT": "Світла",
         "theme_AMOLED": "AMOLED неон",
+        "theme_MINIMAL_DARK": "Мінімал темний",
+        "theme_NEXUS": "Nexus",
+        "theme_ELECTRIC": "Електричний",
+        "theme_NEON_PULSE": "Неоновий пульс",
         # App & Brand
         "app_title": "PCOptimizer PRO",
         "app_subtitle": "Ваш ПК. Під повним контролем.",

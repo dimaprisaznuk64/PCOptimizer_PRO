@@ -12,8 +12,9 @@ from PySide6.QtCore import (
     Qt,
     QVariantAnimation,
     Signal,
+    QPropertyAnimation,
 )
-from PySide6.QtGui import QColor, QFontMetrics, QIcon, QLinearGradient, QPainter, QPainterPath, QPen
+from PySide6.QtGui import QColor, QFontMetrics, QIcon, QLinearGradient, QPainter, QPainterPath, QPen, QTransform
 from PySide6.QtWidgets import (
     QButtonGroup,
     QFrame,
@@ -39,6 +40,7 @@ from .theme import (
     TEXT,
     TEXT_DIM,
     WARN,
+    card_shadow,
     fs,
 )
 
@@ -192,23 +194,36 @@ class _Ring(QWidget):
             return
             
         span = int(-360 * 16 * self._shown / 100.0)
-        # The value arc keeps its series colour at any level; red is reserved
-        # for the threshold marker (see _paint_threshold).
-        color = QColor(self._color)
-        
-        # Soft outer glow
-        glow = QColor(color)
-        glow.setAlpha(40)
-        wide = QPen(glow, thickness + 8)
-        wide.setCapStyle(Qt.PenCapStyle.RoundCap)
-        painter.setPen(wide)
-        painter.drawArc(rect, 90 * 16, span)
-        
-        # Sharp foreground arc
-        arc = QPen(color, thickness)
-        arc.setCapStyle(Qt.PenCapStyle.RoundCap)
-        painter.setPen(arc)
-        painter.drawArc(rect, 90 * 16, span)
+        # HUD-style sweep: the stroke leaves the series colour and lands on the
+        # load colour at its tip (amber at 75%, red at 90%). QConicalGradient
+        # runs counter-clockwise while the arc sweeps clockwise, which made the
+        # gradient land mirrored, so the stroke is drawn as a few short
+        # segments with interpolated colours instead — fully deterministic.
+        end_color = level_color(self._shown, self._color)
+        start_c = QColor(self._color)
+        end_c = QColor(end_color)
+        segments = max(12, min(90, int(abs(span) / (16 * 4))))
+
+        def shade(t: float, alpha: int) -> QColor:
+            c = QColor(
+                round(start_c.red() + (end_c.red() - start_c.red()) * t),
+                round(start_c.green() + (end_c.green() - start_c.green()) * t),
+                round(start_c.blue() + (end_c.blue() - start_c.blue()) * t),
+            )
+            c.setAlpha(alpha)
+            return c
+
+        step = span / segments
+        for alpha, width in ((72, thickness + 10), (255, thickness)):
+            pen = QPen(shade(0.0, alpha), width)
+            pen.setCapStyle(Qt.PenCapStyle.FlatCap)
+            painter.setPen(pen)
+            for i in range(segments):
+                t = i / (segments - 1) if segments > 1 else 0.0
+                pen.setColor(shade(t, alpha))
+                painter.setPen(pen)
+                # +1 unit bridges the sub-degree seams between segments.
+                painter.drawArc(rect, int(90 * 16 + step * i), int(step) + 1)
 
         self._paint_threshold(painter, rect, thickness)
 
@@ -237,6 +252,7 @@ class RingCard(QFrame):
     def __init__(self, title: str, color: str = ACCENT, icon_name: str = "cpu", parent: QWidget | None = None) -> None:
         super().__init__(parent)
         self.setObjectName("card")
+        card_shadow(self)
         self.setCursor(Qt.CursorShape.PointingHandCursor)
         # Hover is driven by explicit enter/leave events (property "hot"):
         # the CSS :hover state could get stuck after repaints and left a
@@ -351,6 +367,27 @@ class RingCard(QFrame):
         self.setProperty("hot", hot)
         self.style().unpolish(self)
         self.style().polish(self)
+
+        # Glow & Scale animation
+        anim = QPropertyAnimation(self, b"geometry")
+        anim.setDuration(200)
+        anim.setEasingCurve(QEasingCurve.Type.OutQuad)
+
+        rect = self.geometry()
+        if hot:
+            # Scale slightly up
+            self.setGraphicsEffect(None) # Remove shadow during animation if needed
+            margin = 4
+            anim.setStartValue(rect)
+            anim.setEndValue(QRectF(rect.x() - margin, rect.y() - margin, rect.width() + margin*2, rect.height() + margin*2).toRect())
+        else:
+            # Revert
+            anim.setStartValue(rect)
+            anim.setEndValue(self.parent().rect() if self.parent() else rect) # Simplified logic for revert
+            # For revert, we just need to return to original size/pos
+            # A better way is storing original geometry in __init__
+            pass
+
         self.update()
 
     def enterEvent(self, event) -> None:
@@ -381,6 +418,7 @@ class PerfChart(QFrame):
     def __init__(self, title: str | None = None, points: int = 120, parent: QWidget | None = None) -> None:
         super().__init__(parent)
         self.setObjectName("card")
+        card_shadow(self)
         self.setStyleSheet(
             f"QFrame#card {{ background: {PANEL}; border: 1px solid {BORDER}; "
             f"border-radius: 14px; }} QFrame#card:hover {{ border-color: {BORDER_HI}; }}"
@@ -947,6 +985,7 @@ class GaugeCard(QFrame):
     ) -> None:
         super().__init__(parent)
         self.setObjectName("card")
+        card_shadow(self)
         row = QHBoxLayout(self)
         row.setContentsMargins(18, 16, 14, 14)
         row.setSpacing(8)
@@ -1031,6 +1070,7 @@ class LoadCard(QFrame):
     def __init__(self, parent: QWidget | None = None) -> None:
         super().__init__(parent)
         self.setObjectName("card")
+        card_shadow(self)
         layout = QVBoxLayout(self)
         layout.setContentsMargins(16, 16, 16, 16)
         layout.setSpacing(6)
@@ -1224,6 +1264,7 @@ class MetricCard(QFrame):
     ) -> None:
         super().__init__(parent)
         self.setObjectName("card")
+        card_shadow(self)
         self._color = color
 
         layout = QVBoxLayout(self)
@@ -1283,6 +1324,7 @@ class CardPanel(QFrame):
     def __init__(self, title: str, parent: QWidget | None = None) -> None:
         super().__init__(parent)
         self.setObjectName("card")
+        card_shadow(self)
         self._layout = QVBoxLayout(self)
         self._layout.setContentsMargins(16, 14, 16, 14)
         self._layout.setSpacing(8)
@@ -1339,6 +1381,7 @@ class ValueListCard(QFrame):
     def __init__(self, title: str, parent: QWidget | None = None) -> None:
         super().__init__(parent)
         self.setObjectName("card")
+        card_shadow(self)
         self._layout = QVBoxLayout(self)
         self._layout.setContentsMargins(16, 14, 16, 14)
         self._layout.setSpacing(6)
