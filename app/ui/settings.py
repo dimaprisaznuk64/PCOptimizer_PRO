@@ -2,10 +2,11 @@ from __future__ import annotations
 
 from pathlib import Path
 
+from PySide6.QtCore import Qt
 from PySide6.QtGui import QFont
 from PySide6.QtWidgets import (
+    QApplication,
     QCheckBox,
-    QComboBox,
     QFrame,
     QGridLayout,
     QHBoxLayout,
@@ -13,6 +14,8 @@ from PySide6.QtWidgets import (
     QLineEdit,
     QPlainTextEdit,
     QPushButton,
+    QScrollArea,
+    QSizePolicy,
     QSpinBox,
     QVBoxLayout,
     QWidget,
@@ -22,14 +25,15 @@ from app.i18n import I18nService, tr
 from app.logs import clear_logs, log_file, read_tail, setup_logging
 from app.settings import SettingsError, SettingsService, data_root
 
+from .combos import COMBO_HEIGHT, COMBO_WIDTH_WIDE, CompactCombo, tune_combo
 from .components import CardTitleLabel
-from .theme import CURRENT_THEME, THEME_LABELS, fs
+from .theme import CURRENT_THEME, T_SMALL, THEME_LABELS
+from .theme_picker import ThemeSwatchDelegate
 
 INTERVAL_OPTIONS = (250, 500, 1000, 2000, 5000)
 LOG_LEVELS = ("DEBUG", "INFO", "WARNING", "ERROR")
 LANGUAGE_OPTIONS = ("UA", "EN")
 TEMP_MIN, TEMP_MAX = 50, 110
-
 
 class SettingsPage(QWidget):
     def __init__(
@@ -45,9 +49,24 @@ class SettingsPage(QWidget):
         self._log_directory = Path(log_directory) if log_directory is not None else None
         self._on_theme_applied = on_theme_applied
 
-        layout = QVBoxLayout(self)
+        outer = QVBoxLayout(self)
+        outer.setContentsMargins(0, 0, 0, 0)
+        outer.setSpacing(0)
+        # The page scrolls: on short windows the form must not be squeezed
+        # (labels clipped, combos collapsed into thin lines).
+        scroll = QScrollArea()
+        scroll.setWidgetResizable(True)
+        scroll.setFrameShape(QFrame.Shape.NoFrame)
+        scroll.setHorizontalScrollBarPolicy(Qt.ScrollBarPolicy.ScrollBarAlwaysOff)
+        scroll.setStyleSheet("QScrollArea { background: transparent; border: none; }")
+        content = QWidget()
+        content.setObjectName("page")
+        outer.addWidget(scroll)
+        scroll.setWidget(content)
+
+        layout = QVBoxLayout(content)
         layout.setContentsMargins(40, 36, 40, 32)
-        layout.setSpacing(10)
+        layout.setSpacing(14)
 
         title = QLabel(tr("set_title"))
         title.setObjectName("pageTitle")
@@ -65,23 +84,26 @@ class SettingsPage(QWidget):
         layout.addWidget(self._build_general_card())
         layout.addWidget(self._build_logging_card(), 1)
 
-        actions = QHBoxLayout()
-        actions.setSpacing(8)
+        actions_bar = QFrame()
+        actions_bar.setObjectName("card")
+        actions_outer = QHBoxLayout(actions_bar)
+        actions_outer.setContentsMargins(16, 12, 16, 12)
+        actions_outer.setSpacing(8)
         self.save_button = QPushButton(tr("set_save_btn"))
         self.save_button.setProperty("primary", True)
         self.save_button.clicked.connect(self.save)
-        actions.addWidget(self.save_button)
+        actions_outer.addWidget(self.save_button)
         self.reset_button = QPushButton(tr("set_reset_btn"))
         self.reset_button.setProperty("secondary", True)
         self.reset_button.clicked.connect(self.reset)
-        actions.addWidget(self.reset_button)
+        actions_outer.addWidget(self.reset_button)
         self.admin_button = QPushButton(tr("set_restart_admin"))
         self.admin_button.setProperty("secondary", True)
         self.admin_button.setToolTip(tr("set_restart_admin_tip"))
         self.admin_button.clicked.connect(self.restart_as_admin)
-        actions.addWidget(self.admin_button)
-        actions.addStretch(1)
-        layout.addLayout(actions)
+        actions_outer.addWidget(self.admin_button)
+        actions_outer.addStretch(1)
+        layout.addWidget(actions_bar)
 
         self.status_label = QLabel(tr("set_idle"))
         self.status_label.setObjectName("cardSub")
@@ -129,9 +151,9 @@ class SettingsPage(QWidget):
         card = QFrame()
         card.setObjectName("card")
         grid = QGridLayout(card)
-        grid.setContentsMargins(18, 16, 18, 16)
-        grid.setHorizontalSpacing(16)
-        grid.setVerticalSpacing(10)
+        grid.setContentsMargins(20, 18, 20, 18)
+        grid.setHorizontalSpacing(20)
+        grid.setVerticalSpacing(12)
 
         heading = CardTitleLabel(tr("set_general"))
         grid.addWidget(heading, 0, 0, 1, 2)
@@ -139,23 +161,27 @@ class SettingsPage(QWidget):
 
         self._interval_label = QLabel(tr("set_sample_interval"))
         grid.addWidget(self._interval_label, 1, 0)
-        self.interval_combo = QComboBox()
+        self.interval_combo = CompactCombo()
         for value in INTERVAL_OPTIONS:
             self.interval_combo.addItem(f"{value} ms", value)
+        tune_combo(self.interval_combo)
         grid.addWidget(self.interval_combo, 1, 1)
 
         self._theme_label = QLabel(tr("set_theme"))
         grid.addWidget(self._theme_label, 2, 0)
-        self.theme_combo = QComboBox()
+        self.theme_combo = CompactCombo()
         for key in THEME_LABELS:
             self.theme_combo.addItem(tr(f"theme_{key}"), key)
+        tune_combo(self.theme_combo, COMBO_WIDTH_WIDE, expand=True)
+        self.theme_combo.setItemDelegate(ThemeSwatchDelegate(self.theme_combo))
         grid.addWidget(self.theme_combo, 2, 1)
 
         self._language_label = QLabel(tr("set_language"))
         grid.addWidget(self._language_label, 3, 0)
-        self.language_combo = QComboBox()
+        self.language_combo = CompactCombo()
         for code in LANGUAGE_OPTIONS:
             self.language_combo.addItem({"UA": "Українська", "EN": "English"}.get(code, code), code)
+        tune_combo(self.language_combo)
         grid.addWidget(self.language_combo, 3, 1)
 
         self._data_label = QLabel(tr("set_data_dir"))
@@ -163,6 +189,8 @@ class SettingsPage(QWidget):
         grid.addWidget(self._data_label, 4, 0)
         self.data_dir_edit = QLineEdit(str(data_root()))
         self.data_dir_edit.setReadOnly(True)
+        self.data_dir_edit.setFixedHeight(COMBO_HEIGHT)
+        self.data_dir_edit.setSizePolicy(QSizePolicy.Expanding, QSizePolicy.Fixed)
         grid.addWidget(self.data_dir_edit, 4, 1)
 
         self.minimize_check = QCheckBox(tr("set_minimize_tray"))
@@ -182,6 +210,8 @@ class SettingsPage(QWidget):
         self.temp_cpu_spin = QSpinBox()
         self.temp_cpu_spin.setRange(TEMP_MIN, TEMP_MAX)
         self.temp_cpu_spin.setSuffix(" °C")
+        self.temp_cpu_spin.setFixedHeight(COMBO_HEIGHT)
+        self.temp_cpu_spin.setSizePolicy(QSizePolicy.Expanding, QSizePolicy.Fixed)
         grid.addWidget(self.temp_cpu_spin, 9, 1)
 
         self._temp_gpu_label = QLabel(tr("set_temp_gpu"))
@@ -189,9 +219,22 @@ class SettingsPage(QWidget):
         self.temp_gpu_spin = QSpinBox()
         self.temp_gpu_spin.setRange(TEMP_MIN, TEMP_MAX)
         self.temp_gpu_spin.setSuffix(" °C")
+        self.temp_gpu_spin.setFixedHeight(COMBO_HEIGHT)
+        self.temp_gpu_spin.setSizePolicy(QSizePolicy.Expanding, QSizePolicy.Fixed)
         grid.addWidget(self.temp_gpu_spin, 10, 1)
 
+        for check in (
+            self.minimize_check,
+            self.start_minimized_check,
+            self.tray_metrics_check,
+            self.temp_alerts_check,
+        ):
+            check.setMinimumHeight(26)
+
+        # Column 1 takes the available width, column 2 is kept empty for spacing.
+        grid.setColumnStretch(0, 0)
         grid.setColumnStretch(1, 1)
+        grid.setColumnStretch(2, 0)
         return card
 
     def _build_logging_card(self) -> QFrame:
@@ -207,9 +250,10 @@ class SettingsPage(QWidget):
         head.addStretch(1)
         self._logging_heading = heading
 
-        self.level_combo = QComboBox()
+        self.level_combo = CompactCombo()
         for level in LOG_LEVELS:
             self.level_combo.addItem(level, level)
+        tune_combo(self.level_combo, 150)
         self._level_label = QLabel(tr("set_log_level"))
         head.addWidget(self._level_label)
         head.addWidget(self.level_combo)
@@ -238,11 +282,12 @@ class SettingsPage(QWidget):
 
         self.preview = QPlainTextEdit()
         self.preview.setReadOnly(True)
-        self.preview.setMinimumHeight(140)
+        self.preview.setMinimumHeight(160)
+        self.preview.setSizePolicy(QSizePolicy.Expanding, QSizePolicy.Expanding)
         self.preview.setLineWrapMode(QPlainTextEdit.LineWrapMode.NoWrap)
         mono = QFont()
         mono.setFamilies(["Cascadia Mono", "Consolas", "Courier New"])
-        mono.setPixelSize(fs(12))
+        mono.setPixelSize(T_SMALL)
         self.preview.setFont(mono)
         self.preview.setPlaceholderText(tr("set_log_empty"))
         outer.addWidget(self.preview, 1)
@@ -341,7 +386,6 @@ class SettingsPage(QWidget):
         import ctypes
         import sys
 
-        from PySide6.QtWidgets import QApplication
 
         if getattr(sys, "frozen", False):
             exe = sys.executable

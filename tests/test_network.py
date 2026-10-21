@@ -275,8 +275,8 @@ def test_network_page_flush(qapp) -> None:
     service = FakeNetworkService()
     page = NetworkPage(service=service)
     page.start_flush()
-    assert _wait_until(qapp, lambda: service.flush_calls == 1)
-    assert "flushed" in page.status_label.text().lower()
+    assert _wait_until(qapp, lambda: "flushed" in page.status_label.text().lower())
+    assert service.flush_calls == 1
 
 
 def test_network_page_busy_disables_buttons(qapp) -> None:

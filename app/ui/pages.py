@@ -25,7 +25,7 @@ class PlaceholderPage(QWidget):
         desc = QLabel(description)
         desc.setObjectName("pageDesc")
         desc.setWordWrap(True)
-        desc.setMaximumWidth(560)
+        desc.setSizePolicy(desc.sizePolicy().horizontalPolicy(), desc.sizePolicy().verticalPolicy())
         layout.addWidget(desc)
 
         layout.addStretch(1)

@@ -1,0 +1,102 @@
+"""Tests for the compact combo boxes and the theme swatch delegate."""
+
+from __future__ import annotations
+
+import pytest
+
+pytest.importorskip("PySide6")
+
+from PySide6.QtCore import Qt  # noqa: E402
+from PySide6.QtWidgets import QApplication, QStyleOptionViewItem  # noqa: E402
+
+from app.ui.combos import COMBO_HEIGHT, MAX_VISIBLE_ROWS, CompactCombo, tune_combo  # noqa: E402
+from app.ui.theme_picker import ThemeSwatchDelegate  # noqa: E402
+
+
+@pytest.fixture()
+def qapp():
+    app = QApplication.instance() or QApplication([])
+    yield app
+
+
+def _make_combo(qapp, items: int = 29) -> CompactCombo:
+    combo = CompactCombo()
+    for i in range(items):
+        combo.addItem(f"Item {i}")
+    tune_combo(combo, 280)
+    combo.show()
+    qapp.processEvents()
+    return combo
+
+
+def test_combo_has_fixed_compact_size(qapp):
+    combo = _make_combo(qapp)
+    assert combo.height() == COMBO_HEIGHT
+    assert combo.width() == 280
+    assert combo.maxVisibleItems() == MAX_VISIBLE_ROWS
+
+
+def test_combo_popup_is_bounded_and_anchored_under_the_field(qapp):
+    combo = _make_combo(qapp)
+    combo.setFixedWidth(280)
+    combo.showPopup()
+    qapp.processEvents()
+
+    popup = combo.view().window()
+    view = combo.view()
+    row = view.sizeHintForRow(0)
+    # The popup shows a few rows only - not the whole list.
+    assert popup.height() <= row * MAX_VISIBLE_ROWS + 24
+    assert abs(popup.width() - 280) <= 8
+
+    # Anchored under the field, not at the top-left corner of the screen.
+    anchor = combo.mapToGlobal(combo.rect().bottomLeft())
+    popup_pos = popup.mapToGlobal(popup.rect().topLeft())
+    assert abs(popup_pos.x() - anchor.x()) <= 4
+    assert popup_pos.y() >= anchor.y() - 4
+    combo.hidePopup()
+
+
+def test_combo_popup_scrolls_the_rest_of_the_list(qapp):
+    combo = _make_combo(qapp, items=29)
+    combo.showPopup()
+    qapp.processEvents()
+    view = combo.view()
+    # More items than visible -> a scrollbar is offered.
+    assert view.verticalScrollBar().maximum() > 0
+    combo.hidePopup()
+
+
+def test_swatch_delegate_reports_a_wider_item(qapp):
+    combo = CompactCombo()
+    combo.addItem("Graphite", "GRAPHITE")
+    tune_combo(combo, 280)
+    delegate = ThemeSwatchDelegate(combo)
+    combo.setItemDelegate(delegate)
+    combo.show()
+    qapp.processEvents()
+
+    index = combo.model().index(0, 0)
+    option = QStyleOptionViewItem()
+    option.initFrom(combo)
+    option.fontMetrics = combo.fontMetrics()
+    hint = delegate.sizeHint(option, index)
+    plain = combo.fontMetrics().horizontalAdvance("Graphite")
+    assert hint.width() > plain
+    assert hint.height() >= 30
+
+
+def test_swatch_delegate_uses_the_theme_palette(qapp):
+    from app.ui import theme
+
+    combo = CompactCombo()
+    combo.addItem("Graphite", "GRAPHITE")
+    tune_combo(combo, 280)
+    delegate = ThemeSwatchDelegate(combo)
+    combo.setItemDelegate(delegate)
+    combo.show()
+    qapp.processEvents()
+
+    index = combo.model().index(0, 0)
+    assert index.data(Qt.ItemDataRole.UserRole) == "GRAPHITE"
+    assert "GRAPHITE" in theme.PALETTES

@@ -46,12 +46,15 @@ from .theme import (
     OK,
     PANEL,
     PANEL_ALT,
+    T_BODY,
+    T_CAPTION,
+    T_MICRO,
+    T_SMALL,
     TEXT,
     TEXT_DIM,
     WARN,
     _mix,
     card_shadow,
-    fs,
     hud_brackets,
     set_mono,
 )
@@ -297,6 +300,8 @@ class RingCard(QFrame):
     def __init__(self, title: str, color: str = ACCENT, icon_name: str = "cpu", parent: QWidget | None = None) -> None:
         super().__init__(parent)
         self.setObjectName("card")
+        self.setMinimumWidth(0)
+        self.setSizePolicy(QSizePolicy.Expanding, QSizePolicy.Preferred)
         self._shadow = card_shadow(self)
         hud_brackets(self)
         self._shadow_anim = QPropertyAnimation(self._shadow, b"blurRadius", self)
@@ -325,12 +330,12 @@ class RingCard(QFrame):
         header.addWidget(self.header_icon)
 
         self.header_title = QLabel(title)
-        self.header_title.setStyleSheet(f"font-size: {fs(12)}px; font-weight: 700; color: {TEXT_DIM};")
+        self.header_title.setStyleSheet(f"font-size: {T_SMALL}px; font-weight: 700; color: {TEXT_DIM};")
         header.addWidget(self.header_title)
         header.addStretch(1)
 
         self.header_arrow = QLabel("›")
-        self.header_arrow.setStyleSheet(f"font-size: {fs(14)}px; font-weight: 700; color: {TEXT_DIM};")
+        self.header_arrow.setStyleSheet(f"font-size: {T_BODY}px; font-weight: 700; color: {TEXT_DIM};")
         header.addWidget(self.header_arrow)
         layout.addLayout(header)
 
@@ -343,12 +348,11 @@ class RingCard(QFrame):
 
         self.value = QLabel("—")
         self.value.setObjectName("ringValue")
-        self.value.setStyleSheet(f"font-size: {fs(24)}px; font-weight: 800; color: {TEXT};")
         self.value.setAlignment(Qt.AlignmentFlag.AlignCenter)
         ring_layout.addWidget(self.value)
 
         self.center_sub = QLabel("Завантаження")
-        self.center_sub.setStyleSheet(f"font-size: {fs(10)}px; font-weight: 500; color: {TEXT_DIM};")
+        self.center_sub.setStyleSheet(f"font-size: {T_MICRO}px; font-weight: 500; color: {TEXT_DIM};")
         self.center_sub.setAlignment(Qt.AlignmentFlag.AlignCenter)
         ring_layout.addWidget(self.center_sub)
         ring_layout.addStretch(1)
@@ -361,7 +365,7 @@ class RingCard(QFrame):
         
         self.sub = QLabel("")
         self.sub.setObjectName("ringSub")
-        self.sub.setStyleSheet(f"font-size: {fs(11)}px; color: {TEXT_DIM};")
+        self.sub.setStyleSheet(f"font-size: {T_CAPTION}px; color: {TEXT_DIM};")
         self.sub.setAlignment(Qt.AlignmentFlag.AlignLeft)
         details_box.addWidget(self.sub)
 
@@ -369,7 +373,7 @@ class RingCard(QFrame):
 
         self.extra = QLabel("")
         self.extra.setObjectName("cardSub")
-        self.extra.setStyleSheet(f"font-size: {fs(11)}px; font-weight: 600; color: {OK};")
+        self.extra.setStyleSheet(f"font-size: {T_CAPTION}px; font-weight: 600; color: {OK};")
         self.extra.setAlignment(Qt.AlignmentFlag.AlignRight)
         details_box.addWidget(self.extra)
         
@@ -399,7 +403,7 @@ class RingCard(QFrame):
         self.value.setText(value)
         self.sub.setText(sub)
         self.extra.setText(extra)
-        self.extra.setStyleSheet(f"font-size: {fs(11)}px; font-weight: 600; color: {extra_color};")
+        self.extra.setStyleSheet(f"font-size: {T_CAPTION}px; font-weight: 600; color: {extra_color};")
         self.extra.setVisible(bool(extra))
         self.ring.set_percent(percent)
         if spark is not None:
@@ -468,7 +472,7 @@ class PerfChart(QFrame):
 
         head = QHBoxLayout()
         label = QLabel(title or tr("dash_chart_title"))
-        label.setStyleSheet(f"font-size: {fs(13)}px; font-weight: 700; color: {TEXT};")
+        label.setStyleSheet(f"font-size: {T_BODY}px; font-weight: 700; color: {TEXT};")
         head.addWidget(label)
         head.addStretch(1)
         self._title_label = label
@@ -538,7 +542,7 @@ class PerfChart(QFrame):
             pill.setChecked(series_key not in self._hidden)
             pill.setCursor(Qt.CursorShape.PointingHandCursor)
             pill.setStyleSheet(
-                f"QPushButton {{ background: transparent; border: none; font-size: {fs(11)}px; "
+                f"QPushButton {{ background: transparent; border: none; font-size: {T_CAPTION}px; "
                 f"font-weight: 600; color: {color if series_key not in self._hidden else TEXT_DIM}; padding: 0px; }}"
                 f"QPushButton:hover {{ color: {TEXT}; }}"
             )
@@ -564,7 +568,7 @@ class PerfChart(QFrame):
             pill.setChecked(on)
             label_key, token, _style = CHART_SERIES.get(key, (key, "ACCENT", Qt.PenStyle.SolidLine))
             pill.setStyleSheet(
-                f"QPushButton {{ background: transparent; border: none; font-size: {fs(11)}px; "
+                f"QPushButton {{ background: transparent; border: none; font-size: {T_CAPTION}px; "
                 f"font-weight: 600; color: {chart_series_color(token) if on else TEXT_DIM}; padding: 0px; }}"
                 f"QPushButton:hover {{ color: {TEXT}; }}"
             )
@@ -713,7 +717,7 @@ class _ChartCanvas(QWidget):
     def _plot_metrics(self) -> tuple[float, float]:
         """(left margin, bottom margin) matching what paintEvent reserves."""
         font = self.font()
-        font.setPixelSize(fs(11))
+        font.setPixelSize(T_CAPTION)
         metrics = QFontMetrics(font)
         hi = 100.0 if self._percent else self._axis_hi(self._series_to_draw())
         tick_labels = [self._axis_label(hi, frac) for frac in (1.0, 0.5, 0.0)]
@@ -796,7 +800,7 @@ class _ChartCanvas(QWidget):
         hi = self._axis_hi(series)
 
         font = painter.font()
-        font.setPixelSize(fs(11))
+        font.setPixelSize(T_CAPTION)
         painter.setFont(font)
 
         # Reserve room for the widest Y label so nothing is clipped at the edge.
@@ -904,7 +908,7 @@ class _EmptyHint(QLabel):
         self.setWordWrap(True)
         self.setAlignment(Qt.AlignmentFlag.AlignCenter)
         self.setStyleSheet(
-            f"color: {TEXT_DIM}; font-size: {fs(13)}px; background: transparent; padding: 24px;"
+            f"color: {TEXT_DIM}; font-size: {T_BODY}px; background: transparent; padding: 24px;"
         )
         # Subtle HUD glyph above the copy so an empty table still looks designed.
         self.setPixmap(
@@ -1032,6 +1036,8 @@ class GaugeCard(QFrame):
     ) -> None:
         super().__init__(parent)
         self.setObjectName("card")
+        self.setMinimumWidth(0)
+        self.setSizePolicy(QSizePolicy.Expanding, QSizePolicy.Preferred)
         card_shadow(self)
         hud_brackets(self)
         row = QHBoxLayout(self)
@@ -1115,9 +1121,11 @@ class _VerticalMeter(QWidget):
 
 
 class LoadCard(QFrame):
-    def __init__(self, parent: QWidget | None = None) -> None:
+    def __init__(self, title: str, parent: QWidget | None = None) -> None:
         super().__init__(parent)
         self.setObjectName("card")
+        self.setMinimumWidth(0)
+        self.setSizePolicy(QSizePolicy.Expanding, QSizePolicy.Preferred)
         card_shadow(self)
         hud_brackets(self)
         layout = QVBoxLayout(self)
@@ -1313,6 +1321,8 @@ class MetricCard(QFrame):
     ) -> None:
         super().__init__(parent)
         self.setObjectName("card")
+        self.setMinimumWidth(0)
+        self.setSizePolicy(QSizePolicy.Expanding, QSizePolicy.Preferred)
         card_shadow(self)
         hud_brackets(self)
         self._color = color
@@ -1374,6 +1384,8 @@ class CardPanel(QFrame):
     def __init__(self, title: str, parent: QWidget | None = None) -> None:
         super().__init__(parent)
         self.setObjectName("card")
+        self.setMinimumWidth(0)
+        self.setSizePolicy(QSizePolicy.Expanding, QSizePolicy.Preferred)
         card_shadow(self)
         hud_brackets(self)
         self._layout = QVBoxLayout(self)
@@ -1411,7 +1423,7 @@ class CardPanel(QFrame):
             if key not in self._rows:
                 label = QLabel(key)
                 label.setObjectName("cardRow")
-                label.setMinimumWidth(64)
+                label.setMinimumWidth(0)
                 bar = Bar(ACCENT)
                 text_label = QLabel("")
                 text_label.setObjectName("cardSub")
@@ -1431,6 +1443,8 @@ class ValueListCard(QFrame):
     def __init__(self, title: str, parent: QWidget | None = None) -> None:
         super().__init__(parent)
         self.setObjectName("card")
+        self.setMinimumWidth(0)
+        self.setSizePolicy(QSizePolicy.Expanding, QSizePolicy.Preferred)
         card_shadow(self)
         hud_brackets(self)
         self._layout = QVBoxLayout(self)

@@ -1,7 +1,5 @@
 from __future__ import annotations
 
-import re
-
 _BASE = {
     "BG": "#070A13",
     "PANEL": "#0B1120",
@@ -549,11 +547,46 @@ def fs(px: int) -> int:
     return max(1, round(px * FONT_SCALE))
 
 
+# --- Type scale ------------------------------------------------------------
+# One source of truth for every font size in the app. The values are final
+# device pixels (design px already multiplied by FONT_SCALE), so the QSS and
+# the inline styles use exactly the same numbers. Pages must pick a role from
+# this scale instead of inventing a number - that is what keeps the UI even.
+T_HERO    = fs(40)  # hero number (welcome / score)
+T_VALUE   = fs(30)  # big card value
+T_TITLE   = fs(26)  # page title
+T_H1      = fs(20)  # section heading
+T_H2      = fs(16)  # sub heading
+T_LEAD    = fs(15)  # emphasised body
+T_BODY    = fs(13)  # default text, page description, buttons
+T_BRAND   = fs(14)  # brand wordmark
+T_SMALL   = fs(12)  # card titles, table cells, small labels
+T_CAPTION = fs(11)  # captions, units, timestamps
+T_MICRO   = fs(10)  # badges, ring captions
+
+
 # --- Canonical layout scale -------------------------------------------------
 # Every page must use these so cards, paddings and headers share one rhythm.
 PAGE_MARGINS = (40, 36, 40, 32)  # page header + outer chrome
 PAGE_SPACING = 10
 CARD_PADDING = 16  # inner padding of every card
+
+# Design tokens (unify radii/spacing/padding across UI)
+RADIUS_SM = 8
+RADIUS_MD = 10
+RADIUS_LG = 12
+RADIUS_XL = 14
+
+SPACING_XS = 4
+SPACING_SM = 6
+SPACING_MD = 8
+SPACING_LG = 12
+SPACING_XL = 16
+
+PADDING_SM = 10
+PADDING_MD = 12
+PADDING_LG = 16
+PADDING_XL = 20
 CARD_SPACING = 8  # spacing between rows inside a card
 CARD_GAP = 14  # spacing between sibling cards on a page
 
@@ -769,10 +802,16 @@ def _chevron_path(color: str) -> str:
 
 def build_stylesheet() -> str:
     CHEVRON = _chevron_path(TEXT_DIM)
+    # Ensure design tokens available for f-strings
+    _tok = {
+        "RADIUS_SM": RADIUS_SM, "RADIUS_MD": RADIUS_MD, "RADIUS_LG": RADIUS_LG, "RADIUS_XL": RADIUS_XL,
+        "SPACING_XS": SPACING_XS, "SPACING_SM": SPACING_SM, "SPACING_MD": SPACING_MD, "SPACING_LG": SPACING_LG, "SPACING_XL": SPACING_XL,
+        "PADDING_SM": PADDING_SM, "PADDING_MD": PADDING_MD, "PADDING_LG": PADDING_LG, "PADDING_XL": PADDING_XL,
+    }
     qss = f"""
 * {{
     font-family: {FONT_UI};
-    font-size: 13px;
+    font-size: {T_BODY}px;
     color: {TEXT};
 }}
 QMainWindow, QWidget#root {{
@@ -805,12 +844,12 @@ QScrollArea#navScroll QScrollBar::sub-page:vertical {{
     background: transparent;
 }}
 QLabel#brand {{
-    font-size: 15px;
+    font-size: {T_LEAD}px;
     font-weight: 700;
     color: {TEXT};
 }}
 QLabel#brandSub {{
-    font-size: 12px;
+    font-size: {T_SMALL}px;
     color: {TEXT_DIM};
 }}
 QPushButton[nav="true"] {{
@@ -821,12 +860,17 @@ QPushButton[nav="true"] {{
     text-align: left;
     padding: 7px 14px 7px 14px;
     margin: 1px 10px;
-    font-size: 13px;
+    font-size: {T_BODY}px;
     font-weight: 500;
 }}
 QPushButton[nav="true"][hot="true"] {{
     background: {PANEL_ALT};
     color: {TEXT};
+}}
+QPushButton[nav="true"][compact="true"] {{
+    text-align: center;
+    padding: 7px 0px;
+    margin: 1px 8px;
 }}
 QPushButton[nav="true"]:focus {{
     border: none;
@@ -840,6 +884,11 @@ QPushButton[nav="true"]:checked, QPushButton[nav="true"]:checked:focus, QPushBut
     color: {ON_ACCENT};
     font-weight: 700;
     padding-left: 11px;
+}}
+QPushButton[nav="true"][compact="true"]:checked,
+QPushButton[nav="true"][compact="true"]:checked:focus,
+QPushButton[nav="true"][compact="true"]:checked:hover {{
+    padding-left: 0px;
 }}
 QScrollBar:vertical {{
     background: transparent;
@@ -865,7 +914,7 @@ QWidget#sidebarFooter {{
 }}
 QLabel#footerText {{
     color: {TEXT_DIM};
-    font-size: 12px;
+    font-size: {T_SMALL}px;
     padding: 12px 18px;
 }}
 QWidget#page {{
@@ -886,12 +935,12 @@ QLabel#pageTitle, QLabel#welcome, QLabel#heroValue, QLabel#scoreValue {{
     font-family: {FONT_UI};
 }}
 QLabel#pageTitle {{
-    font-size: 26px;
+    font-size: {T_TITLE}px;
     font-weight: 700;
     color: {TEXT};
 }}
 QLabel#pageDesc {{
-    font-size: 13px;
+    font-size: {T_BODY}px;
     color: {TEXT_DIM};
 }}
 QFrame#card {{
@@ -901,24 +950,24 @@ QFrame#card {{
 }}
 QLabel#cardTitle {{
     font-family: {FONT_MONO};
-    font-size: 12px;
+    font-size: {T_SMALL}px;
     font-weight: 600;
     color: {TEXT_DIM};
     letter-spacing: 0.8px;
     padding-left: 11px;
 }}
 QLabel#cardValue {{
-    font-size: 30px;
+    font-size: {T_VALUE}px;
     font-weight: 700;
     color: {TEXT};
 }}
 QLabel#gaugeValue {{
-    font-size: 28px;
+    font-size: {T_VALUE}px;
     font-weight: 700;
     color: {TEXT};
 }}
 QLabel#gaugeTitle {{
-    font-size: 16px;
+    font-size: {T_H2}px;
     font-weight: 700;
     color: {TEXT};
 }}
@@ -927,22 +976,22 @@ QLabel#iconTile {{
     border-radius: 10px;
 }}
 QLabel#heroValue {{
-    font-size: 40px;
+    font-size: {T_HERO}px;
     font-weight: 800;
     color: {TEXT};
 }}
 QLabel#welcome {{
-    font-size: 30px;
+    font-size: {T_VALUE}px;
     font-weight: 700;
     color: {TEXT};
 }}
 QLabel#tileTitle {{
-    font-size: 14px;
+    font-size: {T_BODY}px;
     font-weight: 600;
     color: {TEXT};
 }}
 QLabel#tileArrow {{
-    font-size: 22px;
+    font-size: {T_H1}px;
     color: {TEXT_DIM};
 }}
 QPushButton#linkButton {{
@@ -990,7 +1039,7 @@ QPushButton#starButton {{
     border: 1px solid {BORDER};
     border-radius: 8px;
     color: {TEXT_DIM};
-    font-size: 15px;
+    font-size: {T_LEAD}px;
     padding: 2px;
 }}
 QPushButton#starButton:hover {{
@@ -1022,22 +1071,22 @@ QFrame#hero {{
     border-radius: 12px;
 }}
 QLabel#ringValue {{
-    font-size: 26px;
+    font-size: {T_TITLE}px;
     font-weight: 700;
     color: {TEXT};
 }}
 QLabel#ringSub {{
-    font-size: 12px;
+    font-size: {T_SMALL}px;
     font-weight: 600;
     color: {TEXT};
 }}
 QLabel#clock {{
-    font-size: 22px;
+    font-size: {T_H1}px;
     font-weight: 700;
     color: {TEXT};
 }}
 QLabel#sysStatus {{
-    font-size: 11px;
+    font-size: {T_CAPTION}px;
     font-weight: 600;
     color: {OK};
     padding: 12px 18px 2px 18px;
@@ -1054,7 +1103,7 @@ QPushButton[seg="true"] {{
     border-radius: 6px;
     padding: 4px 12px;
     color: {TEXT_DIM};
-    font-size: 12px;
+    font-size: {T_SMALL}px;
 }}
 QPushButton[seg="true"]:hover {{
     color: {TEXT};
@@ -1078,13 +1127,13 @@ QPushButton[quick="true"]:hover {{
     background: {ACCENT_TINT};
 }}
 QLabel#scoreValue {{
-    font-size: 44px;
+    font-size: {T_HERO}px;
     font-weight: 800;
     color: {TEXT};
     background: transparent;
 }}
 QLabel#statValue {{
-    font-size: 20px;
+    font-size: {T_H1}px;
     font-weight: 700;
     color: {TEXT};
 }}
@@ -1093,15 +1142,15 @@ QLabel#livePill {{
     color: {OK};
     border-radius: 10px;
     padding: 3px 10px;
-    font-size: 11px;
+    font-size: {T_CAPTION}px;
     font-weight: 600;
 }}
 QLabel#cardSub {{
-    font-size: 12px;
+    font-size: {T_SMALL}px;
     color: {TEXT_DIM};
 }}
 QLabel#cardRow {{
-    font-size: 12px;
+    font-size: {T_SMALL}px;
     color: {TEXT};
 }}
 QLabel#errorLine {{
@@ -1109,11 +1158,11 @@ QLabel#errorLine {{
     background: {WARN_BG};
     border-radius: 8px;
     padding: 6px 12px;
-    font-size: 12px;
+    font-size: {T_SMALL}px;
     font-weight: 600;
 }}
 QLabel#gpuName {{
-    font-size: 16px;
+    font-size: {T_H2}px;
     font-weight: 700;
     color: {TEXT};
 }}
@@ -1122,7 +1171,7 @@ QLabel#pageBadge {{
     color: {ACCENT};
     border-radius: 6px;
     padding: 4px 10px;
-    font-size: 11px;
+    font-size: {T_CAPTION}px;
     font-weight: 600;
 }}
 QStatusBar {{
@@ -1139,12 +1188,12 @@ QWidget#topBar {{
     border-bottom: 1px solid {BORDER};
 }}
 QLabel#topBarTitle {{
-    font-size: 16px;
+    font-size: {T_H2}px;
     font-weight: 700;
     color: {TEXT};
 }}
 QLabel#topBarStatus {{
-    font-size: 12px;
+    font-size: {T_SMALL}px;
     font-weight: 600;
     color: {OK};
     padding: 4px 12px;
@@ -1197,7 +1246,7 @@ QHeaderView::section {{
     border-bottom: 1px solid {BORDER};
     padding: 10px 10px;
     font-family: {FONT_MONO};
-    font-size: 12px;
+    font-size: {T_SMALL}px;
     font-weight: 600;
     text-align: left;
 }}
@@ -1247,6 +1296,8 @@ QPushButton {{
     color: {TEXT};
     border: 1px solid {BTN_BORDER};
     border-radius: 10px;
+    font-size: {T_BODY}px;
+    font-weight: 600;
     padding: 9px 16px;
     font-weight: 600;
 }}
@@ -1314,7 +1365,8 @@ QComboBox, QSpinBox {{
     background: {PANEL_ALT};
     border: 1px solid {BORDER};
     border-radius: 8px;
-    padding: 6px 10px;
+    padding: 5px 10px;
+    min-height: 24px;
 }}
 QComboBox {{
     padding-right: 28px;
@@ -1336,8 +1388,24 @@ QComboBox:hover, QSpinBox:hover, QComboBox:focus, QSpinBox:focus {{
 QComboBox QAbstractItemView {{
     background: {PANEL_ALT};
     border: 1px solid {BORDER_HI};
+    border-radius: 8px;
+    padding: 4px;
     selection-background-color: {ACCENT_TINT};
+    selection-color: {TEXT};
     outline: none;
+}}
+QComboBox QAbstractItemView::item {{
+    min-height: 30px;
+    padding: 2px 10px;
+    border-radius: 6px;
+    color: {TEXT};
+}}
+QComboBox QAbstractItemView::item:selected {{
+    background: {ACCENT_TINT};
+    color: {TEXT};
+}}
+QComboBox QAbstractItemView::item:hover {{
+    background: {HOVER};
 }}
 QMenu {{
     background: {PANEL_ALT};
@@ -1353,7 +1421,7 @@ QMenu::item:selected {{
     background: {ACCENT_TINT};
 }}
 QLabel#navSection {{
-    font-size: 11px;
+    font-size: {T_CAPTION}px;
     font-weight: 700;
     color: {TEXT_DIM};
     padding: 16px 26px 4px 26px;
@@ -1363,7 +1431,7 @@ QLabel#brandMark {{
     color: #ffffff;
     border-radius: 8px;
     font-weight: 800;
-    font-size: 13px;
+    font-size: {T_BODY}px;
 }}
 QWidget#brandBox {{
     border-bottom: 1px solid {BORDER};
@@ -1410,13 +1478,13 @@ QScrollBar::handle:horizontal:hover {{
 }}
 QLabel#hudIndex {{
     font-family: {FONT_MONO};
-    font-size: 12px;
+    font-size: {T_SMALL}px;
     font-weight: 700;
     color: {ACCENT};
 }}
 QLabel#hudTag {{
     font-family: {FONT_MONO};
-    font-size: 11px;
+    font-size: {T_CAPTION}px;
     color: {TEXT_DIM};
 }}
 QPushButton[ghost="true"] {{
@@ -1437,11 +1505,8 @@ QPushButton[ghost="true"]:disabled {{
     border-color: transparent;
 }}
 """
-    qss = re.sub(
-        r"font-size:\s*(\d+)px",
-        lambda m: f"font-size: {round(int(m.group(1)) * FONT_SCALE)}px",
-        qss,
-    )
+    # Every font size in the stylesheet comes from the type scale above, so
+    # no extra scaling pass is needed here.
     return qss
 
 

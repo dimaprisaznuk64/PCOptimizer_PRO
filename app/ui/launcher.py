@@ -7,7 +7,6 @@ from PySide6.QtCore import Qt, Signal
 from PySide6.QtGui import QColor, QLinearGradient, QPainter, QPixmap
 from PySide6.QtWidgets import (
     QCheckBox,
-    QComboBox,
     QFileDialog,
     QFrame,
     QGridLayout,
@@ -32,6 +31,7 @@ from app.i18n import tr
 
 from .activity import ActivityLog
 from .activity import record as log_action
+from .combos import CompactCombo, tune_combo
 from .components import CardTitleLabel, attach_empty_hint
 from .tasks import Task
 from .theme import CARD_PADDING
@@ -235,9 +235,10 @@ class LauncherPage(QWidget):
             "name": "launch_sort_name",
             "favorites": "launch_sort_favorites",
         }
-        self.sort_combo = QComboBox()
+        self.sort_combo = CompactCombo()
         for mode in SORT_MODES:
             self.sort_combo.addItem(tr(self._sort_labels[mode]), mode)
+        tune_combo(self.sort_combo, 190)
         self.sort_combo.currentIndexChanged.connect(lambda _index: self._refilter())
         filters.addWidget(self.sort_combo)
         layout.addLayout(filters)

@@ -25,6 +25,9 @@ from .theme import apply, set_application_fonts
 from .topbar import TopBar
 from .tray import AppTray
 
+# Below this window width the sidebar collapses to icons only.
+COMPACT_SIDEBAR_WIDTH = 1200
+
 
 class _GlowRoot(QWidget):
     """Window background: flat dark base, soft coloured glows and a faint HUD grid."""
@@ -82,7 +85,7 @@ class MainWindow(QMainWindow):
         load_fonts()
 
         self.setWindowIcon(app_icon())
-        self.setMinimumSize(1120, 680)
+        self.setMinimumSize(1024, 640)
         self.resize(1280, 800)
         self.sampler: SensorSampler | None = None
         self.tray: AppTray | None = None
@@ -167,6 +170,11 @@ class MainWindow(QMainWindow):
         anim.setEndValue(1.0)
         anim.finished.connect(lambda: page.setGraphicsEffect(None))
         anim.start(QPropertyAnimation.DeletionPolicy.DeleteWhenStopped)
+
+    def resizeEvent(self, event) -> None:
+        super().resizeEvent(event)
+        # Narrow windows get the icon-only rail so the page keeps its room.
+        self.sidebar.set_compact(self.width() < COMPACT_SIDEBAR_WIDTH)
 
     def _on_language_changed(self, _lang: str = "") -> None:
         """Re-translate the whole shell + all pages after a language switch."""

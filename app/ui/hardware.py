@@ -42,6 +42,12 @@ DISK_COLUMN_KEYS = (
 
 _MISSING = "—"
 
+# Fixed column widths keep the tables shrinkable on narrow windows - with
+# ``ResizeToContents`` a long serial or part number would force the page
+# into a horizontal scrollbar. The column marked "stretch" takes the slack.
+_MEM_WIDTHS = {0: 62, 1: 92, 2: 84, 3: 84, 4: "stretch", 5: 120}
+_DISK_WIDTHS = {0: "stretch", 1: 92, 2: 96, 3: 84, 4: 120}
+
 
 def _val(text: str) -> str:
     return text if text else _MISSING
@@ -109,12 +115,12 @@ class HardwarePage(QWidget):
         grid.addWidget(self.bios_card, 2, 1)
 
         self.modules_card, self.modules_title, self.modules_table = self._make_table(
-            "hw_modules", MEM_COLUMN_KEYS, "hw_empty"
+            "hw_modules", MEM_COLUMN_KEYS, "hw_empty", _MEM_WIDTHS
         )
         grid.addWidget(self.modules_card, 3, 0, 1, 2)
 
         self.disks_card, self.disks_title, self.disks_table = self._make_table(
-            "hw_disks", DISK_COLUMN_KEYS, "hw_empty"
+            "hw_disks", DISK_COLUMN_KEYS, "hw_empty", _DISK_WIDTHS
         )
         grid.addWidget(self.disks_card, 4, 0, 1, 2)
 
@@ -126,7 +132,13 @@ class HardwarePage(QWidget):
 
     # ---------- table card helper ----------
 
-    def _make_table(self, title_key: str, column_keys: tuple[str, ...], hint: str):
+    def _make_table(
+        self,
+        title_key: str,
+        column_keys: tuple[str, ...],
+        hint: str,
+        widths: dict[int, int | str],
+    ):
         card = QFrame()
         card.setObjectName("card")
         body = QVBoxLayout(card)
@@ -148,8 +160,13 @@ class HardwarePage(QWidget):
         table.setMinimumHeight(120)
         header = table.horizontalHeader()
         header.setDefaultAlignment(Qt.AlignmentFlag.AlignLeft | Qt.AlignmentFlag.AlignVCenter)
-        header.setSectionResizeMode(QHeaderView.ResizeMode.ResizeToContents)
-        header.setSectionResizeMode(len(column_keys) - 1, QHeaderView.ResizeMode.Stretch)
+        for col in range(len(column_keys)):
+            width = widths.get(col, 110)
+            if width == "stretch":
+                header.setSectionResizeMode(col, QHeaderView.ResizeMode.Stretch)
+            else:
+                header.setSectionResizeMode(col, QHeaderView.ResizeMode.Interactive)
+                table.setColumnWidth(col, int(width))
         body.addWidget(table, 1)
         return card, title, table
 

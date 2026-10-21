@@ -7,6 +7,7 @@ from PySide6.QtWidgets import (
     QLabel,
     QMessageBox,
     QPushButton,
+    QSizePolicy,
     QSplitter,
     QVBoxLayout,
     QWidget,
@@ -147,7 +148,8 @@ class OptimizerPage(QWidget):
 
         state_card = QFrame()
         state_card.setObjectName("card")
-        state_card.setMinimumWidth(320)
+        state_card.setMinimumWidth(0)
+        state_card.setSizePolicy(QSizePolicy.Expanding, QSizePolicy.Preferred)
         state_layout = QVBoxLayout(state_card)
         state_layout.setContentsMargins(CARD_PADDING, CARD_PADDING, CARD_PADDING, CARD_PADDING)
         state_layout.setSpacing(8)

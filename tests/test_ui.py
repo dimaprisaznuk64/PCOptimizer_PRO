@@ -125,7 +125,8 @@ def test_sidebar_layout_no_overlap(qapp) -> None:
     for _name, w, h in [
         ("fullscreen", 1920, 1080),
         ("normal", 1280, 800),
-        ("min", 1120, 680),
+        ("rail-min", 1200, 680),
+        ("compact", 1024, 640),
     ]:
         window.resize(w, h)
         window.show()
@@ -136,12 +137,51 @@ def test_sidebar_layout_no_overlap(qapp) -> None:
             "card": _rect_in(sb.user_card, sb),
             "status": _rect_in(sb.status, sb),
         }
-        keys = list(rects)
+        # Hidden widgets keep a stale geometry - they cannot overlap anything.
+        visible = dict(rects)
+        for name, widget in (
+            ("card", sb.user_card),
+            ("status", sb.status),
+        ):
+            if not widget.isVisible():
+                visible.pop(name, None)
+        keys = list(visible)
         for i, a in enumerate(keys):
             for b in keys[i + 1:]:
-                assert rects[a].intersected(rects[b]).isEmpty(), (w, h, a, b)
-        for name, r in rects.items():
+                assert visible[a].intersected(visible[b]).isEmpty(), (w, h, a, b)
+        for name, r in visible.items():
             assert r.top() >= 0 and r.bottom() <= sb.height(), (w, h, name)
+    window.close()
+
+
+def test_sidebar_collapses_to_icons_on_narrow_windows(qapp) -> None:
+    """Under 1200 px the rail shows icons only and keeps the label as tooltip."""
+    from app.ui.sidebar import SIDEBAR_COMPACT_WIDTH, SIDEBAR_WIDTH
+
+    window = MainWindow()
+    sb = window.sidebar
+
+    window.resize(1440, 900)
+    window.show()
+    qapp.processEvents()
+    assert sb.compact is False
+    assert sb.width() == SIDEBAR_WIDTH
+    assert sb._buttons["dashboard"].text().strip() != ""
+
+    window.resize(1100, 700)
+    qapp.processEvents()
+    assert sb.compact is True
+    assert sb.width() == SIDEBAR_COMPACT_WIDTH
+    button = sb._buttons["dashboard"]
+    assert button.text() == ""
+    assert button.toolTip() != ""
+    assert sb.user_card.isVisible() is False
+
+    window.resize(1440, 900)
+    qapp.processEvents()
+    assert sb.compact is False
+    assert sb.width() == SIDEBAR_WIDTH
+    assert sb._buttons["dashboard"].text().strip() != ""
     window.close()
 
 

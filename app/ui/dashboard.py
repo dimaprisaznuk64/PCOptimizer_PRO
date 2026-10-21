@@ -45,10 +45,15 @@ from .theme import (
     OK,
     PANEL,
     PANEL_ALT,
+    T_BODY,
+    T_CAPTION,
+    T_H1,
+    T_H2,
+    T_SMALL,
+    T_TITLE,
     TEXT,
     TEXT_DIM,
     WARN,
-    fs,
     hud_brackets,
     set_mono,
 )
@@ -120,7 +125,7 @@ class HealthWidget(QFrame):
         layout.addWidget(graphic)
 
         title = QLabel(tr("dash_health_title"))
-        title.setStyleSheet(f"font-size: {fs(13)}px; font-weight: 700; color: {TEXT};")
+        title.setStyleSheet(f"font-size: {T_BODY}px; font-weight: 700; color: {TEXT};")
         title.setAlignment(Qt.AlignmentFlag.AlignCenter)
         layout.addWidget(title)
         self.health_title = title
@@ -130,11 +135,11 @@ class HealthWidget(QFrame):
         score_row.setAlignment(Qt.AlignmentFlag.AlignCenter)
 
         self.score_label = QLabel("—")
-        self.score_label.setStyleSheet(f"font-family: {FONT_MONO}; font-size: {fs(26)}px; font-weight: 800; color: {OK};")
+        self.score_label.setStyleSheet(f"font-family: {FONT_MONO}; font-size: {T_TITLE}px; font-weight: 800; color: {OK};")
         score_row.addWidget(self.score_label)
 
         sub_denom = QLabel("/100")
-        sub_denom.setStyleSheet(f"font-size: {fs(13)}px; font-weight: 600; color: {TEXT_DIM};")
+        sub_denom.setStyleSheet(f"font-size: {T_BODY}px; font-weight: 600; color: {TEXT_DIM};")
         score_row.addWidget(sub_denom)
         layout.addLayout(score_row)
 
@@ -148,7 +153,7 @@ class HealthWidget(QFrame):
         self.button.setCursor(Qt.CursorShape.PointingHandCursor)
         self.button.setStyleSheet(
             f"background: qlineargradient(x1:0, y1:0, x2:1, y2:0, stop:0 {BRAND_A}, stop:1 {BRAND_B}); "
-            f"color: #FFFFFF; font-weight: 700; font-size: {fs(12)}px; border: none; border-radius: 8px; padding: 7px 12px;"
+            f"color: #FFFFFF; font-weight: 700; font-size: {T_BODY}px; border: none; border-radius: 8px; padding: 7px 12px;"
         )
         self.button.clicked.connect(self.full_check_clicked.emit)
         layout.addWidget(self.button)
@@ -167,8 +172,8 @@ class HealthWidget(QFrame):
             from .health import grade_text
 
             text = f"● {grade_text(grade)}"
-        self.score_label.setStyleSheet(f"font-family: {FONT_MONO}; font-size: {fs(26)}px; font-weight: 800; color: {color};")
-        self.badge.setStyleSheet(f"font-size: {fs(12)}px; font-weight: 600; color: {color};")
+        self.score_label.setStyleSheet(f"font-family: {FONT_MONO}; font-size: {T_TITLE}px; font-weight: 800; color: {color};")
+        self.badge.setStyleSheet(f"font-size: {T_SMALL}px; font-weight: 600; color: {color};")
         self.badge.setText(text)
 
     def retranslate(self) -> None:
@@ -195,7 +200,7 @@ class QuickActionsWidget(QFrame):
         layout.setSpacing(6)
 
         title = QLabel(tr("dash_qa_title"))
-        title.setStyleSheet(f"font-size: {fs(12)}px; font-weight: 700; color: {TEXT};")
+        title.setStyleSheet(f"font-size: {T_SMALL}px; font-weight: 700; color: {TEXT};")
         layout.addWidget(title)
         self.qa_title = title
 
@@ -213,7 +218,7 @@ class QuickActionsWidget(QFrame):
             btn.setCursor(Qt.CursorShape.PointingHandCursor)
             btn.setStyleSheet(
                 f"QPushButton {{ background: {PANEL_ALT}; border: 1px solid {BORDER}; "
-                f"border-radius: 7px; color: {TEXT}; font-size: {fs(12)}px; font-weight: 600; text-align: left; padding: 6px 10px; }} "
+                f"border-radius: 7px; color: {TEXT}; font-size: {T_SMALL}px; font-weight: 600; text-align: left; padding: 6px 10px; }} "
                 f"QPushButton:hover {{ background: rgba(30, 107, 255, 0.2); border-color: {ACCENT}; color: {TEXT}; }}"
             )
             btn.clicked.connect(lambda _=False, t=target: self.action_triggered.emit(t))
@@ -263,12 +268,12 @@ class GamingBannerWidget(QFrame):
         h_row = QHBoxLayout()
         h_row.setSpacing(8)
         title = QLabel(tr("dash_gaming_banner"))
-        title.setStyleSheet(f"font-size: {fs(14)}px; font-weight: 800; color: {TEXT};")
+        title.setStyleSheet(f"font-size: {T_H2}px; font-weight: 800; color: {TEXT};")
         h_row.addWidget(title)
         self.banner_title = title
         self.status_badge = QLabel("")
         self.status_badge.setStyleSheet(
-            f"background: rgba(0, 229, 153, 0.15); color: {OK}; font-size: {fs(11)}px; font-weight: 700; "
+            f"background: rgba(0, 229, 153, 0.15); color: {OK}; font-size: {T_CAPTION}px; font-weight: 700; "
             "border: 1px solid rgba(0, 229, 153, 0.3); border-radius: 6px; padding: 2px 7px;"
         )
         self.status_badge.setSizePolicy(QSizePolicy.Policy.Maximum, QSizePolicy.Policy.Fixed)
@@ -277,7 +282,7 @@ class GamingBannerWidget(QFrame):
         info_box.addLayout(h_row)
 
         self.banner_desc = QLabel(tr("dash_gaming_desc"))
-        self.banner_desc.setStyleSheet(f"font-size: {fs(12)}px; color: {TEXT_DIM};")
+        self.banner_desc.setStyleSheet(f"font-size: {T_SMALL}px; color: {TEXT_DIM};")
         info_box.addWidget(self.banner_desc)
         row.addLayout(info_box, 1)
 
@@ -285,7 +290,7 @@ class GamingBannerWidget(QFrame):
         self.configure_button.setCursor(Qt.CursorShape.PointingHandCursor)
         self.configure_button.setStyleSheet(
             f"QPushButton {{ background: rgba(30, 107, 255, 0.2); border: 1px solid {ACCENT}; "
-            f"color: {TEXT}; font-size: {fs(12)}px; font-weight: 700; border-radius: 8px; padding: 6px 14px; }} "
+            f"color: {TEXT}; font-size: {T_BODY}px; font-weight: 700; border-radius: 8px; padding: 6px 14px; }} "
             f"QPushButton:hover {{ background: {ACCENT}; }}"
         )
         self.configure_button.clicked.connect(self.configure_clicked.emit)
@@ -298,7 +303,7 @@ class GamingBannerWidget(QFrame):
         self.status_badge.setText(tr("dash_gaming_active") if on else tr("dash_gaming_off"))
         color, bg = (OK, "rgba(0, 229, 153, 0.15)") if on else (TEXT_DIM, "rgba(130, 146, 170, 0.15)")
         self.status_badge.setStyleSheet(
-            f"background: {bg}; color: {color}; font-size: {fs(11)}px; font-weight: 700; "
+            f"background: {bg}; color: {color}; font-size: {T_CAPTION}px; font-weight: 700; "
             "border-radius: 6px; padding: 2px 7px;"
         )
 
@@ -325,7 +330,7 @@ class RecentActionsWidget(QFrame):
         layout.setSpacing(8)
 
         title = QLabel(tr("dash_recent_title"))
-        title.setStyleSheet(f"font-size: {fs(12)}px; font-weight: 700; color: {TEXT};")
+        title.setStyleSheet(f"font-size: {T_SMALL}px; font-weight: 700; color: {TEXT};")
         layout.addWidget(title)
         self.recent_title = title
 
@@ -346,7 +351,7 @@ class RecentActionsWidget(QFrame):
             empty = QLabel(tr("act_empty"))
             empty.setWordWrap(True)
             empty.setAlignment(Qt.AlignmentFlag.AlignCenter)
-            empty.setStyleSheet(f"font-size: {fs(12)}px; color: {TEXT_DIM};")
+            empty.setStyleSheet(f"font-size: {T_SMALL}px; color: {TEXT_DIM};")
             self._rows.addWidget(empty)
             self._rows.addStretch(1)
             return
@@ -358,16 +363,16 @@ class RecentActionsWidget(QFrame):
             chk.setPixmap(glyph(icon, color).scaled(14, 14, Qt.AspectRatioMode.KeepAspectRatio, Qt.TransformationMode.SmoothTransformation))
             r.addWidget(chk)
             t_lbl = QLabel(e.title)
-            t_lbl.setStyleSheet(f"font-size: {fs(12)}px; color: {TEXT};")
+            t_lbl.setStyleSheet(f"font-size: {T_SMALL}px; color: {TEXT};")
             r.addWidget(t_lbl, 1)
             val_col = QVBoxLayout()
             val_col.setSpacing(1)
             v_lbl = QLabel(e.detail)
             v_lbl.setAlignment(Qt.AlignmentFlag.AlignRight)
-            v_lbl.setStyleSheet(f"font-size: {fs(12)}px; font-weight: 700; color: {color};")
+            v_lbl.setStyleSheet(f"font-size: {T_SMALL}px; font-weight: 700; color: {color};")
             tm_lbl = QLabel(e.time_text)
             tm_lbl.setAlignment(Qt.AlignmentFlag.AlignRight)
-            tm_lbl.setStyleSheet(f"font-size: {fs(11)}px; color: {TEXT_DIM};")
+            tm_lbl.setStyleSheet(f"font-size: {T_CAPTION}px; color: {TEXT_DIM};")
             val_col.addWidget(v_lbl)
             val_col.addWidget(tm_lbl)
             r.addLayout(val_col)
@@ -397,14 +402,14 @@ class ProcessLoadWidget(QFrame):
 
         head = QHBoxLayout()
         title = QLabel(tr("dash_proc_title"))
-        title.setStyleSheet(f"font-size: {fs(12)}px; font-weight: 700; color: {TEXT};")
+        title.setStyleSheet(f"font-size: {T_SMALL}px; font-weight: 700; color: {TEXT};")
         head.addWidget(title)
         self.proc_title = title
         head.addStretch(1)
 
         more_btn = QPushButton(tr("dash_proc_more"))
         more_btn.setCursor(Qt.CursorShape.PointingHandCursor)
-        more_btn.setStyleSheet(f"background: transparent; border: none; color: {ACCENT}; font-size: {fs(12)}px; font-weight: 700;")
+        more_btn.setStyleSheet(f"background: transparent; border: none; color: {ACCENT}; font-size: {T_SMALL}px; font-weight: 600;")
         more_btn.clicked.connect(self.view_all_clicked.emit)
         head.addWidget(more_btn)
         self.more_button = more_btn
@@ -430,34 +435,34 @@ class ProcessLoadWidget(QFrame):
                 item.widget().deleteLater()
         if not procs:
             empty = QLabel("…")
-            empty.setStyleSheet(f"font-size: {fs(12)}px; color: {TEXT_DIM};")
+            empty.setStyleSheet(f"font-size: {T_SMALL}px; color: {TEXT_DIM};")
             self._rows_box.addWidget(empty)
             return
         for name, cpu, mem_mb in procs:
             row = QHBoxLayout()
             row.setSpacing(8)
             dot = QLabel("●")
-            dot.setStyleSheet(f"color: {ACCENT}; font-size: {fs(11)}px;")
+            dot.setStyleSheet(f"color: {ACCENT}; font-size: {T_CAPTION}px;")
             row.addWidget(dot)
 
             n_lbl = QLabel(name)
-            n_lbl.setStyleSheet(f"font-size: {fs(12)}px; font-weight: 600; color: {TEXT};")
+            n_lbl.setStyleSheet(f"font-size: {T_SMALL}px; font-weight: 600; color: {TEXT};")
             row.addWidget(n_lbl, 1)
 
             c_lbl = QLabel(f"{cpu:.1f}%")
-            c_lbl.setMinimumWidth(48)
+            c_lbl.setMinimumWidth(36)
             c_lbl.setAlignment(Qt.AlignmentFlag.AlignRight | Qt.AlignmentFlag.AlignVCenter)
             c_lbl.setStyleSheet(
-                f"font-size: {fs(12)}px; font-weight: 700; color: {DANGER};" if cpu > 10
-                else f"font-size: {fs(12)}px; font-weight: 600; color: {TEXT_DIM};"
+                f"font-size: {T_SMALL}px; font-weight: 700; color: {DANGER};" if cpu > 10
+                else f"font-size: {T_SMALL}px; font-weight: 600; color: {TEXT_DIM};"
             )
             row.addWidget(c_lbl)
 
             mem = f"{mem_mb / 1024:.1f} GB" if mem_mb >= 1024 else f"{mem_mb:.0f} MB"
             m_lbl = QLabel(mem)
-            m_lbl.setMinimumWidth(62)
+            m_lbl.setMinimumWidth(48)
             m_lbl.setAlignment(Qt.AlignmentFlag.AlignRight | Qt.AlignmentFlag.AlignVCenter)
-            m_lbl.setStyleSheet(f"font-size: {fs(12)}px; font-weight: 600; color: {TEXT_DIM};")
+            m_lbl.setStyleSheet(f"font-size: {T_SMALL}px; font-weight: 600; color: {TEXT_DIM};")
             row.addWidget(m_lbl)
             self._rows_box.addLayout(row)
 
@@ -482,7 +487,7 @@ class NetworkWidget(QFrame):
         layout.setSpacing(6)
 
         title = QLabel(tr("dash_net_title"))
-        title.setStyleSheet(f"font-size: {fs(12)}px; font-weight: 700; color: {TEXT};")
+        title.setStyleSheet(f"font-size: {T_SMALL}px; font-weight: 700; color: {TEXT};")
         layout.addWidget(title)
         self.net_title = title
 
@@ -495,9 +500,9 @@ class NetworkWidget(QFrame):
         conn_info = QVBoxLayout()
         conn_info.setSpacing(1)
         self.name_label = QLabel("Ethernet")
-        self.name_label.setStyleSheet(f"font-size: {fs(12)}px; font-weight: 700; color: {TEXT};")
+        self.name_label.setStyleSheet(f"font-size: {T_SMALL}px; font-weight: 700; color: {TEXT};")
         self.ping_label = QLabel(tr("dash_ping_none"))
-        self.ping_label.setStyleSheet(f"font-size: {fs(11)}px; color: {TEXT_DIM};")
+        self.ping_label.setStyleSheet(f"font-size: {T_CAPTION}px; color: {TEXT_DIM};")
         conn_info.addWidget(self.name_label)
         conn_info.addWidget(self.ping_label)
         top_row.addLayout(conn_info, 1)
@@ -508,9 +513,9 @@ class NetworkWidget(QFrame):
         down_col = QVBoxLayout()
         down_col.setSpacing(1)
         d_lbl = QLabel(tr("dash_net_download"))
-        d_lbl.setStyleSheet(f"font-size: {fs(11)}px; color: {TEXT_DIM};")
+        d_lbl.setStyleSheet(f"font-size: {T_CAPTION}px; color: {TEXT_DIM};")
         self.down_val = QLabel("—")
-        self.down_val.setStyleSheet(f"font-size: {fs(12)}px; font-weight: 700; color: {C2};")
+        self.down_val.setStyleSheet(f"font-size: {T_SMALL}px; font-weight: 700; color: {C2};")
         down_col.addWidget(d_lbl)
         down_col.addWidget(self.down_val)
         speed_box.addLayout(down_col)
@@ -519,9 +524,9 @@ class NetworkWidget(QFrame):
         up_col = QVBoxLayout()
         up_col.setSpacing(1)
         u_lbl = QLabel(tr("dash_net_upload"))
-        u_lbl.setStyleSheet(f"font-size: {fs(11)}px; color: {TEXT_DIM};")
+        u_lbl.setStyleSheet(f"font-size: {T_CAPTION}px; color: {TEXT_DIM};")
         self.up_val = QLabel("—")
-        self.up_val.setStyleSheet(f"font-size: {fs(12)}px; font-weight: 700; color: {WARN};")
+        self.up_val.setStyleSheet(f"font-size: {T_SMALL}px; font-weight: 700; color: {WARN};")
         up_col.addWidget(u_lbl)
         up_col.addWidget(self.up_val)
         speed_box.addLayout(up_col)
@@ -536,7 +541,7 @@ class NetworkWidget(QFrame):
         self.diag_pills: list[QLabel] = []
         for item_key in ("dash_net_internet", "dash_net_dns", "dash_net_gateway", "dash_net_loss", "dash_net_latency"):
             p = QLabel(f"✓ {tr(item_key, pct=0)}")
-            p.setStyleSheet(f"font-size: {fs(11)}px; font-weight: 600; color: {OK}; background: rgba(0, 229, 153, 0.1); border-radius: 4px; padding: 2px 5px;")
+            p.setStyleSheet(f"font-size: {T_CAPTION}px; font-weight: 600; color: {OK}; background: rgba(0, 229, 153, 0.1); border-radius: 4px; padding: 2px 5px;")
             diag_row.addWidget(p)
             p.hide()  # no live diagnostics on the dashboard (run them on the Network page)
             self.diag_pills.append(p)
@@ -568,7 +573,7 @@ class NotificationsWidget(QFrame):
         layout.setSpacing(8)
 
         title = QLabel(tr("dash_notif_title"))
-        title.setStyleSheet(f"font-size: {fs(12)}px; font-weight: 700; color: {TEXT};")
+        title.setStyleSheet(f"font-size: {T_SMALL}px; font-weight: 700; color: {TEXT};")
         layout.addWidget(title)
         self.notif_title = title
 
@@ -600,7 +605,7 @@ class NotificationsWidget(QFrame):
         self.setVisible(bool(items))
         if not items:
             empty = QLabel(tr("notif_empty"))
-            empty.setStyleSheet(f"font-size: {fs(12)}px; color: {TEXT_DIM};")
+            empty.setStyleSheet(f"font-size: {T_SMALL}px; color: {TEXT_DIM};")
             self._rows.addWidget(empty)
             return
         for ic, col, head_txt, sub_txt, time_str in items[:4]:
@@ -613,16 +618,16 @@ class NotificationsWidget(QFrame):
             col_box.setSpacing(1)
             h = QLabel(head_txt)
             h.setWordWrap(True)
-            h.setStyleSheet(f"font-size: {fs(12)}px; font-weight: 600; color: {TEXT};")
+            h.setStyleSheet(f"font-size: {T_SMALL}px; font-weight: 600; color: {TEXT};")
             col_box.addWidget(h)
             if sub_txt:
                 sl = QLabel(sub_txt)
-                sl.setStyleSheet(f"font-size: {fs(11)}px; color: {TEXT_DIM};")
+                sl.setStyleSheet(f"font-size: {T_CAPTION}px; color: {TEXT_DIM};")
                 col_box.addWidget(sl)
             r.addLayout(col_box, 1)
             if time_str:
                 t = QLabel(time_str)
-                t.setStyleSheet(f"font-size: {fs(11)}px; color: {TEXT_DIM};")
+                t.setStyleSheet(f"font-size: {T_CAPTION}px; color: {TEXT_DIM};")
                 r.addWidget(t)
             self._rows.addLayout(r)
 
@@ -643,7 +648,9 @@ class DashboardPage(QWidget):
         scroll = QScrollArea()
         scroll.setWidgetResizable(True)
         scroll.setFrameShape(QFrame.Shape.NoFrame)
-        scroll.setHorizontalScrollBarPolicy(Qt.ScrollBarPolicy.ScrollBarAlwaysOff)
+        scroll.setHorizontalScrollBarPolicy(Qt.ScrollBarPolicy.ScrollBarAsNeeded)
+        scroll.setVerticalScrollBarPolicy(Qt.ScrollBarPolicy.ScrollBarAsNeeded)
+        scroll.setSizePolicy(QSizePolicy.Expanding, QSizePolicy.Expanding)
         scroll.viewport().setAutoFillBackground(False)
         outer.addWidget(scroll)
 
@@ -652,8 +659,8 @@ class DashboardPage(QWidget):
         scroll.setWidget(inner)
 
         layout = QVBoxLayout(inner)
-        layout.setContentsMargins(40, 20, 40, 24)
-        layout.setSpacing(14)
+        layout.setContentsMargins(24, 16, 24, 16)
+        layout.setSpacing(12)
 
         # Header titles (greeting + status + clock)
         head = QHBoxLayout()
@@ -665,18 +672,17 @@ class DashboardPage(QWidget):
         hud_row.setAlignment(Qt.AlignmentFlag.AlignVCenter)
         hud_tag = QLabel(tr("dash_hud_status"))
         hud_tag.setObjectName("hudTag")
-        set_mono(hud_tag, size=fs(11), weight=QFont.Weight.DemiBold, spacing_pct=18.0)
+        set_mono(hud_tag, size=T_CAPTION, weight=QFont.Weight.DemiBold, spacing_pct=18.0)
         hud_row.addWidget(hud_tag)
         self.greeting = QLabel(f"{_greeting()}, {self._user_display}!")
         self.greeting.setObjectName("welcome")
-        self.greeting.setStyleSheet(f"font-size: {fs(18)}px; font-weight: 800; color: {TEXT};")
+        self.greeting.setStyleSheet(f"font-size: {T_H1}px; font-weight: 800; color: {TEXT};")
         hud_row.addWidget(self.greeting)
         hud_row.addStretch(1)
         titles.addLayout(hud_row)
         self._verdict_key = "dash_verdict_ok"
         self.verdict = QLabel(tr(self._verdict_key))
         self.verdict.setObjectName("pageDesc")
-        self.verdict.setStyleSheet(f"font-size: {fs(12)}px; color: {TEXT_DIM};")
         titles.addWidget(self.verdict)
         head.addLayout(titles)
         head.addStretch(1)
@@ -685,12 +691,12 @@ class DashboardPage(QWidget):
         clock_box.setSpacing(0)
         self.clock = QLabel("")
         self.clock.setObjectName("clock")
-        self.clock.setStyleSheet(f"font-size: {fs(14)}px; font-weight: 700; color: {TEXT};")
+        self.clock.setStyleSheet(f"font-size: {T_H2}px; font-weight: 700; color: {TEXT};")
         self.clock.setAlignment(Qt.AlignmentFlag.AlignRight)
         clock_box.addWidget(self.clock)
         self.date = QLabel("")
         self.date.setObjectName("cardSub")
-        self.date.setStyleSheet(f"font-size: {fs(11)}px; color: {TEXT_DIM};")
+        self.date.setStyleSheet(f"font-size: {T_CAPTION}px; color: {TEXT_DIM};")
         self.date.setAlignment(Qt.AlignmentFlag.AlignRight)
         clock_box.addWidget(self.date)
         head.addLayout(clock_box)

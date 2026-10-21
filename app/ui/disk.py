@@ -5,7 +5,6 @@ import time
 
 from PySide6.QtCore import Qt
 from PySide6.QtWidgets import (
-    QComboBox,
     QFileDialog,
     QFrame,
     QHBoxLayout,
@@ -13,6 +12,7 @@ from PySide6.QtWidgets import (
     QLabel,
     QLineEdit,
     QPushButton,
+    QSizePolicy,
     QSplitter,
     QTableWidget,
     QTableWidgetItem,
@@ -24,6 +24,7 @@ from app.disk import DEFAULT_LIMIT, DEFAULT_MIN_SIZE, DiskAnalyzer
 from app.disk.service import DriveUsage, LargeFile, ScanReport
 from app.i18n import tr
 
+from .combos import CompactCombo, tune_combo
 from .components import Bar, CardTitleLabel, attach_empty_hint
 from .format import size as fmt_size
 from .tasks import Task
@@ -140,9 +141,10 @@ class DiskPage(QWidget):
         large_head.addWidget(large_title)
         self._large_title = large_title
         large_head.addStretch(1)
-        self.threshold_combo = QComboBox()
+        self.threshold_combo = CompactCombo()
         for label, value in THRESHOLDS:
             self.threshold_combo.addItem(label, value)
+        tune_combo(self.threshold_combo, 140)
         self.threshold_combo.setCurrentIndex(1)
         large_head.addWidget(self.threshold_combo)
         self.large_button = QPushButton(tr("disk_find_btn"))
@@ -221,7 +223,8 @@ class DiskPage(QWidget):
     def _drive_widget(self, drive: DriveUsage) -> QFrame:
         frame = QFrame()
         frame.setObjectName("card")
-        frame.setMinimumWidth(190)
+        frame.setMinimumWidth(0)
+        frame.setSizePolicy(QSizePolicy.Expanding, QSizePolicy.Preferred)
         body = QVBoxLayout(frame)
         body.setContentsMargins(14, 10, 14, 10)
         body.setSpacing(4)

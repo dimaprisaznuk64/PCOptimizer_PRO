@@ -15,7 +15,24 @@ from PySide6.QtWidgets import (
 from app.i18n import tr
 
 from .icons import nav_icon
-from .theme import BORDER, BRAND_A, BRAND_B, C1, OK, PANEL, TEXT, TEXT_DIM, fs
+from .theme import (
+    BORDER,
+    BRAND_A,
+    BRAND_B,
+    C1,
+    OK,
+    PANEL,
+    T_BRAND,
+    T_CAPTION,
+    T_MICRO,
+    T_SMALL,
+    TEXT,
+    TEXT_DIM,
+)
+
+# Sidebar widths: the full rail shows labels, the compact rail is icons only.
+SIDEBAR_WIDTH = 238
+SIDEBAR_COMPACT_WIDTH = 64
 
 NAV_KEYS: tuple[tuple[str, str], ...] = (
     ("dashboard", "nav_dashboard"),
@@ -74,7 +91,9 @@ class Sidebar(QWidget):
     def __init__(self, parent: QWidget | None = None) -> None:
         super().__init__(parent)
         self.setObjectName("sidebar")
-        self.setFixedWidth(238)
+        self.setFixedWidth(SIDEBAR_WIDTH)
+        self._compact = False
+        self._status_text = tr("status_healthy")
 
         layout = QVBoxLayout(self)
         layout.setContentsMargins(0, 12, 0, 14)
@@ -85,23 +104,27 @@ class Sidebar(QWidget):
         brand_row = QHBoxLayout(brand_box)
         brand_row.setContentsMargins(16, 10, 16, 10)
         brand_row.setSpacing(10)
+        self._brand_row = brand_row
 
         mark = _LogoMark()
         brand_row.addWidget(mark)
 
-        titles = QVBoxLayout()
+        titles_box = QWidget()
+        titles = QVBoxLayout(titles_box)
+        titles.setContentsMargins(0, 0, 0, 0)
         titles.setSpacing(1)
+        self._brand_titles = titles_box
         title_row = QHBoxLayout()
         title_row.setSpacing(6)
         brand = QLabel("PCOptimizer")
         brand.setObjectName("brand")
         brand.setMinimumWidth(0)
-        brand.setStyleSheet(f"font-size: {fs(14)}px; font-weight: 800; color: {TEXT};")
+        brand.setStyleSheet(f"font-size: {T_BRAND}px; font-weight: 800; color: {TEXT};")
         title_row.addWidget(brand)
         pro_badge = QLabel("PRO")
         pro_badge.setStyleSheet(
             f"background: qlineargradient(x1:0, y1:0, x2:1, y2:0, stop:0 {BRAND_A}, stop:1 {BRAND_B}); "
-            f"color: #FFFFFF; font-size: {fs(10)}px; font-weight: 800; border-radius: 4px; padding: 1px 5px;"
+            f"color: #FFFFFF; font-size: {T_MICRO}px; font-weight: 800; border-radius: 4px; padding: 1px 5px;"
         )
         title_row.addWidget(pro_badge)
         title_row.addStretch(1)
@@ -110,9 +133,9 @@ class Sidebar(QWidget):
         self.brand_subtitle = QLabel(tr("app_subtitle"))
         self.brand_subtitle.setObjectName("brandSub")
         self.brand_subtitle.setWordWrap(True)
-        self.brand_subtitle.setStyleSheet(f"font-size: {fs(11)}px; color: {TEXT_DIM};")
+        self.brand_subtitle.setStyleSheet(f"font-size: {T_CAPTION}px; color: {TEXT_DIM};")
         titles.addWidget(self.brand_subtitle)
-        brand_row.addLayout(titles, 1)
+        brand_row.addWidget(titles_box, 1)
         layout.addWidget(brand_box)
 
         # Scrollable nav list so every item stays reachable when the window is
@@ -129,6 +152,7 @@ class Sidebar(QWidget):
         self._buttons: dict[str, QPushButton] = {}
         for key, _tr_key in NAV_KEYS:
             button = QPushButton(f"  {tr(_tr_key)}")
+            button.setAccessibleName(tr(_tr_key))
             button.setProperty("nav", True)
             button.setIcon(nav_icon(key))
             button.setIconSize(QSize(18, 18))
@@ -176,10 +200,10 @@ class Sidebar(QWidget):
         user_text.setSpacing(2)
         self.u_title = QLabel(tr("sidebar_user_title"))
         self.u_title.setWordWrap(True)
-        self.u_title.setStyleSheet(f"font-size: {fs(12)}px; font-weight: 700; color: {TEXT};")
+        self.u_title.setStyleSheet(f"font-size: {T_SMALL}px; font-weight: 700; color: {TEXT};")
         self.u_sub = QLabel(tr("sidebar_user_sub"))
         self.u_sub.setWordWrap(True)
-        self.u_sub.setStyleSheet(f"font-size: {fs(11)}px; color: {TEXT_DIM};")
+        self.u_sub.setStyleSheet(f"font-size: {T_CAPTION}px; color: {TEXT_DIM};")
         user_text.addWidget(self.u_title)
         user_text.addWidget(self.u_sub)
         user_row.addLayout(user_text, 1)
@@ -192,36 +216,88 @@ class Sidebar(QWidget):
         bottom_layout.addWidget(user_card)
 
         # Status pill
-        self.status = QLabel(f"● {tr('status_healthy')}")
+        self.status = QLabel(f"● {self._status_text}")
         self.status.setObjectName("sysStatus")
         self.status.setProperty("level", "ok")
-        self.status.setStyleSheet(f"font-size: {fs(12)}px; font-weight: 600; color: {OK}; padding: 4px 18px;")
+        self.status.setStyleSheet(f"font-size: {T_SMALL}px; font-weight: 600; color: {OK}; padding: 4px 18px;")
         bottom_layout.addWidget(self.status)
         self._bottom = bottom
         layout.addWidget(bottom)
 
         self.select("dashboard")
 
+    def set_compact(self, compact: bool) -> None:
+        """Switch between the full rail (labels) and the icon-only rail.
+
+        The compact rail is used on narrow windows so the page keeps as much
+        horizontal room as possible. Labels move into the tooltips.
+        """
+        if compact == self._compact:
+            return
+        self._compact = compact
+        self.setFixedWidth(SIDEBAR_COMPACT_WIDTH if compact else SIDEBAR_WIDTH)
+
+        self._brand_titles.setVisible(not compact)
+        self._brand_row.setContentsMargins(
+            (14 if compact else 16), 10, (14 if compact else 16), 10
+        )
+
+        for key, button in self._buttons.items():
+            label = tr(self._nav_tr[key])
+            button.setText("" if compact else f"  {label}")
+            button.setToolTip(label if compact else "")
+            button.setProperty("compact", compact)
+            button.style().unpolish(button)
+            button.style().polish(button)
+
+        self.user_card.setVisible(not compact)
+        self._apply_status()
+
+    @property
+    def compact(self) -> bool:
+        return self._compact
+
+    def _apply_status(self) -> None:
+        if self._compact:
+            self.status.setText("●")
+            self.status.setToolTip(self._status_text)
+            self.status.setStyleSheet(
+                f"font-size: {T_SMALL}px; font-weight: 600; color: {OK}; padding: 4px 0px;"
+            )
+        else:
+            self.status.setText(f"● {self._status_text}")
+            self.status.setToolTip("")
+            self.status.setStyleSheet(
+                f"font-size: {T_SMALL}px; font-weight: 600; color: {OK}; padding: 4px 18px;"
+            )
+
     def resizeEvent(self, event) -> None:
         super().resizeEvent(event)
         # The nav list scrolls on its own, so the info card only yields on very
         # short windows where even the status pill would be cramped.
-        self.user_card.setVisible(self.height() >= 620)
+        self.user_card.setVisible(not self._compact and self.height() >= 620)
 
     def retranslate(self) -> None:
         """Refresh static texts after a language change (nav + brand + user card)."""
         for key, tr_key in self._nav_tr.items():
-            self._buttons[key].setText(f"  {tr(tr_key)}")
+            label = tr(tr_key)
+            button = self._buttons[key]
+            button.setText("" if self._compact else f"  {label}")
+            button.setToolTip(label if self._compact else "")
+            button.setAccessibleName(label)
         self.brand_subtitle.setText(tr("app_subtitle"))
         self.u_title.setText(tr("sidebar_user_title"))
         self.u_sub.setText(tr("sidebar_user_sub"))
+        self._status_text = tr("status_healthy")
+        self._apply_status()
 
     @property
     def keys(self) -> tuple[str, ...]:
         return tuple(self._buttons)
 
     def set_health(self, text: str, level: str) -> None:
-        self.status.setText(f"● {text}")
+        self._status_text = text
+        self._apply_status()
         if self.status.property("level") != level:
             self.status.setProperty("level", level)
             self.status.style().unpolish(self.status)

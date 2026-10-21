@@ -4,7 +4,6 @@ from PySide6.QtCore import Qt
 from PySide6.QtGui import QColor
 from PySide6.QtWidgets import (
     QAbstractItemView,
-    QComboBox,
     QFrame,
     QHBoxLayout,
     QHeaderView,
@@ -20,6 +19,7 @@ from PySide6.QtWidgets import (
 from app.diagnostics import DiagnosticsReport, DiagnosticsService
 from app.i18n import tr
 
+from .combos import CompactCombo, tune_combo
 from .components import CardTitleLabel, attach_empty_hint
 from .format import size as fmt_size
 from .tasks import Task
@@ -200,14 +200,16 @@ class DiagnosticsPage(QWidget):
         evt_head.addWidget(evt_title)
         evt_head.addStretch(1)
 
-        self.log_combo = QComboBox()
+        self.log_combo = CompactCombo()
         for log in LOG_CHOICES:
             self.log_combo.addItem(tr(_LOG_KEYS[log]), log)
+        tune_combo(self.log_combo, 160)
         evt_head.addWidget(self.log_combo)
 
-        self.level_combo = QComboBox()
+        self.level_combo = CompactCombo()
         for levels in LEVEL_CHOICES:
             self.level_combo.addItem(tr(_LEVEL_KEYS[levels]), levels)
+        tune_combo(self.level_combo, 200)
         evt_head.addWidget(self.level_combo)
 
         self.events_button = QPushButton(tr("diag_evt_btn"))
