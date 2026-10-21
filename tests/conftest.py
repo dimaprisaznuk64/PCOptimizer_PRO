@@ -51,8 +51,8 @@ def reset_theme():
     """
     from app.ui import theme
 
-    if theme.CURRENT_THEME != "GRAPHITE":
-        theme.set_theme("GRAPHITE")
+    if theme.CURRENT_THEME != theme.DEFAULT_THEME:
+        theme.set_theme(theme.DEFAULT_THEME)
     yield
-    if theme.CURRENT_THEME != "GRAPHITE":
-        theme.set_theme("GRAPHITE")
+    if theme.CURRENT_THEME != theme.DEFAULT_THEME:
+        theme.set_theme(theme.DEFAULT_THEME)

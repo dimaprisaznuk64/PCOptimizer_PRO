@@ -81,16 +81,16 @@ PALETTES: dict[str, dict] = {
     },
     "TITANIUM": {
         **_BASE,
-        "BG": "#121416", "PANEL": "#181B1E", "PANEL_ALT": "#202327", "BORDER": "#2C3035", "BORDER_HI": "#40454C",
-        "TEXT": "#ECEEF1", "TEXT_DIM": "#878E96", "ACCENT": "#8BB0D4", "ACCENT_HOVER": "#A4C6E6",
-        "ACCENT_TINT": "#1B2733", "ACCENT_PRESSED": "#6E91B5", "ON_ACCENT": "#0D141B",
-        "DANGER": "#E05864", "OK": "#52C28B", "WARN": "#D8A858",
-        "SIDEBAR_TOP": "#16181B", "SIDEBAR_BOTTOM": "#0F1113", "HOVER": "#23262A",
-        "DANGER_BG": "#34191D", "DANGER_BORDER": "#6C3A40", "DANGER_BG_HOVER": "#432125",
-        "OK_BG": "#132F21", "WARN_BG": "#332A14", "HERO_TOP": "#1B2329",
-        "BRAND_A": "#8BB0D4", "BRAND_B": "#5E7FA0", "GLOW_A": "#8BB0D4", "GLOW_B": "#A0A8B2",
-        "GLOW_ALPHA_A": 40, "GLOW_ALPHA_B": 26,
-        "C1": "#8BB0D4", "C2": "#ABB6C2", "C3": "#52C28B", "C4": "#D8A858",
+        "BG": "#050608", "PANEL": "#0B0E14", "PANEL_ALT": "#121721", "BORDER": "#1A2230", "BORDER_HI": "#2A374A",
+        "TEXT": "#F8FAFC", "TEXT_DIM": "#94A3B8", "ACCENT": "#38BDF8", "ACCENT_HOVER": "#7DD3FC",
+        "ACCENT_TINT": "#0C2333", "ACCENT_PRESSED": "#0EA5E9", "ON_ACCENT": "#082F49",
+        "DANGER": "#F87171", "OK": "#34D399", "WARN": "#FBBF24",
+        "SIDEBAR_TOP": "#080B12", "SIDEBAR_BOTTOM": "#04060A", "HOVER": "#161E2E",
+        "DANGER_BG": "#2D1618", "DANGER_BORDER": "#662A2C", "DANGER_BG_HOVER": "#3D1D1F",
+        "OK_BG": "#0D281E", "WARN_BG": "#2E2412", "HERO_TOP": "#0F172A",
+        "BRAND_A": "#38BDF8", "BRAND_B": "#818CF8", "GLOW_A": "#38BDF8", "GLOW_B": "#818CF8",
+        "GLOW_ALPHA_A": 35, "GLOW_ALPHA_B": 22,
+        "C1": "#38BDF8", "C2": "#818CF8", "C3": "#A78BFA", "C4": "#2DD4BF",
     },
     "FOREST": {
         **_BASE,
@@ -488,7 +488,7 @@ C3: str
 C4: str
 
 
-DEFAULT_THEME = "GRAPHITE"
+DEFAULT_THEME = "TITANIUM"
 
 
 def saved_theme() -> str:

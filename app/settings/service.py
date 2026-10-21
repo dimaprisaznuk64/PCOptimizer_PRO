@@ -20,7 +20,7 @@ DEFAULTS: dict[str, Any] = {
     "start_minimized": False,
     "tray_metrics": True,
     "log_level": "INFO",
-    "theme": "GRAPHITE",
+    "theme": "TITANIUM",
     "language": "UA",
     "temp_alerts_enabled": True,
     "temp_alert_cpu": 90,

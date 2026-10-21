@@ -51,7 +51,7 @@ def test_settings_choices_match_palettes():
     from app.ui import theme as tract
 
     assert CHOICES["theme"] == tuple(tract.PALETTES)
-    assert DEFAULTS["theme"] == tract.DEFAULT_THEME == "GRAPHITE"
+    assert DEFAULTS["theme"] == tract.DEFAULT_THEME
 
 
 def test_set_theme_updates_globals_and_resolves_aliases():
@@ -83,7 +83,7 @@ def test_saved_theme_unknown_falls_back(tmp_path, monkeypatch):
 
     monkeypatch.setenv("PCOPTIMIZER_DATA", str(tmp_path))
     (tmp_path / "settings.json").write_text(json.dumps({"theme": "NEON_XYZ"}), encoding="utf-8")
-    assert tract.saved_theme() == "GRAPHITE"
+    assert tract.saved_theme() == tract.DEFAULT_THEME
 
 
 def test_saved_theme_honors_kept_name(tmp_path, monkeypatch):
