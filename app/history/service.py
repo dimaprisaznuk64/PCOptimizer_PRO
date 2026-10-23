@@ -141,19 +141,32 @@ class PerformanceHistory:
             return []
         cutoff = self._now() - self._max_age_s
         samples: list[HistorySample] = []
+        dropped = 0
         try:
             with open(self._store, encoding="utf-8") as f:
-                for line in f:
-                    line = line.strip()
-                    if not line:
-                        continue
-                    try:
-                        d = json.loads(line)
-                    except json.JSONDecodeError:
-                        continue
-                    s = HistorySample.from_dict(d)
-                    if s is not None and s.ts >= cutoff:
-                        samples.append(s)
+                lines = f.readlines()
+            for line in lines:
+                line = line.strip()
+                if not line:
+                    continue
+                try:
+                    d = json.loads(line)
+                except json.JSONDecodeError:
+                    dropped += 1
+                    continue
+                s = HistorySample.from_dict(d)
+                if s is not None and s.ts >= cutoff:
+                    samples.append(s)
+                else:
+                    dropped += 1
+
+            # If any entries were trimmed or dropped, rewrite the store so it never grows infinitely
+            if dropped > 0:
+                tmp = self._store.with_suffix(".tmp")
+                with open(tmp, "w", encoding="utf-8") as f:
+                    for s in samples:
+                        f.write(json.dumps(s.to_dict()) + "\n")
+                tmp.replace(self._store)
         except OSError as exc:
             log.warning("history load failed: %s", exc)
         return samples

@@ -28,7 +28,7 @@ def max_gpu_thermal(snapshot: Snapshot) -> tuple[float, str] | None:
     readings = [
         (gpu.temperature, gpu.name or f"GPU {gpu.index}")
         for gpu in snapshot.gpus
-        if gpu.temperature is not None
+        if gpu.temperature is not None and not gpu.stale
     ]
     if not readings:
         return None

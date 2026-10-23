@@ -138,6 +138,8 @@ class _FakeNvml:
         return _FakeUtil(42.0)
 
     def nvmlDeviceGetMemoryInfo(self, handle):
+        if self.util_fails:
+            raise _FakeNVMLError("Unknown Error")
         return _FakeMem()
 
     def nvmlDeviceGetTemperature(self, handle, sensor):
@@ -169,6 +171,7 @@ def _fake_nvml_backend(nvml: _FakeNvml):
     backend._nvml = nvml
     backend._handles = [object()]
     backend._last = {}
+    backend._nvml_fail_count = {}
     return backend
 
 
@@ -183,7 +186,19 @@ def test_nvml_utilization_falls_back_to_last_known_value() -> None:
     backend = _fake_nvml_backend(_FakeNvml(util_fails=False))
     first = backend.collect()["gpus"][0]
     assert first.utilization == 42.0
+    assert not first.stale
     backend._nvml.util_fails = True
     second = backend.collect()["gpus"][0]
     assert second.utilization == 42.0
     assert second.memory_total == 4096
+    assert second.stale
+
+
+def test_nvml_consecutive_failures_drop_gpu_after_threshold() -> None:
+    backend = _fake_nvml_backend(_FakeNvml(util_fails=False))
+    backend.collect()  # sample 1 ok
+    backend._nvml.util_fails = True
+    assert len(backend.collect()["gpus"]) == 1  # sample 2 fail (stale)
+    assert len(backend.collect()["gpus"]) == 1  # sample 3 fail (stale)
+    assert len(backend.collect()["gpus"]) == 0  # sample 4 fail (threshold reached)
+

@@ -34,6 +34,8 @@ class NvmlBackend(Backend):
                 pass
             raise SensorUnavailable("no NVIDIA GPUs reported by NVML")
         self._last: dict[int, GpuStat] = {}
+        self._nvml_fail_count: dict[int, int] = {}
+        self._nvml_fail_count: dict[int, int] = {}
 
     def _opt(self, fn):
         try:
@@ -78,6 +80,19 @@ class NvmlBackend(Backend):
         if power_limit_w is None and prev is not None:
             power_limit_w = prev.power_limit_w
 
+        # Check if dynamic metrics failed to query in this sample
+        dynamic_ok = util is not None or mem is not None
+        if dynamic_ok:
+            self._nvml_fail_count[index] = 0
+        else:
+            self._nvml_fail_count[index] = self._nvml_fail_count.get(index, 0) + 1
+
+        # If NVML continuously fails for 3+ polls, stop producing fake data
+        if self._nvml_fail_count.get(index, 0) >= 3 and prev is not None:
+            return None  # type: ignore[return-value]
+
+        is_stale = not dynamic_ok and prev is not None
+
         stat = GpuStat(
             index=index,
             name=name,
@@ -89,12 +104,14 @@ class NvmlBackend(Backend):
             fan_percent=fan_percent,
             clock_mhz=clock_mhz,
             power_limit_w=power_limit_w,
+            stale=is_stale,
         )
         self._last[index] = stat
         return stat
 
     def collect(self) -> Partial:
-        return {"gpus": tuple(self._read(i, h) for i, h in enumerate(self._handles))}
+        gpus = [self._read(i, h) for i, h in enumerate(self._handles)]
+        return {"gpus": tuple(g for g in gpus if g is not None)}
 
     def close(self) -> None:
         try:

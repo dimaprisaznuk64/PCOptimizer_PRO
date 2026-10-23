@@ -58,6 +58,7 @@ class GpuStat:
     fan_percent: float | None = None
     clock_mhz: float | None = None
     power_limit_w: float | None = None
+    stale: bool = False
 
 
 @dataclass(frozen=True, slots=True)

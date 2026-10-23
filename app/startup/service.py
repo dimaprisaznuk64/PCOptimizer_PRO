@@ -257,21 +257,16 @@ class StartupService:
 
     def _task_items(self) -> list[StartupItem]:
         items: list[StartupItem] = []
-        try:
-            import pythoncom
-            from win32com.client import Dispatch
+        import pythoncom
+        from win32com.client import Dispatch
 
-            pythoncom.CoInitialize()
-            try:
-                service = Dispatch("Schedule.Service")
-                service.Connect()
-                # Startup tasks can live in subfolders of the root, not only
-                # directly under "\", so walk the tree recursively.
-                self._collect_tasks(service.GetFolder("\\"), items)
-            finally:
-                pythoncom.CoUninitialize()
-        except Exception:
-            pass
+        pythoncom.CoInitialize()
+        try:
+            service = Dispatch("Schedule.Service")
+            service.Connect()
+            self._collect_tasks(service.GetFolder("\\"), items)
+        finally:
+            pythoncom.CoUninitialize()
         return items
 
     def _collect_tasks(self, folder, items: list[StartupItem]) -> None:

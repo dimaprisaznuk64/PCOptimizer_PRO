@@ -66,7 +66,10 @@ class GpuPanel(QFrame):
         self.power.set_caption(tr("gpu_caption_draw"))
 
     def update_gpu(self, g: GpuStat) -> None:
-        self.name.setText(f"GPU {g.index} · {g.name}")
+        title = f"GPU {g.index} · {g.name}"
+        if g.stale:
+            title += " (cached)"
+        self.name.setText(title)
 
         details: list[str] = []
         fan = f"{g.fan_percent:.0f}%" if g.fan_percent is not None else tr("gpu_na")

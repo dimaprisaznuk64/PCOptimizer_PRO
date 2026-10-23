@@ -166,7 +166,9 @@ class HealthService:
             ))
 
         # GPU: NVML temperature and load count too (laptops throttle near 85-90 C).
-        gpu_temps = [g.temperature for g in snapshot.gpus if g.temperature is not None]
+        # Ignore stale GPUs (they might be stuck in a hot state).
+        active_gpus = [g for g in snapshot.gpus if not g.stale]
+        gpu_temps = [g.temperature for g in active_gpus if g.temperature is not None]
         if gpu_temps:
             gpu_temp = max(gpu_temps)
             if gpu_temp >= 90:
@@ -180,7 +182,7 @@ class HealthService:
                     "thermal_gpu", "Thermal", "warning", "High GPU temperature",
                     f"{gpu_temp:.0f}C — normal while gaming, not at idle",
                 ))
-        gpu_utils = [g.utilization for g in snapshot.gpus]
+        gpu_utils = [g.utilization for g in active_gpus]
         if gpu_utils and max(gpu_utils) >= 90:
             findings.append(Finding(
                 "gpu_load", "GPU", "info", "GPU load is high right now",

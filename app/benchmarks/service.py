@@ -31,6 +31,8 @@ class BenchmarkResult:
     type: BenchmarkType
     metric: str
     value: float
+    min_value: float
+    max_value: float
     unit: str
     duration_ms: int
     runs: int = 1
@@ -97,14 +99,13 @@ class BenchmarkService:
     def _workers_count(self) -> int:
         return max(1, self._workers or (os.cpu_count() or 1))
 
-    def _measure(self, work: Callable[[], int], runs: int | None = None) -> tuple[float, int, int]:
+    def _measure(self, work: Callable[[], int], runs: int | None = None) -> tuple[float, float, float, int, int]:
         """Run *work* (returns bytes processed per call) several times.
 
         The first call doubles as a warm-up and a calibration probe: the call
         is repeated inside every timed block just enough times to reach
-        ``target_ms`` (bounded by ``max_repeats``). Returns the median
-        throughput (bytes/s), the median block duration (ms) and the number of
-        timed runs.
+        ``target_ms`` (bounded by ``max_repeats``). Returns (median_rate,
+        min_rate, max_rate, median_duration_ms, runs).
         """
         count = runs if runs is not None else self.runs
         start = self._now()
@@ -139,8 +140,8 @@ class BenchmarkService:
                 rates.append(total / elapsed)
                 durations.append(elapsed)
         if not rates:
-            return 0.0, 0, 0
-        return median(rates), int(median(durations) * 1000), len(rates)
+            return 0.0, 0.0, 0.0, 0, 0
+        return median(rates), min(rates), max(rates), int(median(durations) * 1000), len(rates)
 
     @staticmethod
     def _sha256(data: bytes) -> None:
@@ -155,7 +156,7 @@ class BenchmarkService:
             self._sha256(buf)
             return len(buf)
 
-        rate, duration_ms, runs = self._measure(single)
+        rate, min_rate, max_rate, duration_ms, runs = self._measure(single)
 
         workers = self._workers_count()
         step = len(buf) // workers + 1
@@ -172,7 +173,7 @@ class BenchmarkService:
             return sum(pool.map(hash_chunk, chunks))
 
         try:
-            multi_rate, multi_ms, multi_runs = self._measure(multi)
+            multi_rate, multi_min, multi_max, multi_ms, multi_runs = self._measure(multi)
         finally:
             pool.shutdown()
 
@@ -181,6 +182,8 @@ class BenchmarkService:
                 type=BenchmarkType.CPU,
                 metric="cpu_single",
                 value=round(rate / 1e6, 1),
+                min_value=round(min_rate / 1e6, 1),
+                max_value=round(max_rate / 1e6, 1),
                 unit="MB/s",
                 duration_ms=duration_ms,
                 runs=runs,
@@ -190,6 +193,8 @@ class BenchmarkService:
                 type=BenchmarkType.CPU,
                 metric="cpu_multi",
                 value=round(multi_rate / 1e6, 1),
+                min_value=round(multi_min / 1e6, 1),
+                max_value=round(multi_max / 1e6, 1),
                 unit="MB/s",
                 duration_ms=multi_ms,
                 runs=multi_runs,
@@ -231,7 +236,7 @@ class BenchmarkService:
             return sum(pool.map(copy_slice, slices))
 
         try:
-            rate, duration_ms, runs = self._measure(copy)
+            rate, min_rate, max_rate, duration_ms, runs = self._measure(copy)
         finally:
             pool.shutdown()
 
@@ -240,6 +245,8 @@ class BenchmarkService:
                 type=BenchmarkType.RAM,
                 metric="ram_copy",
                 value=round(rate / 1e9, 2),
+                min_value=round(min_rate / 1e9, 2),
+                max_value=round(max_rate / 1e9, 2),
                 unit="GB/s",
                 duration_ms=duration_ms,
                 runs=runs,
@@ -282,7 +289,7 @@ class BenchmarkService:
                     os.fsync(handle.fileno())
                 return blocks * _MB
 
-            write_rate, write_ms, write_runs = self._measure(write, self.disk_runs)
+            write_rate, write_min, write_max, write_ms, write_runs = self._measure(write, self.disk_runs)
 
             # A freshly written file is served straight from the OS cache, so a
             # plain read reports far more than the disk can actually deliver.
@@ -299,7 +306,7 @@ class BenchmarkService:
                         mode = "cached"
                 return _read_buffered(path)
 
-            read_rate, read_ms, read_runs = self._measure(read, self.disk_runs)
+            read_rate, read_min, read_max, read_ms, read_runs = self._measure(read, self.disk_runs)
         finally:
             try:
                 path.unlink(missing_ok=True)
@@ -312,6 +319,8 @@ class BenchmarkService:
                 type=BenchmarkType.DISK,
                 metric="disk_write",
                 value=round(write_rate / 1e6, 1),
+                min_value=round(write_min / 1e6, 1),
+                max_value=round(write_max / 1e6, 1),
                 unit="MB/s",
                 duration_ms=write_ms,
                 runs=write_runs,
@@ -321,6 +330,8 @@ class BenchmarkService:
                 type=BenchmarkType.DISK,
                 metric="disk_read",
                 value=round(read_rate / 1e6, 1),
+                min_value=round(read_min / 1e6, 1),
+                max_value=round(read_max / 1e6, 1),
                 unit="MB/s",
                 duration_ms=read_ms,
                 runs=read_runs,

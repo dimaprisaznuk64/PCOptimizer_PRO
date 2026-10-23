@@ -799,6 +799,15 @@ class DashboardPage(QWidget):
         self.errors.setVisible(False)
         layout.addWidget(self.errors)
 
+    def closeEvent(self, event) -> None:
+        self._proc_timer.stop()
+        self._ping_timer.stop()
+        if self._proc_task:
+            self._proc_task.requestInterruption()
+        if self._ping_task:
+            self._ping_task.requestInterruption()
+        super().closeEvent(event)
+
     def _refresh_ping(self) -> None:
         if self._ping_task is not None or not self.isVisible():
             return
