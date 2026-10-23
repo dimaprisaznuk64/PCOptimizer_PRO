@@ -19,7 +19,9 @@ from PySide6.QtWidgets import (
 COMBO_HEIGHT = 36
 COMBO_WIDTH = 260
 COMBO_WIDTH_WIDE = 300
-MAX_VISIBLE_ROWS = 10
+MAX_VISIBLE_ROWS = 12
+MIN_ROW_HEIGHT = 30
+MAX_POPUP_WIDTH = 450
 
 
 class CompactCombo(QComboBox):
@@ -31,15 +33,25 @@ class CompactCombo(QComboBox):
 
     def _fit_popup(self) -> None:
         view = self.view()
+        # Ensure the row height is calculated correctly for the delegate
         row = view.sizeHintForRow(0) or COMBO_HEIGHT
-        target = row * max(self.maxVisibleItems(), 1) + 8
+        if row < MIN_ROW_HEIGHT:  # swatch delegates need a taller row
+            row = MIN_ROW_HEIGHT
+
+        target = row * max(self.maxVisibleItems(), 1) + 10
         view.setMaximumHeight(target)
+
         popup = view.window()
         if popup is None:
             return
-        width = max(self.width(), self.view().sizeHintForColumn(0) + 40)
-        popup.resize(width, target + 10)
-        view.setGeometry(1, 5, max(popup.width() - 2, 1), target)
+
+        # Keep the popup compact: never wider than the field and never wider
+        # than MAX_POPUP_WIDTH, even on very wide windows.
+        content_width = self.view().sizeHintForColumn(0) + 48
+        width = min(self.width(), max(280, min(content_width, MAX_POPUP_WIDTH)))
+
+        popup.resize(width, target + 12)
+        view.setGeometry(1, 6, max(popup.width() - 2, 1), target)
 
         screen = self.screen() or QApplication.primaryScreen()
         if screen is None:

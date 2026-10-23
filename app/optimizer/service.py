@@ -295,7 +295,15 @@ class OptimizerService:
         return self.backup_path.exists()
 
     def backup_profile(self) -> str | None:
-        """Profile name recorded in the backup (e.g. 'GAMING'), if a backup exists."""
+        """Profile applied most recently while a backup exists (e.g. 'GAMING')."""
+        backup = self._load_backup()
+        if not backup:
+            return None
+        profile = backup.get("last_profile") or backup.get("profile")
+        return str(profile) if profile else None
+
+    def original_profile(self) -> str | None:
+        """Profile under whose first apply the original Windows state was captured."""
         backup = self._load_backup()
         if not backup:
             return None
@@ -305,6 +313,20 @@ class OptimizerService:
     # ---------- backup ----------
 
     def _save_backup(self, profile: str | None = None) -> None:
+        # The backup represents the state *before our first change*. Keeping the
+        # first snapshot means switching profiles twice still restores the
+        # original Windows settings instead of the intermediate ones.
+        existing = self._load_backup()
+        if existing is not None:
+            if profile and existing.get("last_profile") != profile:
+                existing["last_profile"] = profile
+                try:
+                    self.backup_path.write_text(
+                        json.dumps(existing, indent=2), encoding="utf-8"
+                    )
+                except OSError:
+                    pass
+            return
         state = self.state()
         _gm, gm_err = self._reg_get_dword("HKCU", GAMEMODE_KEY, GAMEMODE_VALUE)
         _hags, hags_err = self._reg_get_dword("HKLM", HAGS_KEY, HAGS_VALUE)
@@ -312,6 +334,7 @@ class OptimizerService:
         data = {
             "ts": time.time(),
             "profile": profile,
+            "last_profile": profile,
             "power_guid": state.power_guid,
             "game_mode": state.game_mode,
             # Whether the setting could be read at all. A value that was absent
@@ -444,9 +467,27 @@ class OptimizerService:
 
     @staticmethod
     def _default_elevate(args: Sequence[str]) -> bool:
-        execute = ctypes.windll.shell32.ShellExecuteW
-        result = execute(None, "runas", str(args[0]), " ".join(f'"{a}"' for a in args[1:]), None, 1)
-        return int(result) > 32
+        import base64
+
+        def ps_quote(value: str) -> str:
+            return "'" + value.replace("'", "''") + "'"
+
+        # ShellExecuteW ("runas") returns immediately, so the caller could read
+        # the registry before the elevated process wrote it. Start-Process -Wait
+        # blocks until the elevated process has really finished (or UAC was
+        # cancelled, which makes the script fail).
+        command_line = subprocess.list2cmdline([str(a) for a in args[1:]])
+        inner = (
+            f"$p = Start-Process -FilePath {ps_quote(str(args[0]))} "
+            f"-ArgumentList {ps_quote(command_line)} -Verb RunAs -Wait -PassThru; "
+            "exit $p.ExitCode"
+        )
+        encoded = base64.b64encode(inner.encode("utf-16-le")).decode("ascii")
+        code, _out = OptimizerService._default_run(
+            ("powershell", "-NoProfile", "-ExecutionPolicy", "Bypass", "-EncodedCommand", encoded),
+            180.0,
+        )
+        return code == 0
 
     @staticmethod
     def _default_is_admin() -> bool:

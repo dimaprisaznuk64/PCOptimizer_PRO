@@ -175,3 +175,26 @@ def test_tray_tooltip_disabled_by_setting(qapp, tmp_path) -> None:
     assert tray.tray.toolTip() == "PCOptimizer PRO"
     window._force_quit = True
     window.close()
+
+
+def test_tray_message_uses_silent_in_app_toast(qapp, monkeypatch) -> None:
+    def forbidden(*_args, **_kwargs):
+        raise AssertionError("native tray balloon (plays a sound) must not be used")
+
+    from PySide6.QtWidgets import QSystemTrayIcon
+
+    monkeypatch.setattr(QSystemTrayIcon, "showMessage", forbidden, raising=True)
+    tray = AppTray(parent=qapp)
+    tray.show_message("Overheat", "CPU at 95°C")
+
+    toast = tray._toast
+    assert toast is not None
+    assert toast.isVisible()
+    assert toast._title.text() == "Overheat"
+    assert toast._body.text() == "CPU at 95°C"
+
+    tray.show_message("Overheat", "GPU at 88°C")
+    assert toast._body.text() == "CPU at 95°C\nGPU at 88°C"
+
+    toast.hide()
+    assert not toast.isVisible()

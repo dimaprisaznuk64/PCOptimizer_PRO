@@ -386,6 +386,56 @@ def test_backup_profile_recorded(fake, tmp_path) -> None:
     assert service.backup_profile() == "GAMING"
 
 
+def test_second_profile_apply_keeps_original_backup(fake, tmp_path) -> None:
+    # Switching profiles must not overwrite the snapshot of the original state.
+    fake.admin = True
+    service = fake.make_service(tmp_path)
+    service.apply_profile("GAMING", with_restore_point=False)
+    service.apply_profile("PERFORMANCE", with_restore_point=False)
+
+    assert service.original_profile() == "GAMING"
+    assert service.backup_profile() == "PERFORMANCE"
+
+    report = service.revert()
+    assert report.errors == ()
+    assert fake.power_guid == GUID_BALANCED
+    assert fake.reg[("HKCU", GAMEMODE_KEY, GAMEMODE_VALUE)] == 1
+    assert ("HKLM", HAGS_KEY, HAGS_VALUE) not in fake.reg
+    assert fake.reg[("HKCU", VISUAL_KEY, VISUAL_VALUE)] == 0
+
+
+def test_default_elevate_waits_for_the_elevated_process(monkeypatch) -> None:
+    import base64
+
+    captured: dict[str, tuple[str, ...]] = {}
+
+    def fake_run(args, timeout):
+        captured["args"] = tuple(str(a) for a in args)
+        return 0, ""
+
+    monkeypatch.setattr(OptimizerService, "_default_run", staticmethod(fake_run))
+    ok = OptimizerService._default_elevate(
+        ("powershell", "-NoProfile", "-Command", "Set-ItemProperty -Name HwSchMode -Value 2")
+    )
+    assert ok is True
+    args = captured["args"]
+    encoded = args[args.index("-EncodedCommand") + 1]
+    script = base64.b64decode(encoded).decode("utf-16-le")
+    assert "Start-Process" in script
+    assert "-Verb RunAs" in script
+    assert "-Wait" in script
+    assert "Set-ItemProperty -Name HwSchMode -Value 2" in script
+
+
+def test_default_elevate_reports_cancelled_uac(monkeypatch) -> None:
+    monkeypatch.setattr(
+        OptimizerService,
+        "_default_run",
+        staticmethod(lambda args, timeout: (1, "The operation was canceled by the user")),
+    )
+    assert OptimizerService._default_elevate(("powershell", "-Command", "exit 0")) is False
+
+
 # ---------- UI ----------
 
 

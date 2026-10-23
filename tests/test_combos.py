@@ -9,7 +9,14 @@ pytest.importorskip("PySide6")
 from PySide6.QtCore import Qt  # noqa: E402
 from PySide6.QtWidgets import QApplication, QStyleOptionViewItem  # noqa: E402
 
-from app.ui.combos import COMBO_HEIGHT, MAX_VISIBLE_ROWS, CompactCombo, tune_combo  # noqa: E402
+from app.ui.combos import (  # noqa: E402
+    COMBO_HEIGHT,
+    MAX_POPUP_WIDTH,
+    MAX_VISIBLE_ROWS,
+    MIN_ROW_HEIGHT,
+    CompactCombo,
+    tune_combo,
+)
 from app.ui.theme_picker import ThemeSwatchDelegate  # noqa: E402
 
 
@@ -44,7 +51,9 @@ def test_combo_popup_is_bounded_and_anchored_under_the_field(qapp):
 
     popup = combo.view().window()
     view = combo.view()
-    row = view.sizeHintForRow(0)
+    # The implementation floors the row height for swatch delegates, so the
+    # bound must use the same floor (font size varies between test runs).
+    row = max(view.sizeHintForRow(0), MIN_ROW_HEIGHT)
     # The popup shows a few rows only - not the whole list.
     assert popup.height() <= row * MAX_VISIBLE_ROWS + 24
     assert abs(popup.width() - 280) <= 8
@@ -54,6 +63,18 @@ def test_combo_popup_is_bounded_and_anchored_under_the_field(qapp):
     popup_pos = popup.mapToGlobal(popup.rect().topLeft())
     assert abs(popup_pos.x() - anchor.x()) <= 4
     assert popup_pos.y() >= anchor.y() - 4
+    combo.hidePopup()
+
+
+def test_combo_popup_does_not_stretch_to_a_wide_field(qapp):
+    combo = _make_combo(qapp)
+    combo.setFixedWidth(1200)
+    combo.showPopup()
+    qapp.processEvents()
+
+    popup = combo.view().window()
+    assert popup.width() <= MAX_POPUP_WIDTH + 8
+    assert popup.width() <= combo.width()
     combo.hidePopup()
 
 

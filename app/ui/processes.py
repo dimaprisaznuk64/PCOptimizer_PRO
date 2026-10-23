@@ -364,6 +364,7 @@ class ProcessPage(QWidget):
 
     def _on_selection_changed(self) -> None:
         pid = self._selected_pid()
+        self._want_pid = pid
         if pid is None:
             self._show_details(None)
             return
@@ -371,21 +372,32 @@ class ProcessPage(QWidget):
         # (status / threads / cmdline) off the GUI thread — ``details()`` does a
         # second psutil round-trip that would otherwise freeze the window.
         self._show_details(self._rows.get(pid), pending=True)
-        if self._details_task is not None:
-            return
+        if self._details_task is None:
+            self._start_details(pid)
+
+    def _start_details(self, pid: int) -> None:
         self._details_pid = pid
-        self._details_task = Task(lambda: self._service.details(pid), parent=self)
+        self._details_task = Task(lambda p=pid: self._service.details(p), parent=self)
         self._details_task.done.connect(self._apply_details)
         self._details_task.failed.connect(self._on_details_failed)
         self._details_task.start()
 
-    def _apply_details(self, result: object) -> None:
+    def _after_details(self) -> None:
         self._details_task = None
-        if isinstance(result, ProcessInfo):
+        wanted = self._want_pid
+        if wanted is not None and wanted != self._details_pid:
+            self._start_details(wanted)
+
+    def _apply_details(self, result: object) -> None:
+        finished_pid = self._details_pid
+        self._details_task = None
+        if isinstance(result, ProcessInfo) and result.pid == self._want_pid:
             self._show_details(result)
+        if self._details_pid == finished_pid:
+            self._after_details()
 
     def _on_details_failed(self, _message: str) -> None:
-        self._details_task = None
+        self._after_details()
 
     def _show_details(self, info: ProcessInfo | None, pending: bool = False) -> None:
         self._detail_info = info
