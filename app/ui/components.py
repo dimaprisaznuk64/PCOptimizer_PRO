@@ -42,10 +42,16 @@ from .theme import (
     BORDER,
     BORDER_HI,
     CARD_PADDING,
+    CARD_SPACING,
     DANGER,
     OK,
     PANEL,
     PANEL_ALT,
+    RADIUS_LG,
+    SPACING_LG,
+    SPACING_MD,
+    SPACING_SM,
+    SPACING_XS,
     T_BODY,
     T_CAPTION,
     T_MICRO,
@@ -315,16 +321,16 @@ class RingCard(QFrame):
         self.setStyleSheet(
             f"QFrame#card {{ background: qlineargradient(x1:0, y1:0, x2:0, y2:1, "
             f"stop:0 {_mix(PANEL, TEXT, 0.035)}, stop:1 {PANEL}); "
-            f"border: 1px solid {BORDER}; border-radius: 12px; }} "
+            f"border: 1px solid {BORDER}; border-radius: {RADIUS_LG}px; }} "
             f"QFrame#card[hot=\"true\"] {{ border-color: {ACCENT}; }}"
         )
         layout = QVBoxLayout(self)
         layout.setContentsMargins(CARD_PADDING, CARD_PADDING, CARD_PADDING, CARD_PADDING)
-        layout.setSpacing(6)
+        layout.setSpacing(CARD_SPACING)
 
         # Header: Icon + Title + Arrow
         header = QHBoxLayout()
-        header.setSpacing(6)
+        header.setSpacing(SPACING_SM)
         self.header_icon = QLabel()
         self.header_icon.setPixmap(glyph(icon_name, color).scaled(16, 16, Qt.AspectRatioMode.KeepAspectRatio, Qt.TransformationMode.SmoothTransformation))
         header.addWidget(self.header_icon)
@@ -343,7 +349,7 @@ class RingCard(QFrame):
         self.ring = _Ring(color, size=124)
         ring_layout = QVBoxLayout(self.ring)
         ring_layout.setContentsMargins(0, 0, 0, 0)
-        ring_layout.setSpacing(1)
+        ring_layout.setSpacing(SPACING_XS)
         ring_layout.addStretch(1)
 
         self.value = QLabel("—")
@@ -351,7 +357,7 @@ class RingCard(QFrame):
         self.value.setAlignment(Qt.AlignmentFlag.AlignCenter)
         ring_layout.addWidget(self.value)
 
-        self.center_sub = QLabel("Завантаження")
+        self.center_sub = QLabel(tr("dash_ring_load"))
         self.center_sub.setStyleSheet(f"font-size: {T_MICRO}px; font-weight: 500; color: {TEXT_DIM};")
         self.center_sub.setAlignment(Qt.AlignmentFlag.AlignCenter)
         ring_layout.addWidget(self.center_sub)
@@ -361,7 +367,7 @@ class RingCard(QFrame):
 
         # Bottom details (two rows / metrics)
         details_box = QHBoxLayout()
-        details_box.setSpacing(4)
+        details_box.setSpacing(SPACING_SM)
         
         self.sub = QLabel("")
         self.sub.setObjectName("ringSub")
@@ -463,12 +469,12 @@ class PerfChart(QFrame):
         self.setStyleSheet(
             f"QFrame#card {{ background: qlineargradient(x1:0, y1:0, x2:0, y2:1, "
             f"stop:0 {_mix(PANEL, TEXT, 0.035)}, stop:1 {PANEL}); "
-            f"border: 1px solid {BORDER}; border-radius: 12px; }} "
+            f"border: 1px solid {BORDER}; border-radius: {RADIUS_LG}px; }} "
             f"QFrame#card:hover {{ border-color: {BORDER_HI}; }}"
         )
         layout = QVBoxLayout(self)
         layout.setContentsMargins(CARD_PADDING, CARD_PADDING, CARD_PADDING, CARD_PADDING)
-        layout.setSpacing(6)
+        layout.setSpacing(CARD_SPACING)
 
         head = QHBoxLayout()
         label = QLabel(title or tr("dash_chart_title"))
@@ -479,11 +485,11 @@ class PerfChart(QFrame):
 
         # Legend pills (rebuilt for every selected tab)
         legend = QHBoxLayout()
-        legend.setSpacing(10)
+        legend.setSpacing(SPACING_MD)
         self._legend_layout = legend
         self._legend: dict[str, QLabel] = {}
         head.addLayout(legend)
-        head.addSpacing(14)
+        head.addSpacing(SPACING_LG)
 
         self._group = QButtonGroup(self)
         self._group.setExclusive(True)
@@ -1041,18 +1047,18 @@ class GaugeCard(QFrame):
         card_shadow(self)
         hud_brackets(self)
         row = QHBoxLayout(self)
-        row.setContentsMargins(CARD_PADDING, CARD_PADDING, 12, 12)
-        row.setSpacing(8)
+        row.setContentsMargins(CARD_PADDING, CARD_PADDING, SPACING_LG, SPACING_LG)
+        row.setSpacing(SPACING_MD)
 
         left = QVBoxLayout()
-        left.setSpacing(4)
+        left.setSpacing(CARD_SPACING)
         tile = QLabel()
         tile.setObjectName("iconTile")
         tile.setFixedSize(38, 38)
         tile.setAlignment(Qt.AlignmentFlag.AlignCenter)
         tile.setPixmap(glyph(icon, color).scaled(22, 22, Qt.AspectRatioMode.KeepAspectRatio, Qt.TransformationMode.SmoothTransformation))
         left.addWidget(tile)
-        left.addSpacing(4)
+        left.addSpacing(SPACING_SM)
         name = QLabel(title)
         name.setObjectName("gaugeTitle")
         left.addWidget(name)
@@ -1064,7 +1070,7 @@ class GaugeCard(QFrame):
         left.addStretch(1)
         self.spark = Sparkline(color, points=60, height=26, value_range=(0, 100))
         left.addWidget(self.spark)
-        self.more = QPushButton("View more  ›")
+        self.more = QPushButton(tr("gauge_view_more"))
         self.more.setObjectName("linkButton")
         self.more.setCursor(Qt.CursorShape.PointingHandCursor)
         self.more.clicked.connect(self.more_clicked)
@@ -1129,8 +1135,8 @@ class LoadCard(QFrame):
         card_shadow(self)
         hud_brackets(self)
         layout = QVBoxLayout(self)
-        layout.setContentsMargins(16, 16, 16, 16)
-        layout.setSpacing(6)
+        layout.setContentsMargins(CARD_PADDING, CARD_PADDING, CARD_PADDING, CARD_PADDING)
+        layout.setSpacing(CARD_SPACING)
         title = QLabel("LOAD")
         title.setObjectName("cardTitle")
         layout.addWidget(title)
@@ -1161,8 +1167,8 @@ class ActionTile(QPushButton):
         self.setCursor(Qt.CursorShape.PointingHandCursor)
         self.setMinimumHeight(64)
         row = QHBoxLayout(self)
-        row.setContentsMargins(14, 10, 14, 10)
-        row.setSpacing(12)
+        row.setContentsMargins(SPACING_LG, SPACING_MD, SPACING_LG, SPACING_MD)
+        row.setSpacing(SPACING_MD)
         tile = QLabel()
         tile.setObjectName("iconTile")
         tile.setFixedSize(38, 38)
@@ -1170,7 +1176,7 @@ class ActionTile(QPushButton):
         tile.setPixmap(glyph(icon, ACCENT).scaled(22, 22, Qt.AspectRatioMode.KeepAspectRatio, Qt.TransformationMode.SmoothTransformation))
         row.addWidget(tile)
         texts = QVBoxLayout()
-        texts.setSpacing(0)
+        texts.setSpacing(SPACING_XS)
         head = QLabel(title)
         head.setObjectName("tileTitle")
         texts.addWidget(head)
@@ -1329,7 +1335,7 @@ class MetricCard(QFrame):
 
         layout = QVBoxLayout(self)
         layout.setContentsMargins(CARD_PADDING, CARD_PADDING, CARD_PADDING, CARD_PADDING)
-        layout.setSpacing(4)
+        layout.setSpacing(CARD_SPACING)
 
         heading = card_heading(title, color)
         layout.addWidget(heading)
@@ -1350,14 +1356,14 @@ class MetricCard(QFrame):
             self.spark.setMinimumHeight(40)
             self.spark.setMaximumHeight(16777215)
             self.spark.setSizePolicy(QSizePolicy.Policy.Expanding, QSizePolicy.Policy.Expanding)
-            layout.addSpacing(6)
+            layout.addSpacing(SPACING_SM)
             layout.addWidget(self.spark, 1)
         else:
             layout.addStretch(1)
 
         self.bar = Bar(color) if bar else None
         if self.bar:
-            layout.addSpacing(6)
+            layout.addSpacing(SPACING_SM)
             layout.addWidget(self.bar)
 
     def set_title(self, text: str) -> None:

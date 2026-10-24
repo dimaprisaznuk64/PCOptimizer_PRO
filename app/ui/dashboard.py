@@ -659,7 +659,7 @@ class DashboardPage(QWidget):
         scroll.setWidget(inner)
 
         layout = QVBoxLayout(inner)
-        layout.setContentsMargins(24, 16, 24, 16)
+        layout.setContentsMargins(16, 12, 16, 12)
         layout.setSpacing(12)
 
         # Header titles (greeting + status + clock)
@@ -706,7 +706,7 @@ class DashboardPage(QWidget):
 
         # ROW 1: 4 RingCards + PC Health + Quick Actions
         row1 = QGridLayout()
-        row1.setSpacing(12)
+        row1.setSpacing(8)
 
         self.cpu = RingCard(tr("dash_cpu"), C2, icon_name="cpu")
         self.cpu.set_center_sub(tr("dash_ring_load"))
@@ -735,7 +735,7 @@ class DashboardPage(QWidget):
         # ROW 2: System Load Chart + Temperatures + Fans
         self._grids: dict[str, QGridLayout] = {}
         row2 = QGridLayout()
-        row2.setSpacing(12)
+        row2.setSpacing(8)
 
         self.chart = PerfChart()
         self.thermal = CardPanel(tr("dash_thermals_title"))
@@ -747,7 +747,7 @@ class DashboardPage(QWidget):
 
         # ROW 3: Storage + Recent Actions + Process Load
         row3 = QGridLayout()
-        row3.setSpacing(12)
+        row3.setSpacing(8)
 
         self.disks = CardPanel(tr("dash_disks_title"))
         self.disks.set_rows([])
@@ -758,7 +758,7 @@ class DashboardPage(QWidget):
 
         # ROW 4: Gaming Banner + Network + Notifications
         row4 = QGridLayout()
-        row4.setSpacing(12)
+        row4.setSpacing(8)
 
         self.gaming_banner = GamingBannerWidget()
         self.gaming_banner.configure_clicked.connect(lambda: self.navigate.emit("gaming"))

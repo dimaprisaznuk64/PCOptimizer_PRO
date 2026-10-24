@@ -40,55 +40,55 @@ _BASE = {
 PALETTES: dict[str, dict] = {
     "GRAPHITE": {
         **_BASE,
-        "BG": "#0D0F12", "PANEL": "#14171C", "PANEL_ALT": "#1B1F26", "BORDER": "#262B34", "BORDER_HI": "#38404D",
-        "TEXT": "#EDF1F7", "TEXT_DIM": "#8A94A3", "ACCENT": "#4D9BFF", "ACCENT_HOVER": "#70B2FF",
+        "BG": "#0B0D10", "PANEL": "#12151A", "PANEL_ALT": "#1A1E25", "BORDER": "#242932", "BORDER_HI": "#363D4A",
+        "TEXT": "#ECEFF4", "TEXT_DIM": "#88919E", "ACCENT": "#4D9BFF", "ACCENT_HOVER": "#70B2FF",
         "ACCENT_TINT": "#15283F", "ACCENT_PRESSED": "#2F7FE0", "ON_ACCENT": "#F2F7FF",
         "DANGER": "#E5484D", "OK": "#46C68B", "WARN": "#E8A33D",
-        "SIDEBAR_TOP": "#101318", "SIDEBAR_BOTTOM": "#0A0C0F", "HOVER": "#1D222B",
+        "SIDEBAR_TOP": "#0F1116", "SIDEBAR_BOTTOM": "#0A0C0F", "HOVER": "#1C2029",
         "DANGER_BG": "#331A1C", "DANGER_BORDER": "#69383B", "DANGER_BG_HOVER": "#422224",
         "OK_BG": "#12301F", "WARN_BG": "#332A14", "HERO_TOP": "#131E2E",
         "BRAND_A": "#4D9BFF", "BRAND_B": "#7C86FF", "GLOW_A": "#4D9BFF", "GLOW_B": "#7C86FF",
-        "GLOW_ALPHA_A": 42, "GLOW_ALPHA_B": 28,
+        "GLOW_ALPHA_A": 40, "GLOW_ALPHA_B": 26,
         "C1": "#4FA3F7", "C2": "#8892FF", "C3": "#46C68B", "C4": "#E8A33D",
     },
     "TRUE_BLACK": {
         **_BASE,
-        "BG": "#000000", "PANEL": "#0A0A0C", "PANEL_ALT": "#111114", "BORDER": "#1E1E22", "BORDER_HI": "#303036",
-        "TEXT": "#F5F5F5", "TEXT_DIM": "#8A8A92", "ACCENT": "#D8D8DB", "ACCENT_HOVER": "#FFFFFF",
-        "ACCENT_TINT": "#1C1C20", "ACCENT_PRESSED": "#B4B4BA", "ON_ACCENT": "#0A0A0C",
+        "BG": "#000000", "PANEL": "#08080A", "PANEL_ALT": "#0E0E11", "BORDER": "#1A1A1E", "BORDER_HI": "#2A2A30",
+        "TEXT": "#F5F5F5", "TEXT_DIM": "#8A8A92", "ACCENT": "#E0E0E3", "ACCENT_HOVER": "#FFFFFF",
+        "ACCENT_TINT": "#18181C", "ACCENT_PRESSED": "#B8B8BD", "ON_ACCENT": "#08080A",
         "DANGER": "#E5484D", "OK": "#3ECF8E", "WARN": "#E0A03C",
-        "SIDEBAR_TOP": "#050506", "SIDEBAR_BOTTOM": "#000000", "HOVER": "#141416",
+        "SIDEBAR_TOP": "#040405", "SIDEBAR_BOTTOM": "#000000", "HOVER": "#121214",
         "DANGER_BG": "#2E1416", "DANGER_BORDER": "#6B3438", "DANGER_BG_HOVER": "#3D1B1E",
         "OK_BG": "#0F2B1E", "WARN_BG": "#2E2510", "HERO_TOP": "#151519",
         "BRAND_A": "#E8E8EA", "BRAND_B": "#B9B9C0", "GLOW_A": "#8A8A92", "GLOW_B": "#5A5A62",
-        "GLOW_ALPHA_A": 38, "GLOW_ALPHA_B": 26,
+        "GLOW_ALPHA_A": 36, "GLOW_ALPHA_B": 24,
         "C1": "#D8D8DB", "C2": "#A8A8B0", "C3": "#3ECF8E", "C4": "#E0A03C",
     },
     "SLATE": {
         **_BASE,
-        "BG": "#131722", "PANEL": "#1A2030", "PANEL_ALT": "#222A3D", "BORDER": "#303A52", "BORDER_HI": "#45526E",
-        "TEXT": "#E8EDF6", "TEXT_DIM": "#8B96AC", "ACCENT": "#5C8FCE", "ACCENT_HOVER": "#7BA7DE",
-        "ACCENT_TINT": "#1B2840", "ACCENT_PRESSED": "#4370B0", "ON_ACCENT": "#0E1626",
+        "BG": "#10141E", "PANEL": "#171D2C", "PANEL_ALT": "#1E263A", "BORDER": "#2C364E", "BORDER_HI": "#404D6B",
+        "TEXT": "#E8EDF6", "TEXT_DIM": "#8B96AC", "ACCENT": "#5A8DD8", "ACCENT_HOVER": "#7BA7DE",
+        "ACCENT_TINT": "#1A2840", "ACCENT_PRESSED": "#4370B0", "ON_ACCENT": "#0D1524",
         "DANGER": "#DC5866", "OK": "#54BF8B", "WARN": "#D9A85B",
-        "SIDEBAR_TOP": "#161B28", "SIDEBAR_BOTTOM": "#11141E", "HOVER": "#242D44",
+        "SIDEBAR_TOP": "#141926", "SIDEBAR_BOTTOM": "#0F121C", "HOVER": "#222C42",
         "DANGER_BG": "#331A20", "DANGER_BORDER": "#6B3A44", "DANGER_BG_HOVER": "#422229",
-        "OK_BG": "#13301F", "WARN_BG": "#332A16", "HERO_TOP": "#1B2740",
-        "BRAND_A": "#5C8FCE", "BRAND_B": "#86A6DE", "GLOW_A": "#5C8FCE", "GLOW_B": "#6D7FC4",
-        "GLOW_ALPHA_A": 42, "GLOW_ALPHA_B": 28,
-        "C1": "#5C8FCE", "C2": "#7C9DE0", "C3": "#54BF8B", "C4": "#D9A85B",
+        "OK_BG": "#13301F", "WARN_BG": "#332A16", "HERO_TOP": "#1A263E",
+        "BRAND_A": "#5A8DD8", "BRAND_B": "#86A6DE", "GLOW_A": "#5A8DD8", "GLOW_B": "#6D7FC4",
+        "GLOW_ALPHA_A": 40, "GLOW_ALPHA_B": 26,
+        "C1": "#5A8DD8", "C2": "#7C9DE0", "C3": "#54BF8B", "C4": "#D9A85B",
     },
     "TITANIUM": {
         **_BASE,
-        "BG": "#050608", "PANEL": "#0B0E14", "PANEL_ALT": "#121721", "BORDER": "#1A2230", "BORDER_HI": "#2A374A",
-        "TEXT": "#F8FAFC", "TEXT_DIM": "#94A3B8", "ACCENT": "#38BDF8", "ACCENT_HOVER": "#7DD3FC",
-        "ACCENT_TINT": "#0C2333", "ACCENT_PRESSED": "#0EA5E9", "ON_ACCENT": "#082F49",
+        "BG": "#04060A", "PANEL": "#0A0D13", "PANEL_ALT": "#11151E", "BORDER": "#1A202C", "BORDER_HI": "#2A364A",
+        "TEXT": "#F5F7FA", "TEXT_DIM": "#8E9BA8", "ACCENT": "#22D3EE", "ACCENT_HOVER": "#67E8F9",
+        "ACCENT_TINT": "#0A2A36", "ACCENT_PRESSED": "#06B6D4", "ON_ACCENT": "#031E26",
         "DANGER": "#F87171", "OK": "#34D399", "WARN": "#FBBF24",
-        "SIDEBAR_TOP": "#080B12", "SIDEBAR_BOTTOM": "#04060A", "HOVER": "#161E2E",
-        "DANGER_BG": "#2D1618", "DANGER_BORDER": "#662A2C", "DANGER_BG_HOVER": "#3D1D1F",
-        "OK_BG": "#0D281E", "WARN_BG": "#2E2412", "HERO_TOP": "#0F172A",
-        "BRAND_A": "#38BDF8", "BRAND_B": "#818CF8", "GLOW_A": "#38BDF8", "GLOW_B": "#818CF8",
-        "GLOW_ALPHA_A": 35, "GLOW_ALPHA_B": 22,
-        "C1": "#38BDF8", "C2": "#818CF8", "C3": "#A78BFA", "C4": "#2DD4BF",
+        "SIDEBAR_TOP": "#070A10", "SIDEBAR_BOTTOM": "#030508", "HOVER": "#151B27",
+        "DANGER_BG": "#2D1517", "DANGER_BORDER": "#66282A", "DANGER_BG_HOVER": "#3C1C1E",
+        "OK_BG": "#0C261D", "WARN_BG": "#2E2311", "HERO_TOP": "#0E1626",
+        "BRAND_A": "#22D3EE", "BRAND_B": "#818CF8", "GLOW_A": "#22D3EE", "GLOW_B": "#818CF8",
+        "GLOW_ALPHA_A": 32, "GLOW_ALPHA_B": 20,
+        "C1": "#22D3EE", "C2": "#818CF8", "C3": "#A78BFA", "C4": "#2DD4BF",
     },
     "FOREST": {
         **_BASE,
@@ -552,43 +552,45 @@ def fs(px: int) -> int:
 # device pixels (design px already multiplied by FONT_SCALE), so the QSS and
 # the inline styles use exactly the same numbers. Pages must pick a role from
 # this scale instead of inventing a number - that is what keeps the UI even.
-T_HERO    = fs(40)  # hero number (welcome / score)
-T_VALUE   = fs(30)  # big card value
-T_TITLE   = fs(26)  # page title
-T_H1      = fs(20)  # section heading
-T_H2      = fs(16)  # sub heading
-T_LEAD    = fs(15)  # emphasised body
-T_BODY    = fs(13)  # default text, page description, buttons
-T_BRAND   = fs(14)  # brand wordmark
-T_SMALL   = fs(12)  # card titles, table cells, small labels
-T_CAPTION = fs(11)  # captions, units, timestamps
-T_MICRO   = fs(10)  # badges, ring captions
+T_HERO      = fs(44)  # hero number (welcome / score) — tightened from 40
+T_VALUE     = fs(32)  # big card value — tightened from 30
+T_TITLE     = fs(24)  # page title — tightened from 26
+T_H1        = fs(19)  # section heading — tightened from 20
+T_H2        = fs(15)  # sub heading — tightened from 16
+T_LEAD      = fs(14)  # emphasised body — tightened from 15
+T_BODY      = fs(13)  # default text, page description, buttons
+T_BRAND     = fs(14)  # brand wordmark
+T_SMALL     = fs(12)  # card titles, table cells, small labels
+T_CAPTION   = fs(11)  # captions, units, timestamps
+T_MICRO     = fs(10)  # badges, ring captions
 
 
 # --- Canonical layout scale -------------------------------------------------
 # Every page must use these so cards, paddings and headers share one rhythm.
-PAGE_MARGINS = (40, 36, 40, 32)  # page header + outer chrome
-PAGE_SPACING = 10
-CARD_PADDING = 16  # inner padding of every card
+# Strict 4px grid: 4, 8, 12, 16, 20, 24, 32, 40, 48
+PAGE_MARGINS = (40, 32, 40, 28)  # page header + outer chrome (4px grid)
+PAGE_SPACING = 12                # was 10
+CARD_PADDING = 16                # inner padding of every card (4px grid)
 
 # Design tokens (unify radii/spacing/padding across UI)
-RADIUS_SM = 8
-RADIUS_MD = 10
-RADIUS_LG = 12
-RADIUS_XL = 14
+RADIUS_SM = 6    # was 8
+RADIUS_MD = 10   # was 10
+RADIUS_LG = 12   # was 12
+RADIUS_XL = 16   # was 14
 
 SPACING_XS = 4
-SPACING_SM = 6
-SPACING_MD = 8
-SPACING_LG = 12
-SPACING_XL = 16
+SPACING_SM = 8   # was 6
+SPACING_MD = 12  # was 8
+SPACING_LG = 16  # was 12
+SPACING_XL = 24  # was 16
 
-PADDING_SM = 10
-PADDING_MD = 12
-PADDING_LG = 16
-PADDING_XL = 20
-CARD_SPACING = 8  # spacing between rows inside a card
-CARD_GAP = 14  # spacing between sibling cards on a page
+PADDING_SM = 8   # was 10
+PADDING_MD = 12  # was 12
+PADDING_LG = 16  # was 16
+PADDING_XL = 24  # was 20
+
+CARD_SPACING = 8   # spacing between rows inside a card
+CARD_GAP = 16      # spacing between sibling cards on a page (was 14)
 
 
 def _fonts_dir():
@@ -813,6 +815,7 @@ def build_stylesheet() -> str:
     font-family: {FONT_UI};
     font-size: {T_BODY}px;
     color: {TEXT};
+    transition: background-color 120ms ease, border-color 120ms ease, color 120ms ease;
 }}
 QMainWindow, QWidget#root {{
     background: {BG};
@@ -834,6 +837,10 @@ QScrollArea#navScroll QScrollBar::handle:vertical {{
     background: {BORDER};
     border-radius: 4px;
     min-height: 24px;
+    transition: background 120ms ease;
+}}
+QScrollArea#navScroll QScrollBar::handle:vertical:hover {{
+    background: {BORDER_HI};
 }}
 QScrollArea#navScroll QScrollBar::add-line:vertical,
 QScrollArea#navScroll QScrollBar::sub-line:vertical {{
@@ -862,6 +869,7 @@ QPushButton[nav="true"] {{
     margin: 1px 10px;
     font-size: {T_BODY}px;
     font-weight: 500;
+    letter-spacing: 0.01em;
 }}
 QPushButton[nav="true"][hot="true"] {{
     background: {PANEL_ALT};
@@ -884,6 +892,7 @@ QPushButton[nav="true"]:checked, QPushButton[nav="true"]:checked:focus, QPushBut
     color: {ON_ACCENT};
     font-weight: 700;
     padding-left: 11px;
+    letter-spacing: 0.02em;
 }}
 QPushButton[nav="true"][compact="true"]:checked,
 QPushButton[nav="true"][compact="true"]:checked:focus,
@@ -926,10 +935,11 @@ QWidget#page QScrollArea, QWidget#page QScrollArea > QWidget > QWidget {{
 QFrame#card {{
     background: qlineargradient(x1:0, y1:0, x2:0, y2:1, stop:0 {_mix(PANEL, TEXT, 0.035)}, stop:1 {PANEL});
     border: 1px solid {BORDER};
-    border-radius: 12px;
+    border-radius: {RADIUS_LG}px;
 }}
 QLabel#cardValue, QLabel#gaugeValue, QLabel#heroValue, QLabel#ringValue, QLabel#clock, QLabel#scoreValue, QLabel#statValue {{
     font-family: {FONT_MONO};
+    letter-spacing: 0.04em;
 }}
 QLabel#pageTitle, QLabel#welcome, QLabel#heroValue, QLabel#scoreValue {{
     font-family: {FONT_UI};
@@ -938,23 +948,26 @@ QLabel#pageTitle {{
     font-size: {T_TITLE}px;
     font-weight: 700;
     color: {TEXT};
+    letter-spacing: -0.02em;
 }}
 QLabel#pageDesc {{
     font-size: {T_BODY}px;
     color: {TEXT_DIM};
+    letter-spacing: 0.01em;
 }}
 QFrame#card {{
     background: qlineargradient(x1:0, y1:0, x2:0, y2:1, stop:0 {_mix(PANEL, TEXT, 0.035)}, stop:1 {PANEL});
     border: 1px solid {BORDER};
-    border-radius: 12px;
+    border-radius: {RADIUS_LG}px;
 }}
 QLabel#cardTitle {{
     font-family: {FONT_MONO};
     font-size: {T_SMALL}px;
     font-weight: 600;
     color: {TEXT_DIM};
-    letter-spacing: 0.8px;
-    padding-left: 11px;
+    letter-spacing: 0.08em;
+    padding-left: {SPACING_MD}px;
+    text-transform: uppercase;
 }}
 QLabel#cardValue {{
     font-size: {T_VALUE}px;
@@ -973,7 +986,7 @@ QLabel#gaugeTitle {{
 }}
 QLabel#iconTile {{
     background: {ACCENT_TINT};
-    border-radius: 10px;
+    border-radius: {RADIUS_MD}px;
 }}
 QLabel#heroValue {{
     font-size: {T_HERO}px;
@@ -984,6 +997,7 @@ QLabel#welcome {{
     font-size: {T_VALUE}px;
     font-weight: 700;
     color: {TEXT};
+    letter-spacing: -0.01em;
 }}
 QLabel#tileTitle {{
     font-size: {T_BODY}px;
@@ -993,6 +1007,17 @@ QLabel#tileTitle {{
 QLabel#tileArrow {{
     font-size: {T_H1}px;
     color: {TEXT_DIM};
+}}
+QLabel#greeting {{
+    font-size: {T_H1}px;
+    font-weight: 800;
+    color: {TEXT};
+    letter-spacing: -0.02em;
+}}
+QLabel#verdict {{
+    font-size: {T_BODY}px;
+    color: {TEXT_DIM};
+    letter-spacing: 0.01em;
 }}
 QPushButton#linkButton {{
     background: transparent;
@@ -1009,7 +1034,7 @@ QPushButton#linkButton:hover {{
 QPushButton[tile="true"] {{
     background: {PANEL};
     border: 1px solid {BORDER};
-    border-radius: 12px;
+    border-radius: {RADIUS_LG}px;
     text-align: left;
     padding: 0;
 }}
@@ -1020,7 +1045,7 @@ QPushButton[tile="true"]:hover {{
 QFrame#gameTile {{
     background: {PANEL};
     border: 1px solid {BORDER};
-    border-radius: 12px;
+    border-radius: {RADIUS_LG}px;
 }}
 QFrame#gameTile:hover {{
     border-color: {BORDER_HI};
@@ -1032,12 +1057,12 @@ QFrame#gameTile[selected="true"] {{
 QLabel#tileCover {{
     background: {PANEL_ALT};
     border: 1px solid {BORDER};
-    border-radius: 10px;
+    border-radius: {RADIUS_MD}px;
 }}
 QPushButton#starButton {{
     background: transparent;
     border: 1px solid {BORDER};
-    border-radius: 8px;
+    border-radius: {RADIUS_SM}px;
     color: {TEXT_DIM};
     font-size: {T_LEAD}px;
     padding: 2px;
@@ -1068,7 +1093,7 @@ QListWidget#historyList::item:selected {{
 QFrame#hero {{
     background: qlineargradient(x1:0, y1:0, x2:1, y2:1, stop:0 {HERO_TOP}, stop:1 {PANEL});
     border: 1px solid {BORDER_HI};
-    border-radius: 12px;
+    border-radius: {RADIUS_LG}px;
 }}
 QLabel#ringValue {{
     font-size: {T_TITLE}px;
@@ -1100,8 +1125,8 @@ QLabel#sysStatus[level="danger"] {{
 QPushButton[seg="true"] {{
     background: transparent;
     border: none;
-    border-radius: 6px;
-    padding: 4px 12px;
+    border-radius: {RADIUS_SM}px;
+    padding: 4px {SPACING_MD}px;
     color: {TEXT_DIM};
     font-size: {T_SMALL}px;
 }}
@@ -1117,9 +1142,9 @@ QPushButton[seg="true"]:checked {{
 QPushButton[quick="true"] {{
     background: {PANEL_ALT};
     border: 1px solid {BORDER};
-    border-radius: 9px;
+    border-radius: {RADIUS_MD}px;
     text-align: left;
-    padding: 8px 14px;
+    padding: 8px {SPACING_LG}px;
     font-weight: 600;
 }}
 QPushButton[quick="true"]:hover {{
@@ -1140,8 +1165,8 @@ QLabel#statValue {{
 QLabel#livePill {{
     background: {OK_BG};
     color: {OK};
-    border-radius: 10px;
-    padding: 3px 10px;
+    border-radius: {RADIUS_MD}px;
+    padding: 3px {SPACING_MD}px;
     font-size: {T_CAPTION}px;
     font-weight: 600;
 }}
@@ -1156,8 +1181,8 @@ QLabel#cardRow {{
 QLabel#errorLine {{
     color: {WARN};
     background: {WARN_BG};
-    border-radius: 8px;
-    padding: 6px 12px;
+    border-radius: {RADIUS_MD}px;
+    padding: 6px {SPACING_MD}px;
     font-size: {T_SMALL}px;
     font-weight: 600;
 }}
@@ -1169,8 +1194,8 @@ QLabel#gpuName {{
 QLabel#pageBadge {{
     background: {ACCENT_TINT};
     color: {ACCENT};
-    border-radius: 6px;
-    padding: 4px 10px;
+    border-radius: {RADIUS_SM}px;
+    padding: 4px {SPACING_MD}px;
     font-size: {T_CAPTION}px;
     font-weight: 600;
 }}
@@ -1196,8 +1221,8 @@ QLabel#topBarStatus {{
     font-size: {T_SMALL}px;
     font-weight: 600;
     color: {OK};
-    padding: 4px 12px;
-    border-radius: 14px;
+    padding: 4px {SPACING_MD}px;
+    border-radius: {RADIUS_MD}px;
     background: {OK_BG};
 }}
 QLabel#topBarStatus[level="warn"] {{
@@ -1211,7 +1236,7 @@ QLabel#topBarStatus[level="danger"] {{
 QPushButton#topBarIcon {{
     background: transparent;
     border: none;
-    border-radius: 8px;
+    border-radius: {RADIUS_SM}px;
     padding: 6px;
 }}
 QPushButton#topBarIcon:hover {{
@@ -1224,7 +1249,7 @@ QFrame#card:hover {{
     border-color: {BORDER_HI};
 }}
 QTableWidget::item {{
-    padding: 8px 10px;
+    padding: {SPACING_SM}px {SPACING_MD}px;
 }}
 QTableWidget::item:hover {{
     background: {HOVER};
@@ -1232,7 +1257,7 @@ QTableWidget::item:hover {{
 QTableWidget {{
     background: {PANEL};
     border: 1px solid {BORDER};
-    border-radius: 10px;
+    border-radius: {RADIUS_MD}px;
     gridline-color: transparent;
     alternate-background-color: {PANEL_ALT};
     selection-background-color: {ACCENT_TINT};
@@ -1244,17 +1269,19 @@ QHeaderView::section {{
     color: {TEXT_DIM};
     border: none;
     border-bottom: 1px solid {BORDER};
-    padding: 10px 10px;
+    padding: {SPACING_MD}px {SPACING_MD}px;
     font-family: {FONT_MONO};
     font-size: {T_SMALL}px;
     font-weight: 600;
     text-align: left;
+    letter-spacing: 0.06em;
+    text-transform: uppercase;
 }}
 QLineEdit {{
     background: {PANEL_ALT};
     border: 1px solid {BORDER};
-    border-radius: 8px;
-    padding: 8px 12px;
+    border-radius: {RADIUS_SM}px;
+    padding: {SPACING_SM}px {SPACING_MD}px;
     selection-background-color: {ACCENT};
     selection-color: #ffffff;
 }}
@@ -1264,24 +1291,26 @@ QLineEdit:focus {{
 QPushButton[secondary="true"] {{
     background: {BTN_FILL};
     border: 1px solid {BTN_BORDER};
-    border-radius: 10px;
-    padding: 9px 16px;
+    border-radius: {RADIUS_MD}px;
+    padding: {SPACING_SM}px {SPACING_LG}px;
     color: {TEXT};
+    transition: background-color 120ms ease, border-color 120ms ease;
 }}
 QPushButton[secondary="true"]:hover {{
     border-color: {ACCENT};
 }}
 QPushButton[compact="true"] {{
-    padding: 4px 12px;
-    border-radius: 8px;
+    padding: 4px {SPACING_MD}px;
+    border-radius: {RADIUS_SM}px;
 }}
 QPushButton[danger="true"] {{
     background: {DANGER_BG};
     color: {DANGER};
     border: 1px solid {DANGER_BORDER};
-    border-radius: 10px;
-    padding: 9px 16px;
+    border-radius: {RADIUS_MD}px;
+    padding: {SPACING_SM}px {SPACING_LG}px;
     font-weight: 600;
+    transition: background-color 120ms ease, border-color 120ms ease, color 120ms ease;
 }}
 QPushButton[danger="true"]:hover {{
     background: {DANGER_BG_HOVER};
@@ -1295,11 +1324,12 @@ QPushButton {{
     background: {BTN_FILL};
     color: {TEXT};
     border: 1px solid {BTN_BORDER};
-    border-radius: 10px;
+    border-radius: {RADIUS_MD}px;
     font-size: {T_BODY}px;
     font-weight: 600;
-    padding: 9px 16px;
+    padding: {SPACING_SM}px {SPACING_LG}px;
     font-weight: 600;
+    transition: background-color 120ms ease, border-color 120ms ease, color 120ms ease;
 }}
 QPushButton:hover {{
     border-color: {ACCENT};
@@ -1323,7 +1353,8 @@ QPushButton[primary="true"] {{
     border: 1px solid transparent;
     color: {ON_ACCENT};
     font-weight: 700;
-    padding: 9px 20px;
+    padding: {SPACING_SM}px {SPACING_XL}px;
+    transition: background 120ms ease, border-color 120ms ease;
 }}
 QPushButton[primary="true"]:hover {{
     background: qlineargradient(x1:0, y1:0, x2:1, y2:0, stop:0 {ACCENT_HOVER}, stop:1 {BRAND_B});
@@ -1345,12 +1376,12 @@ QToolTip {{
     padding: 5px 8px;
 }}
 QCheckBox {{
-    spacing: 8px;
+    spacing: {SPACING_SM}px;
 }}
 QCheckBox::indicator {{
     width: 16px;
     height: 16px;
-    border-radius: 4px;
+    border-radius: {RADIUS_SM}px;
     border: 1px solid {BORDER_HI};
     background: {PANEL_ALT};
 }}
@@ -1364,9 +1395,10 @@ QCheckBox::indicator:checked {{
 QComboBox, QSpinBox {{
     background: {PANEL_ALT};
     border: 1px solid {BORDER};
-    border-radius: 8px;
-    padding: 5px 10px;
+    border-radius: {RADIUS_SM}px;
+    padding: 5px {SPACING_MD}px;
     min-height: 24px;
+    transition: border-color 120ms ease;
 }}
 QComboBox {{
     padding-right: 28px;
@@ -1388,7 +1420,7 @@ QComboBox:hover, QSpinBox:hover, QComboBox:focus, QSpinBox:focus {{
 QComboBox QAbstractItemView {{
     background: {PANEL_ALT};
     border: 1px solid {BORDER_HI};
-    border-radius: 8px;
+    border-radius: {RADIUS_SM}px;
     padding: 4px;
     selection-background-color: {ACCENT_TINT};
     selection-color: {TEXT};
@@ -1396,8 +1428,8 @@ QComboBox QAbstractItemView {{
 }}
 QComboBox QAbstractItemView::item {{
     min-height: 30px;
-    padding: 2px 10px;
-    border-radius: 6px;
+    padding: 2px {SPACING_MD}px;
+    border-radius: {RADIUS_SM}px;
     color: {TEXT};
 }}
 QComboBox QAbstractItemView::item:selected {{
@@ -1410,12 +1442,12 @@ QComboBox QAbstractItemView::item:hover {{
 QMenu {{
     background: {PANEL_ALT};
     border: 1px solid {BORDER_HI};
-    border-radius: 8px;
+    border-radius: {RADIUS_SM}px;
     padding: 4px;
 }}
 QMenu::item {{
     padding: 7px 18px;
-    border-radius: 5px;
+    border-radius: {RADIUS_SM}px;
 }}
 QMenu::item:selected {{
     background: {ACCENT_TINT};
@@ -1424,12 +1456,12 @@ QLabel#navSection {{
     font-size: {T_CAPTION}px;
     font-weight: 700;
     color: {TEXT_DIM};
-    padding: 16px 26px 4px 26px;
+    padding: {SPACING_LG}px {SPACING_XL}px 4px {SPACING_XL}px;
 }}
 QLabel#brandMark {{
     background: qlineargradient(x1:0, y1:0, x2:1, y2:1, stop:0 {BRAND_A}, stop:1 {BRAND_B});
     color: #ffffff;
-    border-radius: 8px;
+    border-radius: {RADIUS_SM}px;
     font-weight: 800;
     font-size: {T_BODY}px;
 }}
@@ -1490,9 +1522,10 @@ QLabel#hudTag {{
 QPushButton[ghost="true"] {{
     background: transparent;
     border: 1px solid transparent;
-    border-radius: 10px;
-    padding: 9px 16px;
+    border-radius: {RADIUS_MD}px;
+    padding: {SPACING_SM}px {SPACING_LG}px;
     color: {TEXT_DIM};
+    transition: background-color 120ms ease, border-color 120ms ease, color 120ms ease;
 }}
 QPushButton[ghost="true"]:hover {{
     background: {PANEL_ALT};
@@ -1503,6 +1536,9 @@ QPushButton[ghost="true"]:disabled {{
     color: {TEXT_DIM};
     background: transparent;
     border-color: transparent;
+}}
+QFrame#card {{
+    transition: border-color 120ms ease;
 }}
 """
     # Every font size in the stylesheet comes from the type scale above, so
