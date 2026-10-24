@@ -152,7 +152,7 @@ class FakeService:
         self.calls.append(btype)
         if self.fail:
             raise RuntimeError("boom")
-        return [BenchmarkResult(type=btype, metric="cpu_single", value=123.4, unit="MB/s", duration_ms=11, runs=1, detail="d")]
+        return [BenchmarkResult(type=btype, metric="cpu_single", value=123.4, min_value=123.4, max_value=123.4, unit="MB/s", duration_ms=11, runs=1, detail="d")]
 
 
 def _bench_page(tmp_path):
