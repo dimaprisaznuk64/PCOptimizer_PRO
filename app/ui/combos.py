@@ -49,6 +49,13 @@ class CompactCombo(QComboBox):
         # than MAX_POPUP_WIDTH, even on very wide windows.
         content_width = self.view().sizeHintForColumn(0) + 48
         width = min(self.width(), max(280, min(content_width, MAX_POPUP_WIDTH)))
+        # Never let the popup grow wider than the available screen width.
+        screen = self.screen() or QApplication.primaryScreen()
+        if screen is not None:
+            available = screen.availableGeometry()
+            width = min(width, max(200, available.width() - 40))
+            if width > available.width():
+                width = min(width, available.width() - 8)
 
         popup.resize(width, target + 12)
         view.setGeometry(1, 6, max(popup.width() - 2, 1), target)
