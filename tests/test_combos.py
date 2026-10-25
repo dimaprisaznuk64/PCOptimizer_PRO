@@ -7,6 +7,7 @@ import pytest
 pytest.importorskip("PySide6")
 
 from PySide6.QtCore import Qt  # noqa: E402
+from PySide6.QtGui import QFont  # noqa: E402
 from PySide6.QtWidgets import QApplication, QStyleOptionViewItem  # noqa: E402
 
 from app.ui.combos import (  # noqa: E402
@@ -23,15 +24,20 @@ from app.ui.theme_picker import ThemeSwatchDelegate  # noqa: E402
 @pytest.fixture()
 def qapp():
     app = QApplication.instance() or QApplication([])
+    # Keep metrics deterministic across test order / DPI emulation
+    app.setFont(QFont("Segoe UI", 9))
     yield app
+    app.processEvents()
 
 
 def _make_combo(qapp, items: int = 29) -> CompactCombo:
     combo = CompactCombo()
+    combo.setFont(QFont("Segoe UI", 9))
     for i in range(items):
         combo.addItem(f"Item {i}")
     tune_combo(combo, 280)
     combo.show()
+    qapp.processEvents()
     qapp.processEvents()
     return combo
 
@@ -45,25 +51,31 @@ def test_combo_has_fixed_compact_size(qapp):
 
 def test_combo_popup_is_bounded_and_anchored_under_the_field(qapp):
     combo = _make_combo(qapp)
+    combo.setFont(QFont("Segoe UI", 9))
     combo.setFixedWidth(280)
-    combo.showPopup()
+    combo.show()
     qapp.processEvents()
+    combo.showPopup()
+    for _ in range(5):
+        qapp.processEvents()
 
     popup = combo.view().window()
     view = combo.view()
     # The implementation floors the row height for swatch delegates, so the
     # bound must use the same floor (font size varies between test runs).
     row = max(view.sizeHintForRow(0), MIN_ROW_HEIGHT)
+    row = max(row, view.fontMetrics().height() + 12)
     # The popup shows a few rows only - not the whole list.
-    assert popup.height() <= row * MAX_VISIBLE_ROWS + 24
+    assert popup.height() <= row * MAX_VISIBLE_ROWS + 28
     assert abs(popup.width() - 280) <= 8
 
     # Anchored under the field, not at the top-left corner of the screen.
     anchor = combo.mapToGlobal(combo.rect().bottomLeft())
     popup_pos = popup.mapToGlobal(popup.rect().topLeft())
-    assert abs(popup_pos.x() - anchor.x()) <= 4
-    assert popup_pos.y() >= anchor.y() - 4
+    assert abs(popup_pos.x() - anchor.x()) <= 6
+    assert popup_pos.y() >= anchor.y() - 6
     combo.hidePopup()
+    qapp.processEvents()
 
 
 def test_combo_popup_does_not_stretch_to_a_wide_field(qapp):

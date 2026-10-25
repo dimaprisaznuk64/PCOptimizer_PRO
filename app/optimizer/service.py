@@ -318,11 +318,16 @@ class OptimizerService:
         # original Windows settings instead of the intermediate ones.
         existing = self._load_backup()
         if existing is not None:
+            # Never overwrite the original snapshot captured on the very first
+            # apply(). Only track which profile was applied most recently while
+            # changes are in effect so the UI can reflect the active state.
             if profile and existing.get("last_profile") != profile:
-                existing["last_profile"] = profile
+                updated = dict(existing)
+                updated["last_profile"] = profile
                 try:
+                    self.backup_path.parent.mkdir(parents=True, exist_ok=True)
                     self.backup_path.write_text(
-                        json.dumps(existing, indent=2), encoding="utf-8"
+                        json.dumps(updated, indent=2), encoding="utf-8"
                     )
                 except OSError:
                     pass

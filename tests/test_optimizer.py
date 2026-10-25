@@ -379,6 +379,37 @@ def test_revert_keeps_backup_on_errors(fake, tmp_path) -> None:
     assert service.backup_exists()
 
 
+def test_revert_restores_original_state_after_switching_profiles(fake, tmp_path) -> None:
+    fake.admin = True
+    fake.power_guid = GUID_BALANCED
+    fake.reg[("HKLM", HAGS_KEY, HAGS_VALUE)] = 1
+    fake.reg[("HKCU", VISUAL_KEY, VISUAL_VALUE)] = 3
+    fake.reg.pop(("HKCU", GAMEMODE_KEY, GAMEMODE_VALUE), None)
+    service = fake.make_service(tmp_path)
+
+    service.apply_profile("GAMING", with_restore_point=False)
+    assert service.original_profile() == "GAMING"
+    assert service.backup_profile() == "GAMING"
+    # GAMING should have changed things
+    assert fake.power_guid == GUID_HIGH_PERF
+    assert fake.reg[("HKLM", HAGS_KEY, HAGS_VALUE)] == 2
+    assert fake.reg[("HKCU", GAMEMODE_KEY, GAMEMODE_VALUE)] == 1
+
+    # Switching to another profile must NOT overwrite the original backup
+    service.apply_profile("PERFORMANCE", with_restore_point=False)
+    assert service.original_profile() == "GAMING"
+    assert service.backup_profile() == "PERFORMANCE"
+
+    report = service.revert()
+    assert report.errors == ()
+    # Must restore back to original Windows state captured on first apply()
+    assert fake.power_guid == GUID_BALANCED
+    assert fake.reg[("HKLM", HAGS_KEY, HAGS_VALUE)] == 1
+    assert fake.reg[("HKCU", VISUAL_KEY, VISUAL_VALUE)] == 3
+    assert ("HKCU", GAMEMODE_KEY, GAMEMODE_VALUE) not in fake.reg
+    assert not service.backup_exists()
+
+
 def test_backup_profile_recorded(fake, tmp_path) -> None:
     service = fake.make_service(tmp_path)
     assert service.backup_profile() is None
