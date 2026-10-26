@@ -7,14 +7,14 @@
 <h1 align="center">PCOptimizer PRO</h1>
 
 <p align="center">
-  Моніторинг і оптимізація Windows в одному застосунку: 16 розділів — від живих метрик CPU/GPU та чищення сміття до ігрового режиму, лаунчера ігор, бенчмарків, діагностики заліза й загальної оцінки здоров'я системи.
+  Моніторинг і оптимізація Windows в одному застосунку: 17 розділів — від живих метрик CPU/GPU та чищення сміття до ігрового режиму, лаунчера ігор, бенчмарків, діагностики заліза й загальної оцінки здоров'я системи.
 </p>
 
 <p align="center">
   <img src="https://img.shields.io/badge/platform-Windows%2010%2F11%20x64-0078D6" alt="Platform">
   <img src="https://img.shields.io/badge/python-3.13-3776AB" alt="Python">
   <img src="https://img.shields.io/badge/UI-PySide6%20(Qt%206)-41CD52" alt="PySide6">
-  <img src="https://img.shields.io/badge/tests-531%20passed-brightgreen" alt="Tests">
+  <img src="https://img.shields.io/badge/tests-542%20passed-brightgreen" alt="Tests">
   <a href="https://github.com/dimaprisaznuk64/PCOptimizer_PRO/actions/workflows/ci.yml"><img src="https://github.com/dimaprisaznuk64/PCOptimizer_PRO/actions/workflows/ci.yml/badge.svg" alt="CI"></a>
   <img src="https://img.shields.io/badge/license-MIT-green" alt="License">
   <img src="https://img.shields.io/badge/version-1.6.2-blue" alt="Version">
@@ -35,13 +35,13 @@
 
 ### Дизайн та Юзабіліті
 - **Cyber HUD** стиль: кутові скоби на картках, фонова HUD-сітка з радіальним свіченням, акцентні заголовки розділів
-- **24 теми** з миттєвим перемиканням без перезапуску застосунку
+- **29 тем** з миттєвим перемиканням без перезапуску застосунку
 - **Сталая типографія** Inter / JetBrains Mono (однаковий вигляд незалежно від встановленої в системі)
 - **Висока контрастність** з optimised для читабельності в темних і світлих темах
 - **Розумна ієрархія** з акцентами на важливих даних
 - **Семантичне кольорове кодування** для станів, рівнів важливості та типів даних
 - **Адаптивний інтерфейс** з 3 режимами компонування (Wide/Mid/Compact)
-- **Плавні анімації** переходів між сторінками та зміни тем
+- **Плавні анімації** переходів між сторінками, появи карток і пульсації HUD-індикаторів
 - **Інтуїтивна навігація** з логічним розташуванням елементів
 - **Гілкі сенсорів** з підтримкою NVML, WMI ACPI та mock-дані для тестів
 
@@ -80,6 +80,7 @@
 
 ### Оптимізатор Windows
 - Профілі: BALANCED / GAMING / PERFORMANCE
+- Панель «Що буде змінено»: перед застосуванням показує поточне → цільове значення кожного параметра, позначає незмінені поля та попереджає, що HAGS потребує адмін-прав
 - Керує: схемою живлення (powercfg), Game Mode, HAGS, візуальними ефектами
 - Перед застосуванням створюється точка відновлення — якщо не вдалось, зміни блокуються
 - JSON-бекап і кнопка Revert для повернення назад
@@ -136,7 +137,7 @@
 - Трей: згортання у трей, старт згорнутим, метрики в тултіпі
 - Температурні алерти: сповіщення в трей і журнал дій, коли CPU/GPU перегрівається (окремі пороги CPU та GPU, 50–110 °C, захист від спаму)
 - Рівень логів і перегляд логів (відкрити папку, очистити)
-- 25 тем (перемикаються миттєво, без перезапуску): Graphite (за замовчуванням), True Black, Slate, Titanium, Forest, Burgundy, Midnight, Aubergine, Deep Teal, Espresso, Arctic, Ivory, Mono, Sage, Performance Red, Cyber, Industrial, Tactical, Cobalt, Copper, а також класичні Black Cyber (DARK), Purple Neon, Green Nature, Light, AMOLED Neon
+- 29 тем (перемикаються миттєво, без перезапуску): Titanium (за замовчуванням), Graphite, True Black, Slate, Forest, Burgundy, Midnight, Aubergine, Deep Teal, Espresso, Arctic, Ivory, Mono, Sage, Performance Red, Cyber, Industrial, Tactical, Cobalt, Copper, Minimal Dark, Neon Pulse, Nexus, Electric, а також класичні Black Cyber, Purple Neon, Green Nature, Light, AMOLED Neon
 - Вбудовані шрифти **Inter** (UI) та **JetBrains Mono** (числові значення) — однаковий вигляд незалежно від того, що встановлено в системі
 - Мова: українська / English — застосовується одразу
 
@@ -182,7 +183,7 @@
 
 - **Python 3.13** + **PySide6** (Qt 6; 25 вбудованих тем, тема за замовчуванням — Graphite, вбудовані шрифти Inter / JetBrains Mono)
 - **psutil** — CPU/RAM/диски/мережа, **nvidia-ml-py** (NVML) — GPU, **WMI** — температури, **pywin32** — COM/Task Scheduler/кошик
-- **pytest** — 531 тест
+- **pytest** — 542 тести
 - **PyInstaller** — збірка .exe, **Inno Setup** — інсталятор
 
 ## Безпека понад усе

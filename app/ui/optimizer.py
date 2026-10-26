@@ -1,6 +1,6 @@
 from __future__ import annotations
 
-from PySide6.QtCore import Qt
+from PySide6.QtCore import QEvent, Qt
 from PySide6.QtWidgets import (
     QFrame,
     QHBoxLayout,
@@ -15,6 +15,7 @@ from PySide6.QtWidgets import (
 
 from app.i18n import tr
 from app.optimizer import PROFILES, ApplyReport, OptimizerService, OptimizerState
+from app.optimizer.service import PLAN_NAMES, VISUAL_NAMES
 from app.restore import (
     STATUS_CANCELLED,
     STATUS_CREATED,
@@ -58,6 +59,53 @@ _PROFILE_DESC_TR = {
 
 _FIELD_TR = {"power": "opt_field_power", "game_mode": "opt_field_game", "hags": "opt_field_hags", "visual": "opt_field_visual"}
 
+_PREVIEW_FIELDS = ("power", "game_mode", "hags", "visual")
+
+
+def _bool_text(value: bool | None, unset_key: str) -> str:
+    if value is True:
+        return tr("opt_on")
+    if value is False:
+        return tr("opt_off")
+    return tr(unset_key)
+
+
+def preview_changes(profile: str, state: OptimizerState) -> list[tuple[str, str, str, bool, bool]]:
+    """Return one row per setting: (field, current, target, changed, needs_admin).
+
+    Fields the profile does not touch are still listed, marked unchanged, so the
+    user always sees the full picture before applying anything.
+    """
+    spec = PROFILES.get(profile.upper(), {})
+    rows: list[tuple[str, str, str, bool, bool]] = []
+
+    power = spec.get("power")
+    current = _value(state.power_name)
+    target = _value(PLAN_NAMES.get(str(power), str(power))) if power else current
+    rows.append(("power", current, target, bool(power) and state.power_guid != power, False))
+
+    game_mode = spec.get("game_mode")
+    current = _bool_text(state.game_mode, "opt_default")
+    target = _bool_text(bool(game_mode) if game_mode is not None else state.game_mode, "opt_default")
+    rows.append(
+        ("game_mode", current, target, game_mode is not None and state.game_mode != bool(game_mode), False)
+    )
+
+    hags = spec.get("hags")
+    current = _bool_text(state.hags, "opt_not_set")
+    target = _bool_text(bool(hags) if hags is not None else state.hags, "opt_not_set")
+    hags_changed = hags is not None and state.hags != bool(hags)
+    rows.append(("hags", current, target, hags_changed, hags_changed and not state.is_admin))
+
+    visual = spec.get("visual")
+    current = _value(state.visual_name)
+    target = _value(VISUAL_NAMES.get(int(visual), str(visual))) if visual is not None else current
+    rows.append(
+        ("visual", current, target, visual is not None and state.visual_fx != int(visual), False)
+    )
+
+    return rows
+
 
 class OptimizerPage(QWidget):
     def __init__(self, service: OptimizerService | None = None, parent: QWidget | None = None) -> None:
@@ -66,6 +114,7 @@ class OptimizerPage(QWidget):
         self._service = service or OptimizerService()
         self._task: Task | None = None
         self._state: OptimizerState | None = None
+        self._selected_profile: str | None = None
 
         layout = QVBoxLayout(self)
         layout.setContentsMargins(40, 36, 40, 32)
@@ -178,7 +227,44 @@ class OptimizerPage(QWidget):
         self.note.setWordWrap(True)
         state_layout.addWidget(self.note)
         state_layout.addStretch(1)
-        splitter.addWidget(state_card)
+
+        preview_card = QFrame()
+        preview_card.setObjectName("card")
+        preview_layout = QVBoxLayout(preview_card)
+        preview_layout.setContentsMargins(CARD_PADDING, CARD_PADDING, CARD_PADDING, CARD_PADDING)
+        preview_layout.setSpacing(6)
+
+        self._preview_title = CardTitleLabel(tr("opt_preview_title"))
+        preview_layout.addWidget(self._preview_title)
+
+        self.preview_hint = QLabel(tr("opt_preview_hint"))
+        self.preview_hint.setObjectName("cardSub")
+        self.preview_hint.setWordWrap(True)
+        preview_layout.addWidget(self.preview_hint)
+
+        self.preview_rows: dict[str, QLabel] = {}
+        for key in _PREVIEW_FIELDS:
+            row = QLabel("")
+            row.setObjectName("cardRow")
+            row.setWordWrap(True)
+            row.setVisible(False)
+            self.preview_rows[key] = row
+            preview_layout.addWidget(row)
+
+        self.preview_admin = QLabel(tr("opt_preview_admin_hags"))
+        self.preview_admin.setObjectName("cardSub")
+        self.preview_admin.setWordWrap(True)
+        self.preview_admin.setVisible(False)
+        preview_layout.addWidget(self.preview_admin)
+        preview_layout.addStretch(1)
+
+        right = QWidget()
+        right_layout = QVBoxLayout(right)
+        right_layout.setContentsMargins(0, 0, 0, 0)
+        right_layout.setSpacing(10)
+        right_layout.addWidget(state_card)
+        right_layout.addWidget(preview_card)
+        splitter.addWidget(right)
         splitter.setStretchFactor(0, 2)
         splitter.setStretchFactor(1, 1)
         layout.addWidget(splitter, 1)
@@ -188,6 +274,50 @@ class OptimizerPage(QWidget):
             labels = card.findChildren(QLabel, "gpuName")
             if labels:
                 self._profile_names[name] = labels[0]
+            card.setCursor(Qt.CursorShape.PointingHandCursor)
+            card.setToolTip(tr("opt_preview_hint"))
+            card.installEventFilter(self)
+            for child in card.findChildren(QWidget):
+                if not isinstance(child, QPushButton):
+                    child.installEventFilter(self)
+
+    def eventFilter(self, watched, event) -> bool:
+        if event.type() == QEvent.Type.MouseButtonPress:
+            for name, (card, _match) in self.profile_cards.items():
+                if watched is card or card.isAncestorOf(watched):
+                    self.select_profile(name)
+                    break
+        return super().eventFilter(watched, event)
+
+    def select_profile(self, name: str) -> None:
+        """Highlight a profile card and show its before → after changes."""
+        self._selected_profile = name
+        for key, (card, _match) in self.profile_cards.items():
+            card.setProperty("selected", key == name)
+            card.style().unpolish(card)
+            card.style().polish(card)
+        self._render_preview()
+
+    def _render_preview(self) -> None:
+        state = self._state
+        if state is None or self._selected_profile is None or self._selected_profile not in PROFILES:
+            self.preview_hint.setVisible(True)
+            self.preview_admin.setVisible(False)
+            for row in self.preview_rows.values():
+                row.setText("")
+                row.setVisible(False)
+            return
+        rows = preview_changes(self._selected_profile, state)
+        self.preview_hint.setVisible(False)
+        for key, current, target, changed, _needs_admin in rows:
+            row = self.preview_rows[key]
+            field = tr(_FIELD_TR[key])
+            if changed:
+                row.setText(tr("opt_preview_field", field=field, old=current, new=target))
+            else:
+                row.setText(tr("opt_preview_same_row", field=field, value=current))
+            row.setVisible(True)
+        self.preview_admin.setVisible(any(row[4] for row in rows))
 
     def retranslate(self) -> None:
         """Refresh static texts after a language change."""
@@ -198,6 +328,9 @@ class OptimizerPage(QWidget):
         self.revert_button.setText(tr("opt_revert"))
         self._state_title.setText(tr("opt_current_state"))
         self.note.setText(tr("opt_note"))
+        self._preview_title.setText(tr("opt_preview_title"))
+        self.preview_hint.setText(tr("opt_preview_hint"))
+        self.preview_admin.setText(tr("opt_preview_admin_hags"))
         for name, label in self._profile_names.items():
             label.setText(tr(_PROFILE_TR.get(name.lower(), "opt_title")))
         for card, _match in self.profile_cards.values():
@@ -210,6 +343,7 @@ class OptimizerPage(QWidget):
                 button.setText(tr("opt_apply"))
         if self._state is not None:
             self._render_state(self._state)
+            self._render_preview()
 
     @property
     def service(self) -> OptimizerService:
@@ -238,6 +372,7 @@ class OptimizerPage(QWidget):
             return
         self._state = result
         self._render_state(result)
+        self._render_preview()
         self.revert_button.setEnabled(self._service.backup_exists())
         self._refresh_profile_matches(result)
         self.status_label.setText(tr("opt_state_loaded"))

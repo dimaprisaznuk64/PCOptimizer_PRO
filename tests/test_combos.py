@@ -133,3 +133,57 @@ def test_swatch_delegate_uses_the_theme_palette(qapp):
     index = combo.model().index(0, 0)
     assert index.data(Qt.ItemDataRole.UserRole) == "GRAPHITE"
     assert "GRAPHITE" in theme.PALETTES
+
+
+def _render_delegate_row(combo, delegate, row: int, width: int = 220, height: int = 30):
+    from PySide6.QtCore import QRect
+    from PySide6.QtGui import QImage, QPainter
+    from PySide6.QtWidgets import QStyle
+
+
+    index = combo.model().index(row, 0)
+    option = QStyleOptionViewItem()
+    option.initFrom(combo.view())
+    option.rect = QRect(0, 0, width, height)
+    option.font = combo.font()
+    option.fontMetrics = combo.fontMetrics()
+    option.state = QStyle.StateFlag.State_Enabled
+    image = QImage(width, height, QImage.Format.Format_ARGB32)
+    image.fill(0)
+    painter = QPainter(image)
+    delegate.paint(painter, option, index)
+    painter.end()
+    return image
+
+
+def _accent_pixels_on_the_right(image) -> int:
+    from PySide6.QtGui import QColor
+
+    from app.ui import theme
+
+    accent = QColor(theme.ACCENT)
+    count = 0
+    for x in range(image.width() - 26, image.width() - 4):
+        for y in range(image.height()):
+            color = image.pixelColor(x, y)
+            if (
+                abs(color.red() - accent.red()) <= 30
+                and abs(color.green() - accent.green()) <= 30
+                and abs(color.blue() - accent.blue()) <= 30
+            ):
+                count += 1
+    return count
+
+
+def test_swatch_delegate_marks_the_current_theme(qapp):
+    combo = CompactCombo()
+    for key in ("GRAPHITE", "TITANIUM"):
+        combo.addItem(key.title(), key)
+    tune_combo(combo, 280)
+    delegate = ThemeSwatchDelegate(combo)
+    combo.setItemDelegate(delegate)
+
+    delegate.set_current("GRAPHITE")
+    assert delegate.current_key == "GRAPHITE"
+    assert _accent_pixels_on_the_right(_render_delegate_row(combo, delegate, 0)) > 10
+    assert _accent_pixels_on_the_right(_render_delegate_row(combo, delegate, 1)) == 0

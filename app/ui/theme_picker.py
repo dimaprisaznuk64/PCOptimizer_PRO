@@ -8,17 +8,34 @@ every theme name, so the list can be scanned visually instead of reading
 from __future__ import annotations
 
 from PySide6.QtCore import QRect, QSize, Qt
-from PySide6.QtGui import QColor, QPainter, QPainterPath
+from PySide6.QtGui import QColor, QPainter, QPainterPath, QPen
 from PySide6.QtWidgets import QStyle, QStyledItemDelegate
 
 from . import theme
 
 SWATCH_WIDTH = 44
 SWATCH_MARGIN = 10
+CHECK_RESERVED = 20
 
 
 class ThemeSwatchDelegate(QStyledItemDelegate):
     """Renders a theme preview chip in front of the theme name."""
+
+    def __init__(self, parent=None) -> None:
+        super().__init__(parent)
+        self._current_key: str | None = None
+
+    def set_current(self, key: str | None) -> None:
+        """Mark the applied theme so it can be drawn with a check mark."""
+        self._current_key = str(key) if key else None
+        parent = self.parent()
+        view = parent.view() if hasattr(parent, "view") else None
+        if view is not None:
+            view.viewport().update()
+
+    @property
+    def current_key(self) -> str | None:
+        return self._current_key
 
     def sizeHint(self, option, index) -> QSize:
         size = super().sizeHint(option, index)
@@ -61,10 +78,24 @@ class ThemeSwatchDelegate(QStyledItemDelegate):
                 painter.drawEllipse(int(cx - 4), int(cy - 4), 8, 8)
 
         text_rect = option.rect.adjusted(chip_left + SWATCH_WIDTH + SWATCH_MARGIN, 0, -8, 0)
+        is_current = bool(key) and str(key) == self._current_key
+        if is_current:
+            text_rect.setRight(text_rect.right() - CHECK_RESERVED)
         painter.setPen(QColor(theme.TEXT))
         painter.drawText(
             text_rect,
             int(Qt.AlignmentFlag.AlignVCenter | Qt.AlignmentFlag.AlignLeft),
             text,
         )
+
+        if is_current:
+            pen = QPen(QColor(theme.ACCENT), 2)
+            pen.setCapStyle(Qt.PenCapStyle.RoundCap)
+            pen.setJoinStyle(Qt.PenJoinStyle.RoundJoin)
+            painter.setPen(pen)
+            painter.setBrush(Qt.BrushStyle.NoBrush)
+            cx = option.rect.right() - 14
+            cy = option.rect.center().y()
+            painter.drawLine(cx - 4, cy, cx - 1, cy + 3)
+            painter.drawLine(cx - 1, cy + 3, cx + 5, cy - 4)
         painter.restore()

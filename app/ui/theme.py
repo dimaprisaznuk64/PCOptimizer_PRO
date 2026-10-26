@@ -815,7 +815,6 @@ def build_stylesheet() -> str:
     font-family: {FONT_UI};
     font-size: {T_BODY}px;
     color: {TEXT};
-    transition: background-color 120ms ease, border-color 120ms ease, color 120ms ease;
 }}
 QMainWindow, QWidget#root {{
     background: {BG};
@@ -837,7 +836,6 @@ QScrollArea#navScroll QScrollBar::handle:vertical {{
     background: {BORDER};
     border-radius: 4px;
     min-height: 24px;
-    transition: background 120ms ease;
 }}
 QScrollArea#navScroll QScrollBar::handle:vertical:hover {{
     background: {BORDER_HI};
@@ -1248,6 +1246,10 @@ QPushButton#topBarIcon::menu-indicator {{
 QFrame#card:hover {{
     border-color: {BORDER_HI};
 }}
+QFrame#card[selected="true"] {{
+    border: 1px solid {ACCENT};
+    background: {ACCENT_TINT};
+}}
 QTableWidget::item {{
     padding: {SPACING_SM}px {SPACING_MD}px;
 }}
@@ -1294,7 +1296,6 @@ QPushButton[secondary="true"] {{
     border-radius: {RADIUS_MD}px;
     padding: {SPACING_SM}px {SPACING_LG}px;
     color: {TEXT};
-    transition: background-color 120ms ease, border-color 120ms ease;
 }}
 QPushButton[secondary="true"]:hover {{
     border-color: {ACCENT};
@@ -1310,7 +1311,6 @@ QPushButton[danger="true"] {{
     border-radius: {RADIUS_MD}px;
     padding: {SPACING_SM}px {SPACING_LG}px;
     font-weight: 600;
-    transition: background-color 120ms ease, border-color 120ms ease, color 120ms ease;
 }}
 QPushButton[danger="true"]:hover {{
     background: {DANGER_BG_HOVER};
@@ -1329,7 +1329,6 @@ QPushButton {{
     font-weight: 600;
     padding: {SPACING_SM}px {SPACING_LG}px;
     font-weight: 600;
-    transition: background-color 120ms ease, border-color 120ms ease, color 120ms ease;
 }}
 QPushButton:hover {{
     border-color: {ACCENT};
@@ -1354,7 +1353,6 @@ QPushButton[primary="true"] {{
     color: {ON_ACCENT};
     font-weight: 700;
     padding: {SPACING_SM}px {SPACING_XL}px;
-    transition: background 120ms ease, border-color 120ms ease;
 }}
 QPushButton[primary="true"]:hover {{
     background: qlineargradient(x1:0, y1:0, x2:1, y2:0, stop:0 {ACCENT_HOVER}, stop:1 {BRAND_B});
@@ -1398,7 +1396,6 @@ QComboBox, QSpinBox {{
     border-radius: {RADIUS_SM}px;
     padding: 5px {SPACING_MD}px;
     min-height: 24px;
-    transition: border-color 120ms ease;
 }}
 QComboBox {{
     padding-right: 28px;
@@ -1525,7 +1522,6 @@ QPushButton[ghost="true"] {{
     border-radius: {RADIUS_MD}px;
     padding: {SPACING_SM}px {SPACING_LG}px;
     color: {TEXT_DIM};
-    transition: background-color 120ms ease, border-color 120ms ease, color 120ms ease;
 }}
 QPushButton[ghost="true"]:hover {{
     background: {PANEL_ALT};
@@ -1538,7 +1534,6 @@ QPushButton[ghost="true"]:disabled {{
     border-color: transparent;
 }}
 QFrame#card {{
-    transition: border-color 120ms ease;
 }}
 """
     # Every font size in the stylesheet comes from the type scale above, so

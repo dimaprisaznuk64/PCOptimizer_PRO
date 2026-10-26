@@ -173,7 +173,10 @@ class SettingsPage(QWidget):
         for key in THEME_LABELS:
             self.theme_combo.addItem(tr(f"theme_{key}"), key)
         tune_combo(self.theme_combo, COMBO_WIDTH_WIDE, expand=True)
-        self.theme_combo.setItemDelegate(ThemeSwatchDelegate(self.theme_combo))
+        self._theme_delegate = ThemeSwatchDelegate(self.theme_combo)
+        self.theme_combo.setItemDelegate(self._theme_delegate)
+        self.theme_combo.currentIndexChanged.connect(self._sync_theme_check)
+        self._theme_delegate.set_current(str(self.theme_combo.currentData()))
         grid.addWidget(self.theme_combo, 2, 1)
 
         self._language_label = QLabel(tr("set_language"))
@@ -295,6 +298,9 @@ class SettingsPage(QWidget):
 
     # ---------- values ----------
 
+    def _sync_theme_check(self) -> None:
+        self._theme_delegate.set_current(str(self.theme_combo.currentData()))
+
     def load_values(self) -> None:
         interval = self._service.get("sample_interval_ms")
         index = self.interval_combo.findData(interval)
@@ -302,6 +308,7 @@ class SettingsPage(QWidget):
         theme_index = self.theme_combo.findData(self._service.get("theme"))
         self.theme_combo.setCurrentIndex(max(theme_index, 0))
         self._loaded_theme = str(self._service.get("theme"))
+        self._sync_theme_check()
         language_index = self.language_combo.findData(self._service.get("language"))
         self.language_combo.setCurrentIndex(max(language_index, 0))
         self.minimize_check.setChecked(self._service.get("minimize_to_tray"))

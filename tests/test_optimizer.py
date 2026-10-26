@@ -582,3 +582,64 @@ def test_default_backup_path_uses_data_root(tmp_path, monkeypatch) -> None:
     monkeypatch.setenv("PCOPTIMIZER_DATA", str(tmp_path))
     service = OptimizerService()
     assert service.backup_path == tmp_path / "optimizer_backup.json"
+
+
+def test_optimizer_preview_lists_before_and_after(qapp, tmp_path) -> None:
+    service = FakeOptimizerService(tmp_path)
+    page = OptimizerPage(service=service)
+    page.start_refresh()
+    assert _wait_until(qapp, lambda: page._state is not None)
+
+    # Nothing selected yet -> only the hint is shown.
+    assert not page.preview_hint.isHidden()
+    assert page.preview_rows["power"].isHidden()
+
+    page.select_profile("GAMING")
+    assert page.preview_hint.isHidden()
+    for key in ("power", "game_mode", "hags", "visual"):
+        assert not page.preview_rows[key].isHidden()
+
+    power = page.preview_rows["power"].text()
+    assert "Balanced" in power and "High performance" in power and "→" in power
+
+    # GAMING already has Game Mode on -> that row is marked as a no-op.
+    assert "no change" in page.preview_rows["game_mode"].text()
+
+    # HAGS is not set and we are not admin -> warning is visible.
+    assert not page.preview_admin.isHidden()
+    assert page.profile_cards["GAMING"][0].property("selected") is True
+    assert page.profile_cards["BALANCED"][0].property("selected") is False
+
+
+def test_optimizer_preview_marks_every_field_unchanged_for_balanced(qapp, tmp_path) -> None:
+    service = FakeOptimizerService(tmp_path)
+    page = OptimizerPage(service=service)
+    page.start_refresh()
+    assert _wait_until(qapp, lambda: page._state is not None)
+
+    page.select_profile("BALANCED")
+    for key in ("power", "game_mode", "hags", "visual"):
+        assert "no change" in page.preview_rows[key].text()
+    assert page.preview_admin.isHidden()
+
+
+def test_optimizer_preview_hides_admin_warning_for_admins(qapp, tmp_path) -> None:
+    from app.optimizer import OptimizerState
+
+    service = FakeOptimizerService(tmp_path)
+    service.fixed_state = OptimizerState(
+        power_guid=GUID_BALANCED,
+        power_name="Balanced",
+        game_mode=True,
+        hags=None,
+        visual_fx=0,
+        visual_name="Let Windows decide",
+        is_admin=True,
+    )
+    page = OptimizerPage(service=service)
+    page.start_refresh()
+    assert _wait_until(qapp, lambda: page._state is not None)
+
+    page.select_profile("GAMING")
+    assert "on" in page.preview_rows["hags"].text()
+    assert page.preview_admin.isHidden()
