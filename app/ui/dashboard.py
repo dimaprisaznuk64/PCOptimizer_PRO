@@ -802,10 +802,12 @@ class DashboardPage(QWidget):
     def closeEvent(self, event) -> None:
         self._proc_timer.stop()
         self._ping_timer.stop()
-        if self._proc_task:
+        if self._proc_task and self._proc_task.isRunning():
             self._proc_task.requestInterruption()
-        if self._ping_task:
+            self._proc_task.wait(3000)
+        if self._ping_task and self._ping_task.isRunning():
             self._ping_task.requestInterruption()
+            self._ping_task.wait(8000)
         super().closeEvent(event)
 
     def _refresh_ping(self) -> None:

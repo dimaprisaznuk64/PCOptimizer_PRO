@@ -257,6 +257,7 @@ class StartupService:
 
     def _task_items(self) -> list[StartupItem]:
         items: list[StartupItem] = []
+        errors: list[str] = []
         import pythoncom
         from win32com.client import Dispatch
 
@@ -265,8 +266,17 @@ class StartupService:
             service = Dispatch("Schedule.Service")
             service.Connect()
             self._collect_tasks(service.GetFolder("\\"), items)
+        except Exception as e:
+            errors.append(str(e))
         finally:
             pythoncom.CoUninitialize()
+        if errors:
+            try:
+                from app.logs import get_logger
+
+                get_logger("startup").warning("task scheduler enumeration failed: %s", "; ".join(errors))
+            except Exception:
+                pass
         return items
 
     def _collect_tasks(self, folder, items: list[StartupItem]) -> None:

@@ -87,7 +87,7 @@ class NvmlBackend(Backend):
         else:
             self._nvml_fail_count[index] = self._nvml_fail_count.get(index, 0) + 1
 
-        # If NVML continuously fails for 3+ polls, stop producing fake data
+        # If NVML continuously fails for 3+ polls, stop producing stale cached data
         if self._nvml_fail_count.get(index, 0) >= 3 and prev is not None:
             return None  # type: ignore[return-value]
 

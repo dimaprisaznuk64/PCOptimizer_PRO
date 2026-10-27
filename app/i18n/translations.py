@@ -196,6 +196,7 @@ TRANSLATIONS: dict[str, dict[str, str]] = {
         "gpu_clock": "clock",
         "gpu_power_limit": "power limit",
         "gpu_na": "n/a",
+        "gpu_stale": "(cached)",
         "gpu_of_total": "of {total} · {pct}% used",
         "gpu_of_limit": "of {limit}W limit",
 
@@ -472,6 +473,8 @@ TRANSLATIONS: dict[str, dict[str, str]] = {
         "bench_col_ms": "Duration (ms)",
         "bench_col_runs": "Runs",
         "bench_col_detail": "Detail",
+        "bench_col_min": "Min",
+        "bench_col_max": "Max",
         "bench_metric_cpu_single": "CPU · SHA-256 single-thread",
         "bench_metric_cpu_multi": "CPU · SHA-256 multi-thread",
         "bench_metric_ram_copy": "RAM · memcpy bandwidth",
@@ -1107,6 +1110,7 @@ TRANSLATIONS: dict[str, dict[str, str]] = {
         "gpu_clock": "частота",
         "gpu_power_limit": "ліміт потужності",
         "gpu_na": "н/д",
+        "gpu_stale": "(кеш)",
         "gpu_of_total": "з {total} · вик. {pct}%",
         "gpu_of_limit": "ліміт {limit}Вт",
 
@@ -1383,6 +1387,8 @@ TRANSLATIONS: dict[str, dict[str, str]] = {
         "bench_col_ms": "Тривалість (мс)",
         "bench_col_runs": "Прогони",
         "bench_col_detail": "Деталі",
+        "bench_col_min": "Мін",
+        "bench_col_max": "Макс",
         "bench_metric_cpu_single": "CPU · SHA-256, 1 потік",
         "bench_metric_cpu_multi": "CPU · SHA-256, багатопоток",
         "bench_metric_ram_copy": "RAM · копіювання (memcpy)",

@@ -31,6 +31,8 @@ from .theme import CARD_PADDING, DANGER, OK
 _COLUMNS = (
     "bench_col_metric",
     "bench_col_value",
+    "bench_col_min",
+    "bench_col_max",
     "bench_col_unit",
     "bench_col_ms",
     "bench_col_runs",
@@ -235,6 +237,8 @@ class BenchmarksPage(QWidget):
             cells = (
                 _metric_text(result.metric),
                 f"{result.value:.{decimals}f}",
+                f"{result.min_value:.{decimals}f}",
+                f"{result.max_value:.{decimals}f}",
                 result.unit,
                 str(result.duration_ms),
                 str(result.runs),

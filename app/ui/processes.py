@@ -382,22 +382,24 @@ class ProcessPage(QWidget):
         self._details_task.failed.connect(self._on_details_failed)
         self._details_task.start()
 
-    def _after_details(self) -> None:
+    def _after_details(self, started_pid: int | None = None) -> None:
         self._details_task = None
         wanted = self._want_pid
-        if wanted is not None and wanted != self._details_pid:
-            self._start_details(wanted)
+        if wanted is not None and wanted != started_pid:
+            if self._details_task is None:
+                self._start_details(wanted)
+            return
 
     def _apply_details(self, result: object) -> None:
         finished_pid = self._details_pid
         self._details_task = None
-        if isinstance(result, ProcessInfo) and result.pid == self._want_pid:
+        if isinstance(result, ProcessInfo) and result.pid == self._want_pid and self._want_pid == finished_pid:
             self._show_details(result)
-        if self._details_pid == finished_pid:
-            self._after_details()
+        self._after_details(finished_pid)
 
     def _on_details_failed(self, _message: str) -> None:
-        self._after_details()
+        finished_pid = self._details_pid
+        self._after_details(finished_pid)
 
     def _show_details(self, info: ProcessInfo | None, pending: bool = False) -> None:
         self._detail_info = info

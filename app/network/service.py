@@ -90,7 +90,10 @@ class NetworkService:
         host = host.strip()
         if not host:
             raise NetworkError("host is required")
-        timeout = max(10.0, count * 3.0 + 5.0)
+        if count <= 1:
+            timeout = max(5.0, count * 2.0 + 3.0)
+        else:
+            timeout = max(10.0, count * 3.0 + 5.0)
         code, out = self._run(("ping", "-n", str(count), host), timeout)
         return parse_ping(host, out, count, code)
 

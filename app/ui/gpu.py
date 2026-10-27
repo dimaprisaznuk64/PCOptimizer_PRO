@@ -68,7 +68,7 @@ class GpuPanel(QFrame):
     def update_gpu(self, g: GpuStat) -> None:
         title = f"GPU {g.index} · {g.name}"
         if g.stale:
-            title += " (cached)"
+            title += f" {tr('gpu_stale')}"
         self.name.setText(title)
 
         details: list[str] = []

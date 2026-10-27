@@ -55,7 +55,8 @@ class PerformanceHistory:
 
     Records one line per sample, throttled to at most one write every
     ``SAMPLE_INTERVAL_S`` seconds.  Old entries are trimmed on read so the
-    file never grows beyond ``max_age_hours``.
+    file never grows beyond ``max_age_hours``; a rewritten store is written
+    back atomically when trimming/dropping corrupt lines.
     """
 
     SAMPLE_INTERVAL_S = _SAMPLE_INTERVAL_S
