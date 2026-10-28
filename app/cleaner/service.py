@@ -244,6 +244,8 @@ class CleanerService:
     def clean(self, target: CleanTarget, known_bytes: int = 0, known_files: int = 0) -> CleanOutcome:
         if target.kind == "recycle":
             return self._empty_recycle(target, known_bytes, known_files)
+        if target.kind == "memory":
+            return self._purge_memory(target)
         return self._clean_files(target)
 
     def _scan_files(self, target: CleanTarget) -> ScanResult:

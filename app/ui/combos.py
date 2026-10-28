@@ -37,6 +37,7 @@ class CompactCombo(QComboBox):
         row = view.sizeHintForRow(0) or COMBO_HEIGHT
         if row < MIN_ROW_HEIGHT:  # swatch delegates need a taller row
             row = MIN_ROW_HEIGHT
+        row = max(row, view.fontMetrics().height() + 12)
 
         target = row * max(self.maxVisibleItems(), 1) + 10
         view.setMaximumHeight(target)
@@ -47,18 +48,28 @@ class CompactCombo(QComboBox):
 
         # Keep the popup compact: never wider than the field and never wider
         # than MAX_POPUP_WIDTH, even on very wide windows.
+        field_w = self.width()
+        if field_w <= 0:
+            field_w = self.sizeHint().width() or COMBO_WIDTH
         content_width = self.view().sizeHintForColumn(0) + 48
-        width = min(self.width(), max(280, min(content_width, MAX_POPUP_WIDTH)))
+        width = min(field_w, content_width)
+        width = min(width, MAX_POPUP_WIDTH)
+        width = max(1, width)
+
         # Never let the popup grow wider than the available screen width.
         screen = self.screen() or QApplication.primaryScreen()
         if screen is not None:
             available = screen.availableGeometry()
-            width = min(width, max(200, available.width() - 40))
-            if width > available.width():
-                width = min(width, available.width() - 8)
+            width = min(width, available.width() - 16)
+            width = min(width, available.width() - 8)
 
+        popup.setMinimumWidth(width)
+        popup.setMaximumWidth(min(field_w, MAX_POPUP_WIDTH))
         popup.resize(width, target + 12)
+        popup.setFixedWidth(min(field_w, MAX_POPUP_WIDTH))
         view.setGeometry(1, 6, max(popup.width() - 2, 1), target)
+        view.setMaximumWidth(popup.width() - 2)
+        view.setMinimumWidth(popup.width() - 2)
 
         screen = self.screen() or QApplication.primaryScreen()
         if screen is None:

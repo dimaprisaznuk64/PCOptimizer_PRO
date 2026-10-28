@@ -322,6 +322,9 @@ class HealthService:
         for item in items:
             if not (item.enabled and item.impact == "High"):
                 continue
+            # Never auto-disable scheduled tasks (updates/antivirus can break)
+            if getattr(item, "kind", "") == "task":
+                continue
             try:
                 self._startup.set_enabled(item, False)
             except Exception as e:
