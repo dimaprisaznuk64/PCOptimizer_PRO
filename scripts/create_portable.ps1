@@ -3,7 +3,8 @@ $ErrorActionPreference = "Stop"
 $root = Split-Path -Parent $PSScriptRoot
 $appDir = Join-Path $root "dist\PCOptimizer_PRO"
 $stageDir = Join-Path $root "dist\portable_stage"
-$zipPath = Join-Path $root "dist\PCOptimizer_PRO_1.6.3_portable.zip"
+$version = (Select-String -Path (Join-Path $root "app\__init__.py") -Pattern '__version__ = "([^"]+)"').Matches[0].Groups[1].Value
+$zipPath = Join-Path $root "dist\PCOptimizer_PRO_${version}_portable.zip"
 
 if (Test-Path $stageDir) { Remove-Item $stageDir -Recurse -Force }
 robocopy $appDir $stageDir /E /XD data __pycache__ /R:0 /W:0
