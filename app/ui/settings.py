@@ -2,8 +2,8 @@ from __future__ import annotations
 
 from pathlib import Path
 
-from PySide6.QtCore import Qt
-from PySide6.QtGui import QFont
+from PySide6.QtCore import Qt, QUrl
+from PySide6.QtGui import QDesktopServices, QFont
 from PySide6.QtWidgets import (
     QApplication,
     QCheckBox,
@@ -21,9 +21,11 @@ from PySide6.QtWidgets import (
     QWidget,
 )
 
+from app import __version__
 from app.i18n import I18nService, tr
 from app.logs import clear_logs, log_file, read_tail, setup_logging
 from app.settings import SettingsError, SettingsService, data_root
+from app.update import RELEASES_PAGE, UpdateService
 
 from .combos import COMBO_HEIGHT, COMBO_WIDTH_WIDE, CompactCombo, tune_combo
 from .components import CardTitleLabel
@@ -42,12 +44,17 @@ class SettingsPage(QWidget):
         log_directory: Path | str | None = None,
         parent: QWidget | None = None,
         on_theme_applied=None,
+        update_service: UpdateService | None = None,
     ) -> None:
         super().__init__(parent)
         self.setObjectName("page")
         self._service = service or SettingsService()
         self._log_directory = Path(log_directory) if log_directory is not None else None
         self._on_theme_applied = on_theme_applied
+        self._update_service = update_service
+        self._check_task = None
+        self._release_url = RELEASES_PAGE
+        self.last_update = None
 
         outer = QVBoxLayout(self)
         outer.setContentsMargins(0, 0, 0, 0)
@@ -140,6 +147,10 @@ class SettingsPage(QWidget):
         self.reset_button.setText(tr("set_reset_btn"))
         self.admin_button.setText(tr("set_restart_admin"))
         self.admin_button.setToolTip(tr("set_restart_admin_tip"))
+        self._version_label.setText(tr("set_version"))
+        self.update_check.setText(tr("set_update_check"))
+        self.check_updates_button.setText(tr("set_check_updates"))
+        self.release_button.setText(tr("set_open_release"))
         self.open_logs_button.setText(tr("set_open_folder"))
         self.refresh_button.setText(tr("set_refresh_log"))
         self.clear_button.setText(tr("set_clear_log"))
@@ -226,11 +237,40 @@ class SettingsPage(QWidget):
         self.temp_gpu_spin.setSizePolicy(QSizePolicy.Expanding, QSizePolicy.Fixed)
         grid.addWidget(self.temp_gpu_spin, 10, 1)
 
+        self._version_label = QLabel(tr("set_version"))
+        grid.addWidget(self._version_label, 11, 0)
+        version_row = QHBoxLayout()
+        version_row.setSpacing(8)
+        self.version_value = QLabel(f"v{__version__}")
+        self.version_value.setObjectName("cardSub")
+        version_row.addWidget(self.version_value)
+        self.release_button = QPushButton(tr("set_open_release"))
+        self.release_button.setProperty("secondary", True)
+        self.release_button.clicked.connect(self._open_release_page)
+        self.release_button.setVisible(False)
+        version_row.addWidget(self.release_button)
+        version_row.addStretch(1)
+        self.check_updates_button = QPushButton(tr("set_check_updates"))
+        self.check_updates_button.setProperty("secondary", True)
+        self.check_updates_button.clicked.connect(self.check_for_updates)
+        version_row.addWidget(self.check_updates_button)
+        grid.addLayout(version_row, 11, 1)
+
+        self.update_check = QCheckBox(tr("set_update_check"))
+        grid.addWidget(self.update_check, 12, 0, 1, 2)
+
+        self.update_status = QLabel("")
+        self.update_status.setObjectName("cardSub")
+        self.update_status.setWordWrap(True)
+        self.update_status.setVisible(False)
+        grid.addWidget(self.update_status, 13, 0, 1, 2)
+
         for check in (
             self.minimize_check,
             self.start_minimized_check,
             self.tray_metrics_check,
             self.temp_alerts_check,
+            self.update_check,
         ):
             check.setMinimumHeight(26)
 
@@ -314,6 +354,7 @@ class SettingsPage(QWidget):
         self.minimize_check.setChecked(self._service.get("minimize_to_tray"))
         self.start_minimized_check.setChecked(self._service.get("start_minimized"))
         self.tray_metrics_check.setChecked(self._service.get("tray_metrics"))
+        self.update_check.setChecked(bool(self._service.get("update_check_enabled")))
         self.temp_alerts_check.setChecked(self._service.get("temp_alerts_enabled"))
         self.temp_cpu_spin.setValue(int(self._service.get("temp_alert_cpu")))
         self.temp_gpu_spin.setValue(int(self._service.get("temp_alert_gpu")))
@@ -328,6 +369,7 @@ class SettingsPage(QWidget):
             "minimize_to_tray": self.minimize_check.isChecked(),
             "start_minimized": self.start_minimized_check.isChecked(),
             "tray_metrics": self.tray_metrics_check.isChecked(),
+            "update_check_enabled": self.update_check.isChecked(),
             "temp_alerts_enabled": self.temp_alerts_check.isChecked(),
             "temp_alert_cpu": int(self.temp_cpu_spin.value()),
             "temp_alert_gpu": int(self.temp_gpu_spin.value()),
@@ -369,6 +411,50 @@ class SettingsPage(QWidget):
             return
         self.load_values()
         self.status_label.setText(tr("set_reset_done"))
+
+    # ---------- updates ----------
+
+    def check_for_updates(self) -> None:
+        """Ask GitHub for the newest release in a background thread."""
+        if self._check_task is not None:
+            return
+        from .tasks import Task
+
+        self.last_update = None
+        self.release_button.setVisible(False)
+        self.update_status.setVisible(True)
+        self.update_status.setText(tr("set_upd_checking"))
+        self.check_updates_button.setEnabled(False)
+        service = self._update_service or UpdateService()
+        task = Task(service.check, parent=self)
+        task.done.connect(self._on_update_checked)
+        task.failed.connect(self._on_update_failed)
+        self._check_task = task
+        task.start()
+
+    def _finish_update_check(self) -> None:
+        self._check_task = None
+        self.check_updates_button.setEnabled(True)
+
+    def _on_update_checked(self, info) -> None:
+        self._finish_update_check()
+        self.last_update = info
+        if getattr(info, "error", None):
+            self.update_status.setText(tr("set_upd_failed", msg=info.error))
+            return
+        if getattr(info, "available", False):
+            self.update_status.setText(tr("set_upd_available", version=info.latest))
+            self._release_url = str(info.url)
+            self.release_button.setVisible(True)
+            return
+        self.update_status.setText(tr("set_upd_current", version=info.latest or info.current))
+
+    def _on_update_failed(self, message: str) -> None:
+        self._finish_update_check()
+        self.update_status.setText(tr("set_upd_failed", msg=message))
+
+    def _open_release_page(self) -> None:
+        QDesktopServices.openUrl(QUrl(self._release_url))
 
     # ---------- log preview ----------
 

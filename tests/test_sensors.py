@@ -202,3 +202,55 @@ def test_nvml_consecutive_failures_drop_gpu_after_threshold() -> None:
     assert len(backend.collect()["gpus"]) == 1  # sample 3 fail (stale)
     assert len(backend.collect()["gpus"]) == 0  # sample 4 fail (threshold reached)
 
+
+
+class _FakePsutil:
+    class _VM:
+        total = 16 * 1024**3
+        used = 8 * 1024**3
+        available = 8 * 1024**3
+        percent = 50.0
+
+    class _Net:
+        bytes_sent = 100
+        bytes_recv = 200
+        packets_sent = 1
+        packets_recv = 2
+
+    class _Freq:
+        current = 3200.0
+        max = 3600.0
+
+    def virtual_memory(self):
+        return self._VM()
+
+    def swap_memory(self):
+        raise RuntimeError("PdhAddEnglishCounterW failed. Performance counters may be disabled.")
+
+    def cpu_freq(self):
+        return self._Freq()
+
+    def cpu_percent(self, interval=None, percpu=False):
+        return [5.0, 5.0] if percpu else 5.0
+
+    def cpu_count(self, logical=True):
+        return 2
+
+    def disk_partitions(self, all=False):
+        return []
+
+    def net_io_counters(self):
+        return self._Net()
+
+
+def test_psutil_swap_failure_does_not_drop_other_metrics() -> None:
+    from app.sensors.psutil_backend import PsutilBackend
+
+    backend = PsutilBackend.__new__(PsutilBackend)
+    backend._psutil = _FakePsutil()
+    backend._prev_net = _FakePsutil().net_io_counters()
+    backend._prev_ts = time.monotonic()
+    part = backend.collect()
+    assert part["cpu"] and part["cpu"].percent == 5.0
+    assert part["memory"] and part["memory"].swap_total == 0
+    assert part["net"] and part["net"].bytes_recv == 200

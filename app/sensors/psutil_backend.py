@@ -22,8 +22,14 @@ class PsutilBackend(Backend):
     def collect(self) -> Partial:
         psutil = self._psutil
         vm = psutil.virtual_memory()
-        swap = psutil.swap_memory()
-        freq = psutil.cpu_freq()
+        try:
+            swap = psutil.swap_memory()
+        except (OSError, RuntimeError):
+            swap = None
+        try:
+            freq = psutil.cpu_freq()
+        except (OSError, RuntimeError):
+            freq = None
 
         disks: list[DiskStat] = []
         for part in psutil.disk_partitions(all=False):
@@ -66,9 +72,9 @@ class PsutilBackend(Backend):
                 used=vm.used,
                 available=vm.available,
                 percent=vm.percent,
-                swap_total=swap.total,
-                swap_used=swap.used,
-                swap_percent=swap.percent,
+                swap_total=swap.total if swap else 0,
+                swap_used=swap.used if swap else 0,
+                swap_percent=swap.percent if swap else 0.0,
             ),
             "disks": tuple(disks),
             "net": NetStat(

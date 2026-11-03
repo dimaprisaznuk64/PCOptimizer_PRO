@@ -108,6 +108,7 @@ def test_collect_values_shape(qapp, tmp_path) -> None:
         "minimize_to_tray",
         "start_minimized",
         "tray_metrics",
+        "update_check_enabled",
         "temp_alerts_enabled",
         "temp_alert_cpu",
         "temp_alert_gpu",
@@ -120,3 +121,46 @@ def test_collect_values_shape(qapp, tmp_path) -> None:
     assert isinstance(values["temp_alerts_enabled"], bool)
     assert isinstance(values["temp_alert_cpu"], int)
     assert isinstance(values["temp_alert_gpu"], int)
+
+
+def test_update_widgets_follow_settings(qapp, tmp_path) -> None:
+    from app import __version__
+
+    service = SettingsService(tmp_path / "settings.json")
+    service.set("update_check_enabled", False)
+    page = SettingsPage(service, log_directory=tmp_path / "logs")
+    assert page.update_check.isChecked() is False
+    assert page.version_value.text() == f"v{__version__}"
+    assert page.release_button.isHidden()
+
+
+def test_check_reports_available_update(qapp, tmp_path) -> None:
+    from app.update import UpdateInfo
+
+    page = _page(qapp, tmp_path)
+    page._on_update_checked(
+        UpdateInfo(
+            current="1.6.5",
+            latest="1.7.0",
+            available=True,
+            url="https://github.com/dimaprisaznuk64/PCOptimizer_PRO/releases/tag/v1.7.0",
+        )
+    )
+    assert page.update_status.text() == "Update available: v1.7.0"
+    assert page.release_button.isHidden() is False
+
+
+def test_check_reports_latest_version(qapp, tmp_path) -> None:
+    from app.update import UpdateInfo
+
+    page = _page(qapp, tmp_path)
+    page._on_update_checked(UpdateInfo(current="1.6.5", latest="1.6.5"))
+    assert page.update_status.text() == "You have the latest version (v1.6.5)"
+    assert page.release_button.isHidden()
+
+
+def test_check_failure_is_shown(qapp, tmp_path) -> None:
+    page = _page(qapp, tmp_path)
+    page._on_update_failed("no internet")
+    assert page.update_status.text() == "Update check failed: no internet"
+    assert page.check_updates_button.isEnabled()

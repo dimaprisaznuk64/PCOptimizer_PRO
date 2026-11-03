@@ -89,6 +89,7 @@ class MainWindow(QMainWindow):
         self.resize(1280, 800)
         self.sampler: SensorSampler | None = None
         self.tray: AppTray | None = None
+        self._update_task = None
         self.settings = settings or SettingsService()
         self._force_quit = False
         self._last_snapshot = None
@@ -417,6 +418,47 @@ class MainWindow(QMainWindow):
         except (AttributeError, RuntimeError):
             pass
 
+    # ---------- update check ----------
+
+    def schedule_update_check(self, delay_ms: int = 4000) -> None:
+        """Ask GitHub for a newer release once, shortly after startup."""
+        from PySide6.QtCore import QTimer
+
+        if not self.settings.get("update_check_enabled"):
+            return
+        QTimer.singleShot(delay_ms, self._auto_update_check)
+
+    def _auto_update_check(self) -> None:
+        from app.update import UpdateService
+
+        from .tasks import Task
+
+        if self._update_task is not None:
+            return
+        task = Task(UpdateService().check, parent=self)
+        task.done.connect(self._on_update_result)
+        task.failed.connect(self._on_update_check_failed)
+        self._update_task = task
+        task.start()
+
+    def _on_update_check_failed(self, _message: str) -> None:
+        self._update_task = None
+
+    def _on_update_result(self, info) -> None:
+        self._update_task = None
+        if not getattr(info, "available", False):
+            return
+        from app.logs import get_logger
+
+        from .activity import record
+
+        title = tr("upd_title")
+        body = tr("upd_available_msg", version=info.latest)
+        if self.tray is not None:
+            self.tray.show_message(title, body)
+        record(title, body, level="warn")
+        get_logger("update").info("update available: %s (%s)", info.latest, info.url)
+
     # ---------- lifecycle ----------
 
     def closeEvent(self, event) -> None:
@@ -504,6 +546,7 @@ def run(argv: list[str] | None = None) -> int:
     else:
         window.show()
     window.schedule_health_scan()
+    window.schedule_update_check()
     sampler.start()
     try:
         return app.exec()

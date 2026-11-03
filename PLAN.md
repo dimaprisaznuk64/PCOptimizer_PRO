@@ -1,30 +1,34 @@
 # Development Plan
 
 ## Status
-- Core audit of page headers completed.
-- `CardTitleLabel` usage unified across all components.
-- All section headers converted to `card_heading` across the 17 pages.
-- Card padding / radius / page rhythm unified (`e5622a3`).
-- Processes page de-lagged: fixed column widths, unchanged renders skipped, async details (`cb8d039`).
-- New shipped default theme **TITANIUM** (deep cyber-blue re-skin of the palette).
-- Pytest suite is passing (504 tests).
+- Version bumped to **v1.6.6** (unreleased): update check, sensor resilience,
+  refreshed docs; local portable exe built and smoke-tested.
+- Released **v1.6.5** (`48db527`) — installer, portable build and GitHub release.
+- Audit findings **A-01…A-14** (`docs/AUDIT_v1.6.1.md`) closed across v1.6.2–v1.6.5.
+- 17 pages, 29 themes, default theme **TITANIUM**.
+- Pytest suite is passing (556 tests).
 - Ruff linter is clean.
 - Offscreen rendering smoke test verified.
-- Release **v1.6.1** prepared (exe + portable + installer + GitHub release).
+- Sensor backend made resilient on PCs where Windows performance counters are
+  disabled: `psutil.swap_memory()` / `cpu_freq()` failures no longer drop every
+  other metric (regression test added).
+- Optional update check against GitHub `releases/latest` added: startup check
+  (can be turned off in Settings), "Check now" button, version display and
+  release-page link; results go to the activity log + tray notification.
 
 ## Accomplishments
-- Audit every page's section headers (cardTitle usage) + retranslate title refs (Verified).
-- Convert all card section titles to card_heading (Verified).
-- Bring dashboard custom cards onto shared tokens (Verified).
-- Remove inline font deviations (Verified).
-- Unify header badges (pageBadge) across pages (Verified).
-- Fix the `CardTitleLabel` AttributeError (document property) (Verified).
-- Make the theme default name a single source of truth (`theme.DEFAULT_THEME`), tests no longer hardcode `GRAPHITE` (Verified).
-- Run pytest + ruff (Verified).
-- Offscreen render smoke test (Verified).
-- Regenerate the 17 release screenshots in the new default theme (Verified).
+- Unified `CardTitleLabel` / `card_heading` across all 17 pages.
+- Unified card padding, radius and page rhythm (`e5622a3`).
+- Processes page de-lagged: fixed column widths, unchanged renders skipped,
+  async details (`cb8d039`).
+- Theme default is a single source of truth (`theme.DEFAULT_THEME`).
+- Regenerated release screenshots for v1.6.5.
+- Hardened sensors for machines without PDH counters.
+- Added the GitHub release update check with injected fetcher for tests.
 
 ## Next
-- Publish the v1.6.1 GitHub release and refresh the installed `app_run` build.
+- Commit v1.6.6 and push the `v1.6.6` tag — CI builds the installer, portable
+  zip and GitHub release.
 - Optional: light-theme (Arctic/Ivory) polish pass over all 17 pages.
-- Optional: auto-update check against GitHub `releases/latest`.
+- Optional: wire `mypy` into the verification routine and fix the first batch
+  of findings.

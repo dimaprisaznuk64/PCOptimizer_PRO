@@ -19,6 +19,7 @@ DEFAULTS: dict[str, Any] = {
     "minimize_to_tray": True,
     "start_minimized": False,
     "tray_metrics": True,
+    "update_check_enabled": True,
     "log_level": "INFO",
     "theme": "TITANIUM",
     "language": "UA",
