@@ -1,5 +1,8 @@
 from __future__ import annotations
 
+import os
+import subprocess
+import sys
 import time
 
 import pytest
@@ -357,6 +360,29 @@ def test_live_list_items_no_mutation() -> None:
     for item in items:
         assert item.impact in ("High", "Medium", "Low")
         assert item.kind in ("registry", "folder", "task")
+
+
+def test_com_teardown_does_not_crash() -> None:
+    """COM objects must not outlive their apartment (regression: access violation)."""
+    code = (
+        "from app.startup.service import StartupService\n"
+        "for _ in range(2):\n"
+        "    StartupService().list_items()\n"
+        "print('OK')\n"
+    )
+    env = os.environ.copy()
+    env.setdefault("QT_QPA_PLATFORM", "offscreen")
+    proc = subprocess.run(
+        [sys.executable, "-X", "faulthandler", "-c", code],
+        capture_output=True,
+        text=True,
+        env=env,
+    )
+    output = proc.stdout + proc.stderr
+    assert proc.returncode == 0, output
+    assert "access violation" not in output.lower(), output
+    assert "Win32 exception occurred releasing IUnknown" not in output, output
+    assert "OK" in proc.stdout
 
 
 # ---------- UI ----------

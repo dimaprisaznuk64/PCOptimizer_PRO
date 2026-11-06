@@ -25,7 +25,11 @@ class SensorManager:
             try:
                 backends.append(factory())
             except SensorUnavailable as e:
-                unavailable[factory.name] = str(e)
+                # Thermal (ACPI) sensors are optional on many boards; their
+                # unavailability is expected and surfaced as missing data, not
+                # as a warning.
+                if factory.name != "thermal":
+                    unavailable[factory.name] = str(e)
         return cls(backends, unavailable)
 
     @classmethod
@@ -45,7 +49,8 @@ class SensorManager:
             try:
                 part = backend.collect()
             except Exception as e:
-                errors[backend.name] = str(e) or type(e).__name__
+                if backend.name != "thermal":
+                    errors[backend.name] = str(e) or type(e).__name__
                 continue
             for key, value in part.items():
                 if value is None or key in data:

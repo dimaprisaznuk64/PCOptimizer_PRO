@@ -1035,8 +1035,9 @@ class DashboardPage(QWidget):
         if thermal_rows:
             self.thermal.set_rows(thermal_rows, marker=85.0)
 
-        if s.errors:
-            self.errors.setText(tr("dash_sensors_err", msg=" · ".join(f"{k}: {v}" for k, v in s.errors.items())))
+        shown_errors = {k: v for k, v in s.errors.items() if k != "thermal"}
+        if shown_errors:
+            self.errors.setText(tr("dash_sensors_err", msg=" · ".join(f"{k}: {v}" for k, v in shown_errors.items())))
             self.errors.setVisible(True)
         else:
             self.errors.setVisible(False)

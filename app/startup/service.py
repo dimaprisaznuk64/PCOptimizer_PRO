@@ -9,6 +9,7 @@ from dataclasses import dataclass
 from pathlib import Path
 
 from app.settings import data_root
+from app.wincom import run_in_com
 
 APPROVED_RUN = r"Software\Microsoft\Windows\CurrentVersion\Explorer\StartupApproved\Run"
 APPROVED_FOLDER = r"Software\Microsoft\Windows\CurrentVersion\Explorer\StartupApproved\StartupFolder"
@@ -133,18 +134,16 @@ def _target_size(command: str) -> int | None:
 
 
 def _resolve_lnk(path: str) -> str:
-    try:
-        import pythoncom
+    def work() -> str:
         from win32com.client import Dispatch
 
-        pythoncom.CoInitialize()
-        try:
-            shortcut = Dispatch("WScript.Shell").CreateShortCut(path)
-            target = shortcut.Targetpath or ""
-            arguments = shortcut.Arguments or ""
-            return f"{target} {arguments}".strip()
-        finally:
-            pythoncom.CoUninitialize()
+        shortcut = Dispatch("WScript.Shell").CreateShortCut(path)
+        target = shortcut.Targetpath or ""
+        arguments = shortcut.Arguments or ""
+        return f"{target} {arguments}".strip()
+
+    try:
+        return run_in_com(work)
     except Exception:
         return path
 
@@ -258,18 +257,18 @@ class StartupService:
     def _task_items(self) -> list[StartupItem]:
         items: list[StartupItem] = []
         errors: list[str] = []
-        import pythoncom
-        from win32com.client import Dispatch
 
-        pythoncom.CoInitialize()
-        try:
+        def work() -> None:
+            from win32com.client import Dispatch
+
             service = Dispatch("Schedule.Service")
             service.Connect()
             self._collect_tasks(service.GetFolder("\\"), items)
+
+        try:
+            run_in_com(work)
         except Exception as e:
             errors.append(str(e))
-        finally:
-            pythoncom.CoUninitialize()
         if errors:
             try:
                 from app.logs import get_logger
@@ -510,16 +509,16 @@ class StartupService:
     def _task_set_enabled(self, item: StartupItem, enabled: bool) -> None:
         if item.task_path is None:
             raise StartupError("item is missing task locator")
-        import pythoncom
-        from win32com.client import Dispatch
 
-        pythoncom.CoInitialize()
-        try:
+        def work() -> None:
+            from win32com.client import Dispatch
+
             service = Dispatch("Schedule.Service")
             service.Connect()
             task = service.GetFolder("\\").GetTask(item.task_path)
             task.Enabled = bool(enabled)
+
+        try:
+            run_in_com(work)
         except Exception as e:
             raise StartupError(f"cannot change task {item.name}: {e}") from e
-        finally:
-            pythoncom.CoUninitialize()

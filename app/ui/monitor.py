@@ -272,8 +272,9 @@ class MonitorPage(QWidget):
                 [(zone_label(name), value, f"{value:.0f}°C") for name, value in s.thermal.temperatures]
             )
 
-        if s.errors:
-            self.errors.setText(tr("mon_sensors", msg=" · ".join(f"{k}: {v}" for k, v in s.errors.items())))
+        shown_errors = {k: v for k, v in s.errors.items() if k != "thermal"}
+        if shown_errors:
+            self.errors.setText(tr("mon_sensors", msg=" · ".join(f"{k}: {v}" for k, v in shown_errors.items())))
             self.errors.setVisible(True)
         else:
             self.errors.setText("")

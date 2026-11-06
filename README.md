@@ -14,7 +14,7 @@
   <img src="https://img.shields.io/badge/platform-Windows%2010%2F11%20x64-0078D6" alt="Platform">
   <img src="https://img.shields.io/badge/python-3.13-3776AB" alt="Python">
   <img src="https://img.shields.io/badge/UI-PySide6%20(Qt%206)-41CD52" alt="PySide6">
-  <img src="https://img.shields.io/badge/tests-562%20passed-brightgreen" alt="Tests">
+  <img src="https://img.shields.io/badge/tests-563%20passed-brightgreen" alt="Tests">
   <a href="https://github.com/dimaprisaznuk64/PCOptimizer_PRO/actions/workflows/ci.yml"><img src="https://github.com/dimaprisaznuk64/PCOptimizer_PRO/actions/workflows/ci.yml/badge.svg" alt="CI"></a>
   <img src="https://img.shields.io/badge/license-MIT-green" alt="License">
   <img src="https://img.shields.io/badge/version-1.6.7-blue" alt="Version">
@@ -184,7 +184,7 @@
 
 - **Python 3.13** + **PySide6** (Qt 6; 29 вбудованих тем, тема за замовчуванням — Titanium, вбудовані шрифти Inter / JetBrains Mono)
 - **psutil** — CPU/RAM/диски/мережа, **nvidia-ml-py** (NVML) — GPU, **WMI** — температури, **pywin32** — COM/Task Scheduler/кошик
-- **pytest** — 562 тестів
+- **pytest** — 563 тестів
 - **PyInstaller** — збірка .exe, **Inno Setup** — інсталятор
 
 ## Безпека понад усе
@@ -256,7 +256,7 @@ app/
   logs/                  — ротаційне логування
   i18n/                  — локалізація UA / EN
   core/, hardware/, monitor/, health/, diagnostics/, alerts/, benchmarks/, gaming/ — допоміжні модулі
-tests/                   — pytest-тести (562)
+tests/                   — pytest-тести (563)
 scripts/                 — збірка exe/інсталятора, генерація іконки
 installer/               — скрипт Inno Setup
 docs/screenshots/        — скріншоти

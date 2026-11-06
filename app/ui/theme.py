@@ -79,16 +79,16 @@ PALETTES: dict[str, dict] = {
     },
     "TITANIUM": {
         **_BASE,
-        "BG": "#04060A", "PANEL": "#0A0D13", "PANEL_ALT": "#11151E", "BORDER": "#1A202C", "BORDER_HI": "#2A364A",
-        "TEXT": "#F5F7FA", "TEXT_DIM": "#8E9BA8", "ACCENT": "#22D3EE", "ACCENT_HOVER": "#67E8F9",
-        "ACCENT_TINT": "#0A2A36", "ACCENT_PRESSED": "#06B6D4", "ON_ACCENT": "#031E26",
-        "DANGER": "#F87171", "OK": "#34D399", "WARN": "#FBBF24",
-        "SIDEBAR_TOP": "#070A10", "SIDEBAR_BOTTOM": "#030508", "HOVER": "#151B27",
-        "DANGER_BG": "#2D1517", "DANGER_BORDER": "#66282A", "DANGER_BG_HOVER": "#3C1C1E",
-        "OK_BG": "#0C261D", "WARN_BG": "#2E2311", "HERO_TOP": "#0E1626",
-        "BRAND_A": "#22D3EE", "BRAND_B": "#818CF8", "GLOW_A": "#22D3EE", "GLOW_B": "#818CF8",
-        "GLOW_ALPHA_A": 32, "GLOW_ALPHA_B": 20,
-        "C1": "#22D3EE", "C2": "#818CF8", "C3": "#A78BFA", "C4": "#2DD4BF",
+        "BG": "#03050B", "PANEL": "#080C16", "PANEL_ALT": "#0F1422", "BORDER": "#1A2438", "BORDER_HI": "#2E4066",
+        "TEXT": "#F8FAFC", "TEXT_DIM": "#94A3B8", "ACCENT": "#00E5FF", "ACCENT_HOVER": "#38F3FF",
+        "ACCENT_TINT": "#0A2533", "ACCENT_PRESSED": "#00B8D4", "ON_ACCENT": "#001018",
+        "DANGER": "#FF5C7A", "OK": "#00FFA3", "WARN": "#FFB84D",
+        "SIDEBAR_TOP": "#050812", "SIDEBAR_BOTTOM": "#02030A", "HOVER": "#131C30",
+        "DANGER_BG": "#2A1218", "DANGER_BORDER": "#6B2A36", "DANGER_BG_HOVER": "#3A1820",
+        "OK_BG": "#0A261A", "WARN_BG": "#2E2410", "HERO_TOP": "#0A1830",
+        "BRAND_A": "#00E5FF", "BRAND_B": "#8B5CF6", "GLOW_A": "#00E5FF", "GLOW_B": "#8B5CF6",
+        "GLOW_ALPHA_A": 50, "GLOW_ALPHA_B": 35,
+        "C1": "#00E5FF", "C2": "#8B5CF6", "C3": "#FF5C9D", "C4": "#00FFA3",
     },
     "FOREST": {
         **_BASE,
@@ -931,8 +931,9 @@ QWidget#page QScrollArea, QWidget#page QScrollArea > QWidget > QWidget {{
     background: transparent;
 }}
 QFrame#card {{
-    background: qlineargradient(x1:0, y1:0, x2:0, y2:1, stop:0 {_mix(PANEL, TEXT, 0.035)}, stop:1 {PANEL});
-    border: 1px solid {BORDER};
+    background: qlineargradient(x1:0, y1:0, x2:0, y2:1, stop:0 {_mix(PANEL, TEXT, 0.06)}, stop:1 {PANEL});
+    border: 1px solid {BORDER_HI};
+    border-top: 1px solid {_mix(BORDER_HI, ACCENT, 0.35)};
     border-radius: {RADIUS_LG}px;
 }}
 QLabel#cardValue, QLabel#gaugeValue, QLabel#heroValue, QLabel#ringValue, QLabel#clock, QLabel#scoreValue, QLabel#statValue {{
@@ -954,8 +955,9 @@ QLabel#pageDesc {{
     letter-spacing: 0.01em;
 }}
 QFrame#card {{
-    background: qlineargradient(x1:0, y1:0, x2:0, y2:1, stop:0 {_mix(PANEL, TEXT, 0.035)}, stop:1 {PANEL});
-    border: 1px solid {BORDER};
+    background: qlineargradient(x1:0, y1:0, x2:0, y2:1, stop:0 {_mix(PANEL, TEXT, 0.06)}, stop:1 {PANEL});
+    border: 1px solid {BORDER_HI};
+    border-top: 1px solid {_mix(BORDER_HI, ACCENT, 0.35)};
     border-radius: {RADIUS_LG}px;
 }}
 QLabel#cardTitle {{
@@ -1089,8 +1091,8 @@ QListWidget#historyList::item:selected {{
     border-radius: 6px;
 }}
 QFrame#hero {{
-    background: qlineargradient(x1:0, y1:0, x2:1, y2:1, stop:0 {HERO_TOP}, stop:1 {PANEL});
-    border: 1px solid {BORDER_HI};
+    background: qlineargradient(x1:0, y1:0, x2:1, y2:1, stop:0 {HERO_TOP}, stop:0.6 {PANEL}, stop:1 {PANEL_ALT});
+    border: 1px solid {_mix(BORDER_HI, ACCENT, 0.4)};
     border-radius: {RADIUS_LG}px;
 }}
 QLabel#ringValue {{
