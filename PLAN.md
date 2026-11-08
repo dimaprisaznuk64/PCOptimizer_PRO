@@ -1,9 +1,9 @@
 # Development Plan
 
 ## Status
-- Released **v1.6.6** (`fe183d4`) — GitHub update check, resilient sensors.
-- **v1.6.7** (unreleased, committed locally): post-1.6.5 reliability audit merged
-  on top of v1.6.6:
+- Released **v1.6.7** (`3470bbd`) — post-1.6.5 reliability audit merged on top
+  of v1.6.6 (exe + portable + installer built, tag pushed, GitHub release
+  published):
   - Steam VDF library paths are decoded without `unicode_escape`, so non-ASCII
     paths (e.g. `D:\Ігри\Steam`) stay intact.
   - Optimizer backup stores the raw HAGS DWORD and restores it exactly (a `0`
@@ -29,8 +29,6 @@
 - Decoded Steam library paths safely; snapshot the exact HAGS DWORD.
 
 ## Next
-- Build v1.6.7 exe + portable + installer, then push the `v1.6.7` tag and
-  publish the GitHub release.
 - Optional: light-theme (Arctic/Ivory) polish pass over all 17 pages.
 - Optional: wire `mypy` into the verification routine and fix the first batch
   of findings.
