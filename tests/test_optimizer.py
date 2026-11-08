@@ -51,6 +51,7 @@ class FakeSystem:
         self.admin = False
         self.fail_powercfg = False
         self.fail_restore = False
+        self.fail_reg: set[tuple[str, str, str]] = set()
         self.restore = FakeRestore()
 
     def run(self, args, timeout):
@@ -87,6 +88,8 @@ class FakeSystem:
         return True
 
     def reg_get(self, hive: str, key: str, name: str) -> int:
+        if (hive, key, name) in self.fail_reg:
+            raise OSError(f"access denied while reading {name}")
         try:
             return self.reg[(hive, key, name)]
         except KeyError:
@@ -333,6 +336,72 @@ def test_revert_removes_values_that_were_absent(fake, tmp_path) -> None:
     assert ("HKCU", GAMEMODE_KEY, GAMEMODE_VALUE) not in fake.reg
     assert ("HKLM", HAGS_KEY, HAGS_VALUE) not in fake.reg
     assert any("removed" in a for a in report.applied)
+
+
+def test_revert_restores_hags_raw_zero(fake, tmp_path) -> None:
+    # HAGS=0 means "off, set explicitly". A bool round-trip would turn it into
+    # 1 on revert; the raw DWORD must be restored exactly.
+    fake.admin = True
+    fake.reg[("HKLM", HAGS_KEY, HAGS_VALUE)] = 0
+    service = fake.make_service(tmp_path)
+
+    service.apply_profile("GAMING", with_restore_point=False)
+    assert fake.reg[("HKLM", HAGS_KEY, HAGS_VALUE)] == 2
+
+    report = service.revert()
+    assert report.errors == ()
+    assert fake.reg[("HKLM", HAGS_KEY, HAGS_VALUE)] == 0
+    assert any("raw value 0" in a for a in report.applied)
+
+
+def test_backup_records_raw_hags(fake, tmp_path) -> None:
+    import json
+
+    fake.admin = True
+    fake.reg[("HKLM", HAGS_KEY, HAGS_VALUE)] = 0
+    service = fake.make_service(tmp_path)
+    service.apply_profile("BALANCED", with_restore_point=False)
+    data = json.loads((tmp_path / "backup.json").read_text(encoding="utf-8"))
+    assert data["hags_raw"] == 0
+    assert data["hags"] is False
+
+
+def test_apply_aborts_when_power_plan_unreadable(fake, tmp_path) -> None:
+    # Without a snapshot of the active plan a later revert cannot restore it,
+    # so apply must refuse before touching anything.
+    fake.admin = True
+    fake.fail_powercfg = True
+    service = fake.make_service(tmp_path)
+    with pytest.raises(OptimizerError, match="power plan"):
+        service.apply_profile("BALANCED", with_restore_point=False)
+    assert not service.backup_exists()
+    assert not any(c[:2] == ("powercfg", "/setactive") for c in fake.commands)
+    assert fake.reg[("HKCU", GAMEMODE_KEY, GAMEMODE_VALUE)] == 1
+
+
+def test_apply_aborts_when_spec_value_unreadable(fake, tmp_path) -> None:
+    # GAMING touches HAGS; if it cannot be read, abort rather than apply and
+    # leave the setting unrevertable.
+    fake.admin = True
+    fake.fail_reg.add(("HKLM", HAGS_KEY, HAGS_VALUE))
+    service = fake.make_service(tmp_path)
+    with pytest.raises(OptimizerError, match="aborting before any change"):
+        service.apply_profile("GAMING", with_restore_point=False)
+    assert not service.backup_exists()
+    assert fake.power_guid == GUID_BALANCED
+    assert not any(c[:2] == ("powercfg", "/setactive") for c in fake.commands)
+
+
+def test_apply_ignores_unrelated_unreadable_value(fake, tmp_path) -> None:
+    # BALANCED only changes the power plan, so an unreadable HAGS must not
+    # block it — the backup simply leaves that setting untouched.
+    fake.admin = True
+    fake.fail_reg.add(("HKLM", HAGS_KEY, HAGS_VALUE))
+    service = fake.make_service(tmp_path)
+    report = service.apply_profile("BALANCED", with_restore_point=False)
+    assert report.errors == ()
+    assert fake.power_guid == GUID_BALANCED
+    assert service.backup_exists()
 
 
 def test_revert_removes_hags_without_admin(fake, tmp_path) -> None:

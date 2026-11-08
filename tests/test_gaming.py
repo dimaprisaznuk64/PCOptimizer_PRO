@@ -108,6 +108,40 @@ def test_default_steam_roots_returns_list() -> None:
     assert len(roots) == len(set(r.lower() for r in roots))
 
 
+def test_default_steam_roots_decodes_vdf_paths(tmp_path, monkeypatch) -> None:
+    # VDF escapes only backslashes/quotes; non-ASCII library paths must survive
+    # intact (a unicode_escape round-trip would mangle "Ігри").
+    import os
+    import winreg
+
+    steam_root = tmp_path / "Steam"
+    (steam_root / "steamapps").mkdir(parents=True)
+    (steam_root / "steamapps" / "libraryfolders.vdf").write_text(
+        '"libraryfolders"\n'
+        "{\n"
+        '    "0"\n    {\n        "path"        "D:\\\\Games\\\\Steam"\n    }\n'
+        '    "1"\n    {\n        "path"        "D:\\\\Ігри\\\\Steam"\n    }\n'
+        "}\n",
+        encoding="utf-8",
+    )
+
+    class _Key:
+        def __enter__(self):
+            return self
+
+        def __exit__(self, *exc):
+            return False
+
+    monkeypatch.setattr(winreg, "OpenKey", lambda *a, **k: _Key())
+    monkeypatch.setattr(winreg, "QueryValueEx", lambda key, name: (str(steam_root), 1))
+    monkeypatch.setattr(os.path, "isdir", lambda path: False)
+
+    roots = default_steam_roots()
+    assert str(steam_root) in roots
+    assert "D:\\Games\\Steam" in roots
+    assert "D:\\Ігри\\Steam" in roots
+
+
 # ---------- custom games ----------
 
 

@@ -179,7 +179,7 @@ class OptimizerService:
             restore_label = result.label
             restore_status = STATUS_CREATED
 
-        self._save_backup(profile)
+        self._save_backup(profile, spec)
 
         applied: list[str] = []
         errors: list[str] = []
@@ -251,9 +251,17 @@ class OptimizerService:
                 errors.append(str(e))
 
         hags = backup.get("hags")
+        hags_raw = backup.get("hags_raw")
         if backup.get("hags_read_ok", True):
             try:
-                if hags is None:
+                if isinstance(hags_raw, int) and not isinstance(hags_raw, bool):
+                    # Restore the exact DWORD that was there before (0/1/2),
+                    # not a bool round-trip that would turn 0 into 1.
+                    self._write_hags(hags_raw)
+                    applied.append(
+                        f"hardware-accelerated GPU scheduling → raw value {hags_raw}"
+                    )
+                elif hags is None:
                     self._delete_hags()
                     applied.append("hardware-accelerated GPU scheduling → removed (was unset)")
                 elif isinstance(hags, bool):
@@ -312,7 +320,9 @@ class OptimizerService:
 
     # ---------- backup ----------
 
-    def _save_backup(self, profile: str | None = None) -> None:
+    def _save_backup(
+        self, profile: str | None = None, spec: dict[str, object] | None = None
+    ) -> None:
         # The backup represents the state *before our first change*. Keeping the
         # first snapshot means switching profiles twice still restores the
         # original Windows settings instead of the intermediate ones.
@@ -334,8 +344,22 @@ class OptimizerService:
             return
         state = self.state()
         _gm, gm_err = self._reg_get_dword("HKCU", GAMEMODE_KEY, GAMEMODE_VALUE)
-        _hags, hags_err = self._reg_get_dword("HKLM", HAGS_KEY, HAGS_VALUE)
+        hags_raw, hags_err = self._reg_get_dword("HKLM", HAGS_KEY, HAGS_VALUE)
         _vis, vis_err = self._reg_get_dword("HKCU", VISUAL_KEY, VISUAL_VALUE)
+        # Refuse to change anything we could not snapshot: otherwise revert()
+        # would silently skip that setting and leave the machine modified.
+        if state.power_guid is None:
+            raise OptimizerError(
+                "cannot read the active power plan — aborting before any change "
+                "so revert stays possible"
+            )
+        for key, err in (
+            ("game_mode", gm_err),
+            ("hags", hags_err),
+            ("visual", vis_err),
+        ):
+            if spec and key in spec and err is not None:
+                raise OptimizerError(f"{err} — aborting before any change")
         data = {
             "ts": time.time(),
             "profile": profile,
@@ -347,6 +371,8 @@ class OptimizerService:
             # a value that could not be read is left untouched to stay safe.
             "game_mode_read_ok": gm_err is None,
             "hags": state.hags,
+            # Raw DWORD so revert can restore 0 exactly instead of 1.
+            "hags_raw": hags_raw,
             "hags_read_ok": hags_err is None,
             "visual_fx": state.visual_fx,
             "visual_fx_read_ok": vis_err is None,
@@ -372,7 +398,9 @@ class OptimizerService:
     # ---------- primitives ----------
 
     def _set_hags(self, enabled: bool) -> None:
-        value = 2 if enabled else 1
+        self._write_hags(2 if enabled else 1)
+
+    def _write_hags(self, value: int) -> None:
         if self._is_admin():
             self._reg_set_dword("HKLM", HAGS_KEY, HAGS_VALUE, value)
         else:

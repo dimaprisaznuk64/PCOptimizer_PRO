@@ -71,7 +71,9 @@ def default_steam_roots() -> list[str]:
         except OSError:
             continue
         for match in re.finditer(r'"path"\s*"([^"]+)"', text):
-            path = match.group(1).encode("utf-8").decode("unicode_escape")
+            # VDF only escapes backslashes and quotes. Decoding via
+            # unicode_escape would mangle non-ASCII library paths (e.g. "Ігри").
+            path = match.group(1).replace("\\\\", "\\").replace('\\"', '"')
             libraries.append(path)
     roots.extend(libraries)
 
