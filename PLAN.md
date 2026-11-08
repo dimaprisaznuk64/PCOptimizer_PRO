@@ -1,20 +1,21 @@
 # Development Plan
 
 ## Status
-- Version bumped to **v1.6.6** (unreleased): update check, sensor resilience,
-  refreshed docs; local portable exe built and smoke-tested.
-- Released **v1.6.5** (`48db527`) — installer, portable build and GitHub release.
+- Released **v1.6.6** (`fe183d4`) — GitHub update check, resilient sensors.
+- **v1.6.7** (unreleased, committed locally): post-1.6.5 reliability audit merged
+  on top of v1.6.6:
+  - Steam VDF library paths are decoded without `unicode_escape`, so non-ASCII
+    paths (e.g. `D:\Ігри\Steam`) stay intact.
+  - Optimizer backup stores the raw HAGS DWORD and restores it exactly (a `0`
+    snapshot no longer becomes `1`); `apply_profile()` refuses to change a
+    setting it could not snapshot, so revert always stays possible.
+  - Regression tests added for both fixes (+6 tests).
 - Audit findings **A-01…A-14** (`docs/AUDIT_v1.6.1.md`) closed across v1.6.2–v1.6.5.
 - 17 pages, 29 themes, default theme **TITANIUM**.
-- Pytest suite is passing (556 tests).
-- Ruff linter is clean.
-- Offscreen rendering smoke test verified.
-- Sensor backend made resilient on PCs where Windows performance counters are
-  disabled: `psutil.swap_memory()` / `cpu_freq()` failures no longer drop every
-  other metric (regression test added).
-- Optional update check against GitHub `releases/latest` added: startup check
-  (can be turned off in Settings), "Check now" button, version display and
-  release-page link; results go to the activity log + tray notification.
+- Pytest suite is passing (562 tests). Ruff linter is clean.
+- Sensor backend resilient on PCs without PDH counters.
+- Optional update check against GitHub `releases/latest` (settings toggle,
+  "Check now", release-page link).
 
 ## Accomplishments
 - Unified `CardTitleLabel` / `card_heading` across all 17 pages.
@@ -25,10 +26,11 @@
 - Regenerated release screenshots for v1.6.5.
 - Hardened sensors for machines without PDH counters.
 - Added the GitHub release update check with injected fetcher for tests.
+- Decoded Steam library paths safely; snapshot the exact HAGS DWORD.
 
 ## Next
-- Commit v1.6.6 and push the `v1.6.6` tag — CI builds the installer, portable
-  zip and GitHub release.
+- Build v1.6.7 exe + portable + installer, then push the `v1.6.7` tag and
+  publish the GitHub release.
 - Optional: light-theme (Arctic/Ivory) polish pass over all 17 pages.
 - Optional: wire `mypy` into the verification routine and fix the first batch
   of findings.
