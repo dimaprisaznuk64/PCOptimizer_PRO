@@ -10,10 +10,12 @@
     snapshot no longer becomes `1`); `apply_profile()` refuses to change a
     setting it could not snapshot, so revert always stays possible.
   - Regression tests added for both fixes (+6 tests).
-- Unreleased on top of v1.6.7: refreshed **TITANIUM** palette (deeper cyber
-  blue, brighter accent), optional thermal-sensor warning hidden on boards
-  without ACPI zones, and the COM-apartment teardown fix (`app/wincom.py`)
-  that removes the interpreter-shutdown access violation.
+- Released **v1.6.8** (tag `v1.6.8`, CI-built installer + portable + release):
+  refreshed **TITANIUM** palette (deeper cyber blue, brighter accent), optional
+  thermal-sensor warning hidden on boards without ACPI zones, and the
+  COM-apartment teardown fix (`app/wincom.py`) that removes the
+  interpreter-shutdown access violation. Screenshots regenerated for all 17
+  pages.
 - Audit findings **A-01…A-14** (`docs/AUDIT_v1.6.1.md`) closed across v1.6.2–v1.6.5.
 - 17 pages, 29 themes, default theme **TITANIUM**.
 - Pytest suite is passing (563 tests). Ruff linter is clean.
