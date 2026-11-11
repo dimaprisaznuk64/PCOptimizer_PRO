@@ -1,7 +1,7 @@
 from __future__ import annotations
 
 from PySide6.QtCore import QSize, Qt, QVariantAnimation, Signal
-from PySide6.QtGui import QColor
+from PySide6.QtGui import QColor, QIcon
 from PySide6.QtWidgets import (
     QGraphicsOpacityEffect,
     QHBoxLayout,
@@ -15,7 +15,7 @@ from PySide6.QtWidgets import (
 from app.i18n import tr
 
 from .icons import glyph
-from .theme import ACCENT, T_BODY, T_CAPTION, T_H2, T_SMALL, TEXT, TEXT_DIM
+from .theme import ACCENT, BORDER_HI, T_BODY, T_CAPTION, T_H2, T_SMALL, TEXT, TEXT_DIM
 
 
 class TopBar(QWidget):
@@ -23,6 +23,7 @@ class TopBar(QWidget):
 
     settings_requested = Signal()
     notifications_requested = Signal()
+    back_requested = Signal()
 
     def __init__(self, parent: QWidget | None = None) -> None:
         super().__init__(parent)
@@ -33,6 +34,20 @@ class TopBar(QWidget):
         layout = QHBoxLayout(self)
         layout.setContentsMargins(28, 0, 28, 0)
         layout.setSpacing(14)
+
+        # Back button (standard app navigation history)
+        self.back_button = QPushButton()
+        self.back_button.setObjectName("topBarIcon")
+        back_icon = QIcon()
+        back_icon.addPixmap(glyph("back", TEXT_DIM), QIcon.Mode.Normal, QIcon.State.Off)
+        back_icon.addPixmap(glyph("back", BORDER_HI), QIcon.Mode.Disabled, QIcon.State.Off)
+        self.back_button.setIcon(back_icon)
+        self.back_button.setIconSize(QSize(18, 18))
+        self.back_button.setToolTip(tr("topbar_back_tip"))
+        self.back_button.setCursor(Qt.CursorShape.ArrowCursor)
+        self.back_button.setEnabled(False)
+        self.back_button.clicked.connect(self.back_requested.emit)
+        layout.addWidget(self.back_button)
 
         # Avatar / badge (accent follows the active theme)
         avatar = QLabel()
@@ -161,6 +176,7 @@ class TopBar(QWidget):
     def retranslate(self) -> None:
         self.notify_button.setToolTip(tr("topbar_notify_tip"))
         self.settings_button.setToolTip(tr("topbar_settings_tip"))
+        self.back_button.setToolTip(tr("topbar_back_tip"))
         self.notify_button.setMenu(self._build_notify_menu())
         self.set_title(self._last_title or tr("nav_dashboard"))
 
@@ -173,6 +189,13 @@ class TopBar(QWidget):
     def set_page_index(self, number: int, total: int = 99) -> None:
         """HUD slot number of the current page (e.g. 03)."""
         self.index.setText(f"{number:02d}/{total:02d}" if total <= 20 else f"{number:02d}")
+
+    def set_can_go_back(self, can: bool) -> None:
+        """Enable the back arrow only when there is somewhere to return to."""
+        self.back_button.setEnabled(bool(can))
+        self.back_button.setCursor(
+            Qt.CursorShape.PointingHandCursor if can else Qt.CursorShape.ArrowCursor
+        )
 
     def set_status(self, text: str, level: str = "ok") -> None:
         self.status.setText(f"● {text}")

@@ -1,4 +1,4 @@
-from __future__ import annotations
+﻿from __future__ import annotations
 
 from app.ui.main_window import MainWindow
 from app.ui.sidebar import NAV_ITEMS
@@ -195,5 +195,85 @@ def test_sidebar_brand_not_clipped(qapp) -> None:
     brand = window.sidebar.findChild(QLabel, "brand")
     assert brand is not None
     assert brand.width() >= brand.sizeHint().width()
+    window.close()
+
+
+def test_back_button_disabled_on_root_page(qapp) -> None:
+    window = MainWindow()
+    assert window.current_key == "dashboard"
+    assert window.topbar.back_button.isEnabled() is False
+    window.close()
+
+
+def test_back_button_returns_to_previous_page(qapp) -> None:
+    window = MainWindow()
+    window.show_page("monitor")
+    window.show_page("gpu")
+    assert window.topbar.back_button.isEnabled() is True
+
+    window.topbar.back_button.click()
+    assert window.current_key == "monitor"
+    assert window.topbar.back_button.isEnabled() is True
+
+    window.topbar.back_button.click()
+    assert window.current_key == "dashboard"
+    assert window.topbar.back_button.isEnabled() is False
+    window.close()
+
+
+def test_repeated_page_does_not_grow_history(qapp) -> None:
+    window = MainWindow()
+    window.show_page("monitor")
+    window.show_page("monitor")
+    window.go_back()
+    assert window.current_key == "dashboard"
+    assert window.topbar.back_button.isEnabled() is False
+    window.close()
+
+
+def test_back_navigation_survives_theme_rebuild(qapp) -> None:
+    window = MainWindow()
+    window.show_page("monitor")
+    window.show_page("gpu")
+    window.apply_theme("CYBER")
+    assert window.current_key == "gpu"
+    assert window.topbar.back_button.isEnabled() is True
+    window.topbar.back_button.click()
+    assert window.current_key == "monitor"
+    window.close()
+
+
+def test_alt_left_shortcut_goes_back(qapp) -> None:
+    from PySide6.QtCore import Qt
+    from PySide6.QtTest import QTest
+
+    window = MainWindow()
+    window.show()
+    window.show_page("monitor")
+    window.show_page("gpu")
+    qapp.processEvents()
+    QTest.keyClick(window, Qt.Key.Key_Left, Qt.KeyboardModifier.AltModifier)
+    qapp.processEvents()
+    assert window.current_key == "monitor"
+    window.close()
+
+
+def test_topbar_title_follows_live_language_switch(qapp) -> None:
+    from app.i18n import I18nService, tr
+
+    window = MainWindow()
+    window.show_page("settings")
+    i18n = I18nService.instance()
+
+    i18n.set_language("EN")
+    assert window.topbar.title.text() == tr("nav_settings") == "Settings"
+    assert window.topbar.title.text().isascii()
+
+    window.show_page("monitor")
+    assert window.topbar.title.text() == tr("nav_monitor")
+
+    i18n.set_language("UA")
+    assert window.topbar.title.text() == tr("nav_monitor")
+    assert not window.topbar.title.text().isascii()
     window.close()
 

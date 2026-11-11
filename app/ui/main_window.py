@@ -3,7 +3,14 @@ from __future__ import annotations
 import sys
 
 from PySide6.QtCore import Qt
-from PySide6.QtGui import QColor, QGuiApplication, QPainter, QRadialGradient
+from PySide6.QtGui import (
+    QColor,
+    QGuiApplication,
+    QKeySequence,
+    QPainter,
+    QRadialGradient,
+    QShortcut,
+)
 from PySide6.QtWidgets import (
     QApplication,
     QHBoxLayout,
@@ -20,7 +27,7 @@ from app.settings import SettingsService
 
 from .pages import build_pages
 from .sampler import SensorSampler
-from .sidebar import NAV_ITEMS, Sidebar
+from .sidebar import NAV_ITEMS, NAV_KEYS, Sidebar
 from .theme import apply, set_application_fonts
 from .topbar import TopBar
 from .tray import AppTray
@@ -93,6 +100,11 @@ class MainWindow(QMainWindow):
         self.settings = settings or SettingsService()
         self._force_quit = False
         self._last_snapshot = None
+        self._nav_history: list[str] = []
+        self._nav_limit = 50
+        self._back_shortcut = QShortcut(QKeySequence("Alt+Left"), self)
+        self._back_shortcut.setContext(Qt.ShortcutContext.WindowShortcut)
+        self._back_shortcut.activated.connect(self.go_back)
         self._history = PerformanceHistory()
         self._cpu_monitor = TemperatureAlertMonitor(reading=max_cpu_thermal)
         self._gpu_monitor = TemperatureAlertMonitor(reading=max_gpu_thermal)
@@ -108,6 +120,8 @@ class MainWindow(QMainWindow):
         self.sidebar = Sidebar()
         self.topbar = TopBar()
         self.topbar.settings_requested.connect(lambda: self.show_page("settings"))
+        self.topbar.back_requested.connect(self.go_back)
+        self.topbar.set_can_go_back(bool(self._nav_history))
         self.stack = QStackedWidget()
 
         self._index_by_key: dict[str, int] = {}
@@ -143,17 +157,41 @@ class MainWindow(QMainWindow):
                 return key
         return ""
 
+    @staticmethod
+    def _nav_label(key: str) -> str:
+        """Live nav label: NAV_ITEMS freezes translations at import time."""
+        return tr(dict(NAV_KEYS).get(key, key))
+
     def show_page(self, key: str) -> None:
-        index = self._index_by_key.get(key)
-        if index is None:
+        if key not in self._index_by_key:
             return
+        current = self.current_key
+        if current and current != key:
+            self._nav_history.append(current)
+            if len(self._nav_history) > self._nav_limit:
+                del self._nav_history[: len(self._nav_history) - self._nav_limit]
+        self._select_page(key)
+        self.topbar.set_can_go_back(bool(self._nav_history))
+
+    def go_back(self) -> None:
+        """Return to the previously viewed page (Alt+Left / toolbar arrow)."""
+        while self._nav_history:
+            key = self._nav_history.pop()
+            if key in self._index_by_key and key != self.current_key:
+                self._select_page(key)
+                self.topbar.set_can_go_back(bool(self._nav_history))
+                return
+        self.topbar.set_can_go_back(False)
+
+    def _select_page(self, key: str) -> None:
+        index = self._index_by_key[key]
         changed = self.stack.currentIndex() != index
         self.stack.setCurrentIndex(index)
         if changed:
             self._fade_in(self.stack.widget(index))
         self.sidebar.set_current(key)
-        self.topbar.set_title(dict(NAV_ITEMS).get(key, key))
-        nav_keys = [k for k, _ in NAV_ITEMS]
+        self.topbar.set_title(self._nav_label(key))
+        nav_keys = [k for k, _ in NAV_KEYS]
         if key in nav_keys:
             self.topbar.set_page_index(nav_keys.index(key) + 1, total=len(nav_keys))
 
@@ -265,6 +303,8 @@ class MainWindow(QMainWindow):
         self.sidebar = Sidebar()
         self.topbar = TopBar()
         self.topbar.settings_requested.connect(lambda: self.show_page("settings"))
+        self.topbar.back_requested.connect(self.go_back)
+        self.topbar.set_can_go_back(bool(self._nav_history))
         self.stack = QStackedWidget()
         self._index_by_key = {}
         for i, (page_key, page) in enumerate(
@@ -286,7 +326,8 @@ class MainWindow(QMainWindow):
         self._root_layout.addWidget(self._content, 1)
 
         self.setGeometry(geometry)
-        self.show_page(key)
+        self._select_page(key if key in self._index_by_key else "dashboard")
+        self.topbar.set_can_go_back(bool(self._nav_history))
         if self._last_snapshot is not None:
             self.handle_snapshot(self._last_snapshot)
         root = self.centralWidget()

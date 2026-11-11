@@ -228,6 +228,13 @@ def _history(p: QPainter) -> None:
     p.drawLine(QPointF(10, 10), QPointF(13.5, 12))
 
 
+def _back(p: QPainter) -> None:
+    path = QPainterPath(QPointF(12.5, 4))
+    path.lineTo(6.5, 10)
+    path.lineTo(12.5, 16)
+    p.drawPath(path)
+
+
 _DRAWERS = {
     "cpu": _cpu,
     "ram": _ram,
@@ -257,6 +264,7 @@ _DRAWERS = {
     "bolt": _bolt,
     "shield": _shield,
     "history": _history,
+    "back": _back,
 }
 
 

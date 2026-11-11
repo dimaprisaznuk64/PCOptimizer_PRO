@@ -63,7 +63,7 @@ TRANSLATIONS: dict[str, dict[str, str]] = {
         "nav_section_diagnostics": "DIAGNOSTICS",
         "nav_section_preferences": "PREFERENCES",
         "sidebar_user_title": "Your PC is in safe hands",
-        "sidebar_user_sub": "PCOptimizer PRO v1.6.8",
+        "sidebar_user_sub": "PCOptimizer PRO v1.6.9",
         "sidebar_status_ok": "System healthy",
 
         # Top bar
@@ -72,6 +72,7 @@ TRANSLATIONS: dict[str, dict[str, str]] = {
         "topbar_subtitle_page": "PCOptimizer PRO · System control center",
         "topbar_notify_tip": "Notifications",
         "topbar_settings_tip": "Settings",
+        "topbar_back_tip": "Back (Alt+Left)",
         "topbar_notify_empty": "No new notifications",
 
         # Global status (sidebar + topbar pill)
@@ -987,7 +988,7 @@ TRANSLATIONS: dict[str, dict[str, str]] = {
         "nav_section_diagnostics": "ДІАГНОСТИКА",
         "nav_section_preferences": "НАЛАШТУВАННЯ",
         "sidebar_user_title": "Твій ПК у надійних руках",
-        "sidebar_user_sub": "PCOptimizer PRO v1.6.8",
+        "sidebar_user_sub": "PCOptimizer PRO v1.6.9",
         "sidebar_status_ok": "Система в нормі",
 
         # Top bar
@@ -996,6 +997,7 @@ TRANSLATIONS: dict[str, dict[str, str]] = {
         "topbar_subtitle_page": "PCOptimizer PRO · Центр керування системою",
         "topbar_notify_tip": "Сповіщення",
         "topbar_settings_tip": "Налаштування",
+        "topbar_back_tip": "Назад (Alt+←)",
         "topbar_notify_empty": "Немає нових сповіщень",
 
         # Global status (sidebar + topbar pill)
