@@ -20,7 +20,16 @@ if (Test-Path $dataDir) {
 }
 
 try {
+    # PyInstaller writes progress to stderr; with $ErrorActionPreference = "Stop"
+    # PowerShell would turn those lines into terminating NativeCommandError.
+    $prevEap = $ErrorActionPreference
+    $ErrorActionPreference = "Continue"
     Invoke-Expression "$pyCmd -m PyInstaller --clean --noconfirm PCOptimizer_PRO.spec"
+    $buildExit = $LASTEXITCODE
+    $ErrorActionPreference = $prevEap
+    if ($buildExit -ne 0) {
+        throw "PyInstaller failed with exit code $buildExit"
+    }
 }
 finally {
     # Restore even if the build failed, so the user's data is never lost.
