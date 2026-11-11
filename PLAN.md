@@ -16,9 +16,13 @@
   COM-apartment teardown fix (`app/wincom.py`) that removes the
   interpreter-shutdown access violation. Screenshots regenerated for all 17
   pages.
+- Released **v1.6.9** (tag `v1.6.9`, CI-built installer + portable + release):
+  topbar **Back** button with navigation history (`Alt+Left`, history survives
+  theme rebuilds) and page titles that follow live language switches
+  (`NAV_KEYS` resolved at render time). Screenshots regenerated for all 17 pages.
 - Audit findings **A-01…A-14** (`docs/AUDIT_v1.6.1.md`) closed across v1.6.2–v1.6.5.
 - 17 pages, 29 themes, default theme **TITANIUM**.
-- Pytest suite is passing (563 tests). Ruff linter is clean.
+- Pytest suite is passing (569 tests). Ruff linter is clean.
 - Sensor backend resilient on PCs without PDH counters.
 - Optional update check against GitHub `releases/latest` (settings toggle,
   "Check now", release-page link).
