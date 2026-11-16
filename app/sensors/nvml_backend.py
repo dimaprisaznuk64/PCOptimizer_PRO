@@ -35,7 +35,6 @@ class NvmlBackend(Backend):
             raise SensorUnavailable("no NVIDIA GPUs reported by NVML")
         self._last: dict[int, GpuStat] = {}
         self._nvml_fail_count: dict[int, int] = {}
-        self._nvml_fail_count: dict[int, int] = {}
 
     def _opt(self, fn):
         try:

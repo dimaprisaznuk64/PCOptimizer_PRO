@@ -712,3 +712,51 @@ def test_optimizer_preview_hides_admin_warning_for_admins(qapp, tmp_path) -> Non
     page.select_profile("GAMING")
     assert "on" in page.preview_rows["hags"].text()
     assert page.preview_admin.isHidden()
+
+
+def test_hags_non_admin_waits_for_delayed_registry_write(fake, tmp_path) -> None:
+    fake.admin = False
+    calls = {"n": 0}
+
+    def delayed_elevate(args) -> bool:
+        args = tuple(str(a) for a in args)
+        fake.elevated.append(args)
+        joined = " ".join(args)
+        if "HwSchMode" in joined and "-Value" in joined:
+            calls["n"] += 1
+            # Simulate elevation/write becoming visible only after a short delay.
+            def apply_later():
+                import time as _t
+
+                _t.sleep(0.3)
+                fake.reg[("HKLM", HAGS_KEY, HAGS_VALUE)] = 2
+
+            import threading
+
+            threading.Thread(target=apply_later, daemon=True).start()
+        return True
+
+    fake.elevate = delayed_elevate
+    service = fake.make_service(tmp_path)
+    report = service.apply_profile("GAMING", with_restore_point=False)
+    assert report.errors == ()
+    assert calls["n"] == 1
+    assert fake.reg[("HKLM", HAGS_KEY, HAGS_VALUE)] == 2
+
+
+def test_hags_non_admin_times_out_if_write_never_appears(fake, tmp_path, monkeypatch) -> None:
+    fake.admin = False
+
+    def accepted_but_no_effect(args) -> bool:
+        fake.elevated.append(tuple(str(a) for a in args))
+        return True
+
+    fake.elevate = accepted_but_no_effect
+    # Keep test fast: make the 20s polling deadline expire immediately.
+    times = iter([0.0, 0.0, 21.0, 22.0, 23.0])
+    monkeypatch.setattr("app.optimizer.service.time.monotonic", lambda: next(times))
+    monkeypatch.setattr("app.optimizer.service.time.sleep", lambda _s: None)
+    service = fake.make_service(tmp_path)
+    report = service.apply_profile("GAMING", with_restore_point=False)
+    assert any("HAGS" in e for e in report.errors)
+    assert not any("GPU scheduling" in a for a in report.applied)

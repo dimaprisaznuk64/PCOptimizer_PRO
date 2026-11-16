@@ -344,7 +344,8 @@ def test_task_items_walks_subfolders(tmp_path, monkeypatch) -> None:
         backup_dir=tmp_path / "backup",
         run_sources=(),
     )
-    items = service._task_items()
+    items, errors = service._task_items()
+    assert errors == []
     names = {i.name for i in items}
     assert {"RootTask", "SubTask"} <= names
 
@@ -492,3 +493,142 @@ def test_startup_page_refuses_remove_for_task(qapp) -> None:
     _select_by_name(page, "Discord")
     assert not page.remove_button.isEnabled()
     assert page.toggle_button.isEnabled()
+
+
+def test_task_items_connect_failure_is_reported(tmp_path, monkeypatch) -> None:
+    import sys
+    import types as _types
+
+    fake_pythoncom = _types.ModuleType("pythoncom")
+    fake_pythoncom.CoInitialize = lambda: None
+    fake_pythoncom.CoUninitialize = lambda: None
+
+    class BadDispatch:
+        def __init__(self, name):
+            pass
+
+        def Connect(self):
+            raise OSError("scheduler unavailable")
+
+        def GetFolder(self, path):
+            return None
+
+    fake_client = _types.ModuleType("win32com.client")
+    fake_client.Dispatch = BadDispatch
+    fake_win32com = _types.ModuleType("win32com")
+    fake_win32com.client = fake_client
+
+    monkeypatch.setitem(sys.modules, "pythoncom", fake_pythoncom)
+    monkeypatch.setitem(sys.modules, "win32com", fake_win32com)
+    monkeypatch.setitem(sys.modules, "win32com.client", fake_client)
+
+    service = StartupService(
+        user_startup_dir=str(tmp_path / "missing"),
+        common_startup_dir=str(tmp_path / "missing2"),
+        backup_dir=tmp_path / "backup",
+        run_sources=(),
+    )
+    items, errors = service.list_items()
+    assert items == []
+    assert any("Task Scheduler" in e for e in errors)
+
+
+def test_task_items_partial_collection_reports_error(tmp_path, monkeypatch) -> None:
+    import sys
+    import types as _types
+
+    class FakeTrigger:
+        def __init__(self, type_):
+            self.Type = type_
+
+    class FakeTriggers:
+        def __init__(self, types_):
+            self._items = [FakeTrigger(t) for t in types_]
+            self.Count = len(self._items)
+
+        def Item(self, i):
+            return self._items[i - 1]
+
+    class FakeAction:
+        def __init__(self, path):
+            self.Path = path
+            self.Arguments = ""
+
+    class FakeActions:
+        def __init__(self, actions):
+            self._items = actions
+            self.Count = len(actions)
+
+        def Item(self, i):
+            return self._items[i - 1]
+
+    class FakeDefinition:
+        def __init__(self, types_, actions):
+            self.Triggers = FakeTriggers(types_)
+            self.Actions = FakeActions(actions)
+
+    class GoodTask:
+        def __init__(self):
+            self.Name = "GoodTask"
+            self.Path = r"\GoodTask"
+            self.Enabled = True
+            self.Definition = FakeDefinition([8], [FakeAction(r"C:\good.exe")])
+
+    class BadTask:
+        @property
+        def Name(self):
+            raise RuntimeError("broken task")
+
+    class FakeTasks:
+        def __init__(self, tasks):
+            self._items = tasks
+            self.Count = len(tasks)
+
+        def Item(self, i):
+            return self._items[i - 1]
+
+    class _Folders:
+        Count = 0
+
+        def Item(self, i):
+            raise IndexError
+
+    class FakeFolder:
+        def GetTasks(self, flags):
+            return FakeTasks([BadTask(), GoodTask()])
+
+        def GetFolders(self, flags):
+            return _Folders()
+
+    fake_pythoncom = _types.ModuleType("pythoncom")
+    fake_pythoncom.CoInitialize = lambda: None
+    fake_pythoncom.CoUninitialize = lambda: None
+
+    class FakeDispatch:
+        def __init__(self, name):
+            pass
+
+        def Connect(self):
+            pass
+
+        def GetFolder(self, path):
+            return FakeFolder()
+
+    fake_client = _types.ModuleType("win32com.client")
+    fake_client.Dispatch = FakeDispatch
+    fake_win32com = _types.ModuleType("win32com")
+    fake_win32com.client = fake_client
+
+    monkeypatch.setitem(sys.modules, "pythoncom", fake_pythoncom)
+    monkeypatch.setitem(sys.modules, "win32com", fake_win32com)
+    monkeypatch.setitem(sys.modules, "win32com.client", fake_client)
+
+    service = StartupService(
+        user_startup_dir=str(tmp_path / "missing"),
+        common_startup_dir=str(tmp_path / "missing2"),
+        backup_dir=tmp_path / "backup",
+        run_sources=(),
+    )
+    items, errors = service.list_items()
+    assert {i.name for i in items} == {"GoodTask"}
+    assert any("Task Scheduler" in e for e in errors)
