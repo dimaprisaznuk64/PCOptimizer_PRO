@@ -807,13 +807,24 @@ class DashboardPage(QWidget):
             self._proc_task.wait(3000)
         if self._ping_task and self._ping_task.isRunning():
             self._ping_task.requestInterruption()
-            self._ping_task.wait(8000)
+            # ping(count=1) is bounded to ~5s in NetworkService; wait at least
+            # that long so shutdown does not leave a live task registered.
+            self._ping_task.wait(6000)
         super().closeEvent(event)
 
     def _refresh_ping(self) -> None:
         if self._ping_task is not None or not self.isVisible():
             return
-        self._ping_task = Task(lambda: self._net_service.ping(count=1), parent=self)
+
+        def ping_once() -> object:
+            # Keep the dashboard probe short so window shutdown does not wait on
+            # a long external ping command.
+            try:
+                return self._net_service.ping(count=1)
+            except Exception:
+                return None
+
+        self._ping_task = Task(ping_once, parent=self)
         self._ping_task.done.connect(self._apply_ping)
         self._ping_task.failed.connect(lambda _m: self._apply_ping(None))
         self._ping_task.start()

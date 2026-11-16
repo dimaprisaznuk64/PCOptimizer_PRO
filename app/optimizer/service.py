@@ -414,10 +414,22 @@ class OptimizerService:
             if not ok:
                 raise OptimizerError("HAGS change was cancelled at the UAC prompt")
         # An elevated process can exit 0 without the write actually landing
-        # (e.g. denied by policy). Verify the value changed.
-        current, err = self._reg_get_dword("HKLM", HAGS_KEY, HAGS_VALUE)
-        if err is None and current is not None and current != value:
-            raise OptimizerError(f"HAGS change did not apply (expected {value}, found {current})")
+        # (e.g. denied by policy). Even after -Wait, registry propagation can
+        # lag briefly, so poll before declaring success.
+        deadline = time.monotonic() + 20.0
+        while True:
+            current, err = self._reg_get_dword("HKLM", HAGS_KEY, HAGS_VALUE)
+            if err is None and current == value:
+                return
+            if time.monotonic() >= deadline:
+                if err is None and current is not None and current != value:
+                    raise OptimizerError(
+                        f"HAGS change did not apply (expected {value}, found {current})"
+                    )
+                if err is not None:
+                    raise OptimizerError(f"HAGS change could not be verified: {err}")
+                raise OptimizerError("HAGS change did not apply in time")
+            time.sleep(0.5)
 
     def _delete_hags(self) -> None:
         if self._is_admin():
@@ -432,6 +444,21 @@ class OptimizerService:
         )
         if not ok:
             raise OptimizerError("HAGS restore was cancelled at the UAC prompt")
+        # Wait for the elevated removal to become visible.
+        deadline = time.monotonic() + 20.0
+        while True:
+            current, err = self._reg_get_dword("HKLM", HAGS_KEY, HAGS_VALUE)
+            if err is None and current is None:
+                return
+            if time.monotonic() >= deadline:
+                if err is None and current is not None:
+                    raise OptimizerError(
+                        f"HAGS restore did not apply (value still {current})"
+                    )
+                if err is not None:
+                    raise OptimizerError(f"HAGS restore could not be verified: {err}")
+                raise OptimizerError("HAGS restore did not apply in time")
+            time.sleep(0.5)
 
     def _reg_get_dword(self, hive: str, key: str, name: str) -> tuple[int | None, str | None]:
         try:

@@ -167,6 +167,10 @@ def test_max_age_trims_on_read(tmp_path):
     samples = h.query(minutes=10000)
     assert len(samples) == 1
     assert samples[0].cpu == 2.0
+    # A trimmed read must also rewrite the store so the file cannot grow forever.
+    kept = [json.loads(line) for line in store.read_text(encoding="utf-8").splitlines() if line.strip()]
+    assert len(kept) == 1
+    assert kept[0]["cpu"] == 2.0
 
 
 # ---------- downsample ----------

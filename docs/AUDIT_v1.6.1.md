@@ -1,9 +1,60 @@
 # Аудит PCOptimizer PRO v1.6.1 — етап 1
 
-Дата: 2026-10-23
-Стан джерел: HEAD `3b99dd9` (не запушено; попередній реліз — тег `v1.6.1` / `9c81f57`)
-Незакомічені зміни: `app/ui/combos.py` (WIP Claude Code — компактні випадаючі списки)
-Середовище: Windows 11, Python 3.13 (Store), PySide6, офскрін-проби 1024×640 … 1920×1080
+Дата первинного аудиту: 2026-10-23 (стан на `3b99dd9`)
+Дата ревалідації/виправлень: 2026-11-16
+Гілка виправлень: `audit/r52-fixes` (від `d0f9966`, v1.6.9, `origin/main`); робочі зміни **незакомічені** на момент оновлення.
+Середовище: Windows 11, Python 3.13 (Store), PySide6.
+
+## Зведені результати (ревалідація)
+
+| Перевірка | Результат |
+|---|---|
+| `python -m ruff check .` | All checks passed |
+| `python -m compileall app` | OK |
+| `python -m pytest tests` (базово на HEAD) | **569 passed** |
+| `python -m pytest tests` (після A-04/07/08) | **573 passed** |
+| Таргетні перевірки (A-05/06/09/10/11) | `tests/test_processes.py`, `test_history.py` (вибіркові), `test_sensors.py` (NVML), `test_optimizer.py`, `test_benchmarks.py` — зелені; окремі env-COM збої при запуску `SensorManager.with_defaults()`/WMI в одній сесії не відтворюють логічні регресії |
+| `python -m mypy app` | Недоступно локально (немає в системному Python/.venv; у CI — встановлюється) |
+
+## Дефекти (статуси на `audit/r52-fixes`)
+
+Статуси: **fixed** — виправлено/закрито в цій гілці; **addressed** — вже вирішено на поточному HEAD/коді й підтверджено; **partial** — частково; **deferred** — відкладено.
+
+| ID | Пріоритет | Статус | Коментар |
+|---|---|---|---|
+| A-01 | P1 | addressed | `CompactCombo` обмежує попап (`app/ui/combos.py`), поведінка/тести актуальні на HEAD. |
+| A-02 | P1 | addressed | Тест `test_combo_popup_is_bounded_and_anchored_under_the_field` стабільний на HEAD (таргетно/повний прогін без повторення порядкової залежності). |
+| A-03 | P1 | addressed | `OptimizerService` не перезаписує первинний backup при повторних apply (`app/optimizer/service.py`), revert відновлює початковий стан; покрито тестами оптимізатора. |
+| A-04 | P1 | **fixed** | Неадмін HAGS: після elevation виконується очікування/перевірка запису в реєстрі до 20 с (poll 0.5 с), інакше чесна помилка (`app/optimizer/service.py` `_write_hags`/`_delete_hags`). Додано тести затриманого запису та таймауту в `tests/test_optimizer.py`. |
+| A-05 | P2 | addressed | NVML: при тимчасових збоїв використовуються останні значення з `stale`, після порогу послідовних збоїв GPU перестає віддаватись як «свіжий» (`app/sensors/nvml_backend.py`, `app/sensors/types.py`); UI показує `gpu_stale`/`gpu_unavailable` (`app/ui/gpu.py`). Підтверджено тестами `tests/test_sensors.py` (NVML stale/drop) та `tests/test_gpu.py`. |
+| A-06 | P2 | addressed | Деталі процесу: відстежується останній вибір (`_want_pid/_details_pid`), застосування лише для актуального pid, повторний запит після завершення попереднього (`app/ui/processes.py`). Додано регресійний тест `test_details_request_last_selection_wins` у `tests/test_processes.py`. |
+| A-07 | P2 | **fixed** | Дашборд: безпечний ping та коректне завершення задач у `closeEvent` із очікуванням (proc 3 с, ping 6 с), щоб не залишати живі QThread/довгі ping-процеси (`app/ui/dashboard.py`). |
+| A-08 | P2 | **fixed** | Task Scheduler: помилки переліку більше не ковтаються — `list_items/_task_items/_collect_tasks` повертають/накопичують помилки, неповний список супроводжується повідомленням (`app/startup/service.py`). Оновлено/додано тести в `tests/test_startup.py`. |
+| A-09 | P2 | addressed | Бенчмарки зберігають/показують мін/макс/розкид (`app/benchmarks/service.py`, `app/ui/benchmarks.py`), підтверджено тестами `tests/test_benchmarks.py`. |
+| A-10 | P2 | addressed | Історія обрізається та переписується на диску при читанні/trim (`app/history/service.py`); тест `tests/test_history.py::test_max_age_trims_on_read` перевіряє фактичний rewrite файлу. |
+| A-11 | P2 | addressed | Оптимізатор має попередній перегляд змін/стану перед застосуванням (`app/ui/optimizer.py` `preview_changes` тощо), підтверджено тестами `tests/test_optimizer.py`/UI. |
+| A-12 | P3 | addressed | Поточна тема має видиме позначення у списку (`app/ui/theme_picker.py`). |
+| A-13 | P3 | addressed (контроль перед релізом) | README/версії загалом узгоджені на v1.6.9 (17 сторінок, 29 тем, актуальний бейдж тестів); потребує фінальної звірки перед наступним релізом. |
+| A-14 | P3 | addressed (стан релізу актуальний) | `main/origin/main` на v1.6.9; робота ведеться в `audit/r52-fixes`. Bump/збірка/пуш/реліз — окремий підтверджений крок. |
+
+## Внесені зміни (ця сесія, незакомічено)
+
+- `app/optimizer/service.py` — A-04: polling/verification після elevated HAGS write/delete.
+- `app/startup/service.py` — A-08: поверхневі помилки Task Scheduler.
+- `app/ui/dashboard.py` — A-07: безпечне завершення ping/тасків.
+- `app/sensors/nvml_backend.py` — дрібне прибирання дублю ініціалізації лічильника збоїв.
+- `tests/test_optimizer.py`, `tests/test_startup.py` — нові/оновлені кейси A-04/A-08.
+- `tests/test_history.py`, `tests/test_processes.py` — посилення покриття A-10/A-06.
+
+## Перевірено — дефектом не є (підтверджено раніше, без регресій у ревалідації)
+
+- Cleaner safety, restore points, settings/logs atomic, confirmations, diagnostics cp866/UTF-8, uninstall зберігає `data`, відсутність TODO/FIXME та імпортних циклів у `app/ui→services`.
+
+## Наступні кроки (потребують підтвердження)
+
+1. Зафіксувати зміни комітом(и) в `audit/r52-fixes`, за потреби оновити PLAN/README/версію.
+2. Прогнати фінальну регресію (повний pytest, ruff, compileall, mypy у CI/середовищі з mypy).
+3. Мердж у `main`, bump версії, скриншоти, збірка exe/portable/installer, push, GitHub Release — **тільки після явного підтвердження користувача**.
 
 ## Зведені результати
 

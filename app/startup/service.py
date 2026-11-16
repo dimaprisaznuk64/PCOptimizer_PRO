@@ -186,10 +186,9 @@ class StartupService:
                 items.extend(self._folder_items(folder, label))
             except OSError as e:
                 errors.append(f"{label}: {e}")
-        try:
-            items.extend(self._task_items())
-        except Exception as e:
-            errors.append(f"Task Scheduler: {e}")
+        task_items, task_errors = self._task_items()
+        items.extend(task_items)
+        errors.extend(task_errors)
         items.sort(key=lambda i: ({"High": 0, "Medium": 1, "Low": 2}.get(i.impact, 3), i.name.lower()))
         return items, errors
 
@@ -254,21 +253,24 @@ class StartupService:
             )
         return items
 
-    def _task_items(self) -> list[StartupItem]:
+    def _task_items(self) -> tuple[list[StartupItem], list[str]]:
         items: list[StartupItem] = []
         errors: list[str] = []
+        collect_errors: list[str] = []
 
         def work() -> None:
             from win32com.client import Dispatch
 
             service = Dispatch("Schedule.Service")
             service.Connect()
-            self._collect_tasks(service.GetFolder("\\"), items)
+            self._collect_tasks(service.GetFolder("\\"), items, collect_errors)
 
         try:
             run_in_com(work)
         except Exception as e:
-            errors.append(str(e))
+            errors.append(f"Task Scheduler: {e}")
+        if collect_errors:
+            errors.append(f"Task Scheduler: partial enumeration ({len(collect_errors)} item(s) skipped)")
         if errors:
             try:
                 from app.logs import get_logger
@@ -276,9 +278,12 @@ class StartupService:
                 get_logger("startup").warning("task scheduler enumeration failed: %s", "; ".join(errors))
             except Exception:
                 pass
-        return items
+        return items, errors
 
-    def _collect_tasks(self, folder, items: list[StartupItem]) -> None:
+    def _collect_tasks(
+        self, folder, items: list[StartupItem], errors: list[str] | None = None
+    ) -> None:
+        error_list = errors if errors is not None else []
         try:
             tasks = folder.GetTasks(0)
             count = tasks.Count
@@ -314,18 +319,22 @@ class StartupService:
                             task_path=task.Path,
                         )
                     )
-                except Exception:
+                except Exception as e:
+                    error_list.append(str(e))
                     continue
-        except Exception:
+        except Exception as e:
+            error_list.append(str(e))
             return
         try:
             subfolders = folder.GetFolders(0)
             for index in range(1, subfolders.Count + 1):
                 try:
-                    self._collect_tasks(subfolders.Item(index), items)
-                except Exception:
+                    self._collect_tasks(subfolders.Item(index), items, error_list)
+                except Exception as e:
+                    error_list.append(str(e))
                     continue
-        except Exception:
+        except Exception as e:
+            error_list.append(str(e))
             return
 
     def set_enabled(self, item: StartupItem, enabled: bool) -> None:

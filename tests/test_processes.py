@@ -184,3 +184,38 @@ def test_real_service_page_lists_processes(qapp) -> None:
     page.refresh()
     assert page.table.rowCount() > 0
     assert "processes" in page.count_label.text()
+
+
+def test_details_request_last_selection_wins(qapp) -> None:
+    service = StubService(
+        [
+            _info(500, "app.exe", cmdline="app first"),
+            _info(600, "helper.exe", cmdline="helper second"),
+        ]
+    )
+    page = InteractivePage(service)
+    page.refresh()
+
+    page._select_pid(500)
+    assert page._want_pid == 500
+    assert page._details_pid == 500
+    first_task = page._details_task
+    assert first_task is not None
+
+    # While first details request is still in flight, switch selection.
+    page._select_pid(600)
+    assert page._want_pid == 600
+    # A slow response for the old selection must not overwrite the new one.
+    page._apply_details(_info(500, "app.exe", cmdline="app first"))
+    assert "helper.exe" in page.detail_name.text()
+    assert "PID  600" == page.detail_rows["pid"].text()
+
+    # After the old task finishes, the page should fetch the latest selection.
+    if page._details_task is not None:
+        page._details_task.wait(2000)
+    assert page._want_pid == 600
+    page._apply_details(_info(600, "helper.exe", cmdline="helper second"))
+    assert "helper.exe" in page.detail_name.text()
+    assert "PID  600" == page.detail_rows["pid"].text()
+    if page._details_task is not None:
+        page._details_task.wait(2000)
