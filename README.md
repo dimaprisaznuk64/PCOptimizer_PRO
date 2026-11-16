@@ -17,7 +17,7 @@
   <img src="https://img.shields.io/badge/tests-569%20passed-brightgreen" alt="Tests">
   <a href="https://github.com/dimaprisaznuk64/PCOptimizer_PRO/actions/workflows/ci.yml"><img src="https://github.com/dimaprisaznuk64/PCOptimizer_PRO/actions/workflows/ci.yml/badge.svg" alt="CI"></a>
   <img src="https://img.shields.io/badge/license-MIT-green" alt="License">
-  <img src="https://img.shields.io/badge/version-1.6.9-blue" alt="Version">
+  <img src="https://img.shields.io/badge/version-1.6.10-blue" alt="Version">
 </p>
 
 Філософія проєкту: **жодних «секретних» реєстрових твіків і вигаданих +FPS**. Кожна зміна системи робиться лише після бекапу/точки відновлення і має кнопку відкату. Застосунок працює без адмін-прав — UAC запитується точково, лише для конкретних операцій.
@@ -154,27 +154,27 @@
 
 | Дашборд | Монітор системи |
 | --- | --- |
-| ![Дашборд](docs/screenshots/v1.6.9_dashboard.png) | ![Монітор](docs/screenshots/v1.6.9_monitor.png) |
+| ![Дашборд](docs/screenshots/v1.6.10_dashboard.png) | ![Монітор](docs/screenshots/v1.6.10_monitor.png) |
 
 | Залізо (Hardware) | GPU-монітор |
 | --- | --- |
-| ![Залізо](docs/screenshots/v1.6.9_hardware.png) | ![GPU](docs/screenshots/v1.6.9_gpu.png) |
+| ![Залізо](docs/screenshots/v1.6.10_hardware.png) | ![GPU](docs/screenshots/v1.6.10_gpu.png) |
 
 | PC Health Score | Чистильник |
 | --- | --- |
-| ![Health](docs/screenshots/v1.6.9_health.png) | ![Чистильник](docs/screenshots/v1.6.9_cleaner.png) |
+| ![Health](docs/screenshots/v1.6.10_health.png) | ![Чистильник](docs/screenshots/v1.6.10_cleaner.png) |
 
 | Ігровий режим | Лаунчер ігор |
 | --- | --- |
-| ![Gaming](docs/screenshots/v1.6.9_gaming.png) | ![Лаунчер](docs/screenshots/v1.6.9_launcher.png) |
+| ![Gaming](docs/screenshots/v1.6.10_gaming.png) | ![Лаунчер](docs/screenshots/v1.6.10_launcher.png) |
 
 | Бенчмарки | Мережа |
 | --- | --- |
-| ![Бенчмарки](docs/screenshots/v1.6.9_benchmarks.png) | ![Мережа](docs/screenshots/v1.6.9_network.png) |
+| ![Бенчмарки](docs/screenshots/v1.6.10_benchmarks.png) | ![Мережа](docs/screenshots/v1.6.10_network.png) |
 
 | Діагностика | Диски та сховище |
 | --- | --- |
-| ![Діагностика](docs/screenshots/v1.6.9_diagnostics.png) | ![Диски](docs/screenshots/v1.6.9_disk.png) |
+| ![Діагностика](docs/screenshots/v1.6.10_diagnostics.png) | ![Диски](docs/screenshots/v1.6.10_disk.png) |
 
 Решта сторінок (Огляд, Процеси, Автозавантаження, Історія продуктивності, Налаштування): [docs/screenshots](docs/screenshots)
 
@@ -184,7 +184,7 @@
 
 - **Python 3.13** + **PySide6** (Qt 6; 29 вбудованих тем, тема за замовчуванням — Titanium, вбудовані шрифти Inter / JetBrains Mono)
 - **psutil** — CPU/RAM/диски/мережа, **nvidia-ml-py** (NVML) — GPU, **WMI** — температури, **pywin32** — COM/Task Scheduler/кошик
-- **pytest** — 569 тестів
+- **pytest** — 573 тестів
 - **PyInstaller** — збірка .exe, **Inno Setup** — інсталятор
 
 ## Безпека понад усе
@@ -197,12 +197,12 @@
 
 ## Встановлення
 
-**Варіант 1 — інсталятор.** Запустити `PCOptimizer_PRO_Setup_1.6.9.exe`.
+**Варіант 1 — інсталятор.** Запустити `PCOptimizer_PRO_Setup_1.6.10.exe`.
 Встановлюється для поточного користувача (без прав адміністратора), мови EN/UA, створює ярлики та деінсталятор.
 
 > Якщо Windows показує «Windows protected your PC» (SmartScreen) — це нормально для непідписаних програм: **More info → Run anyway**. Так само деякі антивіруси можуть хибно реагувати на PyInstaller-збірки.
 
-**Варіант 2 — портативно.** Розпакувати `PCOptimizer_PRO_1.6.9_portable.zip` і запустити `PCOptimizer_PRO\PCOptimizer_PRO.exe`. Нічого не встановлюється.
+**Варіант 2 — портативно.** Розпакувати `PCOptimizer_PRO_1.6.10_portable.zip` і запустити `PCOptimizer_PRO\PCOptimizer_PRO.exe`. Нічого не встановлюється.
 
 Готові збірки — у розділі [Releases](https://github.com/dimaprisaznuk64/PCOptimizer_PRO/releases).
 

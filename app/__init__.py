@@ -1,6 +1,6 @@
 """PCOptimizer PRO application package."""
 
-__version__ = "1.6.9"
+__version__ = "1.6.10"
 
 
 def main() -> int:
