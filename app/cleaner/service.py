@@ -8,6 +8,8 @@ import subprocess
 from collections.abc import Sequence
 from dataclasses import dataclass
 
+from app.winpaths import POWERSHELL_PATH, PS_UTF8_PREFIX, decode_process_output
+
 RECYCLE_BIN_ID = "recycle_bin"
 STANDBY_CACHE_ID = "standby_cache"
 
@@ -342,7 +344,7 @@ class CleanerService:
 
     @staticmethod
     def _scan_recycle(target: CleanTarget) -> ScanResult:
-        script = (
+        script = PS_UTF8_PREFIX + (
             "$rb=(New-Object -ComObject Shell.Application).NameSpace(0xA);"
             "$its=@($rb.Items());"
             "$sum=($its | Measure-Object -Property Size -Sum).Sum;"
@@ -350,16 +352,18 @@ class CleanerService:
         )
         try:
             out = subprocess.run(
-                ["powershell", "-NoProfile", "-Command", script],
+                [POWERSHELL_PATH, "-NoProfile", "-Command", script],
                 capture_output=True,
-                text=True,
+                text=False,
                 timeout=30,
             )
         except Exception as e:
             return ScanResult(target.id, 0, 0, str(e))
         if out.returncode != 0:
-            return ScanResult(target.id, 0, 0, (out.stderr or "powershell failed").strip()[:200])
-        line = (out.stdout.strip().splitlines() or [""])[-1]
+            stderr = decode_process_output(out.stderr or b"")
+            return ScanResult(target.id, 0, 0, (stderr or "powershell failed").strip()[:200])
+        stdout = decode_process_output(out.stdout or b"")
+        line = (stdout.strip().splitlines() or [""])[-1]
         try:
             count_text, bytes_text = line.split(";")
             return ScanResult(target.id, int(count_text), int(bytes_text))

@@ -19,6 +19,8 @@ import time
 from collections.abc import Callable, Sequence
 from dataclasses import dataclass
 
+from app.winpaths import POWERSHELL_PATH, PS_UTF8_PREFIX, decode_process_output
+
 # Status codes returned in RestoreResult.status
 STATUS_CREATED = "created"
 STATUS_SKIPPED = "skipped"
@@ -34,12 +36,18 @@ FREQUENCY_VALUE = "SystemRestorePointCreationFrequency"
 UAC_CANCELLED_CODE = 1223
 
 _DISABLED_MARKERS = (
-    "disabled",
-    "not enabled",
-    "turned off",
-    "system protection",
-    "захист системи",
-    "вимкнено",
+    "system restore is disabled",
+    "system protection is disabled",
+    "system protection is not enabled",
+    "system protection is turned off",
+    "protection is not enabled",
+    "захист системи вимкнено",
+    "системний захист вимкнено",
+    "не ввімкнено",
+    "не включено",
+    "відключено",
+    "отключено",
+    "отключена",
     "отключен",
 )
 
@@ -73,7 +81,7 @@ class RestorePointService:
         *,
         run: Callable[[Sequence[str], float], tuple[int, str]] | None = None,
         is_admin: Callable[[], bool] | None = None,
-        powershell: str = "powershell",
+        powershell: str = POWERSHELL_PATH,
     ) -> None:
         self._run = run or self._default_run
         self._is_admin = is_admin or self._default_is_admin
@@ -84,10 +92,10 @@ class RestorePointService:
     def list_points(self) -> list[RestorePoint]:
         out = self._run_ps(self._list_script(), 60.0)
         if out is None:
-            return []
+            raise RestoreError("could not start PowerShell to list restore points")
         code, text = out
         if code != 0:
-            return []
+            raise RestoreError(text.strip() or f"Get-ComputerRestorePoint failed with exit {code}")
         points: list[RestorePoint] = []
         for line in text.splitlines():
             line = line.strip()
@@ -102,14 +110,20 @@ class RestorePointService:
 
     def create(self, label: str, *, force: bool = True) -> RestoreResult:
         label = (label or "").strip() or "PCOptimizer PRO"
-        before = {p.sequence for p in self.list_points()}
+        try:
+            before = {p.sequence for p in self.list_points()}
+        except RestoreError as exc:
+            return RestoreResult(False, STATUS_ERROR, str(exc), label=label)
         script = self._build_create_script(label, force)
         result = self._invoke(script, 240.0)
         if result is None:
             return RestoreResult(False, STATUS_CANCELLED, "cancelled at the UAC prompt", label=label)
 
         code, text = result
-        after_points = self.list_points()
+        try:
+            after_points = self.list_points()
+        except RestoreError as exc:
+            return RestoreResult(False, STATUS_ERROR, str(exc), label=label)
         new = {p.sequence for p in after_points} - before
         if new:
             seq = max(new)
@@ -182,11 +196,12 @@ class RestorePointService:
         )
 
     def _elevated_script(self, script: str) -> str:
-        encoded = _b64(script)
+        encoded = _b64(PS_UTF8_PREFIX + script)
+        powershell = self._ps.replace("'", "''")
         return (
             "$ErrorActionPreference='Stop'; "
             "try { "
-            "$p=Start-Process -FilePath 'powershell' -Verb RunAs -Wait -WindowStyle Hidden "
+            f"$p=Start-Process -FilePath '{powershell}' -Verb RunAs -Wait -WindowStyle Hidden "
             f"-ArgumentList @('-NoProfile','-ExecutionPolicy','Bypass','-EncodedCommand','{encoded}') -PassThru; "
             "exit $p.ExitCode "
             f"}} catch {{ Write-Error $_.Exception.Message; exit {UAC_CANCELLED_CODE} }}"
@@ -196,13 +211,13 @@ class RestorePointService:
         """Run *script* (elevated if needed). Returns (code, output) or None if UAC cancelled."""
         if self._is_admin():
             code, out = self._run(
-                (self._ps, "-NoProfile", "-ExecutionPolicy", "Bypass", "-EncodedCommand", _b64(script)),
+                (self._ps, "-NoProfile", "-ExecutionPolicy", "Bypass", "-EncodedCommand", _b64(PS_UTF8_PREFIX + script)),
                 timeout,
             )
             return code, out
 
         code, out = self._run(
-            (self._ps, "-NoProfile", "-ExecutionPolicy", "Bypass", "-Command", self._elevated_script(script)),
+            (self._ps, "-NoProfile", "-ExecutionPolicy", "Bypass", "-Command", PS_UTF8_PREFIX + self._elevated_script(script)),
             timeout,
         )
         # UAC cancel: the wrapper exits with 1223; the message check is only a
@@ -215,10 +230,10 @@ class RestorePointService:
     # ---------- primitives ----------
 
     def _run_ps(self, script: str, timeout: float) -> tuple[int, str] | None:
-        try:
-            return self._run((self._ps, "-NoProfile", "-ExecutionPolicy", "Bypass", "-Command", script), timeout)
-        except Exception:
-            return None
+        return self._run(
+            (self._ps, "-NoProfile", "-ExecutionPolicy", "Bypass", "-Command", PS_UTF8_PREFIX + script),
+            timeout,
+        )
 
     @staticmethod
     def _default_run(args: Sequence[str], timeout: float) -> tuple[int, str]:
@@ -227,15 +242,13 @@ class RestorePointService:
             proc = subprocess.run(
                 list(args),
                 capture_output=True,
-                text=True,
-                encoding="utf-8",
-                errors="replace",
+                text=False,
                 timeout=timeout,
                 creationflags=creationflags,
             )
         except (OSError, subprocess.TimeoutExpired) as e:
             return 1, str(e)
-        return proc.returncode, (proc.stdout or "") + (proc.stderr or "")
+        return proc.returncode, decode_process_output((proc.stdout or b"") + (proc.stderr or b""))
 
     @staticmethod
     def _default_is_admin() -> bool:

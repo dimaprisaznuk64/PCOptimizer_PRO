@@ -12,6 +12,7 @@ from pathlib import Path
 
 from app.restore import STATUS_CREATED, RestorePointService, RestoreResult
 from app.settings import data_root
+from app.winpaths import POWERSHELL_PATH, PS_UTF8_PREFIX, decode_process_output
 
 GUID_BALANCED = "381b4222-f694-41f0-9685-ff5bb260df2e"
 GUID_HIGH_PERF = "8c5e7fda-e8bf-4a96-9a85-a6e23a8c635c"
@@ -404,12 +405,12 @@ class OptimizerService:
         if self._is_admin():
             self._reg_set_dword("HKLM", HAGS_KEY, HAGS_VALUE, value)
         else:
-            script = (
+            script = PS_UTF8_PREFIX + (
                 f"Set-ItemProperty -Path 'HKLM:{os.sep}{HAGS_KEY}' "
                 f"-Name {HAGS_VALUE} -Value {value}"
             )
             ok = self._elevate(
-                ("powershell", "-NoProfile", "-ExecutionPolicy", "Bypass", "-Command", script)
+                (POWERSHELL_PATH, "-NoProfile", "-ExecutionPolicy", "Bypass", "-Command", script)
             )
             if not ok:
                 raise OptimizerError("HAGS change was cancelled at the UAC prompt")
@@ -435,12 +436,12 @@ class OptimizerService:
         if self._is_admin():
             self._reg_delete_value("HKLM", HAGS_KEY, HAGS_VALUE)
             return
-        script = (
+        script = PS_UTF8_PREFIX + (
             f"Remove-ItemProperty -Path 'HKLM:{os.sep}{HAGS_KEY}' "
             f"-Name {HAGS_VALUE} -ErrorAction SilentlyContinue"
         )
         ok = self._elevate(
-            ("powershell", "-NoProfile", "-ExecutionPolicy", "Bypass", "-Command", script)
+            (POWERSHELL_PATH, "-NoProfile", "-ExecutionPolicy", "Bypass", "-Command", script)
         )
         if not ok:
             raise OptimizerError("HAGS restore was cancelled at the UAC prompt")
@@ -514,15 +515,13 @@ class OptimizerService:
             proc = subprocess.run(
                 list(args),
                 capture_output=True,
-                text=True,
-                encoding="utf-8",
-                errors="replace",
+                text=False,
                 timeout=timeout,
                 creationflags=creationflags,
             )
         except (OSError, subprocess.TimeoutExpired) as e:
             return 1, str(e)
-        out = (proc.stdout or "") + (proc.stderr or "")
+        out = decode_process_output((proc.stdout or b"") + (proc.stderr or b""))
         return proc.returncode, out
 
     @staticmethod
@@ -537,14 +536,14 @@ class OptimizerService:
         # blocks until the elevated process has really finished (or UAC was
         # cancelled, which makes the script fail).
         command_line = subprocess.list2cmdline([str(a) for a in args[1:]])
-        inner = (
+        inner = PS_UTF8_PREFIX + (
             f"$p = Start-Process -FilePath {ps_quote(str(args[0]))} "
             f"-ArgumentList {ps_quote(command_line)} -Verb RunAs -Wait -PassThru; "
             "exit $p.ExitCode"
         )
         encoded = base64.b64encode(inner.encode("utf-16-le")).decode("ascii")
         code, _out = OptimizerService._default_run(
-            ("powershell", "-NoProfile", "-ExecutionPolicy", "Bypass", "-EncodedCommand", encoded),
+            (POWERSHELL_PATH, "-NoProfile", "-ExecutionPolicy", "Bypass", "-EncodedCommand", encoded),
             180.0,
         )
         return code == 0

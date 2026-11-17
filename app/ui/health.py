@@ -85,7 +85,7 @@ _CATEGORY_KEYS = {
 }
 _TITLE_RULES = (
     (r"RAM almost full", "ft_ram_full"), (r"High RAM usage", "ft_ram_high"), (r"RAM usage healthy", "ft_ram_ok"),
-    (r"Very high CPU temperature", "ft_temp_crit"), (r"High CPU temperature", "ft_temp_high"),
+    (r"Very high system temperature", "ft_temp_crit"), (r"High system temperature", "ft_temp_high"),
     (r"Very high GPU temperature", "ft_gpu_temp_crit"), (r"High GPU temperature", "ft_gpu_temp_high"),
     (r"Temperatures normal", "ft_temp_ok"), (r"CPU load is high right now", "ft_cpu_high"),
     (r"GPU load is high right now", "ft_gpu_high"),

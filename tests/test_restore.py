@@ -9,8 +9,10 @@ from app.restore import (
     STATUS_DISABLED,
     STATUS_ERROR,
     STATUS_SKIPPED,
+    RestoreError,
     RestorePointService,
 )
+from app.winpaths import POWERSHELL_PATH, PS_UTF8_PREFIX
 
 _B64_RE = re.compile(r"-EncodedCommand['\"]?,\s*'([A-Za-z0-9+/=]+)'")
 
@@ -100,6 +102,46 @@ def test_list_points_parses_output() -> None:
     assert [(p.sequence, p.description) for p in points] == [(509, "Windows Update"), (510, "My point")]
 
 
+class FailingListRunner(FakeRunner):
+    def run(self, args, timeout):
+        if "Get-ComputerRestorePoint" in " ".join(str(a) for a in args):
+            return 1, "Access denied"
+        return super().run(args, timeout)
+
+
+def test_list_points_reports_errors_instead_of_empty_list() -> None:
+    service = FailingListRunner().make_service()
+    try:
+        service.list_points()
+    except RestoreError as exc:
+        assert "Access denied" in str(exc)
+    else:
+        raise AssertionError("list_points() swallowed the PowerShell failure")
+
+
+def test_create_reports_list_failure() -> None:
+    result = FailingListRunner().make_service().create("PCOptimizer_PRO test")
+    assert not result.ok
+    assert result.status == STATUS_ERROR
+    assert "Access denied" in result.message
+
+
+def test_default_powershell_path_is_absolute() -> None:
+    service = RestorePointService()
+    assert service._ps == POWERSHELL_PATH
+    assert service._ps.lower().endswith("powershell.exe")
+    assert "System32" in service._ps
+
+
+def test_elevated_script_uses_configured_powershell_and_utf8() -> None:
+    service = RestorePointService(powershell=r"C:\Tools\PowerShell\powershell.exe")
+    script = service._elevated_script("Write-Output 'x'")
+    decoded = _decode(("-Command", script))
+    assert decoded is not None
+    assert "Start-Process -FilePath 'C:\\Tools\\PowerShell\\powershell.exe'" in script
+    assert PS_UTF8_PREFIX in decoded
+
+
 # ---------- create ----------
 
 
@@ -136,6 +178,27 @@ def test_create_detects_disabled_protection() -> None:
     result = runner.make_service().create("PCOptimizer_PRO test")
     assert not result.ok
     assert result.status == STATUS_DISABLED
+
+
+def test_create_does_not_misread_enabled_as_disabled() -> None:
+    runner = FakeRunner(admin=True)
+    runner.add_point = False
+    runner.checkpoint_error = True
+    runner.checkpoint_code = 0
+    runner.checkpoint_msg = "System protection is enabled; no new point was created."
+    result = runner.make_service().create("PCOptimizer_PRO test")
+    assert not result.ok
+    assert result.status == STATUS_SKIPPED
+
+
+def test_create_script_forces_utf8_console_output() -> None:
+    runner = FakeRunner(admin=True)
+    assert runner.make_service().create("PCOptimizer_PRO test").ok
+    script = next(
+        s for s in (_decode(call) for call in runner.calls)
+        if s and "Checkpoint-Computer" in s
+    )
+    assert script.startswith(PS_UTF8_PREFIX)
 
 
 def test_create_reports_uac_cancel() -> None:

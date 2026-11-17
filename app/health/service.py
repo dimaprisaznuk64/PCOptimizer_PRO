@@ -144,12 +144,12 @@ class HealthService:
         if temp is not None:
             if temp >= 95:
                 findings.append(Finding(
-                    "thermal", "Thermal", "critical", "Very high CPU temperature",
+                    "thermal", "Thermal", "critical", "Very high system temperature",
                     f"{temp:.0f}C — check cooling / dust", fix_hint="Clean fans, improve airflow",
                 ))
             elif temp >= 85:
                 findings.append(Finding(
-                    "thermal", "Thermal", "warning", "High CPU temperature", f"{temp:.0f}C",
+                    "thermal", "Thermal", "warning", "High system temperature", f"{temp:.0f}C",
                 ))
             else:
                 findings.append(Finding("thermal", "Thermal", "ok", "Temperatures normal", f"{temp:.0f}C"))
@@ -191,6 +191,7 @@ class HealthService:
 
     @staticmethod
     def _max_temperature(snapshot):
+        """Hottest ACPI zone; Windows exposes system/skin sensors, not guaranteed CPU."""
         thermal = snapshot.thermal
         if thermal is None or not thermal.temperatures:
             return None

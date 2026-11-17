@@ -214,6 +214,17 @@ def test_scan_gpu_critical_temperature() -> None:
     assert report.score == 100
 
 
+def test_scan_localizes_acpi_temperature_as_system() -> None:
+    from app.ui.health import localize_finding
+
+    report = _service(sensors=FakeSensors(temp=95.0)).scan()
+    by_id = {f.id: f for f in report.findings}
+    _cat, title, detail = localize_finding(by_id["thermal"])
+    assert title == "Very high system temperature"
+    assert "CPU" not in title
+    assert "95°C" in detail and "95C" not in detail
+
+
 def test_scan_localizes_gpu_findings() -> None:
     from app.ui.health import localize_finding
 

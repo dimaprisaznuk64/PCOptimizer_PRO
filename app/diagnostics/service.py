@@ -16,6 +16,8 @@ from collections.abc import Callable, Sequence
 from dataclasses import dataclass, field
 from typing import Any
 
+from app.winpaths import POWERSHELL_PATH, PS_UTF8_PREFIX, decode_process_output
+
 HEALTH_NAMES = {
     "healthy": "healthy",
     "warning": "warning",
@@ -39,10 +41,6 @@ ALLOWED_LOGS = ("System", "Application")
 # a best-effort read-only annotation — the raw event stays the source of truth).
 _SERVICE_FAIL_IDS = {7000, 7001, 7009, 7011, 7022, 7023, 7024, 7026, 7031, 7034}
 _DISK_SOURCES = {"disk", "ntfs", "stornvme", "storahci", "volmgr", "volsnap", "partmgr"}
-
-# PowerShell 5.1 writes console output in the OEM code page (cp866/cp1251 for
-# Cyrillic locales). Force UTF-8 so non-ASCII event messages survive the pipe.
-PS_UTF8_PREFIX = "[Console]::OutputEncoding=[System.Text.Encoding]::UTF8;"
 
 DISK_LIST_SCRIPT = (
     "Get-PhysicalDisk | Select-Object DeviceId,FriendlyName,"
@@ -238,26 +236,7 @@ def parse_events(output: str) -> list[EventEntry]:
 # ---------- defaults ----------
 
 
-def _decode_output(raw: bytes) -> str:
-    """Decode captured PowerShell bytes: UTF-8 first (we force UTF-8 console),
-    then the OEM console code page (cp866 on Cyrillic Windows) and cp1251 as a
-    safety net. cp866 is tried before cp1251 because a redirected PowerShell
-    console emits the OEM, not the ANSI, code page."""
-    if not raw:
-        return ""
-    import locale
-
-    candidates = ["utf-8", "cp866", "cp1251", locale.getpreferredencoding(False)]
-    seen: set[str] = set()
-    for enc in candidates:
-        if not enc or enc.lower() in seen:
-            continue
-        seen.add(enc.lower())
-        try:
-            return raw.decode(enc)
-        except (UnicodeDecodeError, LookupError):
-            continue
-    return raw.decode("utf-8", errors="replace")
+_decode_output = decode_process_output
 
 
 def _default_run(args: Sequence[str], timeout: float) -> tuple[int, str]:
@@ -289,7 +268,7 @@ def _event_script(log_name: str, levels: Sequence[int], limit: int) -> list[str]
         "@{n='Time';e={$_.TimeCreated.ToString('yyyy-MM-dd HH:mm:ss')}},"
         "Level,ProviderName,Id,Message | ConvertTo-Json -Depth 4 -Compress"
     )
-    return ["powershell", "-NoProfile", "-ExecutionPolicy", "Bypass", "-Command", script]
+    return [POWERSHELL_PATH, "-NoProfile", "-ExecutionPolicy", "Bypass", "-Command", script]
 
 
 class DiagnosticsService:
@@ -368,7 +347,7 @@ class DiagnosticsService:
         try:
             code, out = self._run(
                 [
-                    "powershell",
+                    POWERSHELL_PATH,
                     "-NoProfile",
                     "-ExecutionPolicy",
                     "Bypass",
@@ -390,7 +369,7 @@ class DiagnosticsService:
     def _rows(self, errors: list[str], label: str, script: str) -> list[dict[str, Any]]:
         try:
             code, out = self._run(
-                ["powershell", "-NoProfile", "-ExecutionPolicy", "Bypass", "-Command", PS_UTF8_PREFIX + script],
+                [POWERSHELL_PATH, "-NoProfile", "-ExecutionPolicy", "Bypass", "-Command", PS_UTF8_PREFIX + script],
                 40.0,
             )
         except Exception as e:  # noqa: BLE001 - collected, never fatal

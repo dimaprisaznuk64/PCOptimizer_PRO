@@ -519,6 +519,9 @@ def test_default_elevate_waits_for_the_elevated_process(monkeypatch) -> None:
     )
     assert ok is True
     args = captured["args"]
+    from app.winpaths import POWERSHELL_PATH
+
+    assert args[0] == POWERSHELL_PATH
     encoded = args[args.index("-EncodedCommand") + 1]
     script = base64.b64decode(encoded).decode("utf-16-le")
     assert "Start-Process" in script

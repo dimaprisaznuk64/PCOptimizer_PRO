@@ -6,6 +6,8 @@ import time
 from collections.abc import Callable, Sequence
 from dataclasses import dataclass
 
+from app.winpaths import POWERSHELL_PATH, PS_UTF8_PREFIX, decode_process_output
+
 DEFAULT_PING_HOST = "1.1.1.1"
 DNS_PROBE_HOST = "www.microsoft.com"
 
@@ -175,15 +177,13 @@ class NetworkService:
             proc = subprocess.run(
                 list(args),
                 capture_output=True,
-                text=True,
-                encoding="utf-8",
-                errors="replace",
+                text=False,
                 timeout=timeout,
                 creationflags=creationflags,
             )
         except (OSError, subprocess.TimeoutExpired) as e:
             return 1, str(e)
-        return proc.returncode, (proc.stdout or "") + (proc.stderr or "")
+        return proc.returncode, decode_process_output((proc.stdout or b"") + (proc.stderr or b""))
 
     @staticmethod
     def _default_resolver(host: str) -> None:
@@ -197,13 +197,13 @@ class NetworkService:
 
     @staticmethod
     def _default_gateway() -> str | None:
-        script = (
+        script = PS_UTF8_PREFIX + (
             "Get-NetRoute -DestinationPrefix '0.0.0.0/0' "
             "| Select-Object -First 1 -ExpandProperty NextHop"
         )
         code, out = NetworkService._default_run(
             (
-                "powershell", "-NoProfile", "-ExecutionPolicy", "Bypass",
+                POWERSHELL_PATH, "-NoProfile", "-ExecutionPolicy", "Bypass",
                 "-Command", script,
             ),
             20.0,
