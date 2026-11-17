@@ -1,28 +1,16 @@
 # Development Plan
 
 ## Status
-- Released **v1.6.7** (`3470bbd`) — post-1.6.5 reliability audit merged on top
-  of v1.6.6 (exe + portable + installer built, tag pushed, GitHub release
-  published):
-  - Steam VDF library paths are decoded without `unicode_escape`, so non-ASCII
-    paths (e.g. `D:\Ігри\Steam`) stay intact.
-  - Optimizer backup stores the raw HAGS DWORD and restores it exactly (a `0`
-    snapshot no longer becomes `1`); `apply_profile()` refuses to change a
-    setting it could not snapshot, so revert always stays possible.
-  - Regression tests added for both fixes (+6 tests).
-- Released **v1.6.8** (tag `v1.6.8`, CI-built installer + portable + release):
-  refreshed **TITANIUM** palette (deeper cyber blue, brighter accent), optional
-  thermal-sensor warning hidden on boards without ACPI zones, and the
-  COM-apartment teardown fix (`app/wincom.py`) that removes the
-  interpreter-shutdown access violation. Screenshots regenerated for all 17
-  pages.
-- Released **v1.6.9** (tag `v1.6.9`, CI-built installer + portable + release):
-  topbar **Back** button with navigation history (`Alt+Left`, history survives
-  theme rebuilds) and page titles that follow live language switches
-  (`NAV_KEYS` resolved at render time). Screenshots regenerated for all 17 pages.
-- Audit findings **A-01…A-14** (`docs/AUDIT_v1.6.1.md`) closed across v1.6.2–v1.6.5.
+- Released **v1.7.0** (`0128d5a`) — usage alerts, PDF export, safe update
+  download, light-theme contrast fixes, demo GIF and landing page.
+- Current release target **v1.7.1** — reliability/stabilization batch on top of
+  v1.7.0: fixed safe alert limits and quiet CPU/GPU alerts during games,
+  Settings reset applies language/theme, Restart-as-admin handles cancel/error,
+  absolute PowerShell paths + UTF-8/OEM decoding, honest restore statuses,
+  ACPI temperature labeled as system temperature, COM/background-task cleanup
+  and safer update redirects.
 - 17 pages, 29 themes, default theme **TITANIUM**.
-- Pytest suite is passing (569 tests). Ruff linter is clean.
+- Pytest suite is passing (615 tests). Ruff linter is clean.
 - Sensor backend resilient on PCs without PDH counters.
 - Optional update check against GitHub `releases/latest` (settings toggle,
   "Check now", release-page link).
@@ -33,7 +21,7 @@
 - Processes page de-lagged: fixed column widths, unchanged renders skipped,
   async details (`cb8d039`).
 - Theme default is a single source of truth (`theme.DEFAULT_THEME`).
-- Regenerated release screenshots for v1.6.5.
+- Regenerated release screenshots for v1.7.1.
 - Hardened sensors for machines without PDH counters.
 - Added the GitHub release update check with injected fetcher for tests.
 - Decoded Steam library paths safely; snapshot the exact HAGS DWORD.
@@ -56,6 +44,6 @@
 - Verified: full faulthandler run reports zero violations; `ruff` clean.
 
 ## Next
-- Optional: light-theme (Arctic/Ivory) polish pass over all 17 pages.
+- v2.0.0 Stage 1: full technical audit and stabilization.
 - Optional: wire `mypy` into the verification routine and fix the first batch
   of findings.
