@@ -16,7 +16,6 @@ from PySide6.QtWidgets import (
     QPushButton,
     QScrollArea,
     QSizePolicy,
-    QSpinBox,
     QVBoxLayout,
     QWidget,
 )
@@ -35,8 +34,7 @@ from .theme_picker import ThemeSwatchDelegate
 INTERVAL_OPTIONS = (250, 500, 1000, 2000, 5000)
 LOG_LEVELS = ("DEBUG", "INFO", "WARNING", "ERROR")
 LANGUAGE_OPTIONS = ("UA", "EN")
-TEMP_MIN, TEMP_MAX = 50, 110
-COOLDOWN_MIN, COOLDOWN_MAX = 1, 60
+
 
 class SettingsPage(QWidget):
     def __init__(
@@ -143,13 +141,8 @@ class SettingsPage(QWidget):
         self.start_minimized_check.setText(tr("set_start_minimized"))
         self.tray_metrics_check.setText(tr("set_tray_metrics"))
         self.temp_alerts_check.setText(tr("set_temp_alerts"))
-        self._temp_cpu_label.setText(tr("set_temp_cpu"))
-        self._temp_gpu_label.setText(tr("set_temp_gpu"))
+        self.quiet_games_check.setText(tr("set_quiet_games"))
         self.usage_alerts_check.setText(tr("set_usage_alerts"))
-        self._cpu_alert_label.setText(tr("set_cpu_alert"))
-        self._ram_alert_label.setText(tr("set_ram_alert"))
-        self._disk_alert_label.setText(tr("set_disk_alert"))
-        self._cooldown_label.setText(tr("set_alert_cooldown"))
         self.save_button.setText(tr("set_save_btn"))
         self.reset_button.setText(tr("set_reset_btn"))
         self.admin_button.setText(tr("set_restart_admin"))
@@ -227,66 +220,14 @@ class SettingsPage(QWidget):
         self.temp_alerts_check = QCheckBox(tr("set_temp_alerts"))
         grid.addWidget(self.temp_alerts_check, 8, 0, 1, 2)
 
-        self._temp_cpu_label = QLabel(tr("set_temp_cpu"))
-        grid.addWidget(self._temp_cpu_label, 9, 0)
-        self.temp_cpu_spin = QSpinBox()
-        self.temp_cpu_spin.setRange(TEMP_MIN, TEMP_MAX)
-        self.temp_cpu_spin.setSuffix(" °C")
-        self.temp_cpu_spin.setFixedHeight(COMBO_HEIGHT)
-        self.temp_cpu_spin.setSizePolicy(QSizePolicy.Expanding, QSizePolicy.Fixed)
-        grid.addWidget(self.temp_cpu_spin, 9, 1)
-
-        self._temp_gpu_label = QLabel(tr("set_temp_gpu"))
-        grid.addWidget(self._temp_gpu_label, 10, 0)
-        self.temp_gpu_spin = QSpinBox()
-        self.temp_gpu_spin.setRange(TEMP_MIN, TEMP_MAX)
-        self.temp_gpu_spin.setSuffix(" °C")
-        self.temp_gpu_spin.setFixedHeight(COMBO_HEIGHT)
-        self.temp_gpu_spin.setSizePolicy(QSizePolicy.Expanding, QSizePolicy.Fixed)
-        grid.addWidget(self.temp_gpu_spin, 10, 1)
+        self.quiet_games_check = QCheckBox(tr("set_quiet_games"))
+        grid.addWidget(self.quiet_games_check, 9, 0, 1, 2)
 
         self.usage_alerts_check = QCheckBox(tr("set_usage_alerts"))
-        grid.addWidget(self.usage_alerts_check, 11, 0, 1, 2)
-
-        self._cpu_alert_label = QLabel(tr("set_cpu_alert"))
-        grid.addWidget(self._cpu_alert_label, 12, 0)
-        self.cpu_alert_spin = QSpinBox()
-        self.cpu_alert_spin.setRange(TEMP_MIN, 100)
-        self.cpu_alert_spin.setSuffix(" %")
-        grid.addWidget(self.cpu_alert_spin, 12, 1)
-
-        self._ram_alert_label = QLabel(tr("set_ram_alert"))
-        grid.addWidget(self._ram_alert_label, 13, 0)
-        self.ram_alert_spin = QSpinBox()
-        self.ram_alert_spin.setRange(TEMP_MIN, 100)
-        self.ram_alert_spin.setSuffix(" %")
-        grid.addWidget(self.ram_alert_spin, 13, 1)
-
-        self._disk_alert_label = QLabel(tr("set_disk_alert"))
-        grid.addWidget(self._disk_alert_label, 14, 0)
-        self.disk_alert_spin = QSpinBox()
-        self.disk_alert_spin.setRange(TEMP_MIN, 100)
-        self.disk_alert_spin.setSuffix(" %")
-        grid.addWidget(self.disk_alert_spin, 14, 1)
-
-        self._cooldown_label = QLabel(tr("set_alert_cooldown"))
-        grid.addWidget(self._cooldown_label, 15, 0)
-        self.cooldown_spin = QSpinBox()
-        self.cooldown_spin.setRange(COOLDOWN_MIN, COOLDOWN_MAX)
-        self.cooldown_spin.setSuffix(" min")
-        grid.addWidget(self.cooldown_spin, 15, 1)
-
-        for spin in (
-            self.cpu_alert_spin,
-            self.ram_alert_spin,
-            self.disk_alert_spin,
-            self.cooldown_spin,
-        ):
-            spin.setFixedHeight(COMBO_HEIGHT)
-            spin.setSizePolicy(QSizePolicy.Expanding, QSizePolicy.Fixed)
+        grid.addWidget(self.usage_alerts_check, 10, 0, 1, 2)
 
         self._version_label = QLabel(tr("set_version"))
-        grid.addWidget(self._version_label, 16, 0)
+        grid.addWidget(self._version_label, 11, 0)
         version_row = QHBoxLayout()
         version_row.setSpacing(8)
         self.version_value = QLabel(f"v{__version__}")
@@ -307,22 +248,23 @@ class SettingsPage(QWidget):
         self.check_updates_button.setProperty("secondary", True)
         self.check_updates_button.clicked.connect(self.check_for_updates)
         version_row.addWidget(self.check_updates_button)
-        grid.addLayout(version_row, 16, 1)
+        grid.addLayout(version_row, 11, 1)
 
         self.update_check = QCheckBox(tr("set_update_check"))
-        grid.addWidget(self.update_check, 17, 0, 1, 2)
+        grid.addWidget(self.update_check, 12, 0, 1, 2)
 
         self.update_status = QLabel("")
         self.update_status.setObjectName("cardSub")
         self.update_status.setWordWrap(True)
         self.update_status.setVisible(False)
-        grid.addWidget(self.update_status, 18, 0, 1, 2)
+        grid.addWidget(self.update_status, 13, 0, 1, 2)
 
         for check in (
             self.minimize_check,
             self.start_minimized_check,
             self.tray_metrics_check,
             self.temp_alerts_check,
+            self.quiet_games_check,
             self.usage_alerts_check,
             self.update_check,
         ):
@@ -410,13 +352,8 @@ class SettingsPage(QWidget):
         self.tray_metrics_check.setChecked(self._service.get("tray_metrics"))
         self.update_check.setChecked(bool(self._service.get("update_check_enabled")))
         self.temp_alerts_check.setChecked(self._service.get("temp_alerts_enabled"))
-        self.temp_cpu_spin.setValue(int(self._service.get("temp_alert_cpu")))
-        self.temp_gpu_spin.setValue(int(self._service.get("temp_alert_gpu")))
+        self.quiet_games_check.setChecked(bool(self._service.get("alerts_quiet_during_games")))
         self.usage_alerts_check.setChecked(bool(self._service.get("usage_alerts_enabled")))
-        self.cpu_alert_spin.setValue(int(self._service.get("alert_cpu_percent")))
-        self.ram_alert_spin.setValue(int(self._service.get("alert_ram_percent")))
-        self.disk_alert_spin.setValue(int(self._service.get("alert_disk_percent")))
-        self.cooldown_spin.setValue(max(1, int(self._service.get("alert_cooldown_s")) // 60))
         level = self._service.get("log_level")
         level_index = self.level_combo.findData(level)
         self.level_combo.setCurrentIndex(level_index if level_index >= 0 else 1)
@@ -430,13 +367,8 @@ class SettingsPage(QWidget):
             "tray_metrics": self.tray_metrics_check.isChecked(),
             "update_check_enabled": self.update_check.isChecked(),
             "temp_alerts_enabled": self.temp_alerts_check.isChecked(),
-            "temp_alert_cpu": int(self.temp_cpu_spin.value()),
-            "temp_alert_gpu": int(self.temp_gpu_spin.value()),
+            "alerts_quiet_during_games": self.quiet_games_check.isChecked(),
             "usage_alerts_enabled": self.usage_alerts_check.isChecked(),
-            "alert_cpu_percent": int(self.cpu_alert_spin.value()),
-            "alert_ram_percent": int(self.ram_alert_spin.value()),
-            "alert_disk_percent": int(self.disk_alert_spin.value()),
-            "alert_cooldown_s": int(self.cooldown_spin.value()) * 60,
             "log_level": str(self.level_combo.currentData()),
             "theme": str(self.theme_combo.currentData()),
         }
@@ -453,20 +385,27 @@ class SettingsPage(QWidget):
             self.status_label.style().polish(self.status_label)
             return
         setup_logging(self._service.get("log_level"), directory=self._log_directory)
-        theme_changed = self._service.get("theme") != getattr(self, "_loaded_theme", CURRENT_THEME)
-        language = str(self._service.get("language"))
-        language_changed = language != I18nService.instance().current_language
+        previous_language = I18nService.instance().current_language
+        previous_theme = getattr(self, "_loaded_theme", CURRENT_THEME)
         self.status_label.setObjectName("cardSub")
         self.status_label.style().unpolish(self.status_label)
         self.status_label.style().polish(self.status_label)
         self.status_label.setText(tr("set_saved", path=path))
         self.refresh_preview()
-        if language_changed:
+        self._apply_live_changes(previous_language, previous_theme)
+
+    def _apply_live_changes(self, previous_language: str, previous_theme: str) -> None:
+        language = str(self._service.get("language"))
+        theme = str(self._service.get("theme"))
+        self._loaded_theme = theme
+        if language != previous_language:
             I18nService.instance().set_language(language)
-        if theme_changed and self._on_theme_applied is not None:
-            self._on_theme_applied(str(self.theme_combo.currentData()))
+        if theme != previous_theme and self._on_theme_applied is not None:
+            self._on_theme_applied(theme)
 
     def reset(self) -> None:
+        previous_language = I18nService.instance().current_language
+        previous_theme = getattr(self, "_loaded_theme", CURRENT_THEME)
         self._service.reset()
         try:
             self._service.save()
@@ -475,6 +414,7 @@ class SettingsPage(QWidget):
             return
         self.load_values()
         self.status_label.setText(tr("set_reset_done"))
+        self._apply_live_changes(previous_language, previous_theme)
 
     # ---------- updates ----------
 
@@ -576,21 +516,26 @@ class SettingsPage(QWidget):
         folder = log_file(self._log_directory).parent
         QDesktopServices.openUrl(QUrl.fromLocalFile(str(folder)))
 
+    def _shell_execute_admin(self, exe: str, args: str) -> int:
+        import ctypes
+
+        return int(ctypes.windll.shell32.ShellExecuteW(None, "runas", exe, args, None, 1))
+
     def restart_as_admin(self) -> None:
         """Restart the app elevated (UAC prompt), so some operations need no extra prompts."""
-        import ctypes
         import sys
 
-
-        if getattr(sys, "frozen", False):
-            exe = sys.executable
-            args = ""
-        else:
-            exe = sys.executable
-            args = " ".join(f'"{a}"' for a in sys.argv)
+        exe = sys.executable
+        args = "" if getattr(sys, "frozen", False) else " ".join(f'"{a}"' for a in sys.argv)
         try:
-            ctypes.windll.shell32.ShellExecuteW(None, "runas", exe, args, None, 1)
-        except OSError:
-            self.status_label.setText(tr("set_save_failed", msg="ShellExecuteW failed"))
+            result = self._shell_execute_admin(exe, args)
+        except OSError as exc:
+            self.status_label.setText(tr("set_admin_failed", code=exc))
+            return
+        if result == 1223:
+            self.status_label.setText(tr("set_admin_cancelled"))
+            return
+        if result <= 32:
+            self.status_label.setText(tr("set_admin_failed", code=result))
             return
         QApplication.quit()

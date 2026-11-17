@@ -38,6 +38,7 @@ class FakeOptimizer(OptimizerService):
         self.revert_calls = 0
         self.fail_restore = False
         self.fail_all = False
+        self.fail_revert = False
 
     def apply_profile(self, profile: str, *, with_restore_point: bool = True) -> ApplyReport:
         self.apply_calls.append((profile, with_restore_point))
@@ -51,16 +52,21 @@ class FakeOptimizer(OptimizerService):
         self.revert_calls += 1
         if self.fail_restore:
             raise RuntimeError("no backup")
+        if self.fail_revert:
+            return ApplyReport(applied=(), errors=("registry write failed",))
         return ApplyReport(applied=("power plan → Balanced",), errors=())
 
 
-def _service(tmp_path, *, fake_opt=None, roots=None, running=None, popen=None) -> GamingService:
+def _service(
+    tmp_path, *, fake_opt=None, roots=None, running=None, popen=None, running_cache_s=0.0
+) -> GamingService:
     return GamingService(
         steam_roots=lambda: list(roots or []),
         custom_store=tmp_path / "custom.json",
         optimizer=fake_opt or FakeOptimizer(tmp_path),
         running_names=lambda: list(running or []),
         popen=popen,
+        running_cache_s=running_cache_s,
     )
 
 
@@ -91,6 +97,34 @@ def test_detect_running_flag(tmp_path) -> None:
     games = {g.id: g for g in service.detect()}
     assert games["cs2"].running is True
     assert games["pubg"].running is False
+
+
+def test_is_game_running_detects_known_and_custom(tmp_path) -> None:
+    exe = tmp_path / "MyGame.exe"
+    exe.write_bytes(b"MZ")
+    service = _service(tmp_path, running=["chrome.exe"])
+    assert service.is_game_running() is False
+    service.add_custom("My Game", str(exe))
+    service._running_names = lambda: ["chrome.exe", "mygame.exe"]
+    assert service.is_game_running() is True
+    service._running_names = lambda: ["tslgame.exe"]
+    assert service.is_game_running() is True
+
+
+def test_is_game_running_uses_cache(tmp_path) -> None:
+    running = ["cs2.exe"]
+    service = _service(tmp_path, running=running, running_cache_s=60.0)
+    assert service.is_game_running() is True
+    running.clear()
+    assert service.is_game_running() is True
+    fresh = _service(tmp_path, running=running)
+    assert fresh.is_game_running() is False
+
+
+def test_is_game_running_survives_corrupt_custom_store(tmp_path) -> None:
+    (tmp_path / "custom.json").write_text("{bad json", encoding="utf-8")
+    service = _service(tmp_path, running=["dota2.exe"])
+    assert service.is_game_running() is True
 
 
 def test_find_exe_nested(tmp_path) -> None:
@@ -267,6 +301,16 @@ def test_deactivate_reverts(tmp_path) -> None:
     assert fake.revert_calls == 1
     assert service.active is False
     assert report.applied
+
+
+def test_failed_revert_keeps_gaming_mode_active(tmp_path) -> None:
+    fake = FakeOptimizer(tmp_path)
+    service = _service(tmp_path, fake_opt=fake)
+    service.activate()
+    fake.fail_revert = True
+    report = service.deactivate()
+    assert report.errors
+    assert service.active is True
 
 
 def test_active_restored_from_backup_after_restart(tmp_path) -> None:

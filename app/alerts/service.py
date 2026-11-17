@@ -8,6 +8,13 @@ from dataclasses import dataclass
 
 from app.sensors.types import Snapshot
 
+TEMP_CPU_C = 90.0
+TEMP_GPU_C = 87.0
+CPU_PERCENT = 90.0
+RAM_PERCENT = 90.0
+DISK_PERCENT = 92.0
+COOLDOWN_S = 300.0
+
 
 @dataclass(frozen=True, slots=True)
 class TempAlert:
@@ -96,6 +103,10 @@ class TemperatureAlertMonitor:
         self._last_alert = now
         return TempAlert(temperature=value, source=source, limit=limit)
 
+    def reset(self) -> None:
+        self._last_alert = None
+        self._above = False
+
 
 def max_cpu_usage(snapshot: Snapshot) -> tuple[float, str] | None:
     if snapshot.cpu is None:
@@ -147,3 +158,7 @@ class UsageAlertMonitor:
         self._above = True
         self._last_alert = now
         return UsageAlert(value=value, source=source, limit=limit, kind=self._kind)
+
+    def reset(self) -> None:
+        self._last_alert = None
+        self._above = False

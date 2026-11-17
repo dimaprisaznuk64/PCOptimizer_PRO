@@ -84,36 +84,25 @@ def test_load_ignores_invalid_entries(tmp_path) -> None:
     assert svc.get("sample_interval_ms") == DEFAULTS["sample_interval_ms"]
 
 
-def test_migrate_legacy_single_temp_threshold(tmp_path) -> None:
-    path = tmp_path / "settings.json"
-    path.write_text(json.dumps({"temp_alert_celsius": 77}), encoding="utf-8")
-    svc = SettingsService(path)
-    assert svc.get("temp_alert_cpu") == 77
-    assert svc.get("temp_alert_gpu") == DEFAULTS["temp_alert_gpu"]
-
-
-def test_migrate_legacy_temp_does_not_override_explicit(tmp_path) -> None:
+def test_legacy_alert_thresholds_are_ignored(tmp_path) -> None:
     path = tmp_path / "settings.json"
     path.write_text(
-        json.dumps({"temp_alert_celsius": 77, "temp_alert_cpu": 88}),
+        json.dumps(
+            {
+                "temp_alert_celsius": 77,
+                "temp_alert_cpu": 88,
+                "alert_cpu_percent": 99,
+                "alert_cooldown_s": 1,
+            }
+        ),
         encoding="utf-8",
     )
     svc = SettingsService(path)
-    assert svc.get("temp_alert_cpu") == 88
-
-
-def test_usage_alert_settings_validate_ranges(tmp_path) -> None:
-    svc = SettingsService(tmp_path / "settings.json")
+    assert "temp_alert_cpu" not in svc.data
+    assert "alert_cpu_percent" not in svc.data
     assert svc.get("usage_alerts_enabled") is True
-    assert svc.get("alert_disk_percent") == 92
-    svc.set("alert_cpu_percent", 85)
-    svc.set("alert_cooldown_s", 600)
-    assert svc.get("alert_cpu_percent") == 85
-    assert svc.get("alert_cooldown_s") == 600
     with pytest.raises(SettingsError):
-        svc.set("alert_ram_percent", 120)
-    with pytest.raises(SettingsError):
-        svc.set("alert_cooldown_s", 5)
+        svc.get("alert_cooldown_s")
 
 
 def test_reset_restores_defaults(tmp_path) -> None:

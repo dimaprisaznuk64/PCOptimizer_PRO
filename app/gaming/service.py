@@ -4,6 +4,7 @@ import json
 import os
 import re
 import subprocess
+import time
 from collections.abc import Callable, Sequence
 from dataclasses import dataclass
 from pathlib import Path
@@ -141,6 +142,7 @@ class GamingService:
         running_names: Callable[[], Sequence[str]] | None = None,
         popen: Callable[..., object] | None = None,
         open_uri: Callable[[str], object] | None = None,
+        running_cache_s: float = 5.0,
     ) -> None:
         self.custom_store = Path(custom_store) if custom_store else (
             data_root() / "gaming_custom.json"
@@ -150,6 +152,9 @@ class GamingService:
         self._running_names = running_names or self._psutil_running_names
         self._popen = popen or subprocess.Popen
         self._open_uri = open_uri or _default_open_uri
+        self._running_cache_s = running_cache_s
+        self._running_cached_until = 0.0
+        self._running_cached_value = False
         # The applied-profile backup survives restarts; if it was a GAMING profile
         # the mode really is still on, so restore the flag instead of lying "off".
         self._active = self._optimizer.backup_profile() == "GAMING"
@@ -158,6 +163,27 @@ class GamingService:
     @property
     def active(self) -> bool:
         return self._active
+
+    def is_game_running(self) -> bool:
+        now = time.monotonic()
+        if self._running_cache_s > 0 and now < self._running_cached_until:
+            return self._running_cached_value
+        try:
+            running = {str(name).lower() for name in self._running_names()}
+        except OSError:
+            running = set()
+        targets = {exe.lower() for spec in KNOWN_GAMES for exe in spec.exe_names}
+        try:
+            for entry in self._load_custom():
+                exe = Path(str(entry.get("exe", "")))
+                if exe.name:
+                    targets.add(exe.name.lower())
+        except GamingError:
+            pass
+        value = bool(targets & running)
+        self._running_cached_value = value
+        self._running_cached_until = now + self._running_cache_s
+        return value
 
     # ---------- detection ----------
 
@@ -279,7 +305,9 @@ class GamingService:
     def deactivate(self) -> ApplyReport:
         report = self._optimizer.revert()
         self.last_report = report
-        self._active = False
+        # A failed revert leaves the GAMING backup in place, so the mode is
+        # still on. Only a clean revert (backup removed) turns it off.
+        self._active = bool(report.errors)
         return report
 
     # ---------- internals ----------

@@ -71,10 +71,12 @@ def test_reset_restores_defaults(qapp, tmp_path) -> None:
     assert SettingsService(tmp_path / "settings.json").get("sample_interval_ms") == 5000
 
     I18nService.instance().set_language("EN", emit=False)
+    expected_status = tr("set_reset_done")
     page.reset()
     assert page.interval_combo.currentData() == DEFAULTS["sample_interval_ms"]
     assert page.minimize_check.isChecked() is True
-    assert page.status_label.text() == tr("set_reset_done") == "Defaults restored"
+    assert I18nService.instance().current_language == DEFAULTS["language"]
+    assert page.status_label.text() == expected_status == "Defaults restored"
     assert SettingsService(tmp_path / "settings.json").get("sample_interval_ms") == DEFAULTS[
         "sample_interval_ms"
     ]
@@ -110,13 +112,8 @@ def test_collect_values_shape(qapp, tmp_path) -> None:
         "tray_metrics",
         "update_check_enabled",
         "temp_alerts_enabled",
-        "temp_alert_cpu",
-        "temp_alert_gpu",
+        "alerts_quiet_during_games",
         "usage_alerts_enabled",
-        "alert_cpu_percent",
-        "alert_ram_percent",
-        "alert_disk_percent",
-        "alert_cooldown_s",
         "log_level",
         "theme",
         "language",
@@ -124,10 +121,75 @@ def test_collect_values_shape(qapp, tmp_path) -> None:
     assert isinstance(values["sample_interval_ms"], int)
     assert isinstance(values["minimize_to_tray"], bool)
     assert isinstance(values["temp_alerts_enabled"], bool)
-    assert isinstance(values["temp_alert_cpu"], int)
-    assert isinstance(values["temp_alert_gpu"], int)
+    assert isinstance(values["alerts_quiet_during_games"], bool)
     assert isinstance(values["usage_alerts_enabled"], bool)
-    assert isinstance(values["alert_cooldown_s"], int)
+
+
+def test_alert_threshold_controls_are_removed(qapp, tmp_path) -> None:
+    page = _page(qapp, tmp_path)
+    for name in (
+        "temp_cpu_spin",
+        "temp_gpu_spin",
+        "cpu_alert_spin",
+        "ram_alert_spin",
+        "disk_alert_spin",
+        "cooldown_spin",
+    ):
+        assert not hasattr(page, name)
+
+
+def test_reset_applies_default_theme(qapp, tmp_path) -> None:
+    applied: list[str] = []
+    page = _page(qapp, tmp_path, on_theme_applied=applied.append)
+    theme_keys = [page.theme_combo.itemData(i) for i in range(page.theme_combo.count())]
+    other_theme = next(key for key in theme_keys if key and key != DEFAULTS["theme"])
+    page.theme_combo.setCurrentIndex(page.theme_combo.findData(other_theme))
+    page.save()
+    assert applied == [other_theme]
+
+    applied.clear()
+    page.reset()
+    assert applied == [DEFAULTS["theme"]]
+    assert page.theme_combo.currentData() == DEFAULTS["theme"]
+
+
+def test_restart_admin_cancel_keeps_app_running(qapp, tmp_path, monkeypatch) -> None:
+    from PySide6.QtWidgets import QApplication
+
+    from app.i18n import tr
+
+    page = _page(qapp, tmp_path)
+    quits: list[bool] = []
+    monkeypatch.setattr(page, "_shell_execute_admin", lambda exe, args: 1223)
+    monkeypatch.setattr(QApplication, "quit", lambda: quits.append(True))
+    page.restart_as_admin()
+    assert page.status_label.text() == tr("set_admin_cancelled")
+    assert quits == []
+
+
+def test_restart_admin_failure_keeps_app_running(qapp, tmp_path, monkeypatch) -> None:
+    from PySide6.QtWidgets import QApplication
+
+    from app.i18n import tr
+
+    page = _page(qapp, tmp_path)
+    quits: list[bool] = []
+    monkeypatch.setattr(page, "_shell_execute_admin", lambda exe, args: 5)
+    monkeypatch.setattr(QApplication, "quit", lambda: quits.append(True))
+    page.restart_as_admin()
+    assert page.status_label.text() == tr("set_admin_failed", code=5)
+    assert quits == []
+
+
+def test_restart_admin_success_quits(qapp, tmp_path, monkeypatch) -> None:
+    from PySide6.QtWidgets import QApplication
+
+    page = _page(qapp, tmp_path)
+    quits: list[bool] = []
+    monkeypatch.setattr(page, "_shell_execute_admin", lambda exe, args: 42)
+    monkeypatch.setattr(QApplication, "quit", lambda: quits.append(True))
+    page.restart_as_admin()
+    assert quits == [True]
 
 
 def test_update_widgets_follow_settings(qapp, tmp_path) -> None:

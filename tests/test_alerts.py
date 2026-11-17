@@ -169,9 +169,7 @@ def test_main_window_alerts_on_hot_snapshot(qapp) -> None:
     from app.settings import SettingsService
     from app.ui.main_window import MainWindow
 
-    settings = SettingsService(
-        data={"temp_alerts_enabled": True, "temp_alert_cpu": 90, "temp_alert_gpu": 90}
-    )
+    settings = SettingsService(data={"temp_alerts_enabled": True})
     window = MainWindow(settings=settings)
     tray = _StubTray()
     window.tray = tray
@@ -185,16 +183,16 @@ def test_main_window_alerts_on_hot_snapshot(qapp) -> None:
     assert all("99" in body for _, body in tray.messages)
 
 
-def test_main_window_separate_cpu_gpu_thresholds(qapp) -> None:
+def test_main_window_uses_fixed_temp_limits(qapp, monkeypatch) -> None:
     from app.sensors import SensorManager
     from app.sensors.mock_backend import MockBackend
     from app.settings import SettingsService
+    from app.ui import main_window as main_window_module
     from app.ui.main_window import MainWindow
 
-    # CPU limit low (fires), GPU limit high (silent) even though both read 99°C.
-    settings = SettingsService(
-        data={"temp_alerts_enabled": True, "temp_alert_cpu": 90, "temp_alert_gpu": 100}
-    )
+    monkeypatch.setattr(main_window_module, "TEMP_CPU_C", 90.0)
+    monkeypatch.setattr(main_window_module, "TEMP_GPU_C", 100.0)
+    settings = SettingsService(data={"temp_alerts_enabled": True})
     window = MainWindow(settings=settings)
     tray = _StubTray()
     window.tray = tray
@@ -255,9 +253,6 @@ def test_main_window_alerts_on_high_cpu_and_ram(qapp) -> None:
         data={
             "temp_alerts_enabled": False,
             "usage_alerts_enabled": True,
-            "alert_cpu_percent": 90,
-            "alert_ram_percent": 90,
-            "alert_disk_percent": 99,
         }
     )
     window = MainWindow(settings=settings)
@@ -270,17 +265,18 @@ def test_main_window_alerts_on_high_cpu_and_ram(qapp) -> None:
     assert "RAM" in bodies
 
 
-def test_main_window_alerts_on_full_disk(qapp) -> None:
+def test_main_window_alerts_on_full_disk(qapp, monkeypatch) -> None:
     from app.settings import SettingsService
+    from app.ui import main_window as main_window_module
     from app.ui.main_window import MainWindow
 
+    monkeypatch.setattr(main_window_module, "CPU_PERCENT", 99.0)
+    monkeypatch.setattr(main_window_module, "RAM_PERCENT", 99.0)
+    monkeypatch.setattr(main_window_module, "DISK_PERCENT", 90.0)
     settings = SettingsService(
         data={
             "temp_alerts_enabled": False,
             "usage_alerts_enabled": True,
-            "alert_cpu_percent": 99,
-            "alert_ram_percent": 99,
-            "alert_disk_percent": 90,
         }
     )
     window = MainWindow(settings=settings)
@@ -301,3 +297,89 @@ def test_main_window_respects_disabled_usage_alerts(qapp) -> None:
     window.tray = tray
     window.handle_snapshot(_usage_snap(cpu=99.0, ram=99.0, disks=(99.0,)))
     assert tray.messages == []
+
+
+class _FakeGaming:
+    def __init__(self, running: bool) -> None:
+        self.running = running
+
+    def is_game_running(self) -> bool:
+        return self.running
+
+
+def _hot_all_snap() -> Snapshot:
+    return Snapshot(
+        ts=0.0,
+        cpu=CpuStat(percent=99.0, per_core=(99.0,), physical_cores=1, logical_cores=1),
+        memory=MemoryStat(100, 99, 1, 99.0, 0, 0, 0.0),
+        disks=(DiskStat("C:", "C:", "NTFS", 100, 99, 1, 99.0),),
+        thermal=ThermalStat("test", (("CPU", 99.0),)),
+        gpus=(GpuStat(0, "RTX", 99.0, 1, 1, temperature=98.0),),
+    )
+
+
+def _quiet_settings(**overrides) -> object:
+    from app.settings import SettingsService
+
+    data = {
+        "temp_alerts_enabled": True,
+        "usage_alerts_enabled": True,
+        "alerts_quiet_during_games": True,
+    }
+    data.update(overrides)
+    return SettingsService(data=data)
+
+
+def test_main_window_silences_cpu_gpu_alerts_during_game(qapp) -> None:
+    from app.ui.main_window import MainWindow
+
+    window = MainWindow(settings=_quiet_settings(), gaming=_FakeGaming(True))
+    tray = _StubTray()
+    window.tray = tray
+    window.handle_snapshot(_hot_all_snap())
+    assert len(tray.messages) == 2
+    bodies = " ".join(body for _, body in tray.messages)
+    assert "RAM" in bodies
+    assert "99%" in bodies
+
+
+def test_main_window_quiet_during_games_can_be_disabled(qapp) -> None:
+    from app.ui.main_window import MainWindow
+
+    settings = _quiet_settings(alerts_quiet_during_games=False)
+    window = MainWindow(settings=settings, gaming=_FakeGaming(True))
+    tray = _StubTray()
+    window.tray = tray
+    window.handle_snapshot(_hot_all_snap())
+    assert len(tray.messages) == 5
+
+
+def test_main_window_alerts_resume_after_game_without_stale_hot_state(qapp) -> None:
+    from app.ui.main_window import MainWindow
+
+    gaming = _FakeGaming(True)
+    window = MainWindow(settings=_quiet_settings(), gaming=gaming)
+    tray = _StubTray()
+    window.tray = tray
+    window.handle_snapshot(_hot_all_snap())
+    assert len(tray.messages) == 2
+    gaming.running = False
+    window.handle_snapshot(_hot_all_snap())
+    assert len(tray.messages) == 5
+
+
+def test_game_presence_watcher_emits_from_background_thread(qapp) -> None:
+    import time
+
+    from app.ui.main_window import _GamePresenceWatcher
+
+    watcher = _GamePresenceWatcher(_FakeGaming(True), interval_s=0.05)
+    seen: list[bool] = []
+    watcher.presence.connect(seen.append)
+    watcher.start()
+    end = time.monotonic() + 2.0
+    while not seen and time.monotonic() < end:
+        qapp.processEvents()
+        time.sleep(0.01)
+    assert watcher.stop()
+    assert seen and seen[-1] is True

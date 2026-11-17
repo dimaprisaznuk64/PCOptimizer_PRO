@@ -1,8 +1,9 @@
 from __future__ import annotations
 
 import sys
+from threading import Event
 
-from PySide6.QtCore import Qt
+from PySide6.QtCore import Qt, QThread, Signal
 from PySide6.QtGui import (
     QColor,
     QGuiApplication,
@@ -21,6 +22,12 @@ from PySide6.QtWidgets import (
 )
 
 from app.alerts import (
+    COOLDOWN_S,
+    CPU_PERCENT,
+    DISK_PERCENT,
+    RAM_PERCENT,
+    TEMP_CPU_C,
+    TEMP_GPU_C,
     TemperatureAlertMonitor,
     UsageAlertMonitor,
     max_cpu_thermal,
@@ -29,8 +36,10 @@ from app.alerts import (
     max_gpu_thermal,
     max_memory_usage,
 )
+from app.gaming import GamingService
 from app.history import PerformanceHistory
 from app.i18n import I18nService, tr
+from app.logs import get_logger
 from app.settings import SettingsService
 
 from .pages import build_pages
@@ -42,6 +51,42 @@ from .tray import AppTray
 
 # Below this window width the sidebar collapses to icons only.
 COMPACT_SIDEBAR_WIDTH = 1200
+
+_log = get_logger("ui.main_window")
+
+
+class _GamePresenceWatcher(QThread):
+    """Polls process names off the GUI thread for quiet-hours alert suppression."""
+
+    presence = Signal(bool)
+
+    def __init__(
+        self,
+        gaming: GamingService,
+        *,
+        interval_s: float = 5.0,
+        parent: QThread | None = None,
+    ) -> None:
+        super().__init__(parent)
+        self._gaming = gaming
+        self._interval_s = max(0.05, interval_s)
+        self._stop = Event()
+
+    def run(self) -> None:
+        while not self._stop.is_set():
+            try:
+                running = self._gaming.is_game_running()
+            except Exception as exc:
+                _log.warning("game presence check failed: %s", exc)
+                running = False
+            self.presence.emit(bool(running))
+            self._stop.wait(self._interval_s)
+
+    def stop(self, timeout_ms: int = 3000) -> bool:
+        self._stop.set()
+        if self.isRunning():
+            return self.wait(timeout_ms)
+        return True
 
 
 class _GlowRoot(QWidget):
@@ -91,6 +136,8 @@ class MainWindow(QMainWindow):
         self,
         settings: SettingsService | None = None,
         parent: QWidget | None = None,
+        *,
+        gaming: GamingService | None = None,
     ) -> None:
         super().__init__(parent)
         self.setWindowTitle("PCOptimizer PRO")
@@ -106,6 +153,9 @@ class MainWindow(QMainWindow):
         self.tray: AppTray | None = None
         self._update_task = None
         self.settings = settings or SettingsService()
+        self._gaming = gaming or GamingService()
+        self._game_running = False
+        self._game_watcher: _GamePresenceWatcher | None = None
         self._force_quit = False
         self._last_snapshot = None
         self._nav_history: list[str] = []
@@ -114,7 +164,7 @@ class MainWindow(QMainWindow):
         self._back_shortcut.setContext(Qt.ShortcutContext.WindowShortcut)
         self._back_shortcut.activated.connect(self.go_back)
         self._history = PerformanceHistory()
-        cooldown = float(self.settings.get("alert_cooldown_s"))
+        cooldown = COOLDOWN_S
         self._cpu_monitor = TemperatureAlertMonitor(
             reading=max_cpu_thermal, cooldown_s=cooldown
         )
@@ -300,6 +350,10 @@ class MainWindow(QMainWindow):
         from .tasks import stop_all
         from .topbar import TopBar
 
+        if not stop_all():
+            _log.warning("theme change postponed: a background task is still running")
+            return
+
         th.set_theme(name)
         self._reload_ui_modules()
         app = QApplication.instance()
@@ -310,8 +364,6 @@ class MainWindow(QMainWindow):
 
         geometry = self.geometry()
         key = self.current_key
-
-        stop_all()
 
         self.sidebar.deleteLater()
         self.topbar.deleteLater()
@@ -391,17 +443,42 @@ class MainWindow(QMainWindow):
                 handler(snapshot)
         self._update_sidebar_health(snapshot)
         self._update_tray_tooltip(snapshot)
-        self._check_temp_alert(snapshot)
-        self._check_usage_alert(snapshot)
+        game_running = self._game_is_running()
+        self._check_temp_alert(snapshot, game_running)
+        self._check_usage_alert(snapshot, game_running)
 
-    def _check_temp_alert(self, snapshot) -> None:
+    def start_game_watcher(self) -> None:
+        if self._game_watcher is not None:
+            return
+        watcher = _GamePresenceWatcher(self._gaming, parent=self)
+        watcher.presence.connect(self._set_game_running)
+        self._game_watcher = watcher
+        watcher.start()
+
+    def _set_game_running(self, running: bool) -> None:
+        self._game_running = bool(running)
+
+    def _game_is_running(self) -> bool:
+        if not self.settings.get("alerts_quiet_during_games"):
+            return False
+        if self._game_watcher is not None:
+            return self._game_running
+        try:
+            return self._gaming.is_game_running()
+        except Exception:
+            return False
+
+    def _check_temp_alert(self, snapshot, game_running: bool = False) -> None:
         if not self.settings.get("temp_alerts_enabled"):
             return
         checks = (
-            (self._cpu_monitor, float(self.settings.get("temp_alert_cpu"))),
-            (self._gpu_monitor, float(self.settings.get("temp_alert_gpu"))),
+            (self._cpu_monitor, TEMP_CPU_C, True),
+            (self._gpu_monitor, TEMP_GPU_C, True),
         )
-        for monitor, limit in checks:
+        for monitor, limit, quiet_in_game in checks:
+            if game_running and quiet_in_game:
+                monitor.reset()
+                continue
             alert = monitor.check(snapshot, limit)
             if alert is not None:
                 self._emit_temp_alert(alert)
@@ -422,15 +499,18 @@ class MainWindow(QMainWindow):
             "temperature alert: %s at %.0f°C (limit %.0f°C)", source, alert.temperature, alert.limit
         )
 
-    def _check_usage_alert(self, snapshot) -> None:
+    def _check_usage_alert(self, snapshot, game_running: bool = False) -> None:
         if not self.settings.get("usage_alerts_enabled"):
             return
         checks = (
-            (self._cpu_usage_monitor, float(self.settings.get("alert_cpu_percent"))),
-            (self._ram_usage_monitor, float(self.settings.get("alert_ram_percent"))),
-            (self._disk_usage_monitor, float(self.settings.get("alert_disk_percent"))),
+            (self._cpu_usage_monitor, CPU_PERCENT, True),
+            (self._ram_usage_monitor, RAM_PERCENT, False),
+            (self._disk_usage_monitor, DISK_PERCENT, False),
         )
-        for monitor, limit in checks:
+        for monitor, limit, quiet_in_game in checks:
+            if game_running and quiet_in_game:
+                monitor.reset()
+                continue
             alert = monitor.check(snapshot, limit)
             if alert is not None:
                 self._emit_usage_alert(alert)
@@ -565,6 +645,8 @@ class MainWindow(QMainWindow):
             return
         if self.sampler is not None:
             self.sampler.stop()
+        if self._game_watcher is not None:
+            self._game_watcher.stop()
         from .tasks import stop_all
 
         stop_all()
@@ -638,11 +720,14 @@ def run(argv: list[str] | None = None) -> int:
         window.show()
     window.schedule_health_scan()
     window.schedule_update_check()
+    window.start_game_watcher()
     sampler.start()
     try:
         return app.exec()
     finally:
-        sampler.stop()
+        sampler_ok = sampler.stop()
+        if window._game_watcher is not None:
+            window._game_watcher.stop()
         tray.hide()
         guard.close()
         from .tasks import stop_all
@@ -651,7 +736,10 @@ def run(argv: list[str] | None = None) -> int:
         log.info("stopped")
         window.shutdown()
         app.processEvents()
-        manager.close()
+        if sampler_ok:
+            manager.close()
+        else:
+            log.warning("sampler did not stop in time; sensor backends left open")
 
 
 if __name__ == "__main__":
