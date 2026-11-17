@@ -29,6 +29,15 @@ _VERSION_RE = re.compile(r"^v?(\d+(?:\.\d+)*)")
 
 Fetcher = Callable[[str, float], dict[str, object]]
 
+_GITHUB_PAGE_HOSTS = {"github.com", "www.github.com"}
+
+
+def _is_github_page(url: object) -> bool:
+    if not isinstance(url, str):
+        return False
+    parsed = urllib.parse.urlparse(url)
+    return parsed.scheme == "https" and parsed.netloc.lower() in _GITHUB_PAGE_HOSTS
+
 
 def parse_version(text: str) -> tuple[int, ...] | None:
     """`v1.6.5` / `1.6.5-beta` -> (1, 6, 5); None when there is no version."""
@@ -127,7 +136,7 @@ class UpdateService:
             current=self._current,
             latest=".".join(str(part) for part in latest),
             available=latest > current,
-            url=url if isinstance(url, str) and url.startswith("https://") else RELEASES_PAGE,
+            url=url if _is_github_page(url) else RELEASES_PAGE,
             notes=body[:NOTES_LIMIT] if isinstance(body, str) else "",
             download_url=download_url,
             asset_name=asset_name,

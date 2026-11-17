@@ -106,6 +106,7 @@ class HistoryPage(QWidget):
     def _refresh(self) -> None:
         samples = self._history.query(self._minutes)
         count = len(samples)
+        self._chart.clear()
         if count == 0:
             self._info.setText(tr("hist_no_data"))
             self._cpu_card.update_metric("—")

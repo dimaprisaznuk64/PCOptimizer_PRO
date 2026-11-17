@@ -20,6 +20,18 @@ class UpdateDownloadError(RuntimeError):
     pass
 
 
+def _is_trusted_url(url: str) -> bool:
+    parsed = urllib.parse.urlparse(url)
+    return parsed.scheme == "https" and parsed.netloc.lower() in _ALLOWED_HOSTS
+
+
+class _SafeRedirectHandler(urllib.request.HTTPRedirectHandler):
+    def redirect_request(self, req, fp, code, msg, headers, newurl):
+        if not _is_trusted_url(newurl):
+            raise UpdateDownloadError("redirect to an untrusted host")
+        return super().redirect_request(req, fp, code, msg, headers, newurl)
+
+
 def installer_path(info: UpdateInfo, directory: str | Path | None = None) -> Path:
     name = _SAFE_NAME.sub("_", Path(info.asset_name).name).strip("._")
     if not name.lower().endswith(".exe"):
@@ -39,14 +51,13 @@ def download_installer(
     """Download a published installer to *directory*, atomically and with checks."""
     if not info.download_url:
         raise UpdateDownloadError("this release has no installer asset")
-    parsed = urllib.parse.urlparse(info.download_url)
-    if parsed.scheme != "https" or parsed.netloc.lower() not in _ALLOWED_HOSTS:
+    if not _is_trusted_url(info.download_url):
         raise UpdateDownloadError("untrusted installer URL")
 
     target = installer_path(info, directory)
     temp = target.with_name(target.name + ".part")
     target.parent.mkdir(parents=True, exist_ok=True)
-    open_url = opener or urllib.request.urlopen
+    open_url = opener or urllib.request.build_opener(_SafeRedirectHandler()).open
     written = 0
     try:
         with open_url(info.download_url, timeout=timeout) as response:
@@ -60,7 +71,9 @@ def download_installer(
                     if written > MAX_INSTALLER_BYTES:
                         raise UpdateDownloadError("installer download exceeded the size limit")
                     out.write(chunk)
-        if written < MIN_INSTALLER_BYTES or temp.read_bytes()[:2] != b"MZ":
+        with temp.open("rb") as downloaded:
+            magic = downloaded.read(2)
+        if written < MIN_INSTALLER_BYTES or magic != b"MZ":
             raise UpdateDownloadError("downloaded file is not a valid Windows installer")
         temp.replace(target)
     except (OSError, ValueError, UpdateDownloadError) as e:

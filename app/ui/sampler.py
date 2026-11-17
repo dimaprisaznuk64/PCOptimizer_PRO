@@ -28,30 +28,24 @@ class SensorSampler(QThread):
             self._last_error_log = now
             _log.warning("sensor snapshot failed: %s", exc, exc_info=True)
 
-    def run(self) -> None:
-        try:
-            import pythoncom
-            pythoncom.CoInitialize()
-        except Exception:
-            pass
-        try:
-            while not self._stop.is_set():
-                try:
-                    snapshot = self._manager.snapshot()
-                except Exception as exc:
-                    self._log_error(exc)
-                    self._stop.wait(self._interval_s)
-                    continue
-                self.snapshot_ready.emit(snapshot)
-                self._stop.wait(self._interval_s)
-        finally:
+    def _loop(self) -> None:
+        while not self._stop.is_set():
             try:
-                import pythoncom
-                pythoncom.CoUninitialize()
-            except Exception:
-                pass
+                snapshot = self._manager.snapshot()
+            except Exception as exc:
+                self._log_error(exc)
+                self._stop.wait(self._interval_s)
+                continue
+            self.snapshot_ready.emit(snapshot)
+            self._stop.wait(self._interval_s)
 
-    def stop(self, timeout_ms: int = 5000) -> None:
+    def run(self) -> None:
+        from app.wincom import run_in_com
+
+        run_in_com(self._loop)
+
+    def stop(self, timeout_ms: int = 5000) -> bool:
         self._stop.set()
         if self.isRunning():
-            self.wait(timeout_ms)
+            return self.wait(timeout_ms)
+        return True

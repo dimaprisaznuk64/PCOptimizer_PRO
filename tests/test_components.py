@@ -1,6 +1,6 @@
 from __future__ import annotations
 
-from app.ui.components import MetricCard, RingCard, ScoreRing, Sparkline, level_color
+from app.ui.components import MetricCard, PerfChart, RingCard, ScoreRing, Sparkline, level_color
 from app.ui.theme import ACCENT, DANGER, OK, WARN
 
 
@@ -42,6 +42,15 @@ def test_ring_card_displays_value(qapp) -> None:
     card = RingCard("CPU", ACCENT)
     card.update_metric("42%", percent=42.0)
     assert card.value.text() == "42%"
+
+
+def test_perf_chart_clear_removes_old_series(qapp) -> None:
+    chart = PerfChart(points=50)
+    chart.push(1.0, cpu=10.0, ram=20.0)
+    assert chart._canvas._history["cpu"]
+    chart.clear()
+    assert chart._canvas._history == {}
+    assert list(chart._canvas._times) == []
 
 
 def test_score_ring_color_for(qapp) -> None:

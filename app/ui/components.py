@@ -590,6 +590,9 @@ class PerfChart(QFrame):
     def push(self, ts: float, **values: float | None) -> None:
         self._canvas.push(ts, values)
 
+    def clear(self) -> None:
+        self._canvas.clear()
+
 
 def _fmt_rate(value: float) -> str:
     from .format import rate
@@ -644,6 +647,12 @@ class _ChartCanvas(QWidget):
             if value is None:
                 value = hist[-1] if hist else 0.0  # a missed reading must not look like a drop to 0
             hist.append(float(value))
+        self.update()
+
+    def clear(self) -> None:
+        self._times.clear()
+        self._history.clear()
+        self._hover_x = None
         self.update()
 
     @staticmethod

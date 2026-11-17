@@ -72,6 +72,12 @@ def test_untrusted_url_falls_back_to_release_page() -> None:
     assert info.url == RELEASES_PAGE
 
 
+def test_non_github_https_page_falls_back_to_release_page() -> None:
+    payload = _release(url="https://example.com/insecure")
+    info = UpdateService("1.6.5", fetcher=lambda _url, _timeout: payload).check()
+    assert info.url == RELEASES_PAGE
+
+
 def test_notes_are_truncated() -> None:
     payload = _release(body="x" * (NOTES_LIMIT + 500))
     info = UpdateService("1.6.5", fetcher=lambda _url, _timeout: payload).check()
@@ -167,6 +173,27 @@ def test_download_installer_rejects_untrusted_url(tmp_path) -> None:
         assert "untrusted" in str(e)
     else:
         raise AssertionError("untrusted URL was accepted")
+
+
+def test_download_installer_rejects_untrusted_https_host(tmp_path) -> None:
+    try:
+        download_installer(_info("https://evil.test/setup.exe"), tmp_path)
+    except UpdateDownloadError as e:
+        assert "untrusted" in str(e)
+    else:
+        raise AssertionError("untrusted HTTPS host was accepted")
+
+
+def test_default_opener_rejects_cross_host_redirects() -> None:
+    from app.update.download import _SafeRedirectHandler
+
+    handler = _SafeRedirectHandler()
+    try:
+        handler.redirect_request(None, None, 302, "Found", {}, "https://evil.test/setup.exe")
+    except UpdateDownloadError as e:
+        assert "untrusted" in str(e)
+    else:
+        raise AssertionError("cross-host redirect was accepted")
 
 
 def test_download_installer_requires_an_asset(tmp_path) -> None:

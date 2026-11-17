@@ -254,3 +254,35 @@ def test_psutil_swap_failure_does_not_drop_other_metrics() -> None:
     assert part["cpu"] and part["cpu"].percent == 5.0
     assert part["memory"] and part["memory"].swap_total == 0
     assert part["net"] and part["net"].bytes_recv == 200
+
+
+def test_thermal_backend_initializes_wmi_on_collect_thread(monkeypatch) -> None:
+    import sys
+    import types
+
+    from app.sensors.thermal_backend import ThermalBackend
+
+    calls: list[str] = []
+
+    class _Zone:
+        CurrentTemperature = 3431.5
+
+    class _Wmi:
+        def __init__(self, namespace: str) -> None:
+            calls.append(f"WMI:{namespace}")
+
+        def MSAcpi_ThermalZoneTemperature(self):
+            calls.append("zones")
+            return [_Zone()]
+
+    fake = types.ModuleType("wmi")
+    fake.WMI = _Wmi
+    monkeypatch.setitem(sys.modules, "wmi", fake)
+
+    backend = ThermalBackend()
+    assert calls == []
+    part = backend.collect()
+    assert calls == ["WMI:root\\wmi", "zones"]
+    assert part["thermal"].temperatures == (("zone0", 70.0),)
+    backend.close()
+    assert backend._zones is None
