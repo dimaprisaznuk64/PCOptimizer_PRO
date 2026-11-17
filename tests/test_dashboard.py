@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import threading
 import time
 
 from PySide6.QtCore import Qt
@@ -100,6 +101,31 @@ def test_sampler_emits_snapshots(qapp) -> None:
     snapshot = spy.at(1)[0]
     assert snapshot.cpu is not None
     assert snapshot.gpu is not None
+
+
+def test_sampler_closes_manager_on_sampler_thread(qapp) -> None:
+    class RecordingManager:
+        def __init__(self) -> None:
+            self._snapshot = SensorManager.mock().snapshot()
+            self.closed_on: int | None = None
+
+        def snapshot(self):
+            return self._snapshot
+
+        def close(self) -> None:
+            self.closed_on = threading.get_ident()
+
+    manager = RecordingManager()
+    sampler = SensorSampler(manager, interval_ms=60)
+    spy = QSignalSpy(sampler.snapshot_ready)
+    sampler.start()
+    deadline = time.monotonic() + 3.0
+    while spy.count() < 1 and time.monotonic() < deadline:
+        spy.wait(200)
+    assert sampler.stop()
+
+    assert manager.closed_on is not None
+    assert manager.closed_on != threading.get_ident()
 
 
 def test_dashboard_thermal_rows_show_cpu_and_gpu(qapp) -> None:

@@ -29,15 +29,20 @@ class SensorSampler(QThread):
             _log.warning("sensor snapshot failed: %s", exc, exc_info=True)
 
     def _loop(self) -> None:
-        while not self._stop.is_set():
-            try:
-                snapshot = self._manager.snapshot()
-            except Exception as exc:
-                self._log_error(exc)
+        try:
+            while not self._stop.is_set():
+                try:
+                    snapshot = self._manager.snapshot()
+                except Exception as exc:
+                    self._log_error(exc)
+                    self._stop.wait(self._interval_s)
+                    continue
+                self.snapshot_ready.emit(snapshot)
                 self._stop.wait(self._interval_s)
-                continue
-            self.snapshot_ready.emit(snapshot)
-            self._stop.wait(self._interval_s)
+        finally:
+            # COM-bound backends must be released here, inside the sampler's
+            # own apartment, not later from the GUI thread.
+            self._manager.close()
 
     def run(self) -> None:
         from app.wincom import run_in_com

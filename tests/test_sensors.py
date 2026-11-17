@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import threading
 import time
 
 from app.sensors import Backend, MockBackend, Partial, SensorManager
@@ -81,6 +82,22 @@ def test_defaults_produce_healthy_snapshot_on_this_pc() -> None:
     assert s.disks
     assert s.net and s.net.send_rate >= 0 and s.net.recv_rate >= 0
     manager.close()
+
+
+def test_thermal_close_from_foreign_thread_keeps_com_object() -> None:
+    from app.sensors.thermal_backend import ThermalBackend
+
+    backend = ThermalBackend()
+    sentinel = object()
+    backend._zones = sentinel
+    backend._owner_thread_id = threading.get_ident() + 1
+    backend.close()
+    assert backend._zones is sentinel
+
+    backend._owner_thread_id = threading.get_ident()
+    backend.close()
+    assert backend._zones is None
+    assert backend._owner_thread_id is None
 
 
 def test_gpu_backend_records_error_when_unavailable() -> None:

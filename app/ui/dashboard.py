@@ -819,10 +819,14 @@ class DashboardPage(QWidget):
         def ping_once() -> object:
             # Keep the dashboard probe short so window shutdown does not wait on
             # a long external ping command.
+            probe = self._ping_task
+            if probe is None or probe.isInterruptionRequested():
+                return None
             try:
-                return self._net_service.ping(count=1)
+                result = self._net_service.ping(count=1)
             except Exception:
                 return None
+            return None if probe.isInterruptionRequested() else result
 
         self._ping_task = Task(ping_once, parent=self)
         self._ping_task.done.connect(self._apply_ping)

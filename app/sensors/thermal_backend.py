@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import threading
 from time import monotonic
 
 from .base import Backend, Partial, SensorUnavailable
@@ -16,6 +17,7 @@ class ThermalBackend(Backend):
         # GUI thread) and reading them from SensorSampler (another thread) can
         # crash with RPC_E_WRONG_THREAD, so initialise lazily inside collect().
         self._zones: object | None = None
+        self._owner_thread_id: int | None = None
         self._cache: tuple[float, Partial] | None = None
 
     def _ensure_zones(self) -> None:
@@ -32,6 +34,7 @@ class ThermalBackend(Backend):
         if not zones:
             raise SensorUnavailable("no MSAcpi thermal zones")
         self._zones = zones
+        self._owner_thread_id = threading.get_ident()
 
     def collect(self) -> Partial:
         now = monotonic()
@@ -50,5 +53,10 @@ class ThermalBackend(Backend):
         return part
 
     def close(self) -> None:
-        self._zones = None
         self._cache = None
+        if self._owner_thread_id is not None and self._owner_thread_id != threading.get_ident():
+            # COM dispatch objects must be released in the apartment that
+            # created them; leave teardown to the sampler thread.
+            return
+        self._zones = None
+        self._owner_thread_id = None

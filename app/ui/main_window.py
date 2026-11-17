@@ -649,7 +649,10 @@ class MainWindow(QMainWindow):
             self._game_watcher.stop()
         from .tasks import stop_all
 
-        stop_all()
+        if not stop_all():
+            _log.warning("close postponed: a background task is still running")
+            event.ignore()
+            return
         super().closeEvent(event)
 
     def shutdown(self) -> None:
@@ -732,9 +735,12 @@ def run(argv: list[str] | None = None) -> int:
         guard.close()
         from .tasks import stop_all
 
-        stop_all()
+        tasks_ok = stop_all()
         log.info("stopped")
-        window.shutdown()
+        if tasks_ok:
+            window.shutdown()
+        else:
+            log.warning("background tasks still running; skipping widget teardown")
         app.processEvents()
         if sampler_ok:
             manager.close()
