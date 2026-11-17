@@ -14,8 +14,10 @@ from app.reports import (
     export_history,
     format_for_path,
     health_to_csv,
+    health_to_html,
     health_to_json,
     history_to_csv,
+    history_to_html,
     history_to_json,
     timestamp_name,
     write_report,
@@ -67,6 +69,7 @@ def test_format_for_path_and_timestamp_name() -> None:
     assert format_for_path("r.csv") == "csv"
     assert format_for_path("R.JSON") == "json"
     assert format_for_path("noext") == "csv"
+    assert format_for_path("report.PDF") == "pdf"
 
     ts = timestamp_name("health", "csv", now=datetime(2026, 10, 17, 12, 0, 0).timestamp())
     assert ts.startswith("health_20261017_120000.csv")
@@ -84,6 +87,30 @@ def test_history_export_json_and_csv(tmp_path) -> None:
     csv_text = history_to_csv(entries, localize=lambda m: f"{m}_tr", delta_of=lambda e: 5.0 if not e.baseline else None)
     assert csv_text.splitlines()[0].startswith("Time")
     assert "cpu_single_tr" in csv_text
+
+
+def test_html_reports_escape_values() -> None:
+    report = HealthReport(
+        score=50,
+        grade="Fair",
+        findings=(Finding("x", "<b>issue</b>", "warning", "A & B", "<script>x</script>", False),),
+        generated=0.0,
+    )
+    html_text = health_to_html(report, title="Health & <safe>")
+    assert "&lt;b&gt;issue&lt;/b&gt;" in html_text
+    assert "&lt;script&gt;" in html_text
+    assert "Health &amp; &lt;safe&gt;" in html_text
+
+    history_html = history_to_html(
+        _hist_entries(), localize=lambda m: f"{m} & co", title="History <test>"
+    )
+    assert "cpu_single &amp; co" in history_html
+    assert "History &lt;test&gt;" in history_html
+
+
+def test_write_report_rejects_pdf(tmp_path) -> None:
+    with pytest.raises(ReportError, match="PDF exporter"):
+        write_report(tmp_path / "x.pdf", "not a pdf")
 
 
 def test_write_report_respects_fmt(tmp_path) -> None:
@@ -208,3 +235,32 @@ def test_bench_export_writes_file(qapp, tmp_path) -> None:
     data = json.loads(target.read_text(encoding="utf-8"))
     assert data["count"] >= 1
     assert "Exported to" in page.status_label.text()
+
+
+def test_health_export_pdf(qapp, tmp_path) -> None:
+    from app.ui.health import HealthPage
+
+    page = HealthPage(service=None)
+    page._report = HealthReport(score=90, grade="Excellent", findings=(), generated=0.0)
+    target = tmp_path / "health.pdf"
+    page._ask_save_path = lambda *a, **k: str(target)
+
+    page.export_report()
+    assert target.exists()
+    assert target.read_bytes()[:5] == b"%PDF-"
+    assert target.stat().st_size > 1000
+    assert "Exported to" in page.status_label.text()
+
+
+def test_bench_export_pdf(qapp, tmp_path) -> None:
+    page = _bench_page(tmp_path)
+    page.start_run(BenchmarkType.CPU)
+    assert _wait_until(qapp, lambda: page.history_table.rowCount() == 1)
+
+    target = tmp_path / "history.pdf"
+    page._ask_save_path = lambda *a, **k: str(target)
+    page.export_history()
+    assert target.exists()
+    assert target.read_bytes()[:5] == b"%PDF-"
+    assert target.stat().st_size > 1000
+

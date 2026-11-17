@@ -1,6 +1,15 @@
 from __future__ import annotations
 
-from app.update import NOTES_LIMIT, RELEASES_PAGE, UpdateInfo, UpdateService, parse_version
+from app.update import (
+    NOTES_LIMIT,
+    RELEASES_PAGE,
+    UpdateDownloadError,
+    UpdateInfo,
+    UpdateService,
+    download_installer,
+    installer_path,
+    parse_version,
+)
 
 
 def _release(
@@ -81,3 +90,90 @@ def test_fetcher_receives_api_url_and_timeout() -> None:
         "1.6.5", api_url="https://example.test/latest", timeout=2.5, fetcher=fetch
     ).check()
     assert seen == {"url": "https://example.test/latest", "timeout": 2.5}
+
+
+def test_installer_asset_is_taken_from_release_payload() -> None:
+    payload = _release()
+    payload["assets"] = [
+        {"name": "source.zip", "browser_download_url": "https://github.com/a/source.zip"},
+        {
+            "name": "PCOptimizer_PRO_Setup_1.6.6.exe",
+            "browser_download_url": "https://github.com/dimaprisaznuk64/PCOptimizer_PRO/releases/download/v1.6.6/PCOptimizer_PRO_Setup_1.6.6.exe",
+        },
+    ]
+    info = UpdateService("1.6.5", fetcher=lambda _u, _t: payload).check()
+    assert info.available is True
+    assert info.asset_name == "PCOptimizer_PRO_Setup_1.6.6.exe"
+    assert info.download_url.startswith("https://github.com/")
+
+
+class _Response:
+    def __init__(self, data: bytes) -> None:
+        self.data = data
+        self.pos = 0
+        self.headers = {"Content-Length": str(len(data))}
+
+    def __enter__(self):
+        return self
+
+    def __exit__(self, *_args) -> bool:
+        return False
+
+    def read(self, size: int = -1) -> bytes:
+        chunk = self.data[self.pos : self.pos + size]
+        self.pos += len(chunk)
+        return chunk
+
+
+def _info(url: str = "https://github.com/release/setup.exe") -> UpdateInfo:
+    return UpdateInfo(
+        current="1.6.5",
+        latest="1.6.6",
+        available=True,
+        download_url=url,
+        asset_name="PCOptimizer PRO Setup 1.6.6.exe",
+    )
+
+
+def test_download_installer_streams_and_sanitizes_name(tmp_path) -> None:
+    payload = b"MZ" + b"x" * (1024 * 1024)
+    target = download_installer(
+        _info(), tmp_path, opener=lambda _url, timeout: _Response(payload)
+    )
+    assert target == installer_path(_info(), tmp_path)
+    assert target.name == "PCOptimizer_PRO_Setup_1.6.6.exe"
+    assert target.read_bytes() == payload
+    assert not list(tmp_path.glob("*.part"))
+
+
+def test_download_installer_rejects_bad_payload(tmp_path) -> None:
+    class Bad(_Response):
+        def __init__(self) -> None:
+            super().__init__(b"not an exe")
+
+    try:
+        download_installer(_info(), tmp_path, opener=lambda _url, timeout: Bad())
+    except UpdateDownloadError as e:
+        assert "not a valid" in str(e)
+    else:
+        raise AssertionError("invalid installer was accepted")
+    assert not list(tmp_path.glob("*.part"))
+
+
+def test_download_installer_rejects_untrusted_url(tmp_path) -> None:
+    try:
+        download_installer(_info("http://example.com/setup.exe"), tmp_path)
+    except UpdateDownloadError as e:
+        assert "untrusted" in str(e)
+    else:
+        raise AssertionError("untrusted URL was accepted")
+
+
+def test_download_installer_requires_an_asset(tmp_path) -> None:
+    try:
+        download_installer(UpdateInfo("1.6.5"), tmp_path)
+    except UpdateDownloadError as e:
+        assert "no installer" in str(e)
+    else:
+        raise AssertionError("missing asset was accepted")
+

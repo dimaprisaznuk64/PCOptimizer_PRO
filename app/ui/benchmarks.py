@@ -276,17 +276,28 @@ class BenchmarksPage(QWidget):
             return self._history.delta_pct(e.metric, e.value)
 
         try:
-            target = export_history(
-                entries,
-                path,
-                localize=_metric_text,
-                delta_of=_delta_of,
-                header=(
-                    tr("exp_hist_time"), tr("exp_hist_metric"), tr("exp_hist_value"),
-                    tr("exp_hist_unit"), tr("exp_hist_detail"), tr("exp_hist_baseline"),
-                    tr("exp_hist_delta"),
-                ),
-            )
+            if Path(path).suffix.lower() == ".pdf":
+                from app.reports.pdf import export_history_pdf
+
+                target = export_history_pdf(
+                    entries,
+                    path,
+                    localize=_metric_text,
+                    delta_of=_delta_of,
+                    title=tr("exp_pdf_history_title"),
+                )
+            else:
+                target = export_history(
+                    entries,
+                    path,
+                    localize=_metric_text,
+                    delta_of=_delta_of,
+                    header=(
+                        tr("exp_hist_time"), tr("exp_hist_metric"), tr("exp_hist_value"),
+                        tr("exp_hist_unit"), tr("exp_hist_detail"), tr("exp_hist_baseline"),
+                        tr("exp_hist_delta"),
+                    ),
+                )
         except ReportError as e:
             self.status_label.setText(tr("exp_failed", msg=str(e)))
             return
@@ -299,7 +310,8 @@ class BenchmarksPage(QWidget):
         if not path:
             return ""
         if not Path(path).suffix:
-            fmt = "json" if "json" in (selected or "").lower() else "csv"
+            choice = (selected or "").lower()
+            fmt = "pdf" if "pdf" in choice else "json" if "json" in choice else "csv"
             path = f"{path}.{fmt}"
         return path
 

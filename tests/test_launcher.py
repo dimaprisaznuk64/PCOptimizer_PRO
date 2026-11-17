@@ -413,3 +413,19 @@ def test_detail_path_inserts_soft_wrap(qapp, tmp_path) -> None:
     text = page.detail_rows["path"].text()
     assert "\u200b" in text
     assert text.replace("\u200b", "") == tr("launch_path", value=long_path)
+
+
+def test_placeholder_cover_follows_light_theme(qapp) -> None:
+    from app.ui import theme
+    from app.ui.launcher import _placeholder_cover
+
+    previous = theme.CURRENT_THEME
+    theme.set_theme("ARCTIC")
+    try:
+        pix = _placeholder_cover("PUBG", 120, 80)
+        image = pix.toImage()
+        for x, y in ((1, 1), (118, 78)):
+            color = image.pixelColor(x, y)
+            assert color.red() > 180 and color.green() > 180 and color.blue() > 180
+    finally:
+        theme.set_theme(previous)

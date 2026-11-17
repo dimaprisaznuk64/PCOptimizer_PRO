@@ -92,3 +92,28 @@ def test_saved_theme_honors_kept_name(tmp_path, monkeypatch):
     monkeypatch.setenv("PCOPTIMIZER_DATA", str(tmp_path))
     (tmp_path / "settings.json").write_text(json.dumps({"theme": "COBALT"}), encoding="utf-8")
     assert tract.saved_theme() == "COBALT"
+
+
+def _luminance(color: str) -> float:
+    channels = [int(color[i : i + 2], 16) / 255 for i in (1, 3, 5)]
+    channels = [c / 12.92 if c <= 0.03928 else ((c + 0.055) / 1.055) ** 2.4 for c in channels]
+    return 0.2126 * channels[0] + 0.7152 * channels[1] + 0.0722 * channels[2]
+
+
+def _contrast(a: str, b: str) -> float:
+    la, lb = _luminance(a), _luminance(b)
+    return (max(la, lb) + 0.05) / (min(la, lb) + 0.05)
+
+
+def test_light_palettes_keep_dim_text_readable():
+    from app.ui import theme as tract
+
+    checked = 0
+    for pal in tract.PALETTES.values():
+        if _luminance(pal["BG"]) < 0.3:
+            continue
+        checked += 1
+        for surface in ("PANEL", "PANEL_ALT"):
+            assert _contrast(pal["TEXT"], pal[surface]) >= 4.5
+            assert _contrast(pal["TEXT_DIM"], pal[surface]) >= 4.5
+    assert checked >= 5

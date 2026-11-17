@@ -2,11 +2,16 @@ from __future__ import annotations
 
 from app.alerts import (
     TemperatureAlertMonitor,
+    UsageAlert,
+    UsageAlertMonitor,
     max_cpu_thermal,
+    max_cpu_usage,
+    max_disk_usage,
     max_gpu_thermal,
+    max_memory_usage,
     max_thermal,
 )
-from app.sensors import GpuStat, Snapshot, ThermalStat
+from app.sensors import CpuStat, DiskStat, GpuStat, MemoryStat, Snapshot, ThermalStat
 
 
 def _snap(thermal=(), gpus=(), ts: float = 0.0) -> Snapshot:
@@ -14,6 +19,38 @@ def _snap(thermal=(), gpus=(), ts: float = 0.0) -> Snapshot:
         ts=ts,
         thermal=ThermalStat(source="test", temperatures=tuple(thermal)) if thermal else None,
         gpus=tuple(gpus),
+    )
+
+
+def _usage_snap(
+    cpu: float | None = 42.0,
+    ram: float | None = 60.0,
+    disks: tuple[float, ...] = (50.0,),
+) -> Snapshot:
+    return Snapshot(
+        ts=0.0,
+        cpu=(
+            CpuStat(percent=cpu, per_core=(cpu,), physical_cores=1, logical_cores=1)
+            if cpu is not None
+            else None
+        ),
+        memory=(
+            MemoryStat(
+                total=100,
+                used=int(ram),
+                available=100 - int(ram),
+                percent=ram,
+                swap_total=0,
+                swap_used=0,
+                swap_percent=0.0,
+            )
+            if ram is not None
+            else None
+        ),
+        disks=tuple(
+            DiskStat(f"{i}:\\", f"{i}:\\", "NTFS", 100, int(p), 100 - int(p), p)
+            for i, p in enumerate(disks)
+        ),
     )
 
 
@@ -179,4 +216,88 @@ def test_main_window_respects_disabled_alerts(qapp) -> None:
     window.tray = tray
     snap = SensorManager([MockBackend(temperature_c=99.0)]).snapshot()
     window.handle_snapshot(snap)
+    assert tray.messages == []
+
+
+def test_usage_selectors_read_cpu_ram_and_fullest_disk() -> None:
+    snap = _usage_snap(cpu=95.0, ram=88.0, disks=(60.0, 97.0, 80.0))
+    assert max_cpu_usage(snap) == (95.0, "CPU")
+    assert max_memory_usage(snap) == (88.0, "RAM")
+    assert max_disk_usage(snap) == (97.0, "1:\\")
+
+
+def test_usage_selectors_tolerate_missing_sensors() -> None:
+    snap = _usage_snap(cpu=None, ram=None, disks=())
+    assert max_cpu_usage(snap) is None
+    assert max_memory_usage(snap) is None
+    assert max_disk_usage(snap) is None
+
+
+def test_usage_monitor_rising_edge_cooldown_and_rearm() -> None:
+    now = [0.0]
+    monitor = UsageAlertMonitor(
+        kind="cpu", reading=max_cpu_usage, cooldown_s=300.0, clock=lambda: now[0]
+    )
+    hot = _usage_snap(cpu=95.0)
+    assert monitor.check(hot, 90.0) == UsageAlert(95.0, "CPU", 90.0, "cpu")
+    now[0] = 100.0
+    assert monitor.check(hot, 90.0) is None
+    assert monitor.check(_usage_snap(cpu=50.0), 90.0) is None
+    now[0] = 500.0
+    assert monitor.check(hot, 90.0) == UsageAlert(95.0, "CPU", 90.0, "cpu")
+
+
+def test_main_window_alerts_on_high_cpu_and_ram(qapp) -> None:
+    from app.settings import SettingsService
+    from app.ui.main_window import MainWindow
+
+    settings = SettingsService(
+        data={
+            "temp_alerts_enabled": False,
+            "usage_alerts_enabled": True,
+            "alert_cpu_percent": 90,
+            "alert_ram_percent": 90,
+            "alert_disk_percent": 99,
+        }
+    )
+    window = MainWindow(settings=settings)
+    tray = _StubTray()
+    window.tray = tray
+    window.handle_snapshot(_usage_snap(cpu=97.0, ram=95.0))
+    assert len(tray.messages) == 2
+    bodies = " ".join(body for _, body in tray.messages)
+    assert "CPU" in bodies
+    assert "RAM" in bodies
+
+
+def test_main_window_alerts_on_full_disk(qapp) -> None:
+    from app.settings import SettingsService
+    from app.ui.main_window import MainWindow
+
+    settings = SettingsService(
+        data={
+            "temp_alerts_enabled": False,
+            "usage_alerts_enabled": True,
+            "alert_cpu_percent": 99,
+            "alert_ram_percent": 99,
+            "alert_disk_percent": 90,
+        }
+    )
+    window = MainWindow(settings=settings)
+    tray = _StubTray()
+    window.tray = tray
+    window.handle_snapshot(_usage_snap(disks=(85.0, 98.0)))
+    assert len(tray.messages) == 1
+    assert "98%" in tray.messages[0][1]
+
+
+def test_main_window_respects_disabled_usage_alerts(qapp) -> None:
+    from app.settings import SettingsService
+    from app.ui.main_window import MainWindow
+
+    settings = SettingsService(data={"usage_alerts_enabled": False})
+    window = MainWindow(settings=settings)
+    tray = _StubTray()
+    window.tray = tray
+    window.handle_snapshot(_usage_snap(cpu=99.0, ram=99.0, disks=(99.0,)))
     assert tray.messages == []

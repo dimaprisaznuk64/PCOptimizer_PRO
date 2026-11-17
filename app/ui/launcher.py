@@ -29,6 +29,7 @@ from app.gaming import DetectedGame, GamingError, LauncherService
 from app.gaming.launcher import SORT_MODES
 from app.i18n import tr
 
+from . import theme
 from .activity import ActivityLog
 from .activity import record as log_action
 from .combos import CompactCombo, tune_combo
@@ -56,8 +57,8 @@ def _wrap_path(text: str) -> str:
 def _placeholder_cover(name: str, width: int, height: int) -> QPixmap:
     pix = QPixmap(width, height)
     grad = QLinearGradient(0, 0, width, height)
-    grad.setColorAt(0.0, QColor("#1b2434"))
-    grad.setColorAt(1.0, QColor("#0d1420"))
+    grad.setColorAt(0.0, QColor(theme.PANEL_ALT))
+    grad.setColorAt(1.0, QColor(theme.BORDER_HI))
     painter = QPainter(pix)
     painter.fillRect(0, 0, width, height, grad)
     initials = "".join(part[0] for part in name.split()[:2]).upper() or "?"
@@ -65,7 +66,7 @@ def _placeholder_cover(name: str, width: int, height: int) -> QPixmap:
     font.setBold(True)
     font.setPixelSize(int(height * 0.42))
     painter.setFont(font)
-    painter.setPen(QColor("#5f7699"))
+    painter.setPen(QColor(theme.ACCENT))
     painter.drawText(pix.rect(), Qt.AlignmentFlag.AlignCenter, initials)
     painter.end()
     return pix

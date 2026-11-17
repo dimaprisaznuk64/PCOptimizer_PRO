@@ -1,4 +1,4 @@
-"""Temperature alert rules: turn raw sensor snapshots into overheat events."""
+"""Sensor alert rules: turn raw snapshots into temperature and usage events."""
 
 from __future__ import annotations
 
@@ -14,6 +14,14 @@ class TempAlert:
     temperature: float
     source: str
     limit: float
+
+
+@dataclass(frozen=True, slots=True)
+class UsageAlert:
+    value: float
+    source: str
+    limit: float
+    kind: str
 
 
 def max_cpu_thermal(snapshot: Snapshot) -> tuple[float, str] | None:
@@ -87,3 +95,55 @@ class TemperatureAlertMonitor:
         self._above = True
         self._last_alert = now
         return TempAlert(temperature=value, source=source, limit=limit)
+
+
+def max_cpu_usage(snapshot: Snapshot) -> tuple[float, str] | None:
+    if snapshot.cpu is None:
+        return None
+    return snapshot.cpu.percent, "CPU"
+
+
+def max_memory_usage(snapshot: Snapshot) -> tuple[float, str] | None:
+    if snapshot.memory is None:
+        return None
+    return snapshot.memory.percent, "RAM"
+
+
+def max_disk_usage(snapshot: Snapshot) -> tuple[float, str] | None:
+    if not snapshot.disks:
+        return None
+    disk = max(snapshot.disks, key=lambda item: item.percent)
+    return disk.percent, disk.mountpoint
+
+
+class UsageAlertMonitor:
+    """Rising-edge alert for CPU/RAM/disk usage with a cooldown while high."""
+
+    def __init__(
+        self,
+        kind: str,
+        reading: Callable[[Snapshot], tuple[float, str] | None],
+        cooldown_s: float = 300.0,
+        clock: Callable[[], float] = time.monotonic,
+    ) -> None:
+        self._kind = kind
+        self._reading = reading
+        self._cooldown = cooldown_s
+        self._clock = clock
+        self._last_alert: float | None = None
+        self._above = False
+
+    def check(self, snapshot: Snapshot, limit: float) -> UsageAlert | None:
+        reading = self._reading(snapshot)
+        if reading is None:
+            return None
+        value, source = reading
+        if value < limit:
+            self._above = False
+            return None
+        now = self._clock()
+        if self._above and self._last_alert is not None and now - self._last_alert < self._cooldown:
+            return None
+        self._above = True
+        self._last_alert = now
+        return UsageAlert(value=value, source=source, limit=limit, kind=self._kind)

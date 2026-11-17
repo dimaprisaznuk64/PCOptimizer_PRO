@@ -102,6 +102,20 @@ def test_migrate_legacy_temp_does_not_override_explicit(tmp_path) -> None:
     assert svc.get("temp_alert_cpu") == 88
 
 
+def test_usage_alert_settings_validate_ranges(tmp_path) -> None:
+    svc = SettingsService(tmp_path / "settings.json")
+    assert svc.get("usage_alerts_enabled") is True
+    assert svc.get("alert_disk_percent") == 92
+    svc.set("alert_cpu_percent", 85)
+    svc.set("alert_cooldown_s", 600)
+    assert svc.get("alert_cpu_percent") == 85
+    assert svc.get("alert_cooldown_s") == 600
+    with pytest.raises(SettingsError):
+        svc.set("alert_ram_percent", 120)
+    with pytest.raises(SettingsError):
+        svc.set("alert_cooldown_s", 5)
+
+
 def test_reset_restores_defaults(tmp_path) -> None:
     svc = SettingsService(tmp_path / "settings.json")
     svc.set("sample_interval_ms", 5000)

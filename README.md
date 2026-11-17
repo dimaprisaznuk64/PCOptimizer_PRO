@@ -14,13 +14,15 @@
   <img src="https://img.shields.io/badge/platform-Windows%2010%2F11%20x64-0078D6" alt="Platform">
   <img src="https://img.shields.io/badge/python-3.13-3776AB" alt="Python">
   <img src="https://img.shields.io/badge/UI-PySide6%20(Qt%206)-41CD52" alt="PySide6">
-  <img src="https://img.shields.io/badge/tests-569%20passed-brightgreen" alt="Tests">
+  <img src="https://img.shields.io/badge/tests-593%20passed-brightgreen" alt="Tests">
   <a href="https://github.com/dimaprisaznuk64/PCOptimizer_PRO/actions/workflows/ci.yml"><img src="https://github.com/dimaprisaznuk64/PCOptimizer_PRO/actions/workflows/ci.yml/badge.svg" alt="CI"></a>
   <img src="https://img.shields.io/badge/license-MIT-green" alt="License">
-  <img src="https://img.shields.io/badge/version-1.6.10-blue" alt="Version">
+  <img src="https://img.shields.io/badge/version-1.7.0-blue" alt="Version">
 </p>
 
 Філософія проєкту: **жодних «секретних» реєстрових твіків і вигаданих +FPS**. Кожна зміна системи робиться лише після бекапу/точки відновлення і має кнопку відкату. Застосунок працює без адмін-прав — UAC запитується точково, лише для конкретних операцій.
+
+![Демо PCOptimizer PRO](docs/demo.gif)
 
 ---
 
@@ -140,13 +142,38 @@
 - 29 тем (перемикаються миттєво, без перезапуску): Titanium (за замовчуванням), Graphite, True Black, Slate, Forest, Burgundy, Midnight, Aubergine, Deep Teal, Espresso, Arctic, Ivory, Mono, Sage, Performance Red, Cyber, Industrial, Tactical, Cobalt, Copper, Minimal Dark, Neon Pulse, Nexus, Electric, а також класичні Black Cyber, Purple Neon, Green Nature, Light, AMOLED Neon
 - Вбудовані шрифти **Inter** (UI) та **JetBrains Mono** (числові значення) — однаковий вигляд незалежно від того, що встановлено в системі
 - Мова: українська / English — застосовується одразу
-- Перевірка оновлень: автоматично при старті (можна вимкнути) або кнопкою «Перевірити зараз» — показує версію, посилання на сторінку завантаження і сповіщає в трей та журнал дій
+- Перевірка оновлень: автоматично при старті (можна вимкнути) або кнопкою «Перевірити зараз» — показує версію, посилання на реліз і сповіщає в трей та журнал дій; кнопка «Завантажити інсталятор» безпечно зберігає .exe у теці даних застосунку (ніколи не запускає його)
 
 ### Поза сторінками
-- Системний трей: відкрити, ігровий режим, вихід
+- Системний трей: відкрити, ігровий режим, вихід, сповіщення
+- Трей-алерти з cooldown: перегрів CPU/GPU (окремі пороги), високе навантаження CPU/RAM і майже повний диск
+- Експорт звітів здоров'я та історії бенчмарків у CSV, JSON і PDF (PDF — через Qt, без додаткових пакетів)
 - Single instance: повторний запуск лише фокусує вже відкрите вікно
 - Ротаційні логи (1 МБ × 3) у теці даних застосунку (data/logs, див. нижче)
 - Шар сенсорів: psutil / NVML / WMI ACPI + mock-бекенд для тестів
+
+---
+
+## Архітектура
+
+```text
+main.py
+  └─ app/ui/                 PySide6: MainWindow, 17 сторінок, теми, трей, QSS/токени
+       ├─ SensorSampler ──── app/sensors/  (psutil / NVML / WMI ACPI / mock)
+       └─ Task (QThread) ─── app/<domain>/service.py
+                              ├─ cleaner, processes, startup, optimizer, restore
+                              ├─ gaming, launcher, benchmarks, history, reports
+                              ├─ diagnostics, hardware, disk, network, alerts
+                              └─ settings, logs, i18n
+
+Потік даних: сенсор → Snapshot → MainWindow.handle_snapshot → сторінки + трей + PerformanceHistory
+Потік дій:   UI → Task → Service → backup/restore point → застосування → ActivityLog → UI
+Дані:        PCOPTIMIZER_DATA / <exe>/data / <project>/data (портативно, з міграцією з %LOCALAPPDATA%)
+```
+
+Для портфоліо є компактний статичний лендинг: [docs/landing.html](docs/landing.html).
+
+Сервіси не залежать від Qt і приймають зовнішні залежності через конструктор — завдяки цьому бенчмарки, WMI, PowerShell, реєстр і навіть NVML підміняються фейками в тестах. UI лише викликає сервіси у фонових `Task` і ніколи не блокує event loop.
 
 ---
 
@@ -154,27 +181,27 @@
 
 | Дашборд | Монітор системи |
 | --- | --- |
-| ![Дашборд](docs/screenshots/v1.6.10_dashboard.png) | ![Монітор](docs/screenshots/v1.6.10_monitor.png) |
+| ![Дашборд](docs/screenshots/v1.7.0_dashboard.png) | ![Монітор](docs/screenshots/v1.7.0_monitor.png) |
 
 | Залізо (Hardware) | GPU-монітор |
 | --- | --- |
-| ![Залізо](docs/screenshots/v1.6.10_hardware.png) | ![GPU](docs/screenshots/v1.6.10_gpu.png) |
+| ![Залізо](docs/screenshots/v1.7.0_hardware.png) | ![GPU](docs/screenshots/v1.7.0_gpu.png) |
 
 | PC Health Score | Чистильник |
 | --- | --- |
-| ![Health](docs/screenshots/v1.6.10_health.png) | ![Чистильник](docs/screenshots/v1.6.10_cleaner.png) |
+| ![Health](docs/screenshots/v1.7.0_health.png) | ![Чистильник](docs/screenshots/v1.7.0_cleaner.png) |
 
 | Ігровий режим | Лаунчер ігор |
 | --- | --- |
-| ![Gaming](docs/screenshots/v1.6.10_gaming.png) | ![Лаунчер](docs/screenshots/v1.6.10_launcher.png) |
+| ![Gaming](docs/screenshots/v1.7.0_gaming.png) | ![Лаунчер](docs/screenshots/v1.7.0_launcher.png) |
 
 | Бенчмарки | Мережа |
 | --- | --- |
-| ![Бенчмарки](docs/screenshots/v1.6.10_benchmarks.png) | ![Мережа](docs/screenshots/v1.6.10_network.png) |
+| ![Бенчмарки](docs/screenshots/v1.7.0_benchmarks.png) | ![Мережа](docs/screenshots/v1.7.0_network.png) |
 
 | Діагностика | Диски та сховище |
 | --- | --- |
-| ![Діагностика](docs/screenshots/v1.6.10_diagnostics.png) | ![Диски](docs/screenshots/v1.6.10_disk.png) |
+| ![Діагностика](docs/screenshots/v1.7.0_diagnostics.png) | ![Диски](docs/screenshots/v1.7.0_disk.png) |
 
 Решта сторінок (Огляд, Процеси, Автозавантаження, Історія продуктивності, Налаштування): [docs/screenshots](docs/screenshots)
 
@@ -184,7 +211,7 @@
 
 - **Python 3.13** + **PySide6** (Qt 6; 29 вбудованих тем, тема за замовчуванням — Titanium, вбудовані шрифти Inter / JetBrains Mono)
 - **psutil** — CPU/RAM/диски/мережа, **nvidia-ml-py** (NVML) — GPU, **WMI** — температури, **pywin32** — COM/Task Scheduler/кошик
-- **pytest** — 573 тестів
+- **pytest** — 593 тести
 - **PyInstaller** — збірка .exe, **Inno Setup** — інсталятор
 
 ## Безпека понад усе
@@ -197,12 +224,12 @@
 
 ## Встановлення
 
-**Варіант 1 — інсталятор.** Запустити `PCOptimizer_PRO_Setup_1.6.10.exe`.
+**Варіант 1 — інсталятор.** Запустити `PCOptimizer_PRO_Setup_1.7.0.exe`.
 Встановлюється для поточного користувача (без прав адміністратора), мови EN/UA, створює ярлики та деінсталятор.
 
 > Якщо Windows показує «Windows protected your PC» (SmartScreen) — це нормально для непідписаних програм: **More info → Run anyway**. Так само деякі антивіруси можуть хибно реагувати на PyInstaller-збірки.
 
-**Варіант 2 — портативно.** Розпакувати `PCOptimizer_PRO_1.6.10_portable.zip` і запустити `PCOptimizer_PRO\PCOptimizer_PRO.exe`. Нічого не встановлюється.
+**Варіант 2 — портативно.** Розпакувати `PCOptimizer_PRO_1.7.0_portable.zip` і запустити `PCOptimizer_PRO\PCOptimizer_PRO.exe`. Нічого не встановлюється.
 
 Готові збірки — у розділі [Releases](https://github.com/dimaprisaznuk64/PCOptimizer_PRO/releases).
 
@@ -242,8 +269,8 @@ app/
   health/                — PC Health Score
   benchmarks/            — швидкі тести CPU / RAM / диска
   history/               — історія продуктивності (JSONL + графіки)
-  reports/               — експорт звітів у CSV / JSON
-  alerts/                — правила температурних алертів
+   reports/               — експорт звітів у CSV / JSON / PDF
+   alerts/                — температурні та resource-алерти (CPU/RAM/диск)
   cleaner/               — чистильник
   disk/                  — дисковий аналізатор
   gaming/                — ігровий режим і профілі ігор
@@ -256,7 +283,7 @@ app/
   logs/                  — ротаційне логування
   i18n/                  — локалізація UA / EN
   core/, hardware/, monitor/, health/, diagnostics/, alerts/, benchmarks/, gaming/ — допоміжні модулі
-tests/                   — pytest-тести (569)
+tests/                   — pytest-тести (593)
 scripts/                 — збірка exe/інсталятора, генерація іконки
 installer/               — скрипт Inno Setup
 docs/screenshots/        — скріншоти

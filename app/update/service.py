@@ -1,8 +1,8 @@
 """Update check against the latest GitHub release.
 
-The check is deliberately lightweight: one HTTPS request to the GitHub API,
-no auto-download. The user is told that a newer version exists and can open
-the release page.
+The check is deliberately lightweight: one HTTPS request to the GitHub API.
+The user is told that a newer version exists and can either open the release
+page or download the published installer on demand (never automatically).
 """
 
 from __future__ import annotations
@@ -10,6 +10,7 @@ from __future__ import annotations
 import json
 import logging
 import re
+import urllib.parse
 import urllib.request
 from collections.abc import Callable
 from dataclasses import dataclass
@@ -45,6 +46,8 @@ class UpdateInfo:
     url: str = RELEASES_PAGE
     notes: str = ""
     error: str | None = None
+    download_url: str = ""
+    asset_name: str = ""
 
 
 def _fetch_json(url: str, timeout: float) -> dict[str, object]:
@@ -60,6 +63,26 @@ def _fetch_json(url: str, timeout: float) -> dict[str, object]:
     if not isinstance(payload, dict):
         raise ValueError("unexpected GitHub response")
     return payload
+
+
+def _find_asset(payload: dict[str, object]) -> tuple[str, str]:
+    """Return ``(download_url, name)`` for the first Windows installer asset."""
+    assets = payload.get("assets")
+    if not isinstance(assets, list):
+        return "", ""
+    for asset in assets:
+        if not isinstance(asset, dict):
+            continue
+        name = str(asset.get("name") or "")
+        url = str(asset.get("browser_download_url") or "")
+        if not name.lower().endswith(".exe") or "setup" not in name.lower():
+            continue
+        parsed = urllib.parse.urlparse(url)
+        if parsed.scheme == "https" and parsed.netloc.lower() in {
+            "github.com", "www.github.com", "objects.githubusercontent.com"
+        }:
+            return url, name
+    return "", ""
 
 
 class UpdateService:
@@ -99,12 +122,15 @@ class UpdateService:
         current = parse_version(self._current) or ()
         url = payload.get("html_url")
         body = payload.get("body")
+        download_url, asset_name = _find_asset(payload)
         info = UpdateInfo(
             current=self._current,
             latest=".".join(str(part) for part in latest),
             available=latest > current,
             url=url if isinstance(url, str) and url.startswith("https://") else RELEASES_PAGE,
             notes=body[:NOTES_LIMIT] if isinstance(body, str) else "",
+            download_url=download_url,
+            asset_name=asset_name,
         )
         log.info(
             "update check: current=%s latest=%s available=%s",

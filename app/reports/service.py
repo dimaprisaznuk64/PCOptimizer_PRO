@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import csv
+import html
 import io
 import json
 import time
@@ -29,8 +30,13 @@ def _iso(ts: float) -> str:
 
 
 def format_for_path(path: str | Path) -> str:
-    """Pick the export format from a file name; JSON only for ``.json``."""
-    return "json" if Path(path).suffix.lower() == ".json" else "csv"
+    """Pick the export format from a file name; CSV is the fallback."""
+    suffix = Path(path).suffix.lower()
+    if suffix == ".json":
+        return "json"
+    if suffix == ".pdf":
+        return "pdf"
+    return "csv"
 
 
 def timestamp_name(prefix: str, fmt: str, *, now: float | None = None) -> str:
@@ -152,6 +158,82 @@ def history_to_csv(
     return buf.getvalue()
 
 
+# ---------- printable HTML (used by the PDF exporter) ----------
+
+
+_PDF_STYLE = """
+<style>
+  body { font-family: 'Segoe UI Variable Text', 'Segoe UI', sans-serif; color: #101318; }
+  h1 { font-size: 20pt; margin: 0 0 6pt; }
+  .meta { color: #55606e; font-size: 9pt; margin-bottom: 14pt; }
+  table { border-collapse: collapse; width: 100%; font-size: 9pt; }
+  th, td { border: 1px solid #c9d0da; padding: 5pt 6pt; text-align: left; vertical-align: top; }
+  th { background: #eef2f7; }
+  tr:nth-child(even) td { background: #f8fafc; }
+</style>
+"""
+
+
+def _html_page(title: str, meta: str, headers: Sequence[str], rows: Sequence[Sequence[object]]) -> str:
+    head = "".join(f"<th>{_esc(item)}</th>" for item in headers)
+    body = "".join(
+        "<tr>" + "".join(f"<td>{_esc(item)}</td>" for item in row) + "</tr>"
+        for row in rows
+    )
+    return (
+        '<!doctype html><html><head><meta charset="utf-8">'
+        f"{_PDF_STYLE}</head><body><h1>{_esc(title)}</h1>"
+        f'<div class="meta">{_esc(meta)}</div>'
+        f"<table><thead><tr>{head}</tr></thead><tbody>{body}</tbody></table>"
+        "</body></html>"
+    )
+
+
+def _esc(value: object) -> str:
+    return html.escape("" if value is None else str(value), quote=False)
+
+
+def health_to_html(
+    report: HealthReport,
+    *,
+    localize: Localizer | None = None,
+    title: str = "PC Health report",
+) -> str:
+    record = health_record(report, localize=localize)
+    meta = (
+        f"{record['generated']} · score {record['score']} · {record['grade']} · "
+        f"junk {record['junk_bytes']} bytes / {record['junk_targets']} targets"
+    )
+    if record["errors"]:
+        meta += " · " + "; ".join(str(item) for item in record["errors"])
+    rows = [
+        (item["category"], item["severity"], item["title"], item["detail"],
+         "yes" if item["fixable"] else "no")
+        for item in record["findings"]
+    ]
+    return _html_page(title, meta, HEALTH_CSV_HEADER, rows)
+
+
+def history_to_html(
+    entries: Iterable[HistoryEntry],
+    *,
+    localize: LabelFn | None = None,
+    delta_of: DeltaFn | None = None,
+    title: str = "Benchmark history",
+    now: float | None = None,
+) -> str:
+    record = history_record(entries, localize=localize, delta_of=delta_of, now=now)
+    rows = [
+        (
+            item["when"], item["metric_label"], f"{item['value']:.4g}", item["unit"],
+            item["detail"], "yes" if item["baseline"] else "no",
+            "" if item["delta_pct"] is None else f"{item['delta_pct']:+.1f}",
+        )
+        for item in record["entries"]
+    ]
+    return _html_page(title, f"{record['exported']} · {record['count']} records", HISTORY_CSV_HEADER, rows)
+
+
 # ---------- saving ----------
 
 
@@ -161,6 +243,8 @@ def write_report(path: str | Path, text: str, fmt: str | None = None) -> Path:
     if target.parent and not target.parent.exists():
         target.parent.mkdir(parents=True, exist_ok=True)
     fmt = fmt or format_for_path(target)
+    if fmt == "pdf":
+        raise ReportError("PDF reports must be written with the PDF exporter")
     encoding = "utf-8-sig" if fmt == "csv" else "utf-8"
     try:
         target.write_text(text, encoding=encoding)

@@ -26,6 +26,11 @@ DEFAULTS: dict[str, Any] = {
     "temp_alerts_enabled": True,
     "temp_alert_cpu": 90,
     "temp_alert_gpu": 87,
+    "usage_alerts_enabled": True,
+    "alert_cpu_percent": 90,
+    "alert_ram_percent": 90,
+    "alert_disk_percent": 92,
+    "alert_cooldown_s": 300,
 }
 
 CHOICES: dict[str, tuple[str, ...]] = {
@@ -42,6 +47,10 @@ RANGES: dict[str, tuple[int, int]] = {
     "sample_interval_ms": (250, 10000),
     "temp_alert_cpu": (50, 110),
     "temp_alert_gpu": (50, 110),
+    "alert_cpu_percent": (50, 100),
+    "alert_ram_percent": (50, 100),
+    "alert_disk_percent": (50, 100),
+    "alert_cooldown_s": (30, 3600),
 }
 
 

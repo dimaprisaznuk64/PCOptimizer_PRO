@@ -171,7 +171,7 @@ PALETTES: dict[str, dict] = {
     "ARCTIC": {
         **_BASE,
         "BG": "#E9EEF4", "PANEL": "#F7F9FC", "PANEL_ALT": "#F0F3F8", "BORDER": "#D7E0EA", "BORDER_HI": "#B9C7D8",
-        "TEXT": "#243043", "TEXT_DIM": "#68778C", "ACCENT": "#3B7DC4", "ACCENT_HOVER": "#5593DB",
+        "TEXT": "#243043", "TEXT_DIM": "#5F6E82", "ACCENT": "#3B7DC4", "ACCENT_HOVER": "#5593DB",
         "ACCENT_TINT": "#E0ECFB", "ACCENT_PRESSED": "#2D62A6", "ON_ACCENT": "#FFFFFF",
         "DANGER": "#D24A4F", "OK": "#2E9E6B", "WARN": "#C0801E",
         "SIDEBAR_TOP": "#FFFFFF", "SIDEBAR_BOTTOM": "#F2F6FA", "HOVER": "#E8EEF6",
@@ -184,7 +184,7 @@ PALETTES: dict[str, dict] = {
     "IVORY": {
         **_BASE,
         "BG": "#F2EEE6", "PANEL": "#FBF8F2", "PANEL_ALT": "#F4F0E7", "BORDER": "#E2DBCB", "BORDER_HI": "#C9BFA8",
-        "TEXT": "#33302A", "TEXT_DIM": "#7C7468", "ACCENT": "#AB7A40", "ACCENT_HOVER": "#C78F55",
+        "TEXT": "#33302A", "TEXT_DIM": "#706858", "ACCENT": "#AB7A40", "ACCENT_HOVER": "#C78F55",
         "ACCENT_TINT": "#F4E6D4", "ACCENT_PRESSED": "#8E5F2E", "ON_ACCENT": "#FFFFFF",
         "DANGER": "#C24B46", "OK": "#5F9A5B", "WARN": "#A87612",
         "SIDEBAR_TOP": "#FFFFFF", "SIDEBAR_BOTTOM": "#F5F0E6", "HOVER": "#ECE5D8",
@@ -210,7 +210,7 @@ PALETTES: dict[str, dict] = {
     "SAGE": {
         **_BASE,
         "BG": "#EDF0E8", "PANEL": "#F9FAF5", "PANEL_ALT": "#F2F4ED", "BORDER": "#E0E3D6", "BORDER_HI": "#C3C9B7",
-        "TEXT": "#2B2F26", "TEXT_DIM": "#72796B", "ACCENT": "#6E9363", "ACCENT_HOVER": "#89AD7D",
+        "TEXT": "#2B2F26", "TEXT_DIM": "#666D5F", "ACCENT": "#6E9363", "ACCENT_HOVER": "#89AD7D",
         "ACCENT_TINT": "#E6EEDF", "ACCENT_PRESSED": "#54764C", "ON_ACCENT": "#FFFFFF",
         "DANGER": "#C1504C", "OK": "#5E9363", "WARN": "#A17B1E",
         "SIDEBAR_TOP": "#FFFFFF", "SIDEBAR_BOTTOM": "#F0F3EA", "HOVER": "#E7EBE0",
@@ -322,7 +322,7 @@ PALETTES: dict[str, dict] = {
     "LIGHT": {
         **_BASE,
         "BG": "#eef2f8", "PANEL": "#ffffff", "PANEL_ALT": "#f4f7fb", "BORDER": "#dde4ef", "BORDER_HI": "#c3cee0",
-        "TEXT": "#1b2433", "TEXT_DIM": "#66748b", "ACCENT": "#3b82f6", "ACCENT_HOVER": "#5a9bff",
+        "TEXT": "#1b2433", "TEXT_DIM": "#5D6B82", "ACCENT": "#3b82f6", "ACCENT_HOVER": "#5a9bff",
         "ACCENT_TINT": "#e1ecff", "ACCENT_PRESSED": "#2a6fe0", "DANGER": "#d9423a", "OK": "#1fa65a", "WARN": "#e08a00",
         "SIDEBAR_TOP": "#ffffff", "SIDEBAR_BOTTOM": "#f6f8fc", "HOVER": "#edf2fa",
         "DANGER_BG": "#fde8e7", "DANGER_BORDER": "#f1b4b0", "DANGER_BG_HOVER": "#fbd6d4", "WARN_BG": "#fff3d6",

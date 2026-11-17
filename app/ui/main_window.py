@@ -20,7 +20,15 @@ from PySide6.QtWidgets import (
     QWidget,
 )
 
-from app.alerts import TemperatureAlertMonitor, max_cpu_thermal, max_gpu_thermal
+from app.alerts import (
+    TemperatureAlertMonitor,
+    UsageAlertMonitor,
+    max_cpu_thermal,
+    max_cpu_usage,
+    max_disk_usage,
+    max_gpu_thermal,
+    max_memory_usage,
+)
 from app.history import PerformanceHistory
 from app.i18n import I18nService, tr
 from app.settings import SettingsService
@@ -106,8 +114,22 @@ class MainWindow(QMainWindow):
         self._back_shortcut.setContext(Qt.ShortcutContext.WindowShortcut)
         self._back_shortcut.activated.connect(self.go_back)
         self._history = PerformanceHistory()
-        self._cpu_monitor = TemperatureAlertMonitor(reading=max_cpu_thermal)
-        self._gpu_monitor = TemperatureAlertMonitor(reading=max_gpu_thermal)
+        cooldown = float(self.settings.get("alert_cooldown_s"))
+        self._cpu_monitor = TemperatureAlertMonitor(
+            reading=max_cpu_thermal, cooldown_s=cooldown
+        )
+        self._gpu_monitor = TemperatureAlertMonitor(
+            reading=max_gpu_thermal, cooldown_s=cooldown
+        )
+        self._cpu_usage_monitor = UsageAlertMonitor(
+            kind="cpu", reading=max_cpu_usage, cooldown_s=cooldown
+        )
+        self._ram_usage_monitor = UsageAlertMonitor(
+            kind="ram", reading=max_memory_usage, cooldown_s=cooldown
+        )
+        self._disk_usage_monitor = UsageAlertMonitor(
+            kind="disk", reading=max_disk_usage, cooldown_s=cooldown
+        )
         I18nService.instance().set_language(self.settings.get("language"), emit=False)
         I18nService.instance().language_changed.connect(self._on_language_changed)
 
@@ -370,6 +392,7 @@ class MainWindow(QMainWindow):
         self._update_sidebar_health(snapshot)
         self._update_tray_tooltip(snapshot)
         self._check_temp_alert(snapshot)
+        self._check_usage_alert(snapshot)
 
     def _check_temp_alert(self, snapshot) -> None:
         if not self.settings.get("temp_alerts_enabled"):
@@ -397,6 +420,33 @@ class MainWindow(QMainWindow):
         record(title, body, level="warn")
         get_logger("alerts").warning(
             "temperature alert: %s at %.0f°C (limit %.0f°C)", source, alert.temperature, alert.limit
+        )
+
+    def _check_usage_alert(self, snapshot) -> None:
+        if not self.settings.get("usage_alerts_enabled"):
+            return
+        checks = (
+            (self._cpu_usage_monitor, float(self.settings.get("alert_cpu_percent"))),
+            (self._ram_usage_monitor, float(self.settings.get("alert_ram_percent"))),
+            (self._disk_usage_monitor, float(self.settings.get("alert_disk_percent"))),
+        )
+        for monitor, limit in checks:
+            alert = monitor.check(snapshot, limit)
+            if alert is not None:
+                self._emit_usage_alert(alert)
+
+    def _emit_usage_alert(self, alert) -> None:
+        from app.logs import get_logger
+
+        from .activity import record
+
+        title = tr(f"alert_{alert.kind}_title")
+        body = tr("alert_usage_body", source=alert.source, value=alert.value, limit=alert.limit)
+        if self.tray is not None:
+            self.tray.show_message(title, body)
+        record(title, body, level="warn")
+        get_logger("alerts").warning(
+            "usage alert: %s at %.0f%% (limit %.0f%%)", alert.source, alert.value, alert.limit
         )
 
     def _update_sidebar_health(self, snapshot) -> None:

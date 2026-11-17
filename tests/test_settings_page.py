@@ -112,6 +112,11 @@ def test_collect_values_shape(qapp, tmp_path) -> None:
         "temp_alerts_enabled",
         "temp_alert_cpu",
         "temp_alert_gpu",
+        "usage_alerts_enabled",
+        "alert_cpu_percent",
+        "alert_ram_percent",
+        "alert_disk_percent",
+        "alert_cooldown_s",
         "log_level",
         "theme",
         "language",
@@ -121,6 +126,8 @@ def test_collect_values_shape(qapp, tmp_path) -> None:
     assert isinstance(values["temp_alerts_enabled"], bool)
     assert isinstance(values["temp_alert_cpu"], int)
     assert isinstance(values["temp_alert_gpu"], int)
+    assert isinstance(values["usage_alerts_enabled"], bool)
+    assert isinstance(values["alert_cooldown_s"], int)
 
 
 def test_update_widgets_follow_settings(qapp, tmp_path) -> None:
@@ -157,6 +164,32 @@ def test_check_reports_latest_version(qapp, tmp_path) -> None:
     page._on_update_checked(UpdateInfo(current="1.6.5", latest="1.6.5"))
     assert page.update_status.text() == "You have the latest version (v1.6.5)"
     assert page.release_button.isHidden()
+
+
+def test_download_button_saves_installer_in_background(qapp, tmp_path, monkeypatch) -> None:
+    import time
+
+    from app.update import UpdateInfo
+
+    page = _page(qapp, tmp_path)
+    target = tmp_path / "updates" / "setup.exe"
+    monkeypatch.setattr("app.ui.settings.download_installer", lambda info: str(target))
+    page._on_update_checked(
+        UpdateInfo(
+            current="1.6.5",
+            latest="1.7.0",
+            available=True,
+            download_url="https://github.com/release/setup.exe",
+        )
+    )
+    assert page.download_button.isHidden() is False
+    page.download_update()
+    deadline = time.monotonic() + 5.0
+    while time.monotonic() < deadline and str(target) not in page.update_status.text():
+        qapp.processEvents()
+        time.sleep(0.01)
+    assert str(target) in page.update_status.text()
+    assert page.download_button.isEnabled() is True
 
 
 def test_check_failure_is_shown(qapp, tmp_path) -> None:

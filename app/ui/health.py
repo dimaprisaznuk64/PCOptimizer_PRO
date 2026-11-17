@@ -454,15 +454,25 @@ class HealthPage(QWidget):
         if not path:
             return
         try:
-            target = export_health(
-                self._report,
-                path,
-                localize=localize_finding,
-                header=(
-                    tr("exp_health_category"), tr("exp_health_severity"),
-                    tr("exp_health_issue"), tr("exp_health_detail"), tr("exp_health_fixable"),
-                ),
-            )
+            if Path(path).suffix.lower() == ".pdf":
+                from app.reports.pdf import export_health_pdf
+
+                target = export_health_pdf(
+                    self._report,
+                    path,
+                    localize=localize_finding,
+                    title=tr("exp_pdf_health_title"),
+                )
+            else:
+                target = export_health(
+                    self._report,
+                    path,
+                    localize=localize_finding,
+                    header=(
+                        tr("exp_health_category"), tr("exp_health_severity"),
+                        tr("exp_health_issue"), tr("exp_health_detail"), tr("exp_health_fixable"),
+                    ),
+                )
         except ReportError as e:
             self.status_label.setText(tr("exp_failed", msg=str(e)))
             return
@@ -475,7 +485,8 @@ class HealthPage(QWidget):
         if not path:
             return ""
         if not Path(path).suffix:
-            fmt = "json" if "json" in (selected or "").lower() else "csv"
+            choice = (selected or "").lower()
+            fmt = "pdf" if "pdf" in choice else "json" if "json" in choice else "csv"
             path = f"{path}.{fmt}"
         return path
 

@@ -25,7 +25,7 @@ from app import __version__
 from app.i18n import I18nService, tr
 from app.logs import clear_logs, log_file, read_tail, setup_logging
 from app.settings import SettingsError, SettingsService, data_root
-from app.update import RELEASES_PAGE, UpdateService
+from app.update import RELEASES_PAGE, UpdateService, download_installer
 
 from .combos import COMBO_HEIGHT, COMBO_WIDTH_WIDE, CompactCombo, tune_combo
 from .components import CardTitleLabel
@@ -36,6 +36,7 @@ INTERVAL_OPTIONS = (250, 500, 1000, 2000, 5000)
 LOG_LEVELS = ("DEBUG", "INFO", "WARNING", "ERROR")
 LANGUAGE_OPTIONS = ("UA", "EN")
 TEMP_MIN, TEMP_MAX = 50, 110
+COOLDOWN_MIN, COOLDOWN_MAX = 1, 60
 
 class SettingsPage(QWidget):
     def __init__(
@@ -53,6 +54,7 @@ class SettingsPage(QWidget):
         self._on_theme_applied = on_theme_applied
         self._update_service = update_service
         self._check_task = None
+        self._download_task = None
         self._release_url = RELEASES_PAGE
         self.last_update = None
 
@@ -143,6 +145,11 @@ class SettingsPage(QWidget):
         self.temp_alerts_check.setText(tr("set_temp_alerts"))
         self._temp_cpu_label.setText(tr("set_temp_cpu"))
         self._temp_gpu_label.setText(tr("set_temp_gpu"))
+        self.usage_alerts_check.setText(tr("set_usage_alerts"))
+        self._cpu_alert_label.setText(tr("set_cpu_alert"))
+        self._ram_alert_label.setText(tr("set_ram_alert"))
+        self._disk_alert_label.setText(tr("set_disk_alert"))
+        self._cooldown_label.setText(tr("set_alert_cooldown"))
         self.save_button.setText(tr("set_save_btn"))
         self.reset_button.setText(tr("set_reset_btn"))
         self.admin_button.setText(tr("set_restart_admin"))
@@ -151,6 +158,7 @@ class SettingsPage(QWidget):
         self.update_check.setText(tr("set_update_check"))
         self.check_updates_button.setText(tr("set_check_updates"))
         self.release_button.setText(tr("set_open_release"))
+        self.download_button.setText(tr("set_download_update"))
         self.open_logs_button.setText(tr("set_open_folder"))
         self.refresh_button.setText(tr("set_refresh_log"))
         self.clear_button.setText(tr("set_clear_log"))
@@ -237,8 +245,48 @@ class SettingsPage(QWidget):
         self.temp_gpu_spin.setSizePolicy(QSizePolicy.Expanding, QSizePolicy.Fixed)
         grid.addWidget(self.temp_gpu_spin, 10, 1)
 
+        self.usage_alerts_check = QCheckBox(tr("set_usage_alerts"))
+        grid.addWidget(self.usage_alerts_check, 11, 0, 1, 2)
+
+        self._cpu_alert_label = QLabel(tr("set_cpu_alert"))
+        grid.addWidget(self._cpu_alert_label, 12, 0)
+        self.cpu_alert_spin = QSpinBox()
+        self.cpu_alert_spin.setRange(TEMP_MIN, 100)
+        self.cpu_alert_spin.setSuffix(" %")
+        grid.addWidget(self.cpu_alert_spin, 12, 1)
+
+        self._ram_alert_label = QLabel(tr("set_ram_alert"))
+        grid.addWidget(self._ram_alert_label, 13, 0)
+        self.ram_alert_spin = QSpinBox()
+        self.ram_alert_spin.setRange(TEMP_MIN, 100)
+        self.ram_alert_spin.setSuffix(" %")
+        grid.addWidget(self.ram_alert_spin, 13, 1)
+
+        self._disk_alert_label = QLabel(tr("set_disk_alert"))
+        grid.addWidget(self._disk_alert_label, 14, 0)
+        self.disk_alert_spin = QSpinBox()
+        self.disk_alert_spin.setRange(TEMP_MIN, 100)
+        self.disk_alert_spin.setSuffix(" %")
+        grid.addWidget(self.disk_alert_spin, 14, 1)
+
+        self._cooldown_label = QLabel(tr("set_alert_cooldown"))
+        grid.addWidget(self._cooldown_label, 15, 0)
+        self.cooldown_spin = QSpinBox()
+        self.cooldown_spin.setRange(COOLDOWN_MIN, COOLDOWN_MAX)
+        self.cooldown_spin.setSuffix(" min")
+        grid.addWidget(self.cooldown_spin, 15, 1)
+
+        for spin in (
+            self.cpu_alert_spin,
+            self.ram_alert_spin,
+            self.disk_alert_spin,
+            self.cooldown_spin,
+        ):
+            spin.setFixedHeight(COMBO_HEIGHT)
+            spin.setSizePolicy(QSizePolicy.Expanding, QSizePolicy.Fixed)
+
         self._version_label = QLabel(tr("set_version"))
-        grid.addWidget(self._version_label, 11, 0)
+        grid.addWidget(self._version_label, 16, 0)
         version_row = QHBoxLayout()
         version_row.setSpacing(8)
         self.version_value = QLabel(f"v{__version__}")
@@ -249,27 +297,33 @@ class SettingsPage(QWidget):
         self.release_button.clicked.connect(self._open_release_page)
         self.release_button.setVisible(False)
         version_row.addWidget(self.release_button)
+        self.download_button = QPushButton(tr("set_download_update"))
+        self.download_button.setProperty("secondary", True)
+        self.download_button.clicked.connect(self.download_update)
+        self.download_button.setVisible(False)
+        version_row.addWidget(self.download_button)
         version_row.addStretch(1)
         self.check_updates_button = QPushButton(tr("set_check_updates"))
         self.check_updates_button.setProperty("secondary", True)
         self.check_updates_button.clicked.connect(self.check_for_updates)
         version_row.addWidget(self.check_updates_button)
-        grid.addLayout(version_row, 11, 1)
+        grid.addLayout(version_row, 16, 1)
 
         self.update_check = QCheckBox(tr("set_update_check"))
-        grid.addWidget(self.update_check, 12, 0, 1, 2)
+        grid.addWidget(self.update_check, 17, 0, 1, 2)
 
         self.update_status = QLabel("")
         self.update_status.setObjectName("cardSub")
         self.update_status.setWordWrap(True)
         self.update_status.setVisible(False)
-        grid.addWidget(self.update_status, 13, 0, 1, 2)
+        grid.addWidget(self.update_status, 18, 0, 1, 2)
 
         for check in (
             self.minimize_check,
             self.start_minimized_check,
             self.tray_metrics_check,
             self.temp_alerts_check,
+            self.usage_alerts_check,
             self.update_check,
         ):
             check.setMinimumHeight(26)
@@ -358,6 +412,11 @@ class SettingsPage(QWidget):
         self.temp_alerts_check.setChecked(self._service.get("temp_alerts_enabled"))
         self.temp_cpu_spin.setValue(int(self._service.get("temp_alert_cpu")))
         self.temp_gpu_spin.setValue(int(self._service.get("temp_alert_gpu")))
+        self.usage_alerts_check.setChecked(bool(self._service.get("usage_alerts_enabled")))
+        self.cpu_alert_spin.setValue(int(self._service.get("alert_cpu_percent")))
+        self.ram_alert_spin.setValue(int(self._service.get("alert_ram_percent")))
+        self.disk_alert_spin.setValue(int(self._service.get("alert_disk_percent")))
+        self.cooldown_spin.setValue(max(1, int(self._service.get("alert_cooldown_s")) // 60))
         level = self._service.get("log_level")
         level_index = self.level_combo.findData(level)
         self.level_combo.setCurrentIndex(level_index if level_index >= 0 else 1)
@@ -373,6 +432,11 @@ class SettingsPage(QWidget):
             "temp_alerts_enabled": self.temp_alerts_check.isChecked(),
             "temp_alert_cpu": int(self.temp_cpu_spin.value()),
             "temp_alert_gpu": int(self.temp_gpu_spin.value()),
+            "usage_alerts_enabled": self.usage_alerts_check.isChecked(),
+            "alert_cpu_percent": int(self.cpu_alert_spin.value()),
+            "alert_ram_percent": int(self.ram_alert_spin.value()),
+            "alert_disk_percent": int(self.disk_alert_spin.value()),
+            "alert_cooldown_s": int(self.cooldown_spin.value()) * 60,
             "log_level": str(self.level_combo.currentData()),
             "theme": str(self.theme_combo.currentData()),
         }
@@ -422,6 +486,7 @@ class SettingsPage(QWidget):
 
         self.last_update = None
         self.release_button.setVisible(False)
+        self.download_button.setVisible(False)
         self.update_status.setVisible(True)
         self.update_status.setText(tr("set_upd_checking"))
         self.check_updates_button.setEnabled(False)
@@ -441,12 +506,15 @@ class SettingsPage(QWidget):
         self.last_update = info
         if getattr(info, "error", None):
             self.update_status.setText(tr("set_upd_failed", msg=info.error))
+            self.download_button.setVisible(False)
             return
         if getattr(info, "available", False):
             self.update_status.setText(tr("set_upd_available", version=info.latest))
             self._release_url = str(info.url)
             self.release_button.setVisible(True)
+            self.download_button.setVisible(bool(getattr(info, "download_url", "")))
             return
+        self.download_button.setVisible(False)
         self.update_status.setText(tr("set_upd_current", version=info.latest or info.current))
 
     def _on_update_failed(self, message: str) -> None:
@@ -455,6 +523,40 @@ class SettingsPage(QWidget):
 
     def _open_release_page(self) -> None:
         QDesktopServices.openUrl(QUrl(self._release_url))
+
+    def download_update(self) -> None:
+        """Download the published installer in the background (never runs it)."""
+        info = getattr(self, "last_update", None)
+        if info is None or not getattr(info, "available", False):
+            self.update_status.setText(tr("set_upd_no_asset"))
+            return
+        if not getattr(info, "download_url", ""):
+            self.update_status.setText(tr("set_upd_no_asset"))
+            return
+        if self._download_task is not None:
+            return
+        from .tasks import Task
+
+        self.update_status.setVisible(True)
+        self.update_status.setText(tr("set_upd_downloading"))
+        self.download_button.setEnabled(False)
+        task = Task(lambda: download_installer(info), parent=self)
+        task.done.connect(self._on_download_done)
+        task.failed.connect(self._on_download_failed)
+        self._download_task = task
+        task.start()
+
+    def _finish_download(self) -> None:
+        self._download_task = None
+        self.download_button.setEnabled(True)
+
+    def _on_download_done(self, path) -> None:
+        self._finish_download()
+        self.update_status.setText(tr("set_upd_downloaded", path=str(path)))
+
+    def _on_download_failed(self, message: str) -> None:
+        self._finish_download()
+        self.update_status.setText(tr("set_upd_download_failed", msg=message))
 
     # ---------- log preview ----------
 
