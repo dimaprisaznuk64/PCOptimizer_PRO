@@ -1,6 +1,9 @@
 # Development Plan
 
 ## Status
+- Released **v2.0.0** — completion of Stage 2: 22 pages, Hardware Benchmark,
+  Temperature Dashboard and Export Center, Cleaner/Diagnostics 2.0, Drivers,
+  System Report, extended CPU/GPU/RAM telemetry, Gaming 2.0, 803 tests.
 - Released **v1.7.1** (`d9f83ab`) — reliability/stabilization batch: fixed safe
   alert limits and quiet CPU/GPU alerts during games, Settings reset applies
   language/theme, Restart-as-admin handles cancel/error, absolute PowerShell
@@ -23,7 +26,7 @@
 - 22 pages, 29 themes, default theme **TITANIUM**.
 - Newest v2 tools work (Cleaner 2.0, Diagnostics 2.0, Drivers, System Report,
   Hardware Benchmark, Temperature Dashboard, Export Center) is committed in
-  `3dc29ce` and `d1b930d`; version/exe/installer are unchanged (v1.7.1).
+  `3dc29ce` and `d1b930d`; version/exe/installer are bumped to **v2.0.0**.
 - Pytest suite is passing (**803 tests, 1 skipped**). Ruff linter is clean. A pre-existing
   faulthandler artifact still prints native access-violation/0x80040155 traces
   during a full run; all tests pass. Two signal/thread timing flakes in task and
@@ -191,10 +194,8 @@
   `compileall` clean. Native faulthandler/COM traces remain environmental.
 
 ## Next
-- Bump version, regenerate 22 screenshots and build/publish v2.0.0 when asked.
-- v2.0.0 Stage 2 remaining: trustworthy CPU package power / thermal-throttling
-  source (only if a reliable Windows API appears).
-- Continue Stage 2 with trustworthy CPU package power / thermal-throttling source
+- Stage 3 UI/UX 2.0: grouped navigation, unified density and dashboard redesign.
+- v2.0.x reliability: trustworthy CPU package power / thermal-throttling source
   only if a reliable Windows API appears.
 - Optional: wire `mypy` into the verification routine and fix the first batch
   of findings.
