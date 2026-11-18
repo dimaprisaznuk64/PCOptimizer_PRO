@@ -32,4 +32,13 @@ jobs:
       - name: Pytest
         env:
           QT_QPA_PLATFORM: offscreen
-        run: python -m pytest tests -q --no-header
+        shell: pwsh
+        run: |
+          python -m pytest tests -q --no-header 2>&1 | Tee-Object -FilePath pytest.log
+          $code = $LASTEXITCODE
+          if ($code -ne 0) {
+            $tail = (Get-Content pytest.log -Tail 180) -join "`n"
+            $tail = $tail -replace '%', '%25' -replace "`r", '%0D' -replace "`n", '%0A'
+            Write-Host "::error::Pytest failure tail%0A$tail"
+            exit $code
+          }
