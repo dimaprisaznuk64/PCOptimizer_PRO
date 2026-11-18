@@ -49,7 +49,7 @@ class FakeSnapshot:
                     "temperature": gpu_temp,
                     "temperature_hotspot": gpu_hotspot,
                     "memory_clock_mhz": gpu_mem_clock,
-                    "power_draw": gpu_power,
+                    "power_w": gpu_power,
                     "throttling": gpu_throttling,
                 },
             )()

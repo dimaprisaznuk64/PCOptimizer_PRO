@@ -178,7 +178,7 @@ class PerformanceHistory:
             temp_gpu = g.temperature
             gpu_hotspot = getattr(g, "temperature_hotspot", None)
             gpu_mem_clock = getattr(g, "memory_clock_mhz", None)
-            gpu_power = getattr(g, "power_draw", None)
+            gpu_power = getattr(g, "power_w", None)
             throttling = getattr(g, "throttling", None)
             gpu_throttling = bool(throttling) if throttling is not None else None
         temp_cpu = None

@@ -7,9 +7,12 @@
   paths + UTF-8/OEM decoding, honest restore statuses, COM/background-task
   cleanup and safer update redirects. GitHub Release and the silent `app_run`
   upgrade are done.
-- Latest commit `3dc29ce` (v2.0.0 tools batch + Task lifecycle fix) is pushed to
-  `origin/main`; `d6bb2db` (R68 gaming session charts, R69 per-process RAM
-  history) and earlier `e05e94f`/`94d999b` are also pushed.
+- Latest pushed commit is `69c6d3b` (docs sync); `3dc29ce` (v2.0.0 tools batch
+  + Task lifecycle fix), `d6bb2db` (R68 gaming session charts, R69 per-process
+  RAM history) and earlier `e05e94f`/`94d999b` are also pushed.
+- Uncommitted source work: Hardware Benchmark, Temperature Dashboard and Export
+  Center pages/services/tests, their navigation/i18n/spec wiring, and the
+  `HistoryService`/`power_draw` fixes. Commit and release are pending user request.
 - v2.0.0 Stage 1 work: dedicated `tests/test_winpaths.py` (9 tests) and opt-in
   COM for background `Task`s — COM is now initialized only for hardware/health
   scans, not for psutil/subprocess work.
@@ -18,10 +21,10 @@
   Windows commit-charge / virtual-memory detail, top RAM-consuming processes,
   7-day history with advanced telemetry and per-process RAM history, and Gaming
   Mode 2.0 telemetry/profiles/session comparison charts.
-- 19 pages, 29 themes, default theme **TITANIUM**.
+- 22 pages, 29 themes, default theme **TITANIUM**.
 - Newest v2 tools work (Cleaner 2.0, Diagnostics 2.0, Drivers, System Report) is
   committed in `3dc29ce`; version/exe/installer are unchanged (v1.7.1).
-- Pytest suite is passing (**747 tests**). Ruff linter is clean. A pre-existing
+- Pytest suite is passing (**803 tests, 1 skipped**). Ruff linter is clean. A pre-existing
   faulthandler artifact still prints native access-violation/0x80040155 traces
   during a full run; all tests pass. Two signal/thread timing flakes in task and
   dashboard tests were made deterministic.
@@ -173,7 +176,22 @@
   targeted suite 50 passed; full suite 747 passed in 352.96s; `ruff` and
   `compileall` clean.
 
+## v2.0.0 Stage 2 — final three tools
+- Hardware Benchmark page combines configuration summary, CPU/RAM/disk runs,
+  previous/current baseline comparison and redacted result export.
+- Temperature Dashboard shows live/historical ACPI zones, NVIDIA core and
+  hotspot temperatures with honest gaps, real session peaks and 1h/6h/24h/7d
+  history; Refresh invalidates the history cache.
+- Export Center exports Health, Benchmarks, Diagnostics, Performance History and
+  System Report to CSV/JSON/HTML/PDF where supported, previews written files and
+  reports partial failures honestly.
+- Fixed System Report import of the removed `HistoryService`, GPU history field
+  `power_draw` → `power_w`, added `PySide6.QtPdf` to the frozen build spec.
+- Verification: full suite 803 passed, 1 skipped in 351.64s; `ruff` and
+  `compileall` clean. Native faulthandler/COM traces remain environmental.
+
 ## Next
+- Commit and push the uncommitted Stage 2 work when the user asks.
 - v2.0.0 Stage 2 remaining: trustworthy CPU package power / thermal-throttling
   source (only if a reliable Windows API appears).
 - Continue Stage 2 with trustworthy CPU package power / thermal-throttling source

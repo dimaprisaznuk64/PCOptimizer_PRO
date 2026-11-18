@@ -40,9 +40,11 @@ def build_pages(settings=None, on_theme_applied=None) -> list[tuple[str, QWidget
     from .diagnostics import DiagnosticsPage
     from .disk import DiskPage
     from .drivers import DriversPage
+    from .export_center import ExportCenterPage
     from .gaming import GamingPage
     from .gpu import GpuPage
     from .hardware import HardwarePage
+    from .hardware_benchmark import HardwareBenchmarkPage
     from .health import HealthPage
     from .history import HistoryPage
     from .launcher import LauncherPage
@@ -53,6 +55,7 @@ def build_pages(settings=None, on_theme_applied=None) -> list[tuple[str, QWidget
     from .settings import SettingsPage
     from .startup import StartupPage
     from .system_report import SystemReportPage
+    from .temperature import TemperaturePage
 
     if settings is None:
         settings = SettingsService()
@@ -60,6 +63,7 @@ def build_pages(settings=None, on_theme_applied=None) -> list[tuple[str, QWidget
     return [
         ("dashboard", DashboardPage()),
         ("monitor", MonitorPage()),
+        ("temperature", TemperaturePage()),
         ("gpu", GpuPage()),
         ("hardware", HardwarePage()),
         ("processes", ProcessPage()),
@@ -69,12 +73,14 @@ def build_pages(settings=None, on_theme_applied=None) -> list[tuple[str, QWidget
         ("gaming", GamingPage()),
         ("launcher", LauncherPage()),
         ("benchmarks", BenchmarksPage()),
+        ("hardware_benchmark", HardwareBenchmarkPage()),
         ("history", HistoryPage()),
         ("network", NetworkPage()),
         ("disk", DiskPage()),
         ("diagnostics", DiagnosticsPage()),
         ("drivers", DriversPage()),
         ("system_report", SystemReportPage()),
+        ("export_center", ExportCenterPage()),
         ("health", HealthPage()),
         ("settings", SettingsPage(settings, on_theme_applied=on_theme_applied)),
     ]

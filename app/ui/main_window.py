@@ -332,11 +332,11 @@ class MainWindow(QMainWindow):
         import importlib
 
         for name in (
-            "theme", "icons", "components", "monitor", "dashboard", "gpu",
-            "hardware", "processes", "cleaner", "startup", "optimizer", "gaming",
-            "launcher", "benchmarks", "history", "network", "disk", "diagnostics", "drivers",
-            "system_report", "health", "settings",
-            "sidebar", "topbar", "tray", "pages",
+            "theme", "icons", "components", "monitor", "temperature", "dashboard", "gpu",
+            "hardware", "hardware_benchmark", "processes", "cleaner", "startup",
+            "optimizer", "gaming", "launcher", "benchmarks", "history", "network",
+            "disk", "diagnostics", "drivers", "system_report", "export_center",
+            "health", "settings", "sidebar", "topbar", "tray", "pages",
         ):
             module = sys.modules.get(f"app.ui.{name}")
             if module is not None:

@@ -252,6 +252,13 @@ def _system_report(p: QPainter) -> None:
     p.drawLine(QPointF(7, 13), QPointF(11, 13))
 
 
+def _export_center(p: QPainter) -> None:
+    p.drawRoundedRect(QRectF(3, 3, 14, 14), 2, 2)
+    p.drawLine(QPointF(10, 14), QPointF(10, 7))
+    p.drawLine(QPointF(7, 10), QPointF(10, 7))
+    p.drawLine(QPointF(13, 10), QPointF(10, 7))
+
+
 _DRAWERS = {
     "cpu": _cpu,
     "ram": _ram,
@@ -259,6 +266,7 @@ _DRAWERS = {
     "diagnostics": _diagnostics,
     "dashboard": _dashboard,
     "monitor": _monitor,
+    "temperature": _thermometer,
     "gpu": _gpu,
     "processes": _processes,
     "cleaner": _cleaner,
@@ -267,6 +275,7 @@ _DRAWERS = {
     "gaming": _gaming,
     "launcher": _launcher,
     "benchmarks": _benchmarks,
+    "hardware_benchmark": _benchmarks,
     "network": _network,
     "disk": _disk,
     "health": _health,
@@ -283,6 +292,7 @@ _DRAWERS = {
     "history": _history,
     "drivers": _drivers,
     "system_report": _system_report,
+    "export_center": _export_center,
     "back": _back,
 }
 

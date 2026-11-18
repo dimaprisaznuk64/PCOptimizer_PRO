@@ -7,14 +7,14 @@
 <h1 align="center">PCOptimizer PRO</h1>
 
 <p align="center">
-  Моніторинг і оптимізація Windows в одному застосунку: 19 розділів — від живих метрик CPU/GPU та чищення сміття до ігрового режиму, лаунчера ігор, бенчмарків, діагностики заліза й загальної оцінки здоров'я системи.
+  Моніторинг і оптимізація Windows в одному застосунку: 22 розділи — від живих метрик CPU/GPU та чищення сміття до ігрового режиму, лаунчера ігор, бенчмарків, діагностики заліза й загальної оцінки здоров'я системи.
 </p>
 
 <p align="center">
   <img src="https://img.shields.io/badge/platform-Windows%2010%2F11%20x64-0078D6" alt="Platform">
   <img src="https://img.shields.io/badge/python-3.13-3776AB" alt="Python">
   <img src="https://img.shields.io/badge/UI-PySide6%20(Qt%206)-41CD52" alt="PySide6">
-  <img src="https://img.shields.io/badge/tests-747%20passed-brightgreen" alt="Tests">
+  <img src="https://img.shields.io/badge/tests-803%20passed-brightgreen" alt="Tests">
   <a href="https://github.com/dimaprisaznuk64/PCOptimizer_PRO/actions/workflows/ci.yml"><img src="https://github.com/dimaprisaznuk64/PCOptimizer_PRO/actions/workflows/ci.yml/badge.svg" alt="CI"></a>
   <img src="https://img.shields.io/badge/license-MIT-green" alt="License">
   <img src="https://img.shields.io/badge/version-1.7.1-blue" alt="Version">
@@ -69,6 +69,12 @@
 - Система, процесор (ядра / потоки / частоти), оперативна пам'ять (модулі, слоти, тип, частота), відеокарти (VRAM уточнюється через NVML), материнська плата, BIOS, накопичувачі (SSD / HDD із WMI та MSFT_PhysicalDisk)
 - Розділи зібрані окремо — помилка одного WMI-запиту не ламає всю сторінку
 
+### Панель температур
+- Живі показання з ACPI-зон (системна температура), NVIDIA GPU та hotspot; застарілі NVML-значення ігноруються
+- Історія 1 год / 6 год / 24 год / 7 днів із піком, середнім, максимумом і статусом за порогами
+- Окремий Refresh інвалідує кеш історії; піки сесії зберігаються при перемиканні мови
+- чесно показує відсутність джерела: немає вигаданої температури CPU, якщо Windows її не віддає
+
 ### Менеджер процесів
 - Сортування, фільтр і панель деталей
 - Завершення процесу з підтвердженням
@@ -122,6 +128,12 @@
 - Історія прогонів «до/після оптимізації»: кожен запуск зберігається з часом, можна закріпити базову лінію та бачити зміну у % по кожній метриці (зелене — швидше, червоне — повільніше)
 - Експорт історії у CSV / JSON (кнопка «Експорт історії»)
 
+### Бенчмарк заліза
+- один запуск CPU, RAM і диска разом із конфігурацією системи (процесор, пам'ять, GPU, сховище)
+- таблиця результатів і порівняння зі збереженою базовою лінією: попереднє значення, поточне та зміна у %
+- кнопка «Встановити базу» закріплює поточний прогон для кожної метрики
+- експорт звіту маскує hostname, серійні номери плати та дисків за замовчуванням; включення ідентифікаторів — явний opt-in
+
 ### Мережа
 - Ping-тест: 4 запити, середнє й втрати, таблиця результатів
 - Діагностика: адаптери, шлюз, DNS, доступ до інтернету, проксі (інформаційно)
@@ -149,6 +161,12 @@
 - Формат HTML або текст, попередній перегляд і збереження у файл
 - Серійні номери та імена машин маскуються за замовчуванням; явний чекбокс дозволяє їх включити
 - Секрети (паролі, токени, Authorization/Bearer) маскуються завжди, навіть за згодою на ідентифікатори
+
+### Центр експорту
+- одне місце для експорту звітів здоров'я, бенчмарків, діагностики, історії продуктивності та системного звіту
+- формати CSV / JSON / HTML / PDF там, де їх підтримує конкретний звіт; вибір папки призначення
+- попередній перегляд показує вибрані експорти, записані файли, розмір і кількість сторінок PDF
+- часткова помилка не приховує вже записані файли — статус і preview показують успіх і помилки окремо
 
 ### Історія продуктивності
 - Запис метрик (CPU, RAM, GPU, температура, hotspot, частота пам'яті, живлення, commit charge) з тротлінгом кожні 30 с
@@ -188,12 +206,14 @@
 
 ```text
 main.py
-  └─ app/ui/                 PySide6: MainWindow, 19 сторінок, теми, трей, QSS/токени
+  └─ app/ui/                 PySide6: MainWindow, 22 сторінки, теми, трей, QSS/токени
        ├─ SensorSampler ──── app/sensors/  (psutil / NVML / WMI ACPI / mock)
        └─ Task (QThread) ─── app/<domain>/service.py
                               ├─ cleaner, processes, startup, optimizer, restore
                               ├─ gaming, launcher, benchmarks, history, reports
-                               ├─ diagnostics, drivers, hardware, disk, network, alerts
+                                ├─ diagnostics, drivers, hardware, temperature, disk, network, alerts
+                               ├─ reports/center, benchmarks/hardware, export_center
+
 
                               └─ settings, logs, i18n
 
@@ -242,7 +262,7 @@ main.py
 
 - **Python 3.13** + **PySide6** (Qt 6; 29 вбудованих тем, тема за замовчуванням — Titanium, вбудовані шрифти Inter / JetBrains Mono)
 - **psutil** — CPU/RAM/диски/мережа, **nvidia-ml-py** (NVML) — GPU, **WMI** — температури, **pywin32** — COM/Task Scheduler/кошик
-- **pytest** — 747 тестів
+- **pytest** — 803 тестів
 - **PyInstaller** — збірка .exe, **Inno Setup** — інсталятор
 
 ## Безпека понад усе
@@ -295,14 +315,16 @@ powershell -ExecutionPolicy Bypass -File scripts\build_installer.ps1
 ```
 main.py                  — точка входу
 app/
-  ui/                    — PySide6 UI: 19 сторінок, теми, трей, topbar
+  ui/                    — PySide6 UI: 22 сторінки, теми, трей, topbar
   sensors/               — шар сенсорів: psutil / NVML / WMI / mock
   health/                — PC Health Score
   benchmarks/            — швидкі тести CPU / RAM / диска
   history/               — історія продуктивності (JSONL, графіки, топ процесів за RAM)
-   reports/               — експорт звітів у CSV / JSON / PDF + загальний звіт системи
+   reports/               — експорт звітів у CSV / JSON / PDF, Центр експорту + загальний звіт системи
+   temperature/           — панель температур: live ACPI/NVML + історія
    drivers/               — інвентар драйверів (лише читання)
    diagnostics/           — SMART, події, системні файли, рекомендації
+
    alerts/                — температурні та resource-алерти (CPU/RAM/диск)
   cleaner/               — чистильник
   disk/                  — дисковий аналізатор
@@ -316,7 +338,7 @@ app/
   logs/                  — ротаційне логування
   i18n/                  — локалізація UA / EN
   core/, hardware/, monitor/, health/, diagnostics/, alerts/, benchmarks/, gaming/ — допоміжні модулі
-tests/                   — pytest-тести (747)
+tests/                   — pytest-тести (803)
 scripts/                 — збірка exe/інсталятора, генерація іконки
 installer/               — скрипт Inno Setup
 docs/screenshots/        — скріншоти

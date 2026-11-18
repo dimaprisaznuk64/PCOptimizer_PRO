@@ -2,6 +2,9 @@
 
 from __future__ import annotations
 
+import ast
+from pathlib import Path
+
 from app.i18n import TRANSLATIONS, I18nService, tr
 
 
@@ -47,3 +50,46 @@ def test_i18n_interpolation() -> None:
     service.set_language("UA", emit=False)
     assert tr("proc_count", count=42) == "42 процесів"
     assert tr("clean_freed", size="1.2GB") == "Звільнено 1.2GB"
+
+
+def test_stage2_translation_keys_are_resolved() -> None:
+    root = Path(__file__).resolve().parents[1]
+    files = (
+        "app/benchmarks/hardware.py",
+        "app/ui/hardware_benchmark.py",
+        "app/temperature/service.py",
+        "app/ui/temperature.py",
+        "app/reports/center.py",
+        "app/ui/export_center.py",
+    )
+    prefixes = (
+        "hwb_",
+        "temp_",
+        "export_center_",
+        "export_kind_",
+        "export_fmt_",
+        "nav_temperature",
+        "nav_hardware_benchmark",
+        "nav_export_center",
+    )
+    ignore = {"export_fmt_", "temp_status_", "temp_cpu", "temp_gpu"}
+    keys: set[str] = set()
+    for relative in files:
+        tree = ast.parse((root / relative).read_text(encoding="utf-8"))
+        for node in ast.walk(tree):
+            if (
+                isinstance(node, ast.Constant)
+                and isinstance(node.value, str)
+                and node.value.startswith(prefixes)
+            ):
+                keys.add(node.value)
+    keys.update(f"export_fmt_{fmt}" for fmt in ("csv", "json", "html", "pdf"))
+    keys.update(f"temp_status_{status}" for status in ("ok", "warn", "danger"))
+    keys.difference_update(ignore)
+
+    assert keys
+    for key in sorted(keys):
+        assert TRANSLATIONS["EN"].get(key), key
+        assert TRANSLATIONS["UA"].get(key), key
+        assert TRANSLATIONS["EN"][key] != key
+        assert TRANSLATIONS["UA"][key] != key

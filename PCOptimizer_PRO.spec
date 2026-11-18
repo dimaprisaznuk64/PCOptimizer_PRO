@@ -16,6 +16,7 @@ a = Analysis(
         "pywintypes",
         "pynvml",
         "PySide6.QtPrintSupport",
+        "PySide6.QtPdf",
         "app.reports.pdf",
     ],
     hookspath=[],

@@ -75,9 +75,9 @@ def _default_providers() -> dict[str, Provider]:
         return BenchmarkHistory().entries(limit=50)
 
     def history() -> object:
-        from app.history.service import HistoryService
+        from app.history import PerformanceHistory
 
-        return HistoryService().query(60 * 24 * 7)
+        return PerformanceHistory().query(60 * 24 * 7)
 
     def diagnostics() -> object:
         from app.diagnostics import DiagnosticsService

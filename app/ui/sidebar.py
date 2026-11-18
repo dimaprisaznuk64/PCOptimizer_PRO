@@ -37,13 +37,16 @@ SIDEBAR_COMPACT_WIDTH = 64
 NAV_KEYS: tuple[tuple[str, str], ...] = (
     ("dashboard", "nav_dashboard"),
     ("monitor", "nav_monitor"),
+    ("temperature", "nav_temperature"),
+    ("gpu", "nav_gpu"),
     ("hardware", "nav_hardware"),
-    ("cleaner", "nav_cleaner"),
     ("processes", "nav_processes"),
+    ("cleaner", "nav_cleaner"),
     ("startup", "nav_startup"),
     ("gaming", "nav_gaming"),
     ("launcher", "nav_launcher"),
     ("benchmarks", "nav_benchmarks"),
+    ("hardware_benchmark", "nav_hardware_benchmark"),
     ("history", "nav_history"),
     ("network", "nav_network"),
     ("optimizer", "nav_optimizer"),
@@ -51,9 +54,9 @@ NAV_KEYS: tuple[tuple[str, str], ...] = (
     ("diagnostics", "nav_diagnostics"),
     ("drivers", "nav_drivers"),
     ("system_report", "nav_system_report"),
-    ("settings", "nav_settings"),
-    ("gpu", "nav_gpu"),
+    ("export_center", "nav_export_center"),
     ("health", "nav_health"),
+    ("settings", "nav_settings"),
 )
 
 NAV_ITEMS: tuple[tuple[str, str], ...] = tuple((k, tr(kk)) for k, kk in NAV_KEYS)
