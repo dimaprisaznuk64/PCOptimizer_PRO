@@ -235,6 +235,23 @@ def _back(p: QPainter) -> None:
     p.drawPath(path)
 
 
+def _drivers(p: QPainter) -> None:
+    p.drawRoundedRect(QRectF(5, 5, 10, 10), 2, 2)
+    for x in (7, 10, 13):
+        p.drawLine(QPointF(x, 2.5), QPointF(x, 5))
+        p.drawLine(QPointF(x, 15), QPointF(x, 17.5))
+    for y in (7, 10, 13):
+        p.drawLine(QPointF(2.5, y), QPointF(5, y))
+        p.drawLine(QPointF(15, y), QPointF(17.5, y))
+
+
+def _system_report(p: QPainter) -> None:
+    p.drawRoundedRect(QRectF(4, 2.5, 12, 15), 2, 2)
+    p.drawLine(QPointF(7, 7), QPointF(13, 7))
+    p.drawLine(QPointF(7, 10), QPointF(13, 10))
+    p.drawLine(QPointF(7, 13), QPointF(11, 13))
+
+
 _DRAWERS = {
     "cpu": _cpu,
     "ram": _ram,
@@ -264,6 +281,8 @@ _DRAWERS = {
     "bolt": _bolt,
     "shield": _shield,
     "history": _history,
+    "drivers": _drivers,
+    "system_report": _system_report,
     "back": _back,
 }
 

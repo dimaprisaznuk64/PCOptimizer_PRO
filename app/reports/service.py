@@ -6,11 +6,16 @@ import io
 import json
 import time
 from collections.abc import Callable, Iterable, Sequence
+from dataclasses import asdict
 from datetime import datetime
 from pathlib import Path
+from typing import TYPE_CHECKING
 
 from app.benchmarks.history import HistoryEntry
 from app.health import HealthReport
+
+if TYPE_CHECKING:
+    from app.diagnostics.service import DiagnosticsReport
 
 
 class ReportError(Exception):
@@ -23,6 +28,7 @@ LabelFn = Callable[[str], str]
 
 HEALTH_CSV_HEADER = ("Category", "Severity", "Issue", "Detail", "Fixable")
 HISTORY_CSV_HEADER = ("Time", "Metric", "Value", "Unit", "Detail", "Baseline", "Delta %")
+DIAGNOSTIC_CSV_HEADER = ("Section", "Source", "Status", "Name", "Detail")
 
 
 def _iso(ts: float) -> str:
@@ -158,6 +164,98 @@ def history_to_csv(
     return buf.getvalue()
 
 
+# ---------- diagnostics ----------
+
+
+def diagnostic_record(report: DiagnosticsReport, *, now: float | None = None) -> dict:
+    return {
+        "exported": _iso(now if now is not None else time.time()),
+        "disks": [asdict(disk) for disk in report.disks],
+        "events": [asdict(event) for event in report.events],
+        "errors": list(report.errors),
+        "system_file": asdict(report.system_file) if report.system_file is not None else None,
+        "drivers": [asdict(driver) for driver in report.drivers],
+        "recommendations": [asdict(item) for item in report.recommendations],
+        "unavailable": list(report.unavailable),
+    }
+
+
+def diagnostic_to_json(report: DiagnosticsReport, *, now: float | None = None) -> str:
+    return json.dumps(diagnostic_record(report, now=now), ensure_ascii=False, indent=2)
+
+
+def _diagnostic_rows(record: dict) -> list[tuple[str, str, str, str, str]]:
+    rows: list[tuple[str, str, str, str, str]] = []
+    smart_fields = (
+        ("temperature_c", "temp"),
+        ("temperature_max_c", "temp_max"),
+        ("temperature_lifetime_c", "temp_lifetime"),
+        ("wear_percent", "wear"),
+        ("power_on_hours", "power_on_h"),
+        ("read_errors", "read_err"),
+        ("write_errors", "write_err"),
+        ("read_errors_uncorrected", "read_unc"),
+        ("write_errors_uncorrected", "write_unc"),
+        ("start_stop_cycles", "start_stop"),
+        ("load_unload_cycles", "load_unload"),
+    )
+    for disk in record["disks"]:
+        parts = [f"{label}={disk[key]}" for key, label in smart_fields if disk.get(key) is not None]
+        if disk.get("serial"):
+            parts.append(f"serial={disk['serial']}")
+        rows.append(("Disk", disk.get("media", ""), disk.get("health", ""), disk.get("name", ""), "; ".join(parts)))
+    for event in record["events"]:
+        rows.append(
+            (
+                "Event",
+                event.get("source", ""),
+                event.get("level_name", ""),
+                f"{event.get('time', '')} #{event.get('event_id', 0)}",
+                event.get("message", ""),
+            )
+        )
+    status = record["system_file"]
+    if status is not None:
+        rows.append(("SystemFile", status.get("source", ""), status.get("state", ""), "", status.get("detail", "")))
+    for driver in record["drivers"]:
+        rows.append(
+            (
+                "Driver",
+                driver.get("kind", ""),
+                str(driver.get("code", 0)),
+                driver.get("name", ""),
+                f"{driver.get('status', '')} {driver.get('device_id', '')}".strip(),
+            )
+        )
+    for item in record["recommendations"]:
+        rows.append(
+            (
+                "Recommendation",
+                item.get("source", ""),
+                item.get("severity", ""),
+                item.get("title", ""),
+                item.get("detail", ""),
+            )
+        )
+    for message in record["errors"]:
+        rows.append(("Error", "", "", "", message))
+    for source in record["unavailable"]:
+        rows.append(("Unavailable", source, "", "", ""))
+    return rows
+
+
+def diagnostic_to_csv(
+    report: DiagnosticsReport,
+    *,
+    header: Sequence[str] | None = None,
+) -> str:
+    buf = io.StringIO()
+    writer = csv.writer(buf)
+    writer.writerow(header or DIAGNOSTIC_CSV_HEADER)
+    writer.writerows(_diagnostic_rows(diagnostic_record(report)))
+    return buf.getvalue()
+
+
 # ---------- printable HTML (used by the PDF exporter) ----------
 
 
@@ -234,6 +332,18 @@ def history_to_html(
     return _html_page(title, f"{record['exported']} · {record['count']} records", HISTORY_CSV_HEADER, rows)
 
 
+def diagnostic_to_html(
+    report: DiagnosticsReport,
+    *,
+    title: str = "Diagnostics report",
+    now: float | None = None,
+) -> str:
+    record = diagnostic_record(report, now=now)
+    rows = _diagnostic_rows(record)
+    meta = f"{record['exported']} · {len(rows)} rows · {len(record['errors'])} errors"
+    return _html_page(title, meta, DIAGNOSTIC_CSV_HEADER, rows)
+
+
 # ---------- saving ----------
 
 
@@ -265,6 +375,22 @@ def export_health(
         health_to_json(report, localize=localize)
         if fmt == "json"
         else health_to_csv(report, localize=localize, header=header)
+    )
+    return write_report(path, text, fmt)
+
+
+def export_diagnostics(
+    report: DiagnosticsReport,
+    path: str | Path,
+    *,
+    header: Sequence[str] | None = None,
+    now: float | None = None,
+) -> Path:
+    fmt = format_for_path(path)
+    text = (
+        diagnostic_to_json(report, now=now)
+        if fmt == "json"
+        else diagnostic_to_csv(report, header=header)
     )
     return write_report(path, text, fmt)
 

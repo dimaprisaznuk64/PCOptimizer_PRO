@@ -132,6 +132,16 @@ def test_monitor_shows_top_ram_processes(qapp) -> None:
     assert page.proc_table.item(1, 0).text() == "python.exe"
 
 
+def test_monitor_refresh_after_task_deleted(qapp) -> None:
+    page = MonitorPage(process_service=FakeProcessService())
+    page.refresh_memory_processes()
+    assert _wait_until(qapp, lambda: page.proc_table.rowCount() == 2)
+    assert _wait_until(qapp, lambda: page._proc_task is None)
+    page.refresh_memory_processes()
+    assert page._proc_task is not None
+    assert _wait_until(qapp, lambda: page.proc_table.rowCount() == 2)
+
+
 def test_main_window_broadcast_reaches_monitor(qapp) -> None:
     window = MainWindow()
     window.show_page("monitor")

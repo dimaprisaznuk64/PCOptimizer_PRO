@@ -49,6 +49,8 @@ NAV_KEYS: tuple[tuple[str, str], ...] = (
     ("optimizer", "nav_optimizer"),
     ("disk", "nav_disk"),
     ("diagnostics", "nav_diagnostics"),
+    ("drivers", "nav_drivers"),
+    ("system_report", "nav_system_report"),
     ("settings", "nav_settings"),
     ("gpu", "nav_gpu"),
     ("health", "nav_health"),

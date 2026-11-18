@@ -7,14 +7,14 @@
 <h1 align="center">PCOptimizer PRO</h1>
 
 <p align="center">
-  Моніторинг і оптимізація Windows в одному застосунку: 17 розділів — від живих метрик CPU/GPU та чищення сміття до ігрового режиму, лаунчера ігор, бенчмарків, діагностики заліза й загальної оцінки здоров'я системи.
+  Моніторинг і оптимізація Windows в одному застосунку: 19 розділів — від живих метрик CPU/GPU та чищення сміття до ігрового режиму, лаунчера ігор, бенчмарків, діагностики заліза й загальної оцінки здоров'я системи.
 </p>
 
 <p align="center">
   <img src="https://img.shields.io/badge/platform-Windows%2010%2F11%20x64-0078D6" alt="Platform">
   <img src="https://img.shields.io/badge/python-3.13-3776AB" alt="Python">
   <img src="https://img.shields.io/badge/UI-PySide6%20(Qt%206)-41CD52" alt="PySide6">
-  <img src="https://img.shields.io/badge/tests-663%20passed-brightgreen" alt="Tests">
+  <img src="https://img.shields.io/badge/tests-747%20passed-brightgreen" alt="Tests">
   <a href="https://github.com/dimaprisaznuk64/PCOptimizer_PRO/actions/workflows/ci.yml"><img src="https://github.com/dimaprisaznuk64/PCOptimizer_PRO/actions/workflows/ci.yml/badge.svg" alt="CI"></a>
   <img src="https://img.shields.io/badge/license-MIT-green" alt="License">
   <img src="https://img.shields.io/badge/version-1.7.1-blue" alt="Version">
@@ -77,8 +77,13 @@
 
 ### Чистильник
 - Попередній скан із розмірами до видалення
-- Тимчасові файли, кеші браузерів, шейдер-кеші, кошик
+- Тимчасові файли, кеші браузерів, шейдер-кеші, кошик, WER, crash dumps, pip/npm
+- Вайтлист шляхів: виключені каталоги не скануються й не видаляються
+- Мінімальний вік файлу для обраних цілей; у прев'ю видно причини пропуску й деталі скану
+- Розклад нагадувань (щодня / щотижня / щомісяця) — без авто-видалення
+- Рештки програм і попередній перегляд великих файлів (>100 МБ) як окремі цілі
 - Пропускає заблоковані файли та дає звіт: скільки звільнено / пропущено
+
 
 ### Автозавантаження
 - Джерела: HKCU/HKLM `Run` (+ `WOW6432Node`), папка Startup, Планувальник завдань
@@ -130,7 +135,20 @@
 ### Діагностика
 - Здоров'я накопичувачів (SMART): модель, тип (SSD/HDD), розмір, температура, знос, наробіток, помилки читання/запису, стан
 - Журнал подій Windows у режимі лише читання: System / Application, фільтр за рівнем (критичні / помилки / попередження), таблиця час–рівень–джерело–ID–повідомлення
+- Перевірка системних файлів лише на читання: `DISM /ScanHealth` та `sfc /verifyonly` (нічого не відновлюється автоматично)
+- Окрема таблиця драйверів пристроїв і проблемних кодів
+- Підсумок рекомендацій з важливістю: диски, події, системні файли, драйвери, помилки опитування
 - Усе через PowerShell, працює без прав адміністратора; права не змінюються
+
+### Драйвери
+- Перелік підписаних драйверів Windows (`Win32_PnPSignedDriver`): пристрій, клас, виробник, версія, дата, постачальник, стан
+- Лише читання: застосунок не встановлює, не оновлює й не видаляє драйвери
+
+### Звіт системи
+- Збір збережених даних про систему, залізо, здоров'я, оптимізатор, точки відновлення, бенчмарки, історію та діагностику
+- Формат HTML або текст, попередній перегляд і збереження у файл
+- Серійні номери та імена машин маскуються за замовчуванням; явний чекбокс дозволяє їх включити
+- Секрети (паролі, токени, Authorization/Bearer) маскуються завжди, навіть за згодою на ідентифікатори
 
 ### Історія продуктивності
 - Запис метрик (CPU, RAM, GPU, температура, hotspot, частота пам'яті, живлення, commit charge) з тротлінгом кожні 30 с
@@ -170,12 +188,13 @@
 
 ```text
 main.py
-  └─ app/ui/                 PySide6: MainWindow, 17 сторінок, теми, трей, QSS/токени
+  └─ app/ui/                 PySide6: MainWindow, 19 сторінок, теми, трей, QSS/токени
        ├─ SensorSampler ──── app/sensors/  (psutil / NVML / WMI ACPI / mock)
        └─ Task (QThread) ─── app/<domain>/service.py
                               ├─ cleaner, processes, startup, optimizer, restore
                               ├─ gaming, launcher, benchmarks, history, reports
-                              ├─ diagnostics, hardware, disk, network, alerts
+                               ├─ diagnostics, drivers, hardware, disk, network, alerts
+
                               └─ settings, logs, i18n
 
 Потік даних: сенсор → Snapshot → MainWindow.handle_snapshot → сторінки + трей + PerformanceHistory
@@ -223,7 +242,7 @@ main.py
 
 - **Python 3.13** + **PySide6** (Qt 6; 29 вбудованих тем, тема за замовчуванням — Titanium, вбудовані шрифти Inter / JetBrains Mono)
 - **psutil** — CPU/RAM/диски/мережа, **nvidia-ml-py** (NVML) — GPU, **WMI** — температури, **pywin32** — COM/Task Scheduler/кошик
-- **pytest** — 663 тестів
+- **pytest** — 747 тестів
 - **PyInstaller** — збірка .exe, **Inno Setup** — інсталятор
 
 ## Безпека понад усе
@@ -276,12 +295,14 @@ powershell -ExecutionPolicy Bypass -File scripts\build_installer.ps1
 ```
 main.py                  — точка входу
 app/
-  ui/                    — PySide6 UI: 17 сторінок, теми, трей, topbar
+  ui/                    — PySide6 UI: 19 сторінок, теми, трей, topbar
   sensors/               — шар сенсорів: psutil / NVML / WMI / mock
   health/                — PC Health Score
   benchmarks/            — швидкі тести CPU / RAM / диска
   history/               — історія продуктивності (JSONL, графіки, топ процесів за RAM)
-   reports/               — експорт звітів у CSV / JSON / PDF
+   reports/               — експорт звітів у CSV / JSON / PDF + загальний звіт системи
+   drivers/               — інвентар драйверів (лише читання)
+   diagnostics/           — SMART, події, системні файли, рекомендації
    alerts/                — температурні та resource-алерти (CPU/RAM/диск)
   cleaner/               — чистильник
   disk/                  — дисковий аналізатор
@@ -295,7 +316,7 @@ app/
   logs/                  — ротаційне логування
   i18n/                  — локалізація UA / EN
   core/, hardware/, monitor/, health/, diagnostics/, alerts/, benchmarks/, gaming/ — допоміжні модулі
-tests/                   — pytest-тести (663)
+tests/                   — pytest-тести (747)
 scripts/                 — збірка exe/інсталятора, генерація іконки
 installer/               — скрипт Inno Setup
 docs/screenshots/        — скріншоти

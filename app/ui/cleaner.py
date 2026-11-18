@@ -1,12 +1,20 @@
 from __future__ import annotations
 
+import time
+
 from PySide6.QtCore import Qt
 from PySide6.QtWidgets import (
     QAbstractItemView,
+    QCheckBox,
+    QComboBox,
+    QDialog,
+    QFileDialog,
     QFrame,
     QHBoxLayout,
     QHeaderView,
     QLabel,
+    QLineEdit,
+    QListWidget,
     QMessageBox,
     QPushButton,
     QTableWidget,
@@ -15,7 +23,17 @@ from PySide6.QtWidgets import (
     QWidget,
 )
 
-from app.cleaner import CleanerService, CleanOutcome, CleanTarget, ScanResult
+from app.cleaner import (
+    CleanerSchedule,
+    CleanerScheduler,
+    CleanerService,
+    CleanerWhitelist,
+    CleanOutcome,
+    CleanTarget,
+    ScanResult,
+    list_leftover_candidates,
+    scan_large_files,
+)
 from app.i18n import tr
 
 from .activity import outcome_level
@@ -38,6 +56,10 @@ _TARGET_TR = {
     "Mozilla Firefox cache": "clean_t_firefox",
     "GPU shader caches": "clean_t_gpu",
     "Thumbnail cache": "clean_t_thumb",
+    "Windows Error Reporting cache": "clean_t_wer",
+    "Crash dumps": "clean_t_crash",
+    "pip cache": "clean_t_pip",
+    "npm cache": "clean_t_npm",
     "Recycle Bin": "clean_t_bin",
     "Standby RAM cache": "clean_t_standby",
 }
@@ -46,6 +68,14 @@ _CATEGORY_TR = {
     "Browser": "clean_c_browser",
     "GPU": "clean_c_gpu",
     "Memory": "clean_c_memory",
+    "Development": "clean_c_dev",
+    "Leftovers": "clean_c_leftovers",
+    "Large files": "clean_c_large",
+}
+_CADENCE_TR = {
+    "daily": "clean_schedule_daily",
+    "weekly": "clean_schedule_weekly",
+    "monthly": "clean_schedule_monthly",
 }
 
 
@@ -55,10 +85,22 @@ def _loc(mapping: dict[str, str], text: str) -> str:
 
 
 class CleanerPage(QWidget):
-    def __init__(self, service: CleanerService | None = None, parent: QWidget | None = None) -> None:
+    def __init__(
+        self,
+        service: CleanerService | None = None,
+        parent: QWidget | None = None,
+        *,
+        whitelist: CleanerWhitelist | None = None,
+        scheduler: CleanerScheduler | None = None,
+    ) -> None:
         super().__init__(parent)
         self.setObjectName("page")
         self._service = service or CleanerService()
+        if whitelist is not None:
+            self._service.whitelist = whitelist
+        self._whitelist = self._service.whitelist
+        self._scheduler = scheduler or CleanerScheduler()
+        self._extra_targets: dict[str, CleanTarget] = {}
         self._scans: dict[str, ScanResult] = {}
         self._outcomes: dict[str, CleanOutcome] = {}
         self._task: Task | None = None
@@ -76,6 +118,30 @@ class CleanerPage(QWidget):
 
         self._title = title
         self._desc = desc
+
+        tools = QHBoxLayout()
+        tools.setSpacing(8)
+        self.whitelist_button = QPushButton(tr("clean_whitelist_btn"))
+        self.whitelist_button.setProperty("secondary", True)
+        self.whitelist_button.clicked.connect(self.open_whitelist)
+        tools.addWidget(self.whitelist_button)
+
+        self.schedule_button = QPushButton(tr("clean_schedule_btn"))
+        self.schedule_button.setProperty("secondary", True)
+        self.schedule_button.clicked.connect(self.open_schedule)
+        tools.addWidget(self.schedule_button)
+
+        self.leftovers_button = QPushButton(tr("clean_leftovers_btn"))
+        self.leftovers_button.setProperty("secondary", True)
+        self.leftovers_button.clicked.connect(self.start_leftovers)
+        tools.addWidget(self.leftovers_button)
+
+        self.large_files_button = QPushButton(tr("clean_large_btn"))
+        self.large_files_button.setProperty("secondary", True)
+        self.large_files_button.clicked.connect(self.start_large_files)
+        tools.addWidget(self.large_files_button)
+        tools.addStretch(1)
+        layout.addLayout(tools)
 
         hero = QFrame()
         hero.setObjectName("hero")
@@ -131,7 +197,7 @@ class CleanerPage(QWidget):
         self.note.setWordWrap(True)
         layout.addWidget(self.note)
 
-        self._targets: list[CleanTarget] = self._service.targets
+        self._targets = self._all_targets()
         self._render_table()
 
     def retranslate(self) -> None:
@@ -141,6 +207,10 @@ class CleanerPage(QWidget):
         self._hero_caption.setText(tr("clean_hero"))
         self.scan_button.setText(tr("clean_scan_btn"))
         self.clean_button.setText(tr("clean_clean_btn"))
+        self.whitelist_button.setText(tr("clean_whitelist_btn"))
+        self.schedule_button.setText(tr("clean_schedule_btn"))
+        self.leftovers_button.setText(tr("clean_leftovers_btn"))
+        self.large_files_button.setText(tr("clean_large_btn"))
         self.note.setText(tr("clean_note"))
         self.table.setHorizontalHeaderLabels(tuple(tr(k) for k in COLUMN_KEYS))
         align_numeric_headers(self.table, (2, 3))
@@ -183,6 +253,7 @@ class CleanerPage(QWidget):
         self._task = None
         self.scan_button.setEnabled(True)
         self.clean_button.setEnabled(bool(self._scans))
+        self._set_tools_enabled(True)
         self.status_label.setText(tr("clean_failed", msg=message))
 
     def start_clean(self) -> None:
@@ -255,8 +326,17 @@ class CleanerPage(QWidget):
             )
         )
 
+    def _all_targets(self) -> list[CleanTarget]:
+        targets = list(self._service.targets)
+        known = {target.id for target in targets}
+        for target in self._extra_targets.values():
+            if target.id not in known:
+                targets.append(target)
+                known.add(target.id)
+        return targets
+
     def _render_table(self) -> None:
-        self._targets = self._service.targets
+        self._targets = self._all_targets()
         self.table.blockSignals(True)
         self.table.setRowCount(len(self._targets))
         for row, target in enumerate(self._targets):
@@ -265,13 +345,26 @@ class CleanerPage(QWidget):
 
             name_item = QTableWidgetItem(_loc(_TARGET_TR, target.name))
             name_item.setFlags(name_item.flags() | Qt.ItemFlag.ItemIsUserCheckable)
-            name_item.setCheckState(Qt.CheckState.Checked)
+            checked = Qt.CheckState.Checked if target.selected_by_default else Qt.CheckState.Unchecked
+            name_item.setCheckState(checked)
+            tips: list[str] = []
+            if target.min_age_days:
+                tips.append(tr("clean_age", days=target.min_age_days))
+            if target.note:
+                tips.append(target.note)
             if scan and scan.error:
-                name_item.setToolTip(scan.error)
+                tips.append(scan.error)
+            if tips:
+                name_item.setToolTip("\n".join(tips))
             self.table.setItem(row, 0, name_item)
             self.table.setItem(row, 1, QTableWidgetItem(_loc(_CATEGORY_TR, target.category)))
             num_item = QTableWidgetItem(str(scan.files) if scan else "—")
             num_item.setTextAlignment(Qt.AlignmentFlag.AlignRight | Qt.AlignmentFlag.AlignVCenter)
+            if scan and scan.details:
+                lines = [f"{size(detail.size)} · {detail.path}" for detail in scan.details]
+                if scan.details_truncated:
+                    lines.append(tr("clean_details_more", count=scan.files - len(scan.details)))
+                num_item.setToolTip("\n".join(lines))
             self.table.setItem(row, 2, num_item)
             num_item = QTableWidgetItem(size(scan.bytes) if scan else "—")
             num_item.setTextAlignment(Qt.AlignmentFlag.AlignRight | Qt.AlignmentFlag.AlignVCenter)
@@ -306,3 +399,207 @@ class CleanerPage(QWidget):
             QMessageBox.StandardButton.No,
         )
         return answer == QMessageBox.StandardButton.Yes
+
+    def open_whitelist(self) -> None:
+        dialog = _WhitelistDialog(self._whitelist, self)
+        if dialog.exec() != QDialog.DialogCode.Accepted:
+            return
+        wanted = set(dialog.patterns)
+        for pattern in tuple(self._whitelist.patterns):
+            if pattern not in wanted:
+                self._whitelist.remove(pattern)
+        for pattern in dialog.patterns:
+            self._whitelist.add(pattern)
+        self.status_label.setText(tr("clean_whitelist_saved", count=len(dialog.patterns)))
+
+    def open_schedule(self) -> None:
+        dialog = _ScheduleDialog(self._scheduler.schedule, self)
+        if dialog.exec() != QDialog.DialogCode.Accepted:
+            return
+        enabled, cadence = dialog.values()
+        selected = self._selected_targets()
+        target_ids = tuple(target.id for target in selected) or tuple(
+            target.id for target in self._targets if target.selected_by_default
+        )
+        schedule = CleanerSchedule(
+            enabled=enabled,
+            cadence=cadence,
+            target_ids=target_ids,
+            last_run=self._scheduler.last_run,
+        )
+        self._scheduler.save(schedule)
+        self.status_label.setText(
+            tr(
+                "clean_schedule_saved",
+                cadence=tr(_CADENCE_TR.get(cadence, "clean_schedule_weekly")),
+                count=len(target_ids),
+            )
+        )
+
+    def start_leftovers(self) -> None:
+        if self._task is not None:
+            return
+        self.status_label.setText(tr("clean_leftovers_scanning"))
+        self._set_tools_enabled(False)
+        self._task = Task(self._load_leftovers, parent=self)
+        self._task.done.connect(self._apply_leftovers)
+        self._task.failed.connect(self._on_task_failed)
+        self._task.start()
+
+    def _load_leftovers(self) -> list[CleanTarget]:
+        return list(list_leftover_candidates())
+
+    def _apply_leftovers(self, found: object) -> None:
+        self._task = None
+        self._set_tools_enabled(True)
+        if not isinstance(found, list):
+            self.status_label.setText(tr("clean_failed", msg=found))
+            return
+        added = 0
+        for target in found:
+            if not isinstance(target, CleanTarget) or target.id in {t.id for t in self._all_targets()}:
+                continue
+            self._extra_targets[target.id] = target
+            added += 1
+        if added:
+            self._render_table()
+        self.status_label.setText(tr("clean_leftovers_status", count=added))
+
+    def start_large_files(self) -> None:
+        if self._task is not None:
+            return
+        folder = QFileDialog.getExistingDirectory(self, tr("clean_large_dir_title"))
+        if not folder:
+            return
+        self.status_label.setText(tr("clean_large_scanning"))
+        self._set_tools_enabled(False)
+
+        def run() -> tuple[int, int, str]:
+            errors: list[str] = []
+            files = scan_large_files(folder, 100 * 1024 * 1024, 200, errors=errors)
+            total = sum(file.size for file in files)
+            return len(files), total, "; ".join(errors)
+
+        self._task = Task(run, parent=self)
+        self._task.done.connect(self._apply_large_files)
+        self._task.failed.connect(self._on_task_failed)
+        self._task.start()
+
+    def _apply_large_files(self, result: object) -> None:
+        self._task = None
+        self._set_tools_enabled(True)
+        if not isinstance(result, tuple) or len(result) != 3:
+            self.status_label.setText(tr("clean_failed", msg=result))
+            return
+        count, total, errors = result
+        message = tr("clean_large_status", count=count, size=size(int(total)))
+        if errors:
+            message += f" · {errors}"
+        self.status_label.setText(message)
+
+    def _set_tools_enabled(self, enabled: bool) -> None:
+        self.scan_button.setEnabled(enabled)
+        self.whitelist_button.setEnabled(enabled)
+        self.schedule_button.setEnabled(enabled)
+        self.leftovers_button.setEnabled(enabled)
+        self.large_files_button.setEnabled(enabled)
+
+
+class _WhitelistDialog(QDialog):
+    def __init__(self, whitelist: CleanerWhitelist, parent: QWidget | None = None) -> None:
+        super().__init__(parent)
+        self.setWindowTitle(tr("clean_whitelist_title"))
+        self.patterns = list(whitelist.patterns)
+        layout = QVBoxLayout(self)
+        layout.setContentsMargins(18, 18, 18, 18)
+        layout.setSpacing(8)
+        hint = QLabel(tr("clean_whitelist_hint"))
+        hint.setWordWrap(True)
+        hint.setObjectName("cardSub")
+        layout.addWidget(hint)
+        self.list = QListWidget()
+        layout.addWidget(self.list, 1)
+        row = QHBoxLayout()
+        self.input = QLineEdit()
+        self.input.setPlaceholderText(tr("clean_whitelist_placeholder"))
+        row.addWidget(self.input, 1)
+        add = QPushButton(tr("clean_whitelist_add"))
+        add.setProperty("secondary", True)
+        add.clicked.connect(self._add)
+        row.addWidget(add)
+        remove = QPushButton(tr("clean_whitelist_remove"))
+        remove.setProperty("secondary", True)
+        remove.clicked.connect(self._remove)
+        row.addWidget(remove)
+        layout.addLayout(row)
+        buttons = QHBoxLayout()
+        save = QPushButton(tr("clean_whitelist_save"))
+        save.setProperty("primary", True)
+        save.clicked.connect(self.accept)
+        cancel = QPushButton(tr("clean_cancel"))
+        cancel.clicked.connect(self.reject)
+        buttons.addStretch(1)
+        buttons.addWidget(cancel)
+        buttons.addWidget(save)
+        layout.addLayout(buttons)
+        self._render()
+
+    def _render(self) -> None:
+        self.list.clear()
+        if not self.patterns:
+            self.list.addItem(tr("clean_whitelist_empty"))
+        else:
+            self.list.addItems(self.patterns)
+
+    def _add(self) -> None:
+        value = self.input.text().strip()
+        if value and value not in self.patterns:
+            self.patterns.append(value)
+            self.input.clear()
+            self._render()
+
+    def _remove(self) -> None:
+        current = self.list.currentItem()
+        if current is None:
+            return
+        value = current.text()
+        if value in self.patterns:
+            self.patterns.remove(value)
+        self._render()
+
+
+class _ScheduleDialog(QDialog):
+    def __init__(self, schedule: CleanerSchedule, parent: QWidget | None = None) -> None:
+        super().__init__(parent)
+        self.setWindowTitle(tr("clean_schedule_title"))
+        layout = QVBoxLayout(self)
+        layout.setContentsMargins(18, 18, 18, 18)
+        layout.setSpacing(8)
+        self.enabled = QCheckBox(tr("clean_schedule_enabled"))
+        self.enabled.setChecked(schedule.enabled)
+        layout.addWidget(self.enabled)
+        self.combo = QComboBox()
+        for key, label in _CADENCE_TR.items():
+            self.combo.addItem(tr(label), key)
+        index = self.combo.findData(schedule.cadence)
+        self.combo.setCurrentIndex(max(0, index))
+        layout.addWidget(self.combo)
+        last = (
+            tr("clean_schedule_never")
+            if not schedule.last_run
+            else time.strftime("%Y-%m-%d %H:%M", time.localtime(schedule.last_run))
+        )
+        layout.addWidget(QLabel(tr("clean_schedule_last", last=last)))
+        buttons = QHBoxLayout()
+        save = QPushButton(tr("clean_whitelist_save"))
+        save.setProperty("primary", True)
+        save.clicked.connect(self.accept)
+        cancel = QPushButton(tr("clean_cancel"))
+        cancel.clicked.connect(self.reject)
+        buttons.addStretch(1)
+        buttons.addWidget(cancel)
+        buttons.addWidget(save)
+        layout.addLayout(buttons)
+
+    def values(self) -> tuple[bool, str]:
+        return self.enabled.isChecked(), str(self.combo.currentData() or "weekly")

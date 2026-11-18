@@ -7,9 +7,23 @@ from pathlib import Path
 import pytest
 
 from app.benchmarks import BenchmarkHistory, BenchmarkResult, BenchmarkType, HistoryEntry
+from app.diagnostics import (
+    DiagnosticsReport,
+    DiskHealth,
+    DriverIssue,
+    EventEntry,
+    Recommendation,
+    SystemFileStatus,
+)
 from app.health import Finding, HealthReport
 from app.reports import (
+    DIAGNOSTIC_CSV_HEADER,
     ReportError,
+    diagnostic_record,
+    diagnostic_to_csv,
+    diagnostic_to_html,
+    diagnostic_to_json,
+    export_diagnostics,
     export_health,
     export_history,
     format_for_path,
@@ -22,6 +36,7 @@ from app.reports import (
     timestamp_name,
     write_report,
 )
+from app.reports.pdf import export_diagnostics_pdf
 
 
 def _health_report() -> HealthReport:
@@ -263,4 +278,100 @@ def test_bench_export_pdf(qapp, tmp_path) -> None:
     assert target.exists()
     assert target.read_bytes()[:5] == b"%PDF-"
     assert target.stat().st_size > 1000
+
+
+# ---------- diagnostics export ----------
+
+
+def _diagnostic_report() -> DiagnosticsReport:
+    return DiagnosticsReport(
+        disks=(
+            DiskHealth(
+                name="Samsung SSD",
+                media="SSD",
+                health="healthy",
+                temperature_c=38,
+                temperature_max_c=52,
+                wear_percent=3,
+                read_errors_uncorrected=0,
+                serial="S6B0",
+            ),
+        ),
+        events=(
+            EventEntry(
+                time="2026-10-17 12:00:00",
+                level=2,
+                level_name="error",
+                source="Ntfs",
+                event_id=55,
+                message="<disk> error & more",
+                kind="disk_error",
+            ),
+        ),
+        errors=("minor warning",),
+        system_file=SystemFileStatus("dism", "ok", "component store clean"),
+        drivers=(
+            DriverIssue(name="GPU", device_id="PCI\\VEN_1234", code=39, status="Error", kind="driver_corrupt"),
+        ),
+        recommendations=(
+            Recommendation("critical", "Fix GPU driver", "install driver", "drivers"),
+        ),
+        unavailable=("events",),
+    )
+
+
+def test_diagnostic_record_and_json() -> None:
+    data = json.loads(diagnostic_to_json(_diagnostic_report(), now=0.0))
+    assert data["exported"] == datetime.fromtimestamp(0.0).isoformat(timespec="seconds")
+    assert data["disks"][0]["temperature_max_c"] == 52
+    assert data["events"][0]["kind"] == "disk_error"
+    assert data["system_file"] == {"source": "dism", "state": "ok", "detail": "component store clean"}
+    assert data["drivers"][0]["kind"] == "driver_corrupt"
+    assert data["recommendations"][0]["severity"] == "critical"
+    assert data["errors"] == ["minor warning"]
+    assert data["unavailable"] == ["events"]
+    assert "exported" in diagnostic_record(_diagnostic_report(), now=0.0)
+
+
+def test_diagnostic_to_csv_has_all_sections(tmp_path) -> None:
+    text = diagnostic_to_csv(_diagnostic_report())
+    lines = text.splitlines()
+    assert tuple(lines[0].split(",")) == DIAGNOSTIC_CSV_HEADER
+    for section in ("Disk", "Event", "SystemFile", "Driver", "Recommendation", "Error", "Unavailable"):
+        assert any(line.startswith(f"{section},") for line in lines)
+    assert "temp_max=52" in text
+    assert "PCI\\VEN_1234" in text
+
+
+def test_export_diagnostics_csv_uses_utf8_bom(tmp_path) -> None:
+    target = tmp_path / "diag.csv"
+    assert export_diagnostics(_diagnostic_report(), target) == target
+    assert target.read_bytes()[:3] == b"\xef\xbb\xbf"
+    assert target.read_text(encoding="utf-8-sig").startswith("Section,")
+
+
+def test_export_diagnostics_json(tmp_path) -> None:
+    target = tmp_path / "diag.JSON"
+    export_diagnostics(_diagnostic_report(), target)
+    data = json.loads(target.read_text(encoding="utf-8"))
+    assert len(data["disks"]) == 1 and len(data["drivers"]) == 1
+
+
+def test_diagnostic_to_html_escapes_values() -> None:
+    text = diagnostic_to_html(_diagnostic_report(), title="Diag <safe>", now=0.0)
+    assert "&lt;disk&gt; error &amp; more" in text
+    assert "Diag &lt;safe&gt;" in text
+    assert "Unavailable" in text
+
+
+def test_export_diagnostics_pdf(qapp, tmp_path) -> None:
+    target = tmp_path / "diag.pdf"
+    assert export_diagnostics_pdf(_diagnostic_report(), target) == target
+    assert target.read_bytes()[:5] == b"%PDF-"
+    assert target.stat().st_size > 1000
+
+
+def test_export_diagnostics_rejects_pdf_path(tmp_path) -> None:
+    with pytest.raises(ReportError, match="PDF exporter"):
+        export_diagnostics(_diagnostic_report(), tmp_path / "diag.pdf")
 

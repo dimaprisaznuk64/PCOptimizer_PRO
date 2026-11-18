@@ -19,8 +19,10 @@
   Windows commit-charge / virtual-memory detail, top RAM-consuming processes,
   7-day history with advanced telemetry and per-process RAM history, and Gaming
   Mode 2.0 telemetry/profiles/session comparison charts.
-- 17 pages, 29 themes, default theme **TITANIUM**.
-- Pytest suite is passing (**663 tests**). Ruff linter is clean. A pre-existing
+- 19 pages, 29 themes, default theme **TITANIUM**.
+- Newest v2 tools work (Cleaner 2.0, Diagnostics 2.0, Drivers, System Report) is
+  source-only and not committed; version/exe/installer are unchanged (v1.7.1).
+- Pytest suite is passing (**747 tests**). Ruff linter is clean. A pre-existing
   faulthandler artifact still prints native access-violation/0x80040155 traces
   during a full run; all tests pass. Two signal/thread timing flakes in task and
   dashboard tests were made deterministic.
@@ -44,7 +46,15 @@
 - Monitor shows the top RAM-consuming processes; History keeps 7 days and records
   advanced GPU/commit telemetry plus per-process RAM snapshots; Gaming has
   per-game profiles, ARC Raiders, honest session FPS/frametime telemetry and
-  before/after comparison charts without an overlay or game injection.
+   before/after comparison charts without an overlay or game injection.
+- Cleaner 2.0 adds path whitelist, minimum-age targets, schedule reminders,
+  leftover detection, large-file preview and new WER/crash dump/pip/npm caches.
+- Diagnostics 2.0 adds read-only DISM/SFC checks, driver inventory integration
+  and a prioritized recommendation table; the Drivers page is a read-only
+  `Win32_PnPSignedDriver` viewer.
+- System Report builds a redacted HTML/text report from saved app/hardware/health/
+  optimizer/restore/benchmark/history/diagnostics data.
+
 
 ## Audit v1.6.6 — step 1 (critical errors)
 - Date: 2026-11-04.
@@ -125,7 +135,7 @@
   throttling state and commit-charge percent; old entries remain readable.
 - History page has a 7-day range and commit/hotspot metric cards.
 - Verification: targeted Monitor/Processes/History/i18n suites 26 + 27 passed;
-  full suite 663 passed.
+  full suite 747 passed.
 
 ## v2.0.0 Stage 2 — Gaming Mode 2.0 telemetry
 - Added ARC Raiders (Steam appid `1808500`, `PioneerGame.exe`) and per-game
@@ -138,7 +148,7 @@
 - Gaming mode state is persisted separately in `gaming_mode.json`; a plain
   BALANCED optimizer backup no longer falsely restores «mode on».
 - Verification: targeted Gaming/Launcher/i18n suites 72 passed; full suite
-  663 passed; `ruff` and `compileall` clean.
+  747 passed; `ruff` and `compileall` clean.
 
 ## v2.0.0 Stage 2 — Gaming session comparison charts
 - Gaming Page now has a «SESSION COMPARISON» card with a metric selector
@@ -149,7 +159,7 @@
   without a configured baseline.
 - The summary shows the average before→after change with direction-aware colour
   (lower load/temp and higher FPS are good).
-- Verification: +2 tests (helpers + UI chart/metric switch); full suite 663
+- Verification: +2 tests (helpers + UI chart/metric switch); full suite 747
   passed; `ruff` and `compileall` clean.
 
 ## v2.0.0 Stage 2 — per-process RAM history
@@ -161,7 +171,7 @@
 - History page has a «TOP RAM PROCESSES» card showing latest usage, peak usage
   and sample count per process, with EN/UA labels.
 - Verification: +5 tests (roundtrip, capture, failure, summary, page rendering);
-  targeted suite 50 passed; full suite 663 passed in 352.96s; `ruff` and
+  targeted suite 50 passed; full suite 747 passed in 352.96s; `ruff` and
   `compileall` clean.
 
 ## Next

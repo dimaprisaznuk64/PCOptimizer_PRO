@@ -5,8 +5,19 @@ import time
 
 import pytest
 from PySide6.QtCore import Qt
+from PySide6.QtWidgets import QDialog
 
-from app.cleaner import CleanerService, CleanTarget, default_targets
+from app.cleaner import (
+    STANDBY_CACHE_ID,
+    CleanerScheduler,
+    CleanerService,
+    CleanerWhitelist,
+    CleanTarget,
+    ScanDetail,
+    default_targets,
+    make_large_files_target,
+    scan_large_files,
+)
 from app.cleaner.service import RECYCLE_BIN_ID, _summarize, is_safe_root
 from app.ui.cleaner import CleanerPage
 
@@ -245,8 +256,8 @@ def test_default_service_scan_runs() -> None:
 
 
 class InteractiveCleaner(CleanerPage):
-    def __init__(self, service) -> None:
-        super().__init__(service=service)
+    def __init__(self, service, **kwargs) -> None:
+        super().__init__(service=service, **kwargs)
         self.confirms: list[tuple[int, int]] = []
 
     def _ask_confirm(self, targets: int, total_bytes: int) -> bool:
@@ -312,3 +323,220 @@ def test_page_async_scan_via_task(qapp, tmp_path) -> None:
     assert _wait_until(qapp, lambda: page._task is None)
     assert "Scan complete" in page.status_label.text()
     assert page.table.item(0, 3).text() == "1.0KB"
+
+
+def test_default_targets_include_safe_cache_only_targets(monkeypatch, tmp_path) -> None:
+    local = tmp_path / "LOCALAPPDATA"
+    appdata = tmp_path / "APPDATA"
+    windir = tmp_path / "Windows"
+    temp = tmp_path / "Temp"
+    paths = (
+        local / "Microsoft" / "Windows" / "WER" / "ReportQueue",
+        local / "Microsoft" / "Windows" / "WER" / "ReportArchive",
+        local / "CrashDumps",
+        local / "pip" / "Cache",
+        local / "npm-cache" / "_cacache",
+        appdata / "npm-cache" / "_cacache",
+        windir / "Temp",
+        windir / "SoftwareDistribution" / "Download",
+        temp,
+    )
+    for path in paths:
+        path.mkdir(parents=True, exist_ok=True)
+    monkeypatch.setenv("LOCALAPPDATA", str(local))
+    monkeypatch.setenv("APPDATA", str(appdata))
+    monkeypatch.setenv("WINDIR", str(windir))
+    monkeypatch.setenv("TEMP", str(temp))
+
+    targets = default_targets()
+    by_id = {target.id: target for target in targets}
+    assert {"wer_reports", "crash_dumps", "pip_cache", "npm_cache"} <= set(by_id)
+    assert all(
+        part not in {"winsxs", "installer"}
+        for target in targets
+        for path in target.paths
+        for part in os.path.normpath(path).lower().split(os.sep)
+    )
+    assert by_id["windows_temp"].selected_by_default is False
+    assert by_id["windows_update"].selected_by_default is False
+    assert by_id[RECYCLE_BIN_ID].selected_by_default is False
+    assert by_id[STANDBY_CACHE_ID].selected_by_default is False
+    assert by_id["user_temp"].selected_by_default is True
+
+
+def test_scan_collects_largest_details_and_truncation(tmp_path) -> None:
+    root = tmp_path / "details"
+    root.mkdir()
+    for size in range(1, 22):
+        (root / f"{size:02}.bin").write_bytes(b"x" * size)
+    target = CleanTarget("details", "Details", "System", paths=(str(root),))
+
+    result = CleanerService([target]).scan(target)
+
+    assert result.files == 21
+    assert result.bytes == sum(range(1, 22))
+    assert len(result.details) == 20
+    assert result.details_truncated is True
+    assert result.details[0].size == 21
+    assert result.details[-1].size == 2
+    assert all(isinstance(detail, ScanDetail) for detail in result.details)
+
+
+def test_scan_respects_min_age_days(tmp_path) -> None:
+    root = tmp_path / "aged"
+    root.mkdir()
+    old = root / "old.bin"
+    new = root / "new.bin"
+    old.write_bytes(b"o" * 100)
+    new.write_bytes(b"n" * 200)
+    old_time = time.time() - 3 * 86400
+    os.utime(old, (old_time, old_time))
+    target = CleanTarget("aged", "Aged", "System", paths=(str(root),), min_age_days=2)
+
+    result = CleanerService([target]).scan(target)
+
+    assert result.files == 1
+    assert result.bytes == 100
+    assert [detail.path for detail in result.details] == [str(old)]
+
+
+def test_clean_respects_min_age_days(tmp_path) -> None:
+    root = tmp_path / "aged"
+    root.mkdir()
+    old = root / "old.bin"
+    new = root / "new.bin"
+    old.write_bytes(b"o" * 100)
+    new.write_bytes(b"n" * 200)
+    old_time = time.time() - 3 * 86400
+    os.utime(old, (old_time, old_time))
+    target = CleanTarget("aged", "Aged", "System", paths=(str(root),), min_age_days=2)
+
+    outcome = CleanerService([target]).clean(target)
+
+    assert outcome.files_deleted == 1
+    assert outcome.files_skipped == 1
+    assert outcome.freed_bytes == 100
+    assert outcome.partial is True
+    assert not old.exists()
+    assert new.exists()
+
+
+def test_scan_and_clean_skip_whitelisted_paths(tmp_path) -> None:
+    root = tmp_path / "whitelisted"
+    root.mkdir()
+    keep = root / "keep.bin"
+    drop = root / "drop.bin"
+    keep.write_bytes(b"k" * 64)
+    drop.write_bytes(b"d" * 128)
+    whitelist = CleanerWhitelist(store=tmp_path / "whitelist.json")
+    assert whitelist.add(str(keep)) is True
+    target = CleanTarget("cached", "Cached", "System", paths=(str(root),))
+    service = CleanerService([target], whitelist)
+
+    result = service.scan(target)
+    assert result.files == 1
+    assert result.bytes == 128
+    assert [detail.path for detail in result.details] == [str(drop)]
+
+    outcome = service.clean(target)
+    assert outcome.files_deleted == 1
+    assert outcome.files_skipped == 1
+    assert keep.exists()
+    assert not drop.exists()
+
+
+def test_large_files_wrapper_and_preview_target(tmp_path) -> None:
+    folder = tmp_path / "large"
+    folder.mkdir()
+    big = folder / "big.bin"
+    small = folder / "small.bin"
+    big.write_bytes(b"x" * 1024)
+    small.write_bytes(b"x" * 10)
+
+    found = scan_large_files(folder, 100, 10)
+
+    assert [item.path for item in found] == [str(big)]
+    assert found[0].size == 1024
+    target = make_large_files_target(folder, 100, 10)
+    assert target.kind == "preview"
+    assert target.selected_by_default is False
+    assert target.paths == (str(folder),)
+    outcome = CleanerService([target]).clean(target)
+    assert outcome.files_deleted == 0
+    assert outcome.error is not None and "preview-only" in outcome.error
+    assert big.exists()
+
+
+def test_page_default_selection_follows_target_flag(qapp, tmp_path) -> None:
+    target_a = CleanTarget("a", "A", "System", selected_by_default=False)
+    target_b = CleanTarget("b", "B", "System")
+    page = InteractiveCleaner(CleanerService([target_a, target_b]))
+    assert page.table.item(0, 0).checkState() == Qt.CheckState.Unchecked
+    assert page.table.item(1, 0).checkState() == Qt.CheckState.Checked
+
+
+def test_page_whitelist_action_saves_patterns(qapp, tmp_path, monkeypatch) -> None:
+    whitelist = CleanerWhitelist(tmp_path / "whitelist.json")
+    whitelist.add("old")
+
+    class FakeDialog:
+        def __init__(self, _whitelist, _parent=None) -> None:
+            self.patterns = ["new"]
+
+        def exec(self):
+            return QDialog.DialogCode.Accepted
+
+    monkeypatch.setattr("app.ui.cleaner._WhitelistDialog", FakeDialog)
+    page = InteractiveCleaner(CleanerService(), whitelist=whitelist)
+    page.open_whitelist()
+    assert whitelist.patterns == ("new",)
+
+
+def test_page_schedule_action_saves_selected_targets(qapp, tmp_path, monkeypatch) -> None:
+    scheduler = CleanerScheduler(tmp_path / "schedule.json")
+
+    class FakeDialog:
+        def __init__(self, _schedule, _parent=None) -> None:
+            pass
+
+        def exec(self):
+            return QDialog.DialogCode.Accepted
+
+        def values(self) -> tuple[bool, str]:
+            return True, "daily"
+
+    monkeypatch.setattr("app.ui.cleaner._ScheduleDialog", FakeDialog)
+    service = _two_target_service(tmp_path)
+    page = InteractiveCleaner(service, scheduler=scheduler)
+    page.table.item(1, 0).setCheckState(Qt.CheckState.Unchecked)
+    page.open_schedule()
+    assert scheduler.enabled is True
+    assert scheduler.cadence == "daily"
+    assert scheduler.target_ids == ("a",)
+
+
+def test_page_leftovers_action_adds_targets(qapp, tmp_path, monkeypatch) -> None:
+    target = CleanTarget("leftover", "Cache", "Leftovers", selected_by_default=False)
+    monkeypatch.setattr("app.ui.cleaner.list_leftover_candidates", lambda: [target])
+    page = InteractiveCleaner(_two_target_service(tmp_path))
+    page.start_leftovers()
+    assert _wait_until(qapp, lambda: page._task is None)
+    assert page.table.rowCount() == 3
+    assert page.table.item(2, 0).text() == "Cache"
+
+
+def test_page_shows_age_and_scan_details(qapp, tmp_path) -> None:
+    folder = tmp_path / "cache"
+    folder.mkdir()
+    big = folder / "big.bin"
+    big.write_bytes(b"x" * 1024)
+    old = time.time() - 4 * 86400
+    os.utime(big, (old, old))
+    target = CleanTarget("aged", "Aged", "System", paths=(str(folder),), min_age_days=3)
+    service = CleanerService([target])
+    result = service.scan(target)
+    page = InteractiveCleaner(service)
+    page._apply_scan([result])
+    assert "3" in page.table.item(0, 0).toolTip()
+    details = page.table.item(0, 2).toolTip()
+    assert str(big) in details

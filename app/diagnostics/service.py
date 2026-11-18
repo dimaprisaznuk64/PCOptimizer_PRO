@@ -14,9 +14,13 @@ import json
 import re
 from collections.abc import Callable, Sequence
 from dataclasses import dataclass, field
-from typing import Any
+from typing import TYPE_CHECKING, Any
 
+from app.diagnostics.recommend import build_recommendations
 from app.winpaths import POWERSHELL_PATH, PS_UTF8_PREFIX, decode_process_output
+
+if TYPE_CHECKING:
+    from app.diagnostics.recommend import Recommendation
 
 HEALTH_NAMES = {
     "healthy": "healthy",
@@ -50,8 +54,61 @@ DISK_LIST_SCRIPT = (
 )
 RELIABILITY_SCRIPT = (
     "Get-PhysicalDisk | Get-StorageReliabilityCounter | Select-Object "
-    "DeviceId,Temperature,Wear,PowerOnHours,ReadErrorsTotal,WriteErrorsTotal | "
+    "DeviceId,Temperature,TemperatureMax,TemperatureLifetime,Wear,PowerOnHours,"
+    "ReadErrorsTotal,WriteErrorsTotal,ReadErrorsUncorrected,WriteErrorsUncorrected,"
+    "StartStopCycleCount,LoadUnloadCycleCount | "
     "ConvertTo-Json -Compress"
+)
+SERVICING_EVENTS_SCRIPT = (
+    "$ErrorActionPreference='SilentlyContinue';"
+    "$ev = Get-WinEvent -FilterHashtable @{LogName='System';"
+    "ProviderName=@('Microsoft-Windows-Servicing','Microsoft-Windows-ServicingStack',"
+    "'Microsoft-Windows-WindowsUpdateClient','Servicing');Level=1,2} -MaxEvents 30;"
+    "@($ev) | Select-Object "
+    "@{n='Time';e={$_.TimeCreated.ToString('yyyy-MM-dd HH:mm:ss')}},"
+    "Level,ProviderName,Id,Message | ConvertTo-Json -Depth 4 -Compress"
+)
+SYSTEM_EVENTS_SCRIPT = SERVICING_EVENTS_SCRIPT
+SYSTEM_FILE_EVENTS_SCRIPT = SERVICING_EVENTS_SCRIPT
+DISM_SCAN_SCRIPT = (
+    "DISM /Online /Cleanup-Image /ScanHealth; Write-Output \"EXITCODE:$LASTEXITCODE\""
+)
+SFC_VERIFY_SCRIPT = "sfc.exe /verifyonly; Write-Output \"EXITCODE:$LASTEXITCODE\""
+DRIVER_SCRIPT = (
+    "Get-CimInstance Win32_PnPEntity -Filter "
+    "\"Present=true AND ConfigManagerErrorCode!=0\" | "
+    "Select-Object Name,DeviceID,ConfigManagerErrorCode,Status | ConvertTo-Json -Compress"
+)
+DRIVERS_SCRIPT = DRIVER_SCRIPT
+
+SYSTEM_FILE_STATES = ("ok", "issues", "requires_admin", "unavailable", "unknown")
+DRIVER_KINDS = {
+    28: "no_driver",
+    31: "not_working",
+    39: "driver_corrupt",
+    52: "reboot",
+}
+DISM_OK_MARKERS = (
+    "no component store corruption detected",
+    "пошкоджень сховища компонентів не виявлено",
+    "сховище компонентів не пошкоджено",
+)
+DISM_ISSUE_MARKERS = (
+    "the component store is repairable",
+    "the component store is not repairable",
+    "component store corruption detected",
+    "сховище компонентів пошкоджено",
+    "виявлено пошкодження сховища",
+    "сховище компонентів потрібно відновити",
+)
+SFC_OK_MARKERS = (
+    "windows resource protection did not find any integrity violations",
+    "захист ресурсів windows не виявив жодних порушень цілісності",
+)
+SFC_ISSUE_MARKERS = (
+    "windows resource protection found integrity violations",
+    "windows resource protection found corrupt files",
+    "захист ресурсів windows виявив порушення цілісності",
 )
 # Pending updates via the Windows Update Agent COM API (read-only search;
 # no download/install — the app never touches the update pipeline itself).
@@ -84,6 +141,12 @@ class DiskHealth:
     read_errors: int | None = None
     write_errors: int | None = None
     serial: str = ""
+    temperature_max_c: int | None = None
+    temperature_lifetime_c: int | None = None
+    read_errors_uncorrected: int | None = None
+    write_errors_uncorrected: int | None = None
+    start_stop_cycles: int | None = None
+    load_unload_cycles: int | None = None
 
 
 @dataclass(frozen=True, slots=True)
@@ -105,10 +168,30 @@ class PendingUpdate:
 
 
 @dataclass(frozen=True, slots=True)
+class SystemFileStatus:
+    source: str = ""
+    state: str = "unknown"
+    detail: str = ""
+
+
+@dataclass(frozen=True, slots=True)
+class DriverIssue:
+    name: str = ""
+    device_id: str = ""
+    code: int = 0
+    status: str = ""
+    kind: str = "unknown"
+
+
+@dataclass(frozen=True, slots=True)
 class DiagnosticsReport:
     disks: tuple[DiskHealth, ...] = ()
     events: tuple[EventEntry, ...] = ()
     errors: tuple[str, ...] = field(default=())
+    system_file: SystemFileStatus | None = None
+    drivers: tuple[DriverIssue, ...] = ()
+    recommendations: tuple[Recommendation, ...] = ()
+    unavailable: tuple[str, ...] = ()
 
 
 # ---------- helpers ----------
@@ -233,6 +316,89 @@ def parse_events(output: str) -> list[EventEntry]:
     return entries
 
 
+_EXIT_RE = re.compile(r"EXITCODE:(-?\d+)")
+
+
+def _default_is_admin() -> bool:
+    try:
+        import ctypes
+
+        return bool(ctypes.windll.shell32.IsUserAnAdmin())
+    except Exception:
+        return False
+
+
+def _admin_value(value: Callable[[], bool] | bool | None) -> bool:
+    if value is None:
+        return _default_is_admin()
+    if callable(value):
+        try:
+            return bool(value())
+        except Exception:
+            return False
+    return bool(value)
+
+
+def _strip_exit(output: str) -> tuple[str, int | None]:
+    match = _EXIT_RE.search(output)
+    if match is None:
+        return output, None
+    return _EXIT_RE.sub("", output).strip(), int(match.group(1))
+
+
+def _marker_state(output: str, ok_markers: Sequence[str], issue_markers: Sequence[str]) -> str:
+    lowered = output.lower()
+    ok_found = [marker for marker in ok_markers if marker in lowered]
+    remaining = lowered
+    for marker in ok_found:
+        remaining = remaining.replace(marker, " ")
+    issue_found = [marker for marker in issue_markers if marker in remaining]
+    if ok_found and issue_found:
+        return "unknown"
+    if issue_found:
+        return "issues"
+    if ok_found:
+        return "ok"
+    return "unknown"
+
+
+def _fold_system_status(statuses: Sequence[SystemFileStatus]) -> SystemFileStatus:
+    if not statuses:
+        return SystemFileStatus(source="all", state="unavailable", detail="No system file checks were run")
+    if all(status.state == "ok" for status in statuses):
+        return SystemFileStatus(
+            source="all",
+            state="ok",
+            detail="No servicing, component store or system file issues detected",
+        )
+    for state in ("issues", "unknown", "unavailable", "requires_admin"):
+        for status in statuses:
+            if status.state == state:
+                return status
+    for status in statuses:
+        if status.state == "ok":
+            return status
+    return SystemFileStatus(source="all", state="unknown", detail="System file check result unclear")
+
+
+def parse_drivers(output: str) -> list[DriverIssue]:
+    issues: list[DriverIssue] = []
+    for row in _load_rows(output):
+        code = _to_int(row.get("ConfigManagerErrorCode"))
+        if code in (0, 22):
+            continue
+        issues.append(
+            DriverIssue(
+                name=_text(row.get("Name")),
+                device_id=_text(row.get("DeviceID")) or _text(row.get("DeviceId")),
+                code=code,
+                status=_text(row.get("Status")),
+                kind=DRIVER_KINDS.get(code, "unknown"),
+            )
+        )
+    return issues
+
+
 # ---------- defaults ----------
 
 
@@ -276,8 +442,10 @@ class DiagnosticsService:
         self,
         *,
         run: Callable[[Sequence[str], float], tuple[int, str]] | None = None,
+        is_admin: Callable[[], bool] | bool | None = None,
     ) -> None:
         self._run = run or _default_run
+        self._is_admin = is_admin
 
     # ---------- public ----------
 
@@ -286,13 +454,104 @@ class DiagnosticsService:
         log_name: str = DEFAULT_LOG,
         levels: Sequence[int] = DEFAULT_LEVELS,
         limit: int = DEFAULT_LIMIT,
+        *,
+        extended: bool = False,
     ) -> DiagnosticsReport:
         errors: list[str] = []
-        return DiagnosticsReport(
+        base = DiagnosticsReport(
             disks=tuple(self.disk_health(errors)),
             events=tuple(self.events(log_name, levels, limit, errors)),
             errors=tuple(errors),
         )
+        if not extended:
+            return base
+        system_file = self.system_files(errors)
+        drivers = tuple(self.driver_issues(errors))
+        unavailable = self._unavailable_sources(errors, system_file)
+        candidate = DiagnosticsReport(
+            disks=base.disks,
+            events=base.events,
+            errors=tuple(errors),
+            system_file=system_file,
+            drivers=drivers,
+            unavailable=unavailable,
+        )
+        return DiagnosticsReport(
+            disks=candidate.disks,
+            events=candidate.events,
+            errors=candidate.errors,
+            system_file=candidate.system_file,
+            drivers=candidate.drivers,
+            recommendations=tuple(build_recommendations(candidate)),
+            unavailable=candidate.unavailable,
+        )
+
+    def full_report(
+        self,
+        log_name: str = DEFAULT_LOG,
+        levels: Sequence[int] = DEFAULT_LEVELS,
+        limit: int = DEFAULT_LIMIT,
+    ) -> DiagnosticsReport:
+        return self.report(log_name, levels, limit, extended=True)
+
+    def system_files(self, errors: list[str] | None = None) -> SystemFileStatus:
+        bucket = errors if errors is not None else []
+        statuses: list[SystemFileStatus] = []
+        code, out = self._script_output(bucket, "System files", SERVICING_EVENTS_SCRIPT, 40.0)
+        if code != 0 and not out.strip():
+            statuses.append(
+                SystemFileStatus("servicing", "unavailable", f"Servicing event query failed (exit {code})")
+            )
+        else:
+            events = parse_events(out)
+            if events:
+                latest = events[0]
+                detail = _clean_message(
+                    f"{latest.source} {latest.event_id}: {latest.message}", 240
+                )
+                statuses.append(SystemFileStatus("servicing", "issues", detail))
+            else:
+                statuses.append(SystemFileStatus("servicing", "ok", "No servicing or update errors found"))
+        if not _admin_value(self._is_admin):
+            statuses.append(
+                SystemFileStatus(
+                    "dism",
+                    "requires_admin",
+                    "Component store and system file verification requires administrator rights",
+                )
+            )
+            return _fold_system_status(statuses)
+        code, out = self._script_output(bucket, "DISM", DISM_SCAN_SCRIPT, 240.0)
+        text, exit_code = _strip_exit(out)
+        if (code != 0 and not text.strip()) or (exit_code is not None and exit_code != 0):
+            failed_code = exit_code if exit_code not in (None, 0) else code
+            bucket.append(f"DISM: exit {failed_code}")
+            statuses.append(SystemFileStatus("dism", "unavailable", f"DISM scan failed (exit {failed_code})"))
+        else:
+            status = _marker_state(text, DISM_OK_MARKERS, DISM_ISSUE_MARKERS)
+            statuses.append(
+                SystemFileStatus("dism", status, _clean_message(text, 240) or "DISM returned no output")
+            )
+        code, out = self._script_output(bucket, "SFC", SFC_VERIFY_SCRIPT, 180.0)
+        text, exit_code = _strip_exit(out)
+        if (code != 0 and not text.strip()) or (exit_code is not None and exit_code != 0):
+            failed_code = exit_code if exit_code not in (None, 0) else code
+            bucket.append(f"SFC: exit {failed_code}")
+            statuses.append(SystemFileStatus("sfc", "unavailable", f"SFC verification failed (exit {failed_code})"))
+        else:
+            status = _marker_state(text, SFC_OK_MARKERS, SFC_ISSUE_MARKERS)
+            statuses.append(
+                SystemFileStatus("sfc", status, _clean_message(text, 240) or "SFC returned no output")
+            )
+        return _fold_system_status(statuses)
+
+    def driver_issues(self, errors: list[str] | None = None) -> list[DriverIssue]:
+        bucket = errors if errors is not None else []
+        code, out = self._script_output(bucket, "Drivers", DRIVER_SCRIPT, 40.0)
+        if code != 0 and not out.strip():
+            bucket.append(f"Drivers: exit {code}")
+            return []
+        return parse_drivers(out)
 
     def disk_health(self, errors: list[str] | None = None) -> list[DiskHealth]:
         bucket = errors if errors is not None else []
@@ -316,6 +575,12 @@ class DiagnosticsService:
                     read_errors=_counter_int(counter.get("ReadErrorsTotal")),
                     write_errors=_counter_int(counter.get("WriteErrorsTotal")),
                     serial=_text(row.get("SerialNumber")),
+                    temperature_max_c=_positive_int(counter.get("TemperatureMax")),
+                    temperature_lifetime_c=_positive_int(counter.get("TemperatureLifetime")),
+                    read_errors_uncorrected=_counter_int(counter.get("ReadErrorsUncorrected")),
+                    write_errors_uncorrected=_counter_int(counter.get("WriteErrorsUncorrected")),
+                    start_stop_cycles=_counter_int(counter.get("StartStopCycleCount")),
+                    load_unload_cycles=_counter_int(counter.get("LoadUnloadCycleCount")),
                 )
             )
         return disks
@@ -365,6 +630,48 @@ class DiagnosticsService:
         return parse_updates(out)
 
     # ---------- internals ----------
+
+    @staticmethod
+    def _unavailable_sources(
+        errors: Sequence[str], system_file: SystemFileStatus | None
+    ) -> tuple[str, ...]:
+        names: list[str] = []
+        prefixes = (
+            ("Drives", "disks"),
+            ("Reliability", "disks"),
+            ("Events", "events"),
+            ("Drivers", "drivers"),
+            ("System files", "system_files"),
+            ("DISM", "system_files"),
+            ("SFC", "system_files"),
+        )
+        for prefix, name in prefixes:
+            if any(prefix in item for item in errors) and name not in names:
+                names.append(name)
+        if system_file is not None and system_file.state in ("unavailable", "unknown"):
+            if "system_files" not in names:
+                names.append("system_files")
+        return tuple(names)
+
+    def _script_output(
+        self, errors: list[str], label: str, script: str, timeout: float
+    ) -> tuple[int, str]:
+        try:
+            code, out = self._run(
+                [
+                    POWERSHELL_PATH,
+                    "-NoProfile",
+                    "-ExecutionPolicy",
+                    "Bypass",
+                    "-Command",
+                    PS_UTF8_PREFIX + script,
+                ],
+                timeout,
+            )
+        except Exception as e:  # noqa: BLE001 - collected, never fatal
+            errors.append(f"{label}: {e}")
+            return 1, ""
+        return code, out
 
     def _rows(self, errors: list[str], label: str, script: str) -> list[dict[str, Any]]:
         try:

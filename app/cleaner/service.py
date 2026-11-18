@@ -2,17 +2,22 @@ from __future__ import annotations
 
 import ctypes
 import glob
+import heapq
 import os
 import re
 import subprocess
+import time
 from collections.abc import Sequence
 from dataclasses import dataclass
 
+from app.cleaner.whitelist import CleanerWhitelist
 from app.winpaths import POWERSHELL_PATH, PS_UTF8_PREFIX, decode_process_output
 
 RECYCLE_BIN_ID = "recycle_bin"
 STANDBY_CACHE_ID = "standby_cache"
 
+_DETAIL_LIMIT = 20
+_FORBIDDEN_COMPONENTS = frozenset({"winsxs", "installer"})
 _DRIVE_ROOT_RE = re.compile(r"^[a-zA-Z]:[\\/]?$")
 
 
@@ -67,6 +72,14 @@ def is_safe_root(path: str) -> bool:
     return True
 
 
+def _is_default_target_path(path: str) -> bool:
+    normalized = os.path.normcase(os.path.normpath(path)).replace("/", os.sep)
+    parts = {part for part in normalized.split(os.sep) if part}
+    if parts & _FORBIDDEN_COMPONENTS:
+        return False
+    return is_safe_root(path)
+
+
 @dataclass(frozen=True, slots=True)
 class CleanTarget:
     id: str
@@ -75,6 +88,15 @@ class CleanTarget:
     kind: str = "files"
     paths: tuple[str, ...] = ()
     note: str = ""
+    selected_by_default: bool = True
+    min_age_days: int = 0
+
+
+@dataclass(frozen=True, slots=True)
+class ScanDetail:
+    path: str
+    size: int
+    modified: float
 
 
 @dataclass(frozen=True, slots=True)
@@ -83,6 +105,8 @@ class ScanResult:
     files: int
     bytes: int
     error: str | None = None
+    details: tuple[ScanDetail, ...] = ()
+    details_truncated: bool = False
 
 
 @dataclass(frozen=True, slots=True)
@@ -134,6 +158,7 @@ def default_targets() -> list[CleanTarget]:
             "System",
             paths=(os.path.join(windir, "Temp"),),
             note="needs administrator for full access",
+            selected_by_default=False,
         ),
         CleanTarget(
             "windows_update",
@@ -141,6 +166,7 @@ def default_targets() -> list[CleanTarget]:
             "System",
             paths=(os.path.join(windir, "SoftwareDistribution", "Download"),),
             note="needs administrator for full access",
+            selected_by_default=False,
         ),
         CleanTarget(
             "chrome_cache",
@@ -193,11 +219,45 @@ def default_targets() -> list[CleanTarget]:
             paths=(os.path.join(local, "Microsoft", "Windows", "Explorer", "thumbcache_*.db"),),
             note="locked while Explorer is running",
         ),
+        CleanTarget(
+            "wer_reports",
+            "Windows Error Reporting cache",
+            "System",
+            paths=(
+                os.path.join(local, "Microsoft", "Windows", "WER", "ReportQueue"),
+                os.path.join(local, "Microsoft", "Windows", "WER", "ReportArchive"),
+            ),
+            note="cached crash reports only",
+        ),
+        CleanTarget(
+            "crash_dumps",
+            "Crash dumps",
+            "System",
+            paths=(os.path.join(local, "CrashDumps"),),
+            note="process crash dump files",
+        ),
+        CleanTarget(
+            "pip_cache",
+            "pip cache",
+            "Development",
+            paths=(os.path.join(local, "pip", "Cache"),),
+            note="downloaded package cache",
+        ),
+        CleanTarget(
+            "npm_cache",
+            "npm cache",
+            "Development",
+            paths=(
+                os.path.join(local, "npm-cache", "_cacache"),
+                os.path.join(env.get("APPDATA", ""), "npm-cache", "_cacache"),
+            ),
+            note="npm content-addressable cache",
+        ),
     ]
 
     existing: list[CleanTarget] = []
     for target in candidates:
-        if target.paths and _expand(target.paths):
+        if any(_is_default_target_path(path) for path in _expand(target.paths)):
             existing.append(target)
 
     existing.append(
@@ -207,6 +267,7 @@ def default_targets() -> list[CleanTarget]:
             "System",
             kind="recycle",
             note="empties the bin on all drives",
+            selected_by_default=False,
         )
     )
     existing.append(
@@ -216,14 +277,20 @@ def default_targets() -> list[CleanTarget]:
             "Memory",
             kind="memory",
             note="clears cached memory used by Windows for speed",
+            selected_by_default=False,
         )
     )
     return existing
 
 
 class CleanerService:
-    def __init__(self, targets: Sequence[CleanTarget] | None = None) -> None:
+    def __init__(
+        self,
+        targets: Sequence[CleanTarget] | None = None,
+        whitelist: CleanerWhitelist | None = None,
+    ) -> None:
         self._targets = list(targets) if targets is not None else default_targets()
+        self.whitelist = whitelist if whitelist is not None else CleanerWhitelist()
 
     @property
     def targets(self) -> list[CleanTarget]:
@@ -235,6 +302,10 @@ class CleanerService:
                 return target
         return None
 
+    @staticmethod
+    def _too_recent(st: os.stat_result, min_age_days: int) -> bool:
+        return min_age_days > 0 and time.time() - st.st_mtime < min_age_days * 86400
+
     def scan(self, target: CleanTarget) -> ScanResult:
         if target.kind == "recycle":
             return self._scan_recycle(target)
@@ -244,6 +315,8 @@ class CleanerService:
         return [self.scan(target) for target in self._targets]
 
     def clean(self, target: CleanTarget, known_bytes: int = 0, known_files: int = 0) -> CleanOutcome:
+        if target.kind == "preview":
+            return CleanOutcome(target.id, 0, 0, 0, "preview-only target", False)
         if target.kind == "recycle":
             return self._empty_recycle(target, known_bytes, known_files)
         if target.kind == "memory":
@@ -254,33 +327,71 @@ class CleanerService:
         total_files = 0
         total_bytes = 0
         errors: list[str] = []
+        largest: list[tuple[int, str, float]] = []
+
+        def consider(path: str, st: os.stat_result) -> None:
+            nonlocal total_files, total_bytes
+            total_files += 1
+            total_bytes += st.st_size
+            item = (st.st_size, path, st.st_mtime)
+            if len(largest) < _DETAIL_LIMIT:
+                heapq.heappush(largest, item)
+            elif item > largest[0]:
+                heapq.heapreplace(largest, item)
+
         for root in _expand(target.paths):
             if not is_safe_root(root):
                 errors.append(f"refusing unsafe path: {root}")
+                continue
+            if self.whitelist.is_excluded(root):
                 continue
             if not os.path.exists(root):
                 continue
             if os.path.isfile(root):
                 try:
-                    total_bytes += os.stat(root, follow_symlinks=False).st_size
-                    total_files += 1
+                    st = os.stat(root, follow_symlinks=False)
                 except OSError as e:
                     errors.append(str(e))
+                    continue
+                if not self._too_recent(st, target.min_age_days):
+                    consider(root, st)
                 continue
-            for dirpath, _dirnames, filenames in os.walk(root, onerror=lambda e: errors.append(str(e)), followlinks=False):
+            for dirpath, dirnames, filenames in os.walk(
+                root,
+                onerror=lambda e: errors.append(str(e)),
+                followlinks=False,
+            ):
+                dirnames[:] = [
+                    name
+                    for name in dirnames
+                    if not self.whitelist.is_excluded(os.path.join(dirpath, name))
+                ]
                 for filename in filenames:
                     path = os.path.join(dirpath, filename)
+                    if self.whitelist.is_excluded(path):
+                        continue
                     try:
-                        total_bytes += os.stat(path, follow_symlinks=False).st_size
-                        total_files += 1
+                        st = os.stat(path, follow_symlinks=False)
                     except OSError as e:
                         errors.append(str(e))
-        return ScanResult(target.id, total_files, total_bytes, _summarize(errors))
+                        continue
+                    if not self._too_recent(st, target.min_age_days):
+                        consider(path, st)
+        details = tuple(ScanDetail(path, size, modified) for size, path, modified in sorted(largest, reverse=True))
+        return ScanResult(
+            target.id,
+            total_files,
+            total_bytes,
+            _summarize(errors),
+            details,
+            total_files > len(details),
+        )
 
     def _clean_files(self, target: CleanTarget) -> CleanOutcome:
         freed = 0
         deleted = 0
         skipped = 0
+        rule_skipped = 0
         errors: list[str] = []
         walk_errors: list[str] = []
         refused: list[str] = []
@@ -288,11 +399,22 @@ class CleanerService:
             if not is_safe_root(root):
                 refused.append(root)
                 continue
+            if self.whitelist.is_excluded(root):
+                continue
             if not os.path.exists(root):
                 continue
             if os.path.isfile(root):
                 try:
                     st = os.stat(root, follow_symlinks=False)
+                except OSError as e:
+                    skipped += 1
+                    errors.append(str(e))
+                    continue
+                if self._too_recent(st, target.min_age_days) or self.whitelist.is_excluded(root):
+                    skipped += 1
+                    rule_skipped += 1
+                    continue
+                try:
                     os.unlink(root)
                 except OSError as e:
                     skipped += 1
@@ -311,6 +433,15 @@ class CleanerService:
                     path = os.path.join(dirpath, filename)
                     try:
                         st = os.stat(path, follow_symlinks=False)
+                    except OSError as e:
+                        skipped += 1
+                        errors.append(str(e))
+                        continue
+                    if self._too_recent(st, target.min_age_days) or self.whitelist.is_excluded(path):
+                        skipped += 1
+                        rule_skipped += 1
+                        continue
+                    try:
                         os.unlink(path)
                     except OSError as e:
                         skipped += 1
@@ -318,14 +449,19 @@ class CleanerService:
                     else:
                         freed += st.st_size
                         deleted += 1
-                if dirpath != root:
+                if dirpath != root and not self.whitelist.is_excluded(dirpath):
                     try:
                         os.rmdir(dirpath)
                     except OSError:
                         pass
         error = None
         if skipped and not deleted:
-            error = _summarize(errors) or "nothing could be deleted (access denied?)"
+            if errors:
+                error = _summarize(errors)
+            elif rule_skipped:
+                error = "nothing could be deleted (excluded by age or whitelist)"
+            else:
+                error = "nothing could be deleted (access denied?)"
         elif skipped:
             error = None
         if refused:
@@ -339,7 +475,7 @@ class CleanerService:
         # A partial clean (something left unchecked) is not a hard failure, but
         # the caller must be able to tell the result was incomplete — this
         # includes walk errors even when nothing at all could be deleted.
-        partial = bool(walk_errors) or bool(refused) or (deleted > 0 and skipped > 0)
+        partial = bool(walk_errors) or bool(refused) or (deleted > 0 and skipped > 0) or bool(rule_skipped)
         return CleanOutcome(target.id, freed, deleted, skipped, error, partial)
 
     @staticmethod

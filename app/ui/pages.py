@@ -39,6 +39,7 @@ def build_pages(settings=None, on_theme_applied=None) -> list[tuple[str, QWidget
     from .dashboard import DashboardPage
     from .diagnostics import DiagnosticsPage
     from .disk import DiskPage
+    from .drivers import DriversPage
     from .gaming import GamingPage
     from .gpu import GpuPage
     from .hardware import HardwarePage
@@ -51,6 +52,7 @@ def build_pages(settings=None, on_theme_applied=None) -> list[tuple[str, QWidget
     from .processes import ProcessPage
     from .settings import SettingsPage
     from .startup import StartupPage
+    from .system_report import SystemReportPage
 
     if settings is None:
         settings = SettingsService()
@@ -71,6 +73,8 @@ def build_pages(settings=None, on_theme_applied=None) -> list[tuple[str, QWidget
         ("network", NetworkPage()),
         ("disk", DiskPage()),
         ("diagnostics", DiagnosticsPage()),
+        ("drivers", DriversPage()),
+        ("system_report", SystemReportPage()),
         ("health", HealthPage()),
         ("settings", SettingsPage(settings, on_theme_applied=on_theme_applied)),
     ]

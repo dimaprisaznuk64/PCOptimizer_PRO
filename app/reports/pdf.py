@@ -2,6 +2,7 @@ from __future__ import annotations
 
 from collections.abc import Callable, Iterable
 from pathlib import Path
+from typing import TYPE_CHECKING
 
 from PySide6.QtCore import QMarginsF
 from PySide6.QtGui import QPageLayout, QPageSize, QTextDocument
@@ -10,7 +11,10 @@ from PySide6.QtPrintSupport import QPrinter
 from app.benchmarks.history import HistoryEntry
 from app.health import HealthReport
 
-from .service import ReportError, health_to_html, history_to_html
+from .service import ReportError, diagnostic_to_html, health_to_html, history_to_html
+
+if TYPE_CHECKING:
+    from app.diagnostics.service import DiagnosticsReport
 
 Localizer = Callable[[object], tuple[str, str, str]]
 DeltaFn = Callable[[HistoryEntry], float | None]
@@ -63,3 +67,12 @@ def export_history_pdf(
     return render_pdf(
         history_to_html(entries, localize=localize, delta_of=delta_of, title=title), path
     )
+
+
+def export_diagnostics_pdf(
+    report: DiagnosticsReport,
+    path: str | Path,
+    *,
+    title: str = "Diagnostics report",
+) -> Path:
+    return render_pdf(diagnostic_to_html(report, title=title), path)

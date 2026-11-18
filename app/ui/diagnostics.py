@@ -23,7 +23,7 @@ from .combos import CompactCombo, tune_combo
 from .components import CardTitleLabel, attach_empty_hint
 from .format import size as fmt_size
 from .tasks import Task
-from .theme import CARD_PADDING, DANGER, OK, WARN
+from .theme import ACCENT, CARD_PADDING, DANGER, OK, WARN
 
 DISK_COLUMN_KEYS = (
     "diag_col_name",
@@ -46,6 +46,16 @@ UPDATE_COLUMN_KEYS = (
     "diag_up_title",
     "diag_up_sev",
     "diag_up_kb",
+)
+REC_COLUMN_KEYS = (
+    "diag_rec_col_severity",
+    "diag_rec_col_issue",
+    "diag_rec_col_detail",
+)
+CHECK_COLUMN_KEYS = (
+    "diag_check_col_name",
+    "diag_check_col_status",
+    "diag_check_col_detail",
 )
 
 LOG_CHOICES = ("System", "Application")
@@ -112,6 +122,29 @@ _UP_SEV_COLORS = {
     "critical": DANGER,
     "important": WARN,
 }
+_REC_SEV_KEYS = {
+    "critical": "diag_rec_sev_critical",
+    "warning": "diag_rec_sev_warning",
+    "info": "diag_rec_sev_info",
+    "ok": "diag_rec_sev_ok",
+}
+_REC_SEV_COLORS = {
+    "critical": DANGER,
+    "warning": WARN,
+    "info": ACCENT,
+    "ok": OK,
+}
+_REC_SOURCE_KEYS = {
+    "disk_health": "diag_rec_src_disk",
+    "disk_wear": "diag_rec_src_disk",
+    "disk_smart": "diag_rec_src_smart",
+    "events": "diag_rec_src_events",
+    "system_files": "diag_rec_src_system",
+    "drivers": "diag_rec_src_drivers",
+    "availability": "diag_rec_src_availability",
+    "errors": "diag_rec_src_errors",
+    "summary": "diag_rec_src_summary",
+}
 
 _MISSING = "—"
 
@@ -142,6 +175,16 @@ def _severity_text(severity: str) -> str:
     if key:
         return tr(key)
     return _MISSING if not severity else severity.capitalize()
+
+
+def _rec_severity_text(severity: str) -> str:
+    key = _REC_SEV_KEYS.get(severity)
+    return tr(key) if key else (severity.capitalize() if severity else _MISSING)
+
+
+def _rec_source_text(source: str) -> str:
+    key = _REC_SOURCE_KEYS.get(source)
+    return tr(key) if key else (source if source else _MISSING)
 
 
 class DiagnosticsPage(QWidget):
@@ -182,6 +225,16 @@ class DiagnosticsPage(QWidget):
         layout.addLayout(toolbar)
 
         splitter = QSplitter(Qt.Orientation.Vertical)
+
+        self.rec_card, self.rec_title, self.rec_table = self._make_table(
+            "diag_rec_title", REC_COLUMN_KEYS, "diag_rec_empty"
+        )
+        splitter.addWidget(self.rec_card)
+
+        self.check_card, self.check_title, self.check_table = self._make_table(
+            "diag_check_title", CHECK_COLUMN_KEYS, "diag_check_empty"
+        )
+        splitter.addWidget(self.check_card)
 
         self.disk_card, self.disk_title, self.disk_table = self._make_table(
             "diag_disk_title", DISK_COLUMN_KEYS, "diag_disk_empty"
@@ -247,9 +300,11 @@ class DiagnosticsPage(QWidget):
         self.updates_title = up_title
         splitter.addWidget(up_card)
 
-        splitter.setStretchFactor(0, 2)
-        splitter.setStretchFactor(1, 3)
+        splitter.setStretchFactor(0, 1)
+        splitter.setStretchFactor(1, 1)
         splitter.setStretchFactor(2, 2)
+        splitter.setStretchFactor(3, 3)
+        splitter.setStretchFactor(4, 2)
         layout.addWidget(splitter, 1)
 
     # ---------- table helpers ----------
@@ -356,8 +411,57 @@ class DiagnosticsPage(QWidget):
     def _render(self) -> None:
         if self._report is None:
             return
+        self._render_recommendations(self._report)
+        self._render_checks(self._report)
         self._render_disks(self._report)
         self._render_events(self._report)
+
+    def _render_recommendations(self, report: DiagnosticsReport) -> None:
+        self.rec_table.setRowCount(len(report.recommendations))
+        for row, item in enumerate(report.recommendations):
+            cells = (
+                QTableWidgetItem(_rec_severity_text(item.severity)),
+                QTableWidgetItem(item.title),
+                QTableWidgetItem(f"{item.detail} · {_rec_source_text(item.source)}"),
+            )
+            color = _REC_SEV_COLORS.get(item.severity)
+            if color is not None:
+                cells[0].setForeground(QColor(color))
+            cells[2].setToolTip(item.detail)
+            for col, cell in enumerate(cells):
+                self.rec_table.setItem(row, col, cell)
+
+    def _render_checks(self, report: DiagnosticsReport) -> None:
+        rows: list[tuple[str, str, str]] = []
+        if report.system_file is None:
+            rows.append((tr("diag_check_system_files"), _MISSING, tr("diag_check_unavailable")))
+        else:
+            state = report.system_file.state
+            keys = {
+                "ok": "diag_check_ok",
+                "issues": "diag_check_issues",
+                "requires_admin": "diag_check_admin",
+                "unavailable": "diag_check_unavailable",
+            }
+            rows.append(
+                (
+                    tr("diag_check_system_files"),
+                    tr(keys[state]) if state in keys else state,
+                    report.system_file.detail,
+                )
+            )
+        driver_codes = [issue.code for issue in report.drivers if issue.code]
+        if driver_codes:
+            status = tr("diag_check_issues")
+            detail = tr("diag_driver_issues", count=len(driver_codes))
+        else:
+            status = tr("diag_check_ok") if report.drivers or not report.unavailable else _MISSING
+            detail = tr("diag_driver_ok")
+        rows.append((tr("diag_check_drivers"), status, detail))
+        self.check_table.setRowCount(len(rows))
+        for row, values in enumerate(rows):
+            for col, text in enumerate(values):
+                self.check_table.setItem(row, col, QTableWidgetItem(text))
 
     def _render_disks(self, report: DiagnosticsReport) -> None:
         disks = report.disks
@@ -425,6 +529,8 @@ class DiagnosticsPage(QWidget):
         self._title.setText(tr("diag_title"))
         self._desc.setText(tr("diag_desc"))
         self.refresh_button.setText(tr("diag_refresh"))
+        self.rec_title.setText(tr("diag_rec_title").upper())
+        self.check_title.setText(tr("diag_check_title").upper())
         self.disk_title.setText(tr("diag_disk_title").upper())
         self.events_title.setText(tr("diag_evt_title").upper())
         self.events_button.setText(tr("diag_evt_btn"))
@@ -434,6 +540,8 @@ class DiagnosticsPage(QWidget):
             self.log_combo.setItemText(index, tr(_LOG_KEYS[log]))
         for index, levels in enumerate(LEVEL_CHOICES):
             self.level_combo.setItemText(index, tr(_LEVEL_KEYS[levels]))
+        self.rec_table.setHorizontalHeaderLabels([tr(k) for k in REC_COLUMN_KEYS])
+        self.check_table.setHorizontalHeaderLabels([tr(k) for k in CHECK_COLUMN_KEYS])
         self.disk_table.setHorizontalHeaderLabels([tr(k) for k in DISK_COLUMN_KEYS])
         self.events_table.setHorizontalHeaderLabels([tr(k) for k in EVENT_COLUMN_KEYS])
         self.updates_table.setHorizontalHeaderLabels([tr(k) for k in UPDATE_COLUMN_KEYS])

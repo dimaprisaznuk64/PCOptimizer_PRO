@@ -3,13 +3,31 @@ from __future__ import annotations
 import json
 import time
 
-from app.diagnostics import DiagnosticsReport, DiagnosticsService, PendingUpdate
+from app.diagnostics import (
+    DISM_SCAN_SCRIPT,
+    DRIVER_SCRIPT,
+    SERVICING_EVENTS_SCRIPT,
+    SFC_VERIFY_SCRIPT,
+    DiagnosticsReport,
+    DiagnosticsService,
+    DiskHealth,
+    DriverIssue,
+    EventEntry,
+    PendingUpdate,
+    SystemFileStatus,
+    build_recommendations,
+)
 from app.diagnostics.service import (
     DISK_LIST_SCRIPT,
+    DISM_ISSUE_MARKERS,
+    DISM_OK_MARKERS,
     PS_UTF8_PREFIX,
     RELIABILITY_SCRIPT,
+    SFC_ISSUE_MARKERS,
+    SFC_OK_MARKERS,
     UPDATE_SCRIPT,
     _decode_output,
+    parse_drivers,
     parse_events,
     parse_updates,
 )
@@ -58,8 +76,20 @@ def _counter_rows() -> list[dict]:
             "PowerOnHours": 1234,
             "ReadErrorsTotal": 0,
             "WriteErrorsTotal": 0,
+            "TemperatureMax": 52,
+            "TemperatureLifetime": 70,
+            "ReadErrorsUncorrected": 0,
+            "WriteErrorsUncorrected": 2,
+            "StartStopCycleCount": 45,
+            "LoadUnloadCycleCount": 0,
         },
-        {"DeviceId": "1", "Temperature": 0, "Wear": None, "PowerOnHours": None},
+        {
+            "DeviceId": "1",
+            "Temperature": 0,
+            "Wear": None,
+            "PowerOnHours": None,
+            "TemperatureMax": 0,
+        },
     ]
 
 
@@ -470,5 +500,349 @@ def test_retranslate_updates_headers_and_combos(qapp) -> None:
         assert page.events_table.horizontalHeaderItem(2).text() == tr("diag_col_kind")
         assert page.log_combo.itemText(0) == tr("diag_log_system")
         assert page.disk_table.item(0, 6).text() == tr("diag_health_healthy")
+    finally:
+        I18nService.instance().set_language("EN", emit=False)
+
+
+# ---------- extended diagnostics ----------
+
+
+def _driver_rows() -> list[dict]:
+    return [
+        {"Name": "PCI Device", "DeviceID": "PCI\\VEN_1234", "ConfigManagerErrorCode": 28, "Status": "Error"},
+        {"Name": "Ethernet", "DeviceID": "PCI\\VEN_1235", "ConfigManagerErrorCode": 31, "Status": "Error"},
+        {"Name": "Audio", "DeviceID": "PCI\\VEN_1236", "ConfigManagerErrorCode": 39, "Status": "Error"},
+        {"Name": "USB", "DeviceID": "USB\\VID_1237", "ConfigManagerErrorCode": 52, "Status": "OK"},
+        {"Name": "Disabled", "DeviceID": "USB\\VID_1238", "ConfigManagerErrorCode": 22, "Status": "OK"},
+        {"Name": "Working", "DeviceID": "USB\\VID_1239", "ConfigManagerErrorCode": 0, "Status": "OK"},
+        {"Name": "Mystery", "DeviceID": "USB\\VID_1240", "ConfigManagerErrorCode": "7", "Status": "Unknown"},
+    ]
+
+
+def _extended_service(
+    *,
+    admin: bool = True,
+    servicing: str = "",
+    dism: str = "No component store corruption detected.",
+    sfc: str = "Windows Resource Protection did not find any integrity violations.",
+    drivers: list[dict] | None = None,
+) -> DiagnosticsService:
+    def run(args, timeout):
+        script = args[-1].removeprefix(PS_UTF8_PREFIX)
+        if script == DISK_LIST_SCRIPT:
+            return 0, json.dumps(_disk_rows())
+        if script == RELIABILITY_SCRIPT:
+            return 0, json.dumps(_counter_rows())
+        if script == SERVICING_EVENTS_SCRIPT:
+            return 0, servicing
+        if script == DISM_SCAN_SCRIPT:
+            return 0, f"{dism}\nEXITCODE:0"
+        if script == SFC_VERIFY_SCRIPT:
+            return 0, f"{sfc}\nEXITCODE:0"
+        if script == DRIVER_SCRIPT:
+            return 0, json.dumps(_driver_rows() if drivers is None else drivers)
+        return 0, json.dumps(_event_rows())
+
+    return DiagnosticsService(run=run, is_admin=admin)
+
+
+def test_reliability_script_reads_extended_smart_fields_with_one_call() -> None:
+    for field in (
+        "TemperatureMax",
+        "TemperatureLifetime",
+        "ReadErrorsUncorrected",
+        "WriteErrorsUncorrected",
+        "StartStopCycleCount",
+        "LoadUnloadCycleCount",
+    ):
+        assert field in RELIABILITY_SCRIPT
+    assert RELIABILITY_SCRIPT.count("Get-StorageReliabilityCounter") == 1
+    assert RELIABILITY_SCRIPT.count("ConvertTo-Json") == 1
+
+
+def test_disk_health_parses_extended_smart_fields() -> None:
+    ssd, hdd = _extended_service().disk_health()
+    assert ssd.temperature_max_c == 52
+    assert ssd.temperature_lifetime_c == 70
+    assert ssd.read_errors_uncorrected == 0
+    assert ssd.write_errors_uncorrected == 2
+    assert ssd.start_stop_cycles == 45
+    assert ssd.load_unload_cycles == 0
+    assert hdd.temperature_max_c is None
+    assert hdd.temperature_lifetime_c is None
+    assert hdd.load_unload_cycles is None
+
+
+def test_system_files_without_admin_uses_only_read_only_event_query() -> None:
+    captured: list[str] = []
+
+    def run(args, timeout):
+        captured.append(args[-1].removeprefix(PS_UTF8_PREFIX))
+        return 0, ""
+
+    status = DiagnosticsService(run=run, is_admin=False).system_files()
+    assert captured == [SERVICING_EVENTS_SCRIPT]
+    assert status.source == "dism"
+    assert status.state == "requires_admin"
+    assert "administrator" in status.detail
+
+
+def test_system_files_with_admin_runs_read_only_scans() -> None:
+    captured: list[str] = []
+
+    def run(args, timeout):
+        script = args[-1].removeprefix(PS_UTF8_PREFIX)
+        captured.append(script)
+        if script == DISM_SCAN_SCRIPT:
+            return 0, "No component store corruption detected.\nEXITCODE:0"
+        if script == SFC_VERIFY_SCRIPT:
+            return 0, "Windows Resource Protection did not find any integrity violations.\nEXITCODE:0"
+        return 0, ""
+
+    status = DiagnosticsService(run=run, is_admin=True).system_files()
+    assert captured == [SERVICING_EVENTS_SCRIPT, DISM_SCAN_SCRIPT, SFC_VERIFY_SCRIPT]
+    assert status.state == "ok"
+    assert status.source == "all"
+
+
+def test_system_file_scripts_never_repair_or_mutate() -> None:
+    forbidden = (
+        "restorehealth",
+        "scannow",
+        "start-process",
+        "-verb runas",
+        "install-module",
+        "remove-item",
+        "set-item",
+        "new-item",
+        "stop-service",
+        "restart-computer",
+        "-force",
+    )
+    for script in (SERVICING_EVENTS_SCRIPT, DISM_SCAN_SCRIPT, SFC_VERIFY_SCRIPT):
+        lowered = script.lower()
+        assert not any(token in lowered for token in forbidden)
+    assert "Get-WinEvent" in SERVICING_EVENTS_SCRIPT
+    assert "DISM /Online /Cleanup-Image /ScanHealth" in DISM_SCAN_SCRIPT
+    assert "sfc.exe /verifyonly" in SFC_VERIFY_SCRIPT
+    assert len(DISM_OK_MARKERS) >= 2 and len(DISM_ISSUE_MARKERS) >= 2
+    assert len(SFC_OK_MARKERS) >= 2 and len(SFC_ISSUE_MARKERS) >= 2
+
+
+def test_system_file_markers_en_and_ua() -> None:
+    cases = (
+        ("The component store is repairable.", "clean", "issues", "dism"),
+        ("Виявлено пошкодження сховища компонентів.", "clean", "issues", "dism"),
+        (
+            "Пошкоджень сховища компонентів не виявлено.",
+            "Захист ресурсів Windows не виявив жодних порушень цілісності.",
+            "ok",
+            "all",
+        ),
+        (
+            "No component store corruption detected.",
+            "Windows Resource Protection found integrity violations.",
+            "issues",
+            "sfc",
+        ),
+    )
+    for dism, sfc, state, source in cases:
+        status = _extended_service(dism=dism, sfc=sfc).system_files()
+        assert (status.state, status.source) == (state, source)
+
+
+def test_system_file_ambiguous_output_is_unknown() -> None:
+    dism = "No component store corruption detected. The component store is repairable."
+    status = _extended_service(dism=dism, sfc="unrecognized output").system_files()
+    assert status.state == "unknown"
+    assert status.source == "dism"
+
+
+def test_system_file_unavailable_when_scan_fails() -> None:
+    def run(args, timeout):
+        script = args[-1].removeprefix(PS_UTF8_PREFIX)
+        if script == DISM_SCAN_SCRIPT:
+            return 1, ""
+        if script == SFC_VERIFY_SCRIPT:
+            return 0, "Windows Resource Protection did not find any integrity violations.\nEXITCODE:0"
+        return 0, ""
+
+    errors: list[str] = []
+    status = DiagnosticsService(run=run, is_admin=True).system_files(errors)
+    assert status.state == "unavailable"
+    assert status.source == "dism"
+    assert any("DISM" in item for item in errors)
+
+
+def test_system_file_nonzero_exit_marker_is_unavailable() -> None:
+    status = _extended_service(dism="unexpected output").system_files()
+    assert status.state == "unknown"
+
+    def run(args, timeout):
+        script = args[-1].removeprefix(PS_UTF8_PREFIX)
+        if script == DISM_SCAN_SCRIPT:
+            return 0, "No component store corruption detected.\nEXITCODE:5"
+        if script == SFC_VERIFY_SCRIPT:
+            return 0, "Windows Resource Protection did not find any integrity violations.\nEXITCODE:0"
+        return 0, ""
+
+    errors: list[str] = []
+    failed = DiagnosticsService(run=run, is_admin=True).system_files(errors)
+    assert failed.state == "unavailable"
+    assert any("DISM: exit 5" == item for item in errors)
+
+
+def test_parse_drivers_filters_disabled_and_working_devices() -> None:
+    issues = parse_drivers(json.dumps(_driver_rows()))
+    assert [issue.kind for issue in issues] == [
+        "no_driver",
+        "not_working",
+        "driver_corrupt",
+        "reboot",
+        "unknown",
+    ]
+    assert issues[0].name == "PCI Device"
+    assert issues[0].device_id == "PCI\\VEN_1234"
+    assert issues[0].code == 28
+    assert issues[0].status == "Error"
+    assert issues[-1].code == 7
+    assert parse_drivers("") == []
+    assert parse_drivers("not json") == []
+
+
+def test_driver_script_is_read_only_and_service_collects_errors() -> None:
+    lowered = DRIVER_SCRIPT.lower()
+    assert "get-ciminstance win32_pnpentity" in lowered
+    assert "present=true" in lowered
+    assert "configmanagererrorcode!=0" in lowered
+    for token in ("set-ciminstance", "remove-ciminstance", "invoke-cimmethod", "start-process", "-verb runas"):
+        assert token not in lowered
+    errors: list[str] = []
+    issues = DiagnosticsService(run=lambda args, timeout: (1, ""), is_admin=False).driver_issues(errors)
+    assert issues == []
+    assert errors == ["Drivers: exit 1"]
+
+
+def test_extended_report_is_opt_in() -> None:
+    service = _extended_service()
+    base = service.report()
+    assert base.system_file is None
+    assert base.drivers == ()
+    assert base.recommendations == ()
+    assert base.unavailable == ()
+    full = service.full_report()
+    assert full.system_file is not None
+    assert len(full.drivers) == 5
+    assert full.recommendations
+    assert full.unavailable == ()
+    assert full.errors == ()
+    assert len(full.disks) == 2
+
+
+def test_extended_report_collects_unavailable_sources() -> None:
+    service = DiagnosticsService(run=lambda args, timeout: (1, ""), is_admin=False)
+    report = service.full_report()
+    assert report.errors
+    assert set(report.unavailable) == {"disks", "events", "drivers", "system_files"}
+    assert any(item.source == "availability" for item in report.recommendations)
+
+
+def test_recommendations_cover_critical_sources_in_stable_order() -> None:
+    report = DiagnosticsReport(
+        disks=(DiskHealth(name="SSD", health="unhealthy", wear_percent=95, read_errors_uncorrected=3),),
+        events=(EventEntry(kind="bsod", time="2026-10-17 12:00:00", source="BugCheck", event_id=1001),),
+        system_file=SystemFileStatus("dism", "issues", "store corrupt"),
+        drivers=(DriverIssue(name="GPU", code=39, kind="driver_corrupt"),),
+        errors=("boom",),
+        unavailable=("events",),
+    )
+    items = build_recommendations(report)
+    sources = {item.source for item in items}
+    assert {
+        "disk_health",
+        "disk_wear",
+        "disk_smart",
+        "events",
+        "system_files",
+        "drivers",
+        "errors",
+        "availability",
+    } <= sources
+    ranks = {"critical": 0, "warning": 1, "info": 2, "ok": 3}
+    assert [ranks[item.severity] for item in items] == sorted(
+        ranks[item.severity] for item in items
+    )
+    assert build_recommendations(report) == items
+
+
+def test_recommendations_no_issues_only_when_all_sources_available() -> None:
+    base = {
+        "disks": (DiskHealth(name="SSD", health="healthy", wear_percent=1),),
+        "system_file": SystemFileStatus("all", "ok", "clean"),
+    }
+    clean = build_recommendations(DiagnosticsReport(**base))
+    assert [item.title for item in clean] == ["No issues detected"]
+    assert clean[0].severity == "ok"
+    changes = (
+        {"errors": ("boom",)},
+        {"unavailable": ("drivers",)},
+        {"system_file": SystemFileStatus("dism", "requires_admin", "needs admin")},
+        {"system_file": None},
+        {"disks": ()},
+    )
+    for change in changes:
+        items = build_recommendations(DiagnosticsReport(**{**base, **change}))
+        assert all(item.title != "No issues detected" for item in items)
+
+
+def test_recommendations_flag_requires_admin_and_event_kinds() -> None:
+    report = DiagnosticsReport(
+        system_file=SystemFileStatus("dism", "requires_admin", "needs admin"),
+        events=(
+            EventEntry(kind="unexpected_shutdown"),
+            EventEntry(kind="disk_error"),
+        ),
+        drivers=(DriverIssue(name="dev", code=52, kind="reboot"),),
+    )
+    items = build_recommendations(report)
+    severities = {item.source: item.severity for item in items}
+    assert severities["system_files"] == "info"
+    assert severities["drivers"] == "warning"
+    event_items = [item for item in items if item.source == "events"]
+    assert any(item.severity == "critical" for item in event_items)
+    assert any(item.severity == "warning" for item in event_items)
+    assert any(item.detail.startswith("1 event(s)") for item in items)
+
+
+def test_page_renders_recommendations_and_checks(qapp) -> None:
+    candidate = DiagnosticsReport(
+        disks=(DiskHealth(name="Disk", health="unhealthy"),),
+        system_file=SystemFileStatus("sfc", "issues", "corrupt file"),
+        drivers=(DriverIssue(name="dev", code=45, kind="no_driver"),),
+    )
+    report = DiagnosticsReport(
+        disks=candidate.disks,
+        system_file=candidate.system_file,
+        drivers=candidate.drivers,
+        recommendations=tuple(build_recommendations(candidate)),
+    )
+    page = DiagnosticsPage(service=FakeDiagnosticsService(report=report))
+    page.start_load()
+    assert _wait_until(qapp, lambda: page.rec_table.rowCount() > 0)
+    assert page.check_table.rowCount() == 2
+    assert "Critical" in {page.rec_table.item(row, 0).text() for row in range(page.rec_table.rowCount())}
+    assert page.check_table.item(0, 1).text() == "Issues found"
+    assert "1 device" in page.check_table.item(1, 2).text()
+
+
+def test_retranslate_updates_recommendation_headers(qapp) -> None:
+    from app.i18n import I18nService, tr
+
+    page = DiagnosticsPage(service=FakeDiagnosticsService())
+    I18nService.instance().set_language("UA", emit=False)
+    try:
+        page.retranslate()
+        assert page.rec_table.horizontalHeaderItem(0).text() == tr("diag_rec_col_severity")
+        assert page.check_table.horizontalHeaderItem(1).text() == tr("diag_check_col_status")
     finally:
         I18nService.instance().set_language("EN", emit=False)

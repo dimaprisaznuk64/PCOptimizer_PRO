@@ -315,8 +315,12 @@ class MonitorPage(QWidget):
         self._proc_task = task
         task.done.connect(self._render_top_processes)
         task.failed.connect(self._show_process_error)
+        task.finished.connect(self._clear_process_task)
         task.finished.connect(task.deleteLater)
         task.start()
+
+    def _clear_process_task(self) -> None:
+        self._proc_task = None
 
     def _render_top_processes(self, rows) -> None:
         self.proc_table.setRowCount(0)

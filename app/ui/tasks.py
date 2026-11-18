@@ -4,6 +4,7 @@ from collections.abc import Callable
 from threading import Event
 
 from PySide6.QtCore import QObject, QThread, Signal
+from shiboken6 import isValid
 
 from app.logs import get_logger
 
@@ -29,6 +30,9 @@ def stop_all(timeout_ms: int = 5000) -> bool:
     """
     all_stopped = True
     for task in list(_RUNNING):
+        if not isValid(task):
+            _RUNNING.discard(task)
+            continue
         # Cooperative cancellation: a Task that has not started yet will skip
         # its work entirely, and one that is running can check the flag.
         task.requestInterruption()
@@ -63,9 +67,11 @@ class Task(QThread):
         self.finished.connect(lambda: _RUNNING.discard(self))
 
     def requestInterruption(self) -> None:
+        self._cancel_requested.set()
+        if not isValid(self):
+            return
         # Qt ignores interruption requests made before start(); remember them
         # ourselves so a queued Task can still skip its work.
-        self._cancel_requested.set()
         super().requestInterruption()
 
     def _is_cancelled(self) -> bool:

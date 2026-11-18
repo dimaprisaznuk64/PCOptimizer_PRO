@@ -63,6 +63,22 @@ def test_stop_all_idempotent_and_clears() -> None:
     assert not task.isRunning()
 
 
+def test_stop_all_ignores_deleted_task(qapp) -> None:
+    task = Task(fn=lambda: 1, parent=None)
+    task.start()
+    assert task.wait(2000)
+    task.deleteLater()
+    for _ in range(20):
+        qapp.processEvents()
+        if task not in tasks_module._RUNNING:
+            break
+        time.sleep(0.01)
+
+    tasks_module._RUNNING.add(task)
+    assert stop_all(timeout_ms=100)
+    assert task not in tasks_module._RUNNING
+
+
 def test_stop_all_requests_interruption_before_wait() -> None:
     class InterruptAwareTask(Task):
         def __init__(self) -> None:

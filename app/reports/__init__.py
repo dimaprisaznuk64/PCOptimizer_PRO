@@ -1,9 +1,15 @@
 from __future__ import annotations
 
 from .service import (
+    DIAGNOSTIC_CSV_HEADER,
     HEALTH_CSV_HEADER,
     HISTORY_CSV_HEADER,
     ReportError,
+    diagnostic_record,
+    diagnostic_to_csv,
+    diagnostic_to_html,
+    diagnostic_to_json,
+    export_diagnostics,
     export_health,
     export_history,
     format_for_path,
@@ -18,11 +24,35 @@ from .service import (
     timestamp_name,
     write_report,
 )
+from .system import (
+    REDACTED,
+    SECTION_HEADINGS,
+    SECTION_KEYS,
+    SECTION_TITLES,
+    SystemReportConfig,
+    build_system_report,
+    redact_identifier,
+    render_system_report,
+)
 
 __all__ = [
+    "DIAGNOSTIC_CSV_HEADER",
     "HEALTH_CSV_HEADER",
     "HISTORY_CSV_HEADER",
     "ReportError",
+    "REDACTED",
+    "SECTION_HEADINGS",
+    "SECTION_KEYS",
+    "SECTION_TITLES",
+    "SystemReportConfig",
+    "build_system_report",
+    "redact_identifier",
+    "render_system_report",
+    "diagnostic_record",
+    "diagnostic_to_csv",
+    "diagnostic_to_html",
+    "diagnostic_to_json",
+    "export_diagnostics",
     "export_health",
     "export_history",
     "format_for_path",
