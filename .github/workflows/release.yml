@@ -47,6 +47,8 @@ jobs:
               Select-String -Pattern 'FAILED|ERROR|^E   |short test summary' |
               Select-Object -First 40 |
               ForEach-Object { "::error::$($_.Line)" }
+            Get-Content pytest.log | Select-Object -Last 120 |
+              ForEach-Object { "::error::$($_.Line)" }
             exit $code
           }
 
