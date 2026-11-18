@@ -10,9 +10,11 @@ from .types import (
     Snapshot,
     ThermalStat,
 )
+from .win_memory import CommitCharge, read_commit_charge
 
 __all__ = [
     "Backend",
+    "CommitCharge",
     "CpuStat",
     "DiskStat",
     "GpuStat",
@@ -20,6 +22,7 @@ __all__ = [
     "MockBackend",
     "NetStat",
     "Partial",
+    "read_commit_charge",
     "SensorError",
     "SensorManager",
     "SensorUnavailable",

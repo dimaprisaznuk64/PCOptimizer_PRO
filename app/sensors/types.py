@@ -23,6 +23,8 @@ class MemoryStat:
     swap_total: int
     swap_used: int
     swap_percent: float
+    commit_used: int | None = None
+    commit_limit: int | None = None
 
 
 @dataclass(frozen=True, slots=True)
@@ -59,6 +61,10 @@ class GpuStat:
     clock_mhz: float | None = None
     power_limit_w: float | None = None
     stale: bool = False
+    temperature_hotspot: float | None = None
+    memory_clock_mhz: float | None = None
+    throttle_reasons: int | None = None
+    throttling: bool = False
 
 
 @dataclass(frozen=True, slots=True)

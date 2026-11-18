@@ -5,6 +5,7 @@ import subprocess
 import sys
 import time
 
+import psutil
 import pytest
 
 from app.processes import (
@@ -23,6 +24,21 @@ def test_list_includes_own_process() -> None:
     pids = {p.pid for p in processes}
     assert os.getpid() in pids
     assert all(p.pid >= 0 and p.name for p in processes)
+
+
+def test_top_by_memory_sorts_and_limits(monkeypatch) -> None:
+    class FakeProc:
+        def __init__(self, info):
+            self.info = info
+
+    infos = [
+        {"pid": 1, "name": "small.exe", "memory_percent": 1.0, "memory_info": type("M", (), {"rss": 100})()},
+        {"pid": 2, "name": "big.exe", "memory_percent": 9.0, "memory_info": type("M", (), {"rss": 900})()},
+        {"pid": 0, "name": "System Idle Process", "memory_percent": 0.0, "memory_info": None},
+    ]
+    monkeypatch.setattr(psutil, "process_iter", lambda attrs, ad_value=None: [FakeProc(i) for i in infos])
+    result = ProcessService().top_by_memory(2)
+    assert [p.name for p in result] == ["big.exe", "small.exe"]
 
 
 def test_details_of_own_process() -> None:

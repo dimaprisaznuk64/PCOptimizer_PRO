@@ -576,7 +576,7 @@ class MainWindow(QMainWindow):
         if ActivityLog.instance().health is not None:
             return
         service = HealthService()
-        task = Task(lambda: service.scan(include_junk=False), parent=self)
+        task = Task(lambda: service.scan(include_junk=False), parent=self, com=True)
         task.done.connect(self._on_auto_health)
         task.failed.connect(lambda _msg: None)
         task.start()

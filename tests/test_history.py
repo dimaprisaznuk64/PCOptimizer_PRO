@@ -6,6 +6,7 @@ import time
 import pytest
 
 from app.history import HistorySample, PerformanceHistory, downsample, stats
+from app.ui.history import HistoryPage
 
 
 class FakeSnapshot:
@@ -20,9 +21,16 @@ class FakeSnapshot:
         gpu_mem_total: int = 4_000,
         gpu_temp: float | None = 60.0,
         thermal_max: float | None = 55.0,
+        gpu_hotspot: float | None = 72.0,
+        gpu_mem_clock: float | None = 7000.0,
+        gpu_power: float | None = 45.0,
+        gpu_throttling: bool = False,
+        commit_used: int | None = None,
+        commit_limit: int | None = None,
     ) -> None:
         self.cpu = type("C", (), {"percent": cpu_pct})() if cpu_pct is not None else None
-        self.memory = type("M", (), {"percent": ram_pct})() if ram_pct is not None else None
+        memory_values = {"percent": ram_pct, "commit_used": commit_used, "commit_limit": commit_limit}
+        self.memory = type("M", (), memory_values)() if ram_pct is not None else None
         if gpu_util is not None:
             gpu = type(
                 "G",
@@ -32,6 +40,10 @@ class FakeSnapshot:
                     "memory_used": gpu_mem_used,
                     "memory_total": gpu_mem_total,
                     "temperature": gpu_temp,
+                    "temperature_hotspot": gpu_hotspot,
+                    "memory_clock_mhz": gpu_mem_clock,
+                    "power_draw": gpu_power,
+                    "throttling": gpu_throttling,
                 },
             )()
             self.gpus: tuple = (gpu,)
@@ -47,7 +59,20 @@ class FakeSnapshot:
 
 
 def test_sample_roundtrip():
-    s = HistorySample(ts=100.0, cpu=42.0, ram=55.0, gpu=10.0, gpu_mem=25.0, temp_cpu=60.0, temp_gpu=70.0)
+    s = HistorySample(
+        ts=100.0,
+        cpu=42.0,
+        ram=55.0,
+        gpu=10.0,
+        gpu_mem=25.0,
+        temp_cpu=60.0,
+        temp_gpu=70.0,
+        gpu_hotspot=82.0,
+        gpu_mem_clock=7000.0,
+        gpu_power=45.0,
+        gpu_throttling=True,
+        commit_percent=80.0,
+    )
     d = s.to_dict()
     back = HistorySample.from_dict(d)
     assert back == s
@@ -63,6 +88,14 @@ def test_sample_none_fields():
     d = s.to_dict()
     assert d["cpu"] is None
     assert HistorySample.from_dict(d) == s
+
+
+def test_sample_from_legacy_dict_defaults_new_fields():
+    s = HistorySample.from_dict({"ts": 1.0, "cpu": 50.0})
+    assert s is not None
+    assert s.gpu_hotspot is None
+    assert s.commit_percent is None
+    assert s.gpu_throttling is None
 
 
 # ---------- PerformanceHistory.record / query ----------
@@ -136,6 +169,26 @@ def test_record_extracts_fields(tmp_path):
     assert s.temp_cpu == 65.0
 
 
+def test_record_extracts_advanced_telemetry(tmp_path):
+    h = PerformanceHistory(store=tmp_path / "h.jsonl")
+    h.record(
+        FakeSnapshot(
+            gpu_hotspot=88.0,
+            gpu_mem_clock=7500.0,
+            gpu_power=55.0,
+            gpu_throttling=True,
+            commit_used=80,
+            commit_limit=100,
+        )
+    )
+    s = h.query(1.0)[0]
+    assert s.gpu_hotspot == 88.0
+    assert s.gpu_mem_clock == 7500.0
+    assert s.gpu_power == 55.0
+    assert s.gpu_throttling is True
+    assert s.commit_percent == pytest.approx(80.0)
+
+
 def test_record_no_gpu_no_thermal(tmp_path):
     h = PerformanceHistory(store=tmp_path / "h.jsonl")
     h.record(FakeSnapshot(gpu_util=None, thermal_max=None))
@@ -171,6 +224,49 @@ def test_max_age_trims_on_read(tmp_path):
     kept = [json.loads(line) for line in store.read_text(encoding="utf-8").splitlines() if line.strip()]
     assert len(kept) == 1
     assert kept[0]["cpu"] == 2.0
+
+
+def test_periodic_compaction_rewrites_store(tmp_path):
+    store = tmp_path / "h.jsonl"
+    now = 10_000.0
+    store.write_text(json.dumps(HistorySample(ts=now - 7200, cpu=1.0).to_dict()) + "\n", encoding="utf-8")
+    h = PerformanceHistory(store=store, max_age_hours=1.0, now=lambda: now)
+    h._append_count = 119
+    assert h.record(FakeSnapshot(cpu_pct=2.0)) is True
+    lines = [json.loads(line) for line in store.read_text(encoding="utf-8").splitlines() if line.strip()]
+    assert len(lines) == 1
+    assert lines[0]["cpu"] == 2.0
+
+
+def test_history_page_shows_7d_range_and_advanced_cards(qapp, tmp_path) -> None:
+    store = tmp_path / "h.jsonl"
+    now = time.time()
+    samples = [
+        HistorySample(
+            ts=now - 60,
+            cpu=40.0,
+            ram=50.0,
+            gpu=30.0,
+            temp_cpu=60.0,
+            gpu_hotspot=80.0,
+            commit_percent=70.0,
+        ),
+        HistorySample(
+            ts=now,
+            cpu=60.0,
+            ram=70.0,
+            gpu=50.0,
+            temp_cpu=70.0,
+            gpu_hotspot=90.0,
+            commit_percent=90.0,
+        ),
+    ]
+    store.write_text("\n".join(json.dumps(s.to_dict()) for s in samples) + "\n", encoding="utf-8")
+    page = HistoryPage(PerformanceHistory(store=store))
+    assert "hist_range_7d" in page._range_buttons
+    assert page._range_buttons["hist_range_7d"].text() == "7 days"
+    assert page._commit_card.value.text() == "80%"
+    assert page._hotspot_card.value.text() == "85°C"
 
 
 # ---------- downsample ----------

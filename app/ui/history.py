@@ -19,6 +19,7 @@ _RANGES: tuple[tuple[str, float], ...] = (
     ("hist_range_1h", 60.0),
     ("hist_range_6h", 360.0),
     ("hist_range_24h", 1440.0),
+    ("hist_range_7d", 10080.0),
 )
 
 _CHART_POINTS = 120
@@ -80,7 +81,16 @@ class HistoryPage(QWidget):
         self._ram_card = MetricCard(tr("hist_ram"), sparkline=False, bar=False)
         self._gpu_card = MetricCard(tr("hist_gpu"), sparkline=False, bar=False)
         self._temp_card = MetricCard(tr("hist_temp"), sparkline=False, bar=False)
-        for card in (self._cpu_card, self._ram_card, self._gpu_card, self._temp_card):
+        self._commit_card = MetricCard(tr("hist_commit"), sparkline=False, bar=False)
+        self._hotspot_card = MetricCard(tr("hist_hotspot"), sparkline=False, bar=False)
+        for card in (
+            self._cpu_card,
+            self._ram_card,
+            self._gpu_card,
+            self._temp_card,
+            self._commit_card,
+            self._hotspot_card,
+        ):
             stats_row.addWidget(card)
         layout.addLayout(stats_row)
 
@@ -113,6 +123,8 @@ class HistoryPage(QWidget):
             self._ram_card.update_metric("—")
             self._gpu_card.update_metric("—")
             self._temp_card.update_metric("—")
+            self._commit_card.update_metric("—")
+            self._hotspot_card.update_metric("—")
             return
 
         # Stats
@@ -120,6 +132,8 @@ class HistoryPage(QWidget):
         self._update_stats(self._ram_card, samples, "ram")
         self._update_stats(self._gpu_card, samples, "gpu")
         self._update_temp_stats(samples)
+        self._update_scalar_stats(self._commit_card, samples, "commit_percent", "%")
+        self._update_scalar_stats(self._hotspot_card, samples, "gpu_hotspot", "°C")
 
         self._info.setText(tr("hist_samples", count=count))
 
@@ -137,9 +151,19 @@ class HistoryPage(QWidget):
         _lo, avg, hi = result
         card.update_metric(f"{avg:.0f}%", tr("hist_max_min", max=hi, min=_lo))
 
+    @staticmethod
+    def _update_scalar_stats(card: MetricCard, samples, field: str, suffix: str) -> None:
+        result = stats(samples, field)
+        if result is None:
+            card.update_metric("—")
+            return
+        _lo, avg, hi = result
+        card.update_metric(f"{avg:.0f}{suffix}", tr("hist_max_only", max=hi))
+
     def _update_temp_stats(self, samples) -> None:
         cpu = stats(samples, "temp_cpu")
         gpu = stats(samples, "temp_gpu")
+        hotspot = stats(samples, "gpu_hotspot")
         parts: list[str] = []
         avg_all: list[float] = []
         max_all: list[float] = []
@@ -151,6 +175,11 @@ class HistoryPage(QWidget):
         if gpu is not None:
             _lo, avg, hi = gpu
             parts.append(f"GPU {avg:.0f}°C")
+            avg_all.append(avg)
+            max_all.append(hi)
+        if hotspot is not None:
+            _lo, avg, hi = hotspot
+            parts.append(f"Hotspot {avg:.0f}°C")
             avg_all.append(avg)
             max_all.append(hi)
         if not avg_all:
@@ -177,4 +206,6 @@ class HistoryPage(QWidget):
         self._ram_card.set_title(tr("hist_ram"))
         self._gpu_card.set_title(tr("hist_gpu"))
         self._temp_card.set_title(tr("hist_temp"))
+        self._commit_card.set_title(tr("hist_commit"))
+        self._hotspot_card.set_title(tr("hist_hotspot"))
         self._refresh()

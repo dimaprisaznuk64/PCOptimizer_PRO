@@ -1,13 +1,31 @@
 from __future__ import annotations
 
-from PySide6.QtCore import Qt
-from PySide6.QtWidgets import QFrame, QGridLayout, QLabel, QVBoxLayout, QWidget
+from PySide6.QtCore import Qt, QTimer
+from PySide6.QtWidgets import (
+    QFrame,
+    QGridLayout,
+    QHeaderView,
+    QLabel,
+    QTableWidget,
+    QTableWidgetItem,
+    QVBoxLayout,
+    QWidget,
+)
 
 from app.i18n import tr
+from app.processes.service import ProcessService
 from app.sensors import Snapshot
 
-from .components import Bar, CardPanel, CardTitleLabel, Sparkline
-from .format import gb, rate, zone_label
+from .components import (
+    Bar,
+    CardPanel,
+    CardTitleLabel,
+    Sparkline,
+    align_numeric_headers,
+    attach_empty_hint,
+)
+from .format import gb, rate, temp_text, zone_label
+from .tasks import Task
 from .theme import ACCENT, ACCENT_HOVER, CARD_PADDING, DANGER, OK, PAGE_MARGINS, PAGE_SPACING
 
 
@@ -98,9 +116,15 @@ class CoreBars(QWidget):
 
 
 class MonitorPage(QWidget):
-    def __init__(self, parent: QWidget | None = None) -> None:
+    def __init__(
+        self,
+        parent: QWidget | None = None,
+        *,
+        process_service: ProcessService | None = None,
+    ) -> None:
         super().__init__(parent)
         self.setObjectName("page")
+        self._process_service = process_service or ProcessService()
 
         layout = QVBoxLayout(self)
         layout.setContentsMargins(*PAGE_MARGINS)
@@ -125,23 +149,38 @@ class MonitorPage(QWidget):
         net_card = self._build_network_card()
         self.disks = CardPanel(tr("mon_storage"))
         self.thermals = CardPanel(tr("mon_thermals"))
+        self.proc_card = self._build_process_card()
 
         grid.addWidget(cpu_card, 0, 0, 1, 4)
         grid.addWidget(mem_card, 1, 0, 1, 2)
         grid.addWidget(net_card, 1, 2, 1, 2)
         grid.addWidget(self.disks, 2, 0, 1, 2)
         grid.addWidget(self.thermals, 2, 2, 1, 2)
+        grid.addWidget(self.proc_card, 3, 0, 1, 4)
         for col in range(4):
             grid.setColumnStretch(col, 1)
         grid.setRowStretch(0, 0)
         grid.setRowStretch(1, 1)
         grid.setRowStretch(2, 1)
+        grid.setRowStretch(3, 1)
         layout.addLayout(grid, 1)
 
         self.errors = QLabel("")
         self.errors.setObjectName("errorLine")
         self.errors.setVisible(False)
         layout.addWidget(self.errors)
+
+        self._proc_task: Task | None = None
+        self._proc_error_msg = ""
+        self._proc_timer = QTimer(self)
+        self._proc_timer.setInterval(5000)
+        self._proc_timer.timeout.connect(self.refresh_memory_processes)
+
+        self._cpu_peak = 0.0
+        self._mem_peak = 0.0
+        self._temp_peak: float | None = None
+        self._commit_used: int | None = None
+        self._commit_limit: int | None = None
 
     def _build_cpu_card(self) -> QFrame:
         card = _Card(tr("dash_cpu"))
@@ -191,7 +230,40 @@ class MonitorPage(QWidget):
         card.body.addWidget(self.swap_sub)
         self.swap_bar = Bar(ACCENT_HOVER, height=8)
         card.body.addWidget(self.swap_bar)
+        self.commit_sub = QLabel("")
+        self.commit_sub.setObjectName("cardSub")
+        self.commit_sub.setVisible(False)
+        card.body.addWidget(self.commit_sub)
         self._mem_card = card
+        return card
+
+    def _build_process_card(self) -> QFrame:
+        card = _Card(tr("mon_top_processes"))
+        self.proc_table = QTableWidget(0, 3)
+        self.proc_table.setObjectName("processMemoryTable")
+        self.proc_table.setHorizontalHeaderLabels(
+            [
+                tr("mon_proc_col_name"),
+                tr("mon_proc_col_memory"),
+                tr("mon_proc_col_percent"),
+            ]
+        )
+        align_numeric_headers(self.proc_table, (1, 2))
+        header = self.proc_table.horizontalHeader()
+        header.setSectionResizeMode(0, QHeaderView.ResizeMode.Stretch)
+        header.setSectionResizeMode(1, QHeaderView.ResizeMode.ResizeToContents)
+        header.setSectionResizeMode(2, QHeaderView.ResizeMode.ResizeToContents)
+        self.proc_table.verticalHeader().setVisible(False)
+        self.proc_table.setEditTriggers(QTableWidget.EditTrigger.NoEditTriggers)
+        self.proc_table.setSelectionBehavior(QTableWidget.SelectionBehavior.SelectRows)
+        self.proc_table.setMinimumHeight(170)
+        card.body.addWidget(self.proc_table)
+        self.proc_empty = attach_empty_hint(self.proc_table, "mon_proc_empty")
+        self.proc_status = QLabel("")
+        self.proc_status.setObjectName("errorLine")
+        self.proc_status.setVisible(False)
+        card.body.addWidget(self.proc_status)
+        self._proc_card = card
         return card
 
     def _build_network_card(self) -> QFrame:
@@ -216,6 +288,66 @@ class MonitorPage(QWidget):
         self._net_card = card
         return card
 
+    def _update_commit_label(self) -> None:
+        if self._commit_used is None or self._commit_limit is None:
+            self.commit_sub.setText("")
+            self.commit_sub.setVisible(False)
+            return
+        self.commit_sub.setText(
+            tr("mon_commit", used=gb(self._commit_used), limit=gb(self._commit_limit))
+        )
+        self.commit_sub.setVisible(True)
+
+    def showEvent(self, event) -> None:
+        super().showEvent(event)
+        if not self._proc_timer.isActive():
+            self.refresh_memory_processes()
+            self._proc_timer.start()
+
+    def hideEvent(self, event) -> None:
+        super().hideEvent(event)
+        self._proc_timer.stop()
+
+    def refresh_memory_processes(self) -> None:
+        if self._proc_task is not None and self._proc_task.isRunning():
+            return
+        task = Task(self._process_service.top_by_memory, self)
+        self._proc_task = task
+        task.done.connect(self._render_top_processes)
+        task.failed.connect(self._show_process_error)
+        task.finished.connect(task.deleteLater)
+        task.start()
+
+    def _render_top_processes(self, rows) -> None:
+        self.proc_table.setRowCount(0)
+        for row_index, proc in enumerate(rows or []):
+            self.proc_table.insertRow(row_index)
+            values = (proc.name, gb(proc.memory_bytes), f"{proc.memory_percent:.1f}%")
+            for col, value in enumerate(values):
+                item = QTableWidgetItem(value)
+                item.setFlags(item.flags() & ~Qt.ItemFlag.ItemIsEditable)
+                if col:
+                    item.setTextAlignment(Qt.AlignmentFlag.AlignRight | Qt.AlignmentFlag.AlignVCenter)
+                self.proc_table.setItem(row_index, col, item)
+        self._proc_error_msg = ""
+        self.proc_status.setText("")
+        self.proc_status.setVisible(False)
+
+    def _show_process_error(self, msg: str) -> None:
+        self._proc_error_msg = msg
+        self.proc_status.setText(tr("mon_proc_failed", msg=msg))
+        self.proc_status.setVisible(True)
+
+    def _set_process_headers(self) -> None:
+        self.proc_table.setHorizontalHeaderLabels(
+            [
+                tr("mon_proc_col_name"),
+                tr("mon_proc_col_memory"),
+                tr("mon_proc_col_percent"),
+            ]
+        )
+        align_numeric_headers(self.proc_table, (1, 2))
+
     def retranslate(self) -> None:
         """Refresh static texts after a language change."""
         self._title.setText(tr("mon_title"))
@@ -223,29 +355,49 @@ class MonitorPage(QWidget):
         self._cpu_card.set_title(tr("dash_cpu"))
         self._mem_card.set_title(tr("dash_mem"))
         self._net_card.set_title(tr("dash_net"))
+        self._proc_card.set_title(tr("mon_top_processes"))
+        self._set_process_headers()
+        if self._proc_error_msg:
+            self.proc_status.setText(tr("mon_proc_failed", msg=self._proc_error_msg))
         self._core_title.setText(tr("mon_per_core"))
         self.disks.set_title(tr("mon_storage"))
-        self.thermals.set_title(tr("mon_thermals"))
+        self.thermals.set_title(
+            tr("mon_thermals")
+            + (tr("mon_peak", value=temp_text(self._temp_peak)) if self._temp_peak is not None else "")
+        )
+        self._update_commit_label()
 
     def apply_snapshot(self, s: Snapshot) -> None:
         if s.cpu:
             c = s.cpu
             freq = tr("mon_freq_base", mhz=f"{c.freq_mhz:.0f}") if c.freq_mhz else ""
+            self._cpu_peak = max(self._cpu_peak, c.percent)
             self.cpu_value.setText(f"{c.percent:.0f}%")
-            self.cpu_sub.setText(tr("mon_cores", physical=c.physical_cores, logical=c.logical_cores) + freq)
+            self.cpu_sub.setText(
+                tr("mon_cores", physical=c.physical_cores, logical=c.logical_cores)
+                + freq
+                + tr("mon_peak", value=f"{self._cpu_peak:.0f}%")
+            )
             self.cpu_spark.add(c.percent)
             self.cores.set_percents(c.per_core)
 
         if s.memory:
             m = s.memory
+            self._mem_peak = max(self._mem_peak, m.percent)
             self.mem_value.setText(f"{m.percent:.0f}%")
-            self.mem_sub.setText(tr("mon_used_total", used=gb(m.used), total=gb(m.total), available=gb(m.available)))
+            self.mem_sub.setText(
+                tr("mon_used_total", used=gb(m.used), total=gb(m.total), available=gb(m.available))
+                + tr("mon_peak", value=f"{self._mem_peak:.0f}%")
+            )
             self.mem_bar.set_percent(m.percent)
             self.mem_bar.set_color(_level_color(m.percent))
             self.mem_spark.add(m.percent)
             self.swap_sub.setText(tr("mon_swap", used=gb(m.swap_used), total=gb(m.swap_total), pct=m.swap_percent))
             self.swap_bar.set_percent(m.swap_percent)
             self.swap_bar.set_color(_level_color(m.swap_percent))
+            self._commit_used = m.commit_used
+            self._commit_limit = m.commit_limit
+            self._update_commit_label()
 
         if s.net:
             n = s.net
@@ -268,8 +420,15 @@ class MonitorPage(QWidget):
             self.disks.set_rows(rows)
 
         if s.thermal:
+            temperatures = tuple(value for _, value in s.thermal.temperatures)
+            if temperatures:
+                self._temp_peak = max(self._temp_peak or max(temperatures), max(temperatures))
             self.thermals.set_rows(
                 [(zone_label(name), value, f"{value:.0f}°C") for name, value in s.thermal.temperatures]
+            )
+            self.thermals.set_title(
+                tr("mon_thermals")
+                + (tr("mon_peak", value=temp_text(self._temp_peak)) if self._temp_peak is not None else "")
             )
 
         shown_errors = {k: v for k, v in s.errors.items() if k != "thermal"}

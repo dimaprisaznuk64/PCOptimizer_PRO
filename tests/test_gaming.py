@@ -63,6 +63,8 @@ def _service(
     return GamingService(
         steam_roots=lambda: list(roots or []),
         custom_store=tmp_path / "custom.json",
+        profile_store=tmp_path / "profiles.json",
+        mode_store=tmp_path / "mode.json",
         optimizer=fake_opt or FakeOptimizer(tmp_path),
         running_names=lambda: list(running or []),
         popen=popen,
@@ -346,6 +348,8 @@ class CannedGamingService(GamingService):
         super().__init__(
             steam_roots=lambda: [],
             custom_store=tmp_path / "custom.json",
+            profile_store=tmp_path / "profiles.json",
+            mode_store=tmp_path / "mode.json",
             optimizer=FakeOptimizer(tmp_path),
             running_names=lambda: ["TslGame.exe"],
         )
@@ -364,7 +368,7 @@ class CannedGamingService(GamingService):
     def detect(self):
         return list(self.games)
 
-    def activate(self, *, with_restore_point: bool = True) -> ApplyReport:
+    def activate(self, *, with_restore_point: bool = True, profile: str = "GAMING") -> ApplyReport:
         self.mode_calls.append("activate")
         self._active = True
         return ApplyReport(applied=("x",), errors=())
@@ -439,3 +443,32 @@ def test_gaming_page_toggle_cancelled(qapp, tmp_path, monkeypatch) -> None:
 
     page.start_toggle_mode()
     assert service.mode_calls == []
+
+
+def test_known_games_include_arc_raiders(tmp_path) -> None:
+    _make_steam(tmp_path, {"Arc Raiders": ["PioneerGame.exe"]})
+    service = _service(tmp_path, roots=[str(tmp_path)])
+    games = {g.id: g for g in service.detect()}
+    arc = games["arc_raiders"]
+    assert arc.installed is True
+    assert arc.appid == "1808500"
+    assert arc.location.endswith("PioneerGame.exe")
+
+
+def test_game_profiles_persist(tmp_path) -> None:
+    service = _service(tmp_path)
+    assert service.profile_for("pubg") == "GAMING"
+    service.set_game_profile("pubg", "PERFORMANCE")
+    assert service.profile_for("pubg") == "PERFORMANCE"
+    fresh = _service(tmp_path)
+    assert fresh.profile_for("pubg") == "PERFORMANCE"
+    with pytest.raises(GamingError):
+        fresh.set_game_profile("pubg", "NOPE")
+
+
+def test_activate_uses_selected_profile(tmp_path) -> None:
+    optimizer = FakeOptimizer(tmp_path)
+    service = _service(tmp_path, fake_opt=optimizer)
+    service.activate(profile="PERFORMANCE", with_restore_point=False)
+    assert optimizer.apply_calls == [("PERFORMANCE", False)]
+    assert service.active_profile == "PERFORMANCE"

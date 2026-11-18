@@ -182,7 +182,7 @@ class HardwarePage(QWidget):
             return
         self.status_label.setText(tr("hw_loading"))
         self.refresh_button.setEnabled(False)
-        self._task = Task(self._service.report, parent=self)
+        self._task = Task(self._service.report, parent=self, com=True)
         self._task.done.connect(self._apply_report)
         self._task.failed.connect(self._on_failed)
         self._task.start()

@@ -13,6 +13,8 @@ log = logging.getLogger("pcoptimizer.history")
 
 _DEFAULT_STORE = "performance_history.jsonl"
 _SAMPLE_INTERVAL_S = 30.0
+_DEFAULT_MAX_AGE_HOURS = 24.0 * 7.0
+_COMPACT_EVERY = 120
 
 
 @dataclass(frozen=True, slots=True)
@@ -26,12 +28,29 @@ class HistorySample:
     gpu_mem: float | None = None
     temp_cpu: float | None = None
     temp_gpu: float | None = None
+    gpu_hotspot: float | None = None
+    gpu_mem_clock: float | None = None
+    gpu_power: float | None = None
+    gpu_throttling: bool | None = None
+    commit_percent: float | None = None
 
-    def to_dict(self) -> dict[str, float | None]:
-        out: dict[str, float | None] = {"ts": round(self.ts, 1)}
-        for key in ("cpu", "ram", "gpu", "gpu_mem", "temp_cpu", "temp_gpu"):
+    def to_dict(self) -> dict[str, float | bool | None]:
+        out: dict[str, float | bool | None] = {"ts": round(self.ts, 1)}
+        for key in (
+            "cpu",
+            "ram",
+            "gpu",
+            "gpu_mem",
+            "temp_cpu",
+            "temp_gpu",
+            "gpu_hotspot",
+            "gpu_mem_clock",
+            "gpu_power",
+            "commit_percent",
+        ):
             value = getattr(self, key)
             out[key] = round(value, 1) if value is not None else None
+        out["gpu_throttling"] = self.gpu_throttling
         return out
 
     @classmethod
@@ -45,6 +64,11 @@ class HistorySample:
                 gpu_mem=d.get("gpu_mem"),
                 temp_cpu=d.get("temp_cpu"),
                 temp_gpu=d.get("temp_gpu"),
+                gpu_hotspot=d.get("gpu_hotspot"),
+                gpu_mem_clock=d.get("gpu_mem_clock"),
+                gpu_power=d.get("gpu_power"),
+                gpu_throttling=d.get("gpu_throttling"),
+                commit_percent=d.get("commit_percent"),
             )
         except (KeyError, TypeError, ValueError):
             return None
@@ -64,13 +88,14 @@ class PerformanceHistory:
     def __init__(
         self,
         store: Path | str | None = None,
-        max_age_hours: float = 24.0,
+        max_age_hours: float = _DEFAULT_MAX_AGE_HOURS,
         now: Callable[[], float] | None = None,
     ) -> None:
         self._store = Path(store) if store else data_root() / _DEFAULT_STORE
         self._max_age_s = max_age_hours * 3600.0
         self._now = now or time.time
         self._last_record = 0.0
+        self._append_count = 0
 
     @property
     def store(self) -> Path:
@@ -89,6 +114,7 @@ class PerformanceHistory:
         self._last_record = now
         sample = self._from_snapshot(snapshot, now)
         self._append(sample)
+        self._compact_if_due()
         return True
 
     # ---------- reading ----------
@@ -104,21 +130,35 @@ class PerformanceHistory:
         """Delete the entire history file."""
         self._store.unlink(missing_ok=True)
         self._last_record = 0.0
+        self._append_count = 0
 
     # ---------- internals ----------
 
     def _from_snapshot(self, snapshot, now: float) -> HistorySample:
         cpu = snapshot.cpu.percent if snapshot.cpu else None
         ram = snapshot.memory.percent if snapshot.memory else None
-        gpu = gpu_mem = temp_gpu = None
+        gpu = gpu_mem = temp_gpu = gpu_hotspot = gpu_mem_clock = gpu_power = None
+        gpu_throttling = None
         if snapshot.gpus:
             g = snapshot.gpus[0]
             gpu = g.utilization
             gpu_mem = (g.memory_used / g.memory_total * 100) if g.memory_total else None
             temp_gpu = g.temperature
+            gpu_hotspot = getattr(g, "temperature_hotspot", None)
+            gpu_mem_clock = getattr(g, "memory_clock_mhz", None)
+            gpu_power = getattr(g, "power_draw", None)
+            throttling = getattr(g, "throttling", None)
+            gpu_throttling = bool(throttling) if throttling is not None else None
         temp_cpu = None
         if snapshot.thermal and snapshot.thermal.temperatures:
             temp_cpu = max(v for _, v in snapshot.thermal.temperatures)
+        commit_percent = None
+        if (
+            snapshot.memory
+            and getattr(snapshot.memory, "commit_limit", None)
+            and getattr(snapshot.memory, "commit_used", None) is not None
+        ):
+            commit_percent = snapshot.memory.commit_used / snapshot.memory.commit_limit * 100.0
         return HistorySample(
             ts=now,
             cpu=cpu,
@@ -127,6 +167,11 @@ class PerformanceHistory:
             gpu_mem=gpu_mem,
             temp_cpu=temp_cpu,
             temp_gpu=temp_gpu,
+            gpu_hotspot=gpu_hotspot,
+            gpu_mem_clock=gpu_mem_clock,
+            gpu_power=gpu_power,
+            gpu_throttling=gpu_throttling,
+            commit_percent=commit_percent,
         )
 
     def _append(self, sample: HistorySample) -> None:
@@ -134,8 +179,15 @@ class PerformanceHistory:
             self._store.parent.mkdir(parents=True, exist_ok=True)
             with open(self._store, "a", encoding="utf-8") as f:
                 f.write(json.dumps(sample.to_dict()) + "\n")
+            self._append_count += 1
         except OSError as exc:
             log.warning("history append failed: %s", exc)
+
+    def _compact_if_due(self) -> None:
+        if self._append_count < _COMPACT_EVERY:
+            return
+        self._append_count = 0
+        self._load()
 
     def _load(self) -> list[HistorySample]:
         if not self._store.exists():

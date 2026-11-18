@@ -42,6 +42,12 @@ class NvmlBackend(Backend):
         except self._nvml.NVMLError:
             return None
 
+    def _opt_fn(self, name: str, *args):
+        fn = getattr(self._nvml, name, None)
+        if fn is None:
+            return None
+        return self._opt(lambda: fn(*args))
+
     def _read(self, index: int, handle) -> GpuStat:
         nvml = self._nvml
         prev = self._last.get(index)
@@ -79,6 +85,28 @@ class NvmlBackend(Backend):
         if power_limit_w is None and prev is not None:
             power_limit_w = prev.power_limit_w
 
+        hotspot_sensor = getattr(nvml, "NVML_TEMPERATURE_GPU_HOT_SPOT", 1)
+        temperature_hotspot = self._opt(lambda: nvml.nvmlDeviceGetTemperature(handle, hotspot_sensor))
+        if temperature_hotspot is None and prev is not None:
+            temperature_hotspot = prev.temperature_hotspot
+
+        memory_clock_mhz = self._opt_fn(
+            "nvmlDeviceGetClockInfo", handle, getattr(nvml, "NVML_CLOCK_MEM", 2)
+        )
+        if memory_clock_mhz is None and prev is not None:
+            memory_clock_mhz = prev.memory_clock_mhz
+
+        throttle_current = self._opt_fn("nvmlDeviceGetCurrentClocksThrottleReasons", handle)
+        throttle_supported = self._opt_fn("nvmlDeviceGetSupportedClocksThrottleReasons", handle)
+        if throttle_current is None:
+            throttle_reasons = prev.throttle_reasons if prev is not None else None
+            throttling = prev.throttling if prev is not None else False
+        else:
+            throttle_reasons = int(throttle_current)
+            mask = int(throttle_supported) if throttle_supported is not None else throttle_reasons
+            idle_bit = int(getattr(nvml, "NVML_CLOCKS_THROTTLE_REASON_GPU_IDLE", 0x1))
+            throttling = bool(throttle_reasons & mask & ~idle_bit)
+
         # Check if dynamic metrics failed to query in this sample
         dynamic_ok = util is not None or mem is not None
         if dynamic_ok:
@@ -104,6 +132,10 @@ class NvmlBackend(Backend):
             clock_mhz=clock_mhz,
             power_limit_w=power_limit_w,
             stale=is_stale,
+            temperature_hotspot=float(temperature_hotspot) if temperature_hotspot is not None else None,
+            memory_clock_mhz=float(memory_clock_mhz) if memory_clock_mhz is not None else None,
+            throttle_reasons=throttle_reasons,
+            throttling=throttling,
         )
         self._last[index] = stat
         return stat

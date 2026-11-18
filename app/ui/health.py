@@ -281,7 +281,7 @@ class HealthPage(QWidget):
             return
         self.status_label.setText(tr("health_scanning"))
         self._set_busy(True)
-        self._task = Task(self._service.scan, parent=self)
+        self._task = Task(self._service.scan, parent=self, com=True)
         self._task.done.connect(self._after_scan)
         self._task.failed.connect(self._on_task_failed)
         self._task.start()

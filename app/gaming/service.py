@@ -17,6 +17,9 @@ class GamingError(Exception):
     pass
 
 
+GAMING_PROFILES = ("BALANCED", "GAMING", "PERFORMANCE")
+
+
 @dataclass(frozen=True, slots=True)
 class GameSpec:
     id: str
@@ -24,6 +27,7 @@ class GameSpec:
     steam_folder: str
     exe_names: tuple[str, ...]
     appid: str = ""
+    profile: str = "GAMING"
 
 
 KNOWN_GAMES: tuple[GameSpec, ...] = (
@@ -32,6 +36,13 @@ KNOWN_GAMES: tuple[GameSpec, ...] = (
         "cs2", "Counter-Strike 2", "Counter-Strike Global Offensive", ("cs2.exe",), "730"
     ),
     GameSpec("dota2", "Dota 2", "dota 2", ("dota2.exe",), "570"),
+    GameSpec(
+        "arc_raiders",
+        "ARC Raiders",
+        "Arc Raiders",
+        ("PioneerGame.exe",),
+        "1808500",
+    ),
 )
 
 
@@ -46,6 +57,7 @@ class DetectedGame:
     custom: bool = False
     cover: str = ""
     appid: str = ""
+    profile: str = "GAMING"
 
 
 def default_steam_roots() -> list[str]:
@@ -138,6 +150,8 @@ class GamingService:
         *,
         steam_roots: Callable[[], list[str]] | None = None,
         custom_store: str | Path | None = None,
+        profile_store: str | Path | None = None,
+        mode_store: str | Path | None = None,
         optimizer: OptimizerService | None = None,
         running_names: Callable[[], Sequence[str]] | None = None,
         popen: Callable[..., object] | None = None,
@@ -146,6 +160,12 @@ class GamingService:
     ) -> None:
         self.custom_store = Path(custom_store) if custom_store else (
             data_root() / "gaming_custom.json"
+        )
+        self.profile_store = Path(profile_store) if profile_store else (
+            data_root() / "gaming_profiles.json"
+        )
+        self.mode_store = Path(mode_store) if mode_store else (
+            data_root() / "gaming_mode.json"
         )
         self._steam_roots = steam_roots or default_steam_roots
         self._optimizer = optimizer or OptimizerService()
@@ -157,12 +177,16 @@ class GamingService:
         self._running_cached_value = False
         # The applied-profile backup survives restarts; if it was a GAMING profile
         # the mode really is still on, so restore the flag instead of lying "off".
-        self._active = self._optimizer.backup_profile() == "GAMING"
+        self._active, self._active_profile = self._load_mode_state()
         self.last_report: ApplyReport | None = None
 
     @property
     def active(self) -> bool:
         return self._active
+
+    @property
+    def active_profile(self) -> str:
+        return self._active_profile
 
     def is_game_running(self) -> bool:
         now = time.monotonic()
@@ -213,6 +237,7 @@ class GamingService:
                     running=any(name.lower() in running for name in spec.exe_names),
                     cover=cover,
                     appid=spec.appid,
+                    profile=self.profile_for(spec.id),
                 )
             )
 
@@ -227,6 +252,7 @@ class GamingService:
                     installed=exe.exists(),
                     running=exe.name.lower() in running,
                     custom=True,
+                    profile=self.profile_for(entry["id"]),
                 )
             )
 
@@ -238,6 +264,65 @@ class GamingService:
             if game.id == game_id:
                 return game
         return None
+
+    # ---------- per-game profiles ----------
+
+    def profiles(self) -> dict[str, str]:
+        if not self.profile_store.exists():
+            return {}
+        try:
+            data = json.loads(self.profile_store.read_text(encoding="utf-8"))
+        except (OSError, json.JSONDecodeError) as e:
+            raise GamingError(f"cannot read game profiles: {e}") from e
+        if not isinstance(data, dict):
+            raise GamingError("game profiles file is corrupt")
+        return {
+            str(key): str(value)
+            for key, value in data.items()
+            if str(value) in GAMING_PROFILES
+        }
+
+    def profile_for(self, game_id: str) -> str:
+        known = {spec.id: spec.profile for spec in KNOWN_GAMES}
+        return self.profiles().get(game_id, known.get(game_id, "GAMING"))
+
+    def set_game_profile(self, game_id: str, profile: str) -> str:
+        if profile not in GAMING_PROFILES:
+            raise GamingError(f"unknown gaming profile: {profile}")
+        entries = self.profiles()
+        entries[game_id] = profile
+        try:
+            self.profile_store.parent.mkdir(parents=True, exist_ok=True)
+            self.profile_store.write_text(
+                json.dumps(entries, ensure_ascii=False, indent=2), encoding="utf-8"
+            )
+        except OSError as e:
+            raise GamingError(f"cannot save game profiles: {e}") from e
+        return profile
+
+    def _load_mode_state(self) -> tuple[bool, str]:
+        backup_profile = self._optimizer.backup_profile()
+        fallback = backup_profile == "GAMING"
+        if self.mode_store.exists():
+            try:
+                data = json.loads(self.mode_store.read_text(encoding="utf-8"))
+            except (OSError, json.JSONDecodeError):
+                data = None
+            if isinstance(data, dict):
+                profile = str(data.get("profile", "GAMING"))
+                if profile in GAMING_PROFILES:
+                    return bool(data.get("active")), profile
+        return fallback, backup_profile if fallback else "GAMING"
+
+    def _save_mode_state(self, active: bool, profile: str) -> None:
+        try:
+            self.mode_store.parent.mkdir(parents=True, exist_ok=True)
+            self.mode_store.write_text(
+                json.dumps({"active": active, "profile": profile}, ensure_ascii=False),
+                encoding="utf-8",
+            )
+        except OSError:
+            pass
 
     # ---------- custom games ----------
 
@@ -296,10 +381,15 @@ class GamingService:
 
     # ---------- gaming mode ----------
 
-    def activate(self, *, with_restore_point: bool = True) -> ApplyReport:
-        report = self._optimizer.apply_profile("GAMING", with_restore_point=with_restore_point)
+    def activate(self, *, with_restore_point: bool = True, profile: str = "GAMING") -> ApplyReport:
+        if profile not in GAMING_PROFILES:
+            raise GamingError(f"unknown gaming profile: {profile}")
+        report = self._optimizer.apply_profile(profile, with_restore_point=with_restore_point)
         self.last_report = report
         self._active = bool(report.applied)
+        if self._active:
+            self._active_profile = profile
+        self._save_mode_state(self._active, self._active_profile)
         return report
 
     def deactivate(self) -> ApplyReport:
@@ -308,6 +398,7 @@ class GamingService:
         # A failed revert leaves the GAMING backup in place, so the mode is
         # still on. Only a clean revert (backup removed) turns it off.
         self._active = bool(report.errors)
+        self._save_mode_state(self._active, self._active_profile)
         return report
 
     # ---------- internals ----------

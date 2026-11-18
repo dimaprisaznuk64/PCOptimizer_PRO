@@ -25,21 +25,33 @@ def test_stop_all_waits_for_running_task() -> None:
     assert not task.isRunning()
 
 
-def test_stop_all_keeps_task_still_running_after_timeout() -> None:
+def test_stop_all_keeps_task_still_running_after_timeout(qapp) -> None:
     # A task that outlives the timeout must NOT be dropped from the registry:
     # dropping it lets the interpreter destroy a live QThread and crash.
-    task = Task(fn=lambda: (time.sleep(0.6) or 1), parent=None)
-    task.start()
-    stop_all(timeout_ms=1)
+    started = threading.Event()
+    release = threading.Event()
 
-    if task.isRunning():
-        assert task in tasks_module._RUNNING
-    else:
-        assert task not in tasks_module._RUNNING
+    def work() -> int:
+        started.set()
+        release.wait(2.0)
+        return 1
+
+    task = Task(fn=work, parent=None)
+    task.start()
+    assert started.wait(2.0)
+    assert not stop_all(timeout_ms=1)
+    assert task.isRunning()
+    assert task in tasks_module._RUNNING
 
     # Let it finish so the rest of the suite is not left with a live QThread.
-    task.wait(2000)
-    stop_all(timeout_ms=50)
+    # finished -> _RUNNING.discard is a queued signal, so pump the event loop.
+    release.set()
+    assert task.wait(2000)
+    for _ in range(20):
+        qapp.processEvents()
+        if task not in tasks_module._RUNNING:
+            break
+        time.sleep(0.01)
     assert task not in tasks_module._RUNNING
 
 
@@ -77,4 +89,36 @@ def test_task_skips_work_when_cancelled_before_start() -> None:
 
     assert task.wait(2000)
     assert called == []
+    stop_all(timeout_ms=50)
+
+
+def test_task_does_not_initialize_com_by_default(monkeypatch) -> None:
+    calls: list[int] = []
+
+    def fake_run_in_com(fn):
+        calls.append(1)
+        return fn()
+
+    monkeypatch.setattr("app.wincom.run_in_com", fake_run_in_com)
+    task = Task(fn=lambda: 42, parent=None)
+    task.start()
+
+    assert task.wait(2000)
+    assert calls == []
+    stop_all(timeout_ms=50)
+
+
+def test_task_can_opt_into_com(monkeypatch) -> None:
+    calls: list[int] = []
+
+    def fake_run_in_com(fn):
+        calls.append(1)
+        return fn()
+
+    monkeypatch.setattr("app.wincom.run_in_com", fake_run_in_com)
+    task = Task(fn=lambda: 42, parent=None, com=True)
+    task.start()
+
+    assert task.wait(2000)
+    assert calls == [1]
     stop_all(timeout_ms=50)

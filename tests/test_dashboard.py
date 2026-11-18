@@ -95,7 +95,10 @@ def test_sampler_emits_snapshots(qapp) -> None:
     sampler.start()
     deadline = time.monotonic() + 3.0
     while spy.count() < 2 and time.monotonic() < deadline:
-        spy.wait(200)
+        # Queued cross-thread signals are delivered by processEvents, not by
+        # QSignalSpy.wait() when no nested event loop is running.
+        qapp.processEvents()
+        time.sleep(0.01)
     sampler.stop()
     assert spy.count() >= 2
     snapshot = spy.at(1)[0]

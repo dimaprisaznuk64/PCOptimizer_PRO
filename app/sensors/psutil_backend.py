@@ -1,20 +1,23 @@
 from __future__ import annotations
 
 import time
+from collections.abc import Callable
 
 from .base import Backend, Partial, SensorUnavailable
 from .types import CpuStat, DiskStat, MemoryStat, NetStat
+from .win_memory import CommitCharge, read_commit_charge
 
 
 class PsutilBackend(Backend):
     name = "psutil"
 
-    def __init__(self) -> None:
+    def __init__(self, commit_reader: Callable[[], CommitCharge | None] = read_commit_charge) -> None:
         try:
             import psutil
         except ImportError as e:
             raise SensorUnavailable(f"psutil not installed: {e}") from e
         self._psutil = psutil
+        self._commit_reader = commit_reader
         self._prev_net = psutil.net_io_counters()
         self._prev_ts = time.monotonic()
         psutil.cpu_percent(interval=None)
@@ -30,6 +33,10 @@ class PsutilBackend(Backend):
             freq = psutil.cpu_freq()
         except (OSError, RuntimeError):
             freq = None
+        try:
+            commit = getattr(self, "_commit_reader", read_commit_charge)()
+        except (OSError, RuntimeError):
+            commit = None
 
         disks: list[DiskStat] = []
         for part in psutil.disk_partitions(all=False):
@@ -75,6 +82,8 @@ class PsutilBackend(Backend):
                 swap_total=swap.total if swap else 0,
                 swap_used=swap.used if swap else 0,
                 swap_percent=swap.percent if swap else 0.0,
+                commit_used=commit.used if commit else None,
+                commit_limit=commit.limit if commit else None,
             ),
             "disks": tuple(disks),
             "net": NetStat(

@@ -49,9 +49,16 @@ class Task(QThread):
     done = Signal(object)
     failed = Signal(str)
 
-    def __init__(self, fn: Callable[[], object], parent: QObject | None = None) -> None:
+    def __init__(
+        self,
+        fn: Callable[[], object],
+        parent: QObject | None = None,
+        *,
+        com: bool = False,
+    ) -> None:
         super().__init__(parent)
         self._fn = fn
+        self._com = com
         self._cancel_requested = Event()
         self.finished.connect(lambda: _RUNNING.discard(self))
 
@@ -69,8 +76,6 @@ class Task(QThread):
         super().start(priority)
 
     def run(self) -> None:
-        from app.wincom import run_in_com
-
         def execute() -> object:
             if self._is_cancelled():
                 return None
@@ -84,7 +89,12 @@ class Task(QThread):
                 raise _TaskFailed from e
 
         try:
-            result = run_in_com(execute)
+            if self._com:
+                from app.wincom import run_in_com
+
+                result = run_in_com(execute)
+            else:
+                result = execute()
         except _TaskFailed:
             return
         if self._is_cancelled():

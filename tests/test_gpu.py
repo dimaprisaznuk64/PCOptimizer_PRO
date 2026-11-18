@@ -62,6 +62,54 @@ def test_gpu_page_handles_multiple_gpus(qapp) -> None:
     assert len(page._panels) == 1
 
 
+def test_gpu_page_shows_advanced_telemetry_and_peaks(qapp) -> None:
+    page = GpuPage()
+    first = GpuStat(
+        index=0,
+        name="RTX",
+        utilization=50.0,
+        memory_used=1024,
+        memory_total=4096,
+        temperature=60.0,
+        power_w=80.0,
+        power_limit_w=100.0,
+        temperature_hotspot=72.0,
+        memory_clock_mhz=7000.0,
+        throttle_reasons=2,
+        throttling=True,
+    )
+    page.apply_snapshot(_snapshot((first,)))
+    text = page._panels[0].advanced.text()
+    assert "hotspot 72°C" in text
+    assert "peak hotspot 72°C" in text
+    assert "memory clock 7000MHz" in text
+    assert "clock limited" in text
+    assert "reason 0x2" in text
+    assert "peak temp 60°C" in text
+    assert "peak power 80W" in text
+
+    second = GpuStat(
+        index=0,
+        name="RTX",
+        utilization=90.0,
+        memory_used=2048,
+        memory_total=4096,
+        temperature=75.0,
+        power_w=95.0,
+        power_limit_w=100.0,
+        temperature_hotspot=84.0,
+        memory_clock_mhz=7500.0,
+        throttle_reasons=0,
+        throttling=False,
+    )
+    page.apply_snapshot(_snapshot((second,)))
+    text = page._panels[0].advanced.text()
+    assert "no clock limit" in text
+    assert "peak temp 75°C" in text
+    assert "peak hotspot 84°C" in text
+    assert "peak power 95W" in text
+
+
 def test_main_window_broadcast_reaches_gpu_page(qapp) -> None:
     window = MainWindow()
     window.show_page("gpu")

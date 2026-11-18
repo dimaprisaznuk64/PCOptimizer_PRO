@@ -7,7 +7,7 @@ from app.i18n import tr
 from app.sensors import GpuStat, Snapshot
 
 from .components import GaugeCard
-from .format import gb
+from .format import gb, temp_text
 from .theme import C2 as VRAM_COLOR
 from .theme import C3 as TEMP_COLOR
 from .theme import C4 as POWER_COLOR
@@ -54,6 +54,16 @@ class GpuPanel(QFrame):
             grid.setRowStretch(row, 1)
         layout.addLayout(grid, 1)
 
+        self.advanced = QLabel("")
+        self.advanced.setObjectName("cardSub")
+        self.advanced.setWordWrap(True)
+        layout.addWidget(self.advanced)
+
+        self._last_gpu: GpuStat | None = None
+        self._temp_peak: float | None = None
+        self._hotspot_peak: float | None = None
+        self._power_peak: float | None = None
+
     def retranslate(self) -> None:
         """Refresh static texts after a language change."""
         self.util.set_title(tr("gpu_util"))
@@ -64,8 +74,17 @@ class GpuPanel(QFrame):
         self.vram.set_caption(tr("gpu_caption_mem"))
         self.temp.set_caption(tr("gpu_caption_temp"))
         self.power.set_caption(tr("gpu_caption_draw"))
+        if self._last_gpu is not None:
+            self.update_gpu(self._last_gpu)
 
     def update_gpu(self, g: GpuStat) -> None:
+        self._last_gpu = g
+        if g.temperature is not None:
+            self._temp_peak = max(self._temp_peak or g.temperature, g.temperature)
+        if g.temperature_hotspot is not None:
+            self._hotspot_peak = max(self._hotspot_peak or g.temperature_hotspot, g.temperature_hotspot)
+        if g.power_w is not None:
+            self._power_peak = max(self._power_peak or g.power_w, g.power_w)
         title = f"GPU {g.index} · {g.name}"
         if g.stale:
             title += f" {tr('gpu_stale')}"
@@ -113,6 +132,24 @@ class GpuPanel(QFrame):
             percent=power_percent,
             spark=g.power_w,
         )
+
+        advanced: list[str] = []
+        if g.temperature_hotspot is not None:
+            advanced.append(tr("gpu_hotspot", value=temp_text(g.temperature_hotspot)))
+        if self._hotspot_peak is not None:
+            advanced.append(tr("gpu_hotspot_peak", value=temp_text(self._hotspot_peak)))
+        if g.memory_clock_mhz is not None:
+            advanced.append(tr("gpu_mem_clock", value=f"{g.memory_clock_mhz:.0f}MHz"))
+        if g.throttle_reasons is not None:
+            advanced.append(tr("gpu_throttling") if g.throttling else tr("gpu_throttle_none"))
+            if g.throttling:
+                advanced.append(tr("gpu_throttle_reason", value=g.throttle_reasons))
+        if self._temp_peak is not None:
+            advanced.append(tr("gpu_temp_peak", value=temp_text(self._temp_peak)))
+        if self._power_peak is not None:
+            advanced.append(tr("gpu_power_peak", value=f"{self._power_peak:.0f}W"))
+        self.advanced.setText(" · ".join(advanced))
+        self.advanced.setVisible(bool(advanced))
 
 
 class GpuPage(QWidget):

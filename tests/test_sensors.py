@@ -3,7 +3,8 @@ from __future__ import annotations
 import threading
 import time
 
-from app.sensors import Backend, MockBackend, Partial, SensorManager
+from app.sensors import Backend, CommitCharge, MockBackend, Partial, SensorManager
+from app.sensors.psutil_backend import PsutilBackend
 
 
 class OkBackend(Backend):
@@ -118,6 +119,19 @@ def test_psutil_rates_change_between_samples() -> None:
     assert second.net.bytes_sent >= first.net.bytes_sent
 
 
+def test_psutil_backend_reports_commit_charge() -> None:
+    backend = PsutilBackend(
+        commit_reader=lambda: CommitCharge(limit=100 * 1024**3, available=40 * 1024**3, used=60 * 1024**3)
+    )
+    try:
+        memory = backend.collect()["memory"]
+        assert memory is not None
+        assert memory.commit_limit == 100 * 1024**3
+        assert memory.commit_used == 60 * 1024**3
+    finally:
+        backend.close()
+
+
 def test_mock_factory_on_real_manager_does_not_need_hardware() -> None:
     s = SensorManager([MockBackend(cpu_percent=7.5)]).snapshot()
     assert s.cpu and s.cpu.percent == 7.5
@@ -141,10 +155,24 @@ class _FakeMem:
 class _FakeNvml:
     NVMLError = _FakeNVMLError
     NVML_TEMPERATURE_GPU = 0
+    NVML_TEMPERATURE_GPU_HOT_SPOT = 1
     NVML_CLOCK_SM = 0
+    NVML_CLOCK_MEM = 1
+    NVML_CLOCKS_THROTTLE_REASON_GPU_IDLE = 1
 
-    def __init__(self, util_fails: bool = False) -> None:
+    def __init__(
+        self,
+        util_fails: bool = False,
+        hotspot: float | None = None,
+        mem_clock: float | None = None,
+        throttle_current: int | None = None,
+        throttle_supported: int | None = None,
+    ) -> None:
         self.util_fails = util_fails
+        self.hotspot = hotspot
+        self.mem_clock = mem_clock
+        self.throttle_current = throttle_current
+        self.throttle_supported = throttle_supported
 
     def nvmlDeviceGetName(self, handle):
         return "Fake GPU"
@@ -160,6 +188,8 @@ class _FakeNvml:
         return _FakeMem()
 
     def nvmlDeviceGetTemperature(self, handle, sensor):
+        if sensor == self.NVML_TEMPERATURE_GPU_HOT_SPOT and self.hotspot is not None:
+            return self.hotspot
         raise _FakeNVMLError("not supported")
 
     def nvmlDeviceGetPowerUsage(self, handle):
@@ -169,7 +199,19 @@ class _FakeNvml:
         raise _FakeNVMLError("not supported")
 
     def nvmlDeviceGetClockInfo(self, handle, clock):
+        if clock == self.NVML_CLOCK_MEM and self.mem_clock is not None:
+            return self.mem_clock
         raise _FakeNVMLError("not supported")
+
+    def nvmlDeviceGetCurrentClocksThrottleReasons(self, handle):
+        if self.throttle_current is None:
+            raise _FakeNVMLError("not supported")
+        return self.throttle_current
+
+    def nvmlDeviceGetSupportedClocksThrottleReasons(self, handle):
+        if self.throttle_supported is None:
+            raise _FakeNVMLError("not supported")
+        return self.throttle_supported
 
     def nvmlDeviceGetPowerManagementLimit(self, handle):
         raise _FakeNVMLError("not supported")
@@ -219,6 +261,35 @@ def test_nvml_consecutive_failures_drop_gpu_after_threshold() -> None:
     assert len(backend.collect()["gpus"]) == 1  # sample 3 fail (stale)
     assert len(backend.collect()["gpus"]) == 0  # sample 4 fail (threshold reached)
 
+
+def test_nvml_reads_advanced_telemetry() -> None:
+    nvml = _FakeNvml(hotspot=72.0, mem_clock=7000.0, throttle_current=3, throttle_supported=3)
+    gpu = _fake_nvml_backend(nvml).collect()["gpus"][0]
+    assert gpu.temperature_hotspot == 72.0
+    assert gpu.memory_clock_mhz == 7000.0
+    assert gpu.throttle_reasons == 3
+    assert gpu.throttling is True
+
+
+def test_nvml_idle_only_is_not_throttling() -> None:
+    nvml = _FakeNvml(throttle_current=1, throttle_supported=3)
+    gpu = _fake_nvml_backend(nvml).collect()["gpus"][0]
+    assert gpu.throttle_reasons == 1
+    assert gpu.throttling is False
+
+
+def test_nvml_advanced_fields_fall_back_to_last_known_values() -> None:
+    nvml = _FakeNvml(hotspot=70.0, mem_clock=6800.0, throttle_current=2, throttle_supported=3)
+    backend = _fake_nvml_backend(nvml)
+    first = backend.collect()["gpus"][0]
+    nvml.hotspot = None
+    nvml.mem_clock = None
+    nvml.throttle_current = None
+    second = backend.collect()["gpus"][0]
+    assert second.temperature_hotspot == first.temperature_hotspot
+    assert second.memory_clock_mhz == first.memory_clock_mhz
+    assert second.throttle_reasons == first.throttle_reasons
+    assert second.throttling == first.throttling
 
 
 class _FakePsutil:

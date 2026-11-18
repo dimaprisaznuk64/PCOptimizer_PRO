@@ -144,6 +144,39 @@ class ProcessService:
         results.sort(key=lambda p: (-p.cpu_percent, -p.memory_bytes, p.name.lower()))
         return results
 
+    def top_by_memory(self, limit: int = 8) -> list[ProcessInfo]:
+        attrs = ["pid", "name", "memory_percent", "memory_info"]
+        results: list[ProcessInfo] = []
+        for proc in psutil.process_iter(attrs, ad_value=None):
+            try:
+                info = proc.info
+                pid = info["pid"]
+                if pid is None or pid == 0:
+                    continue
+                name = info["name"] or ""
+                memory_info = info.get("memory_info")
+                results.append(
+                    ProcessInfo(
+                        pid=pid,
+                        ppid=None,
+                        name=name or f"pid-{pid}",
+                        username=None,
+                        status="",
+                        cpu_percent=0.0,
+                        memory_percent=float(info.get("memory_percent") or 0.0),
+                        memory_bytes=int(getattr(memory_info, "rss", 0) or 0),
+                        create_time=None,
+                        num_threads=None,
+                        exe=None,
+                        cmdline=None,
+                        protected_reason=None,
+                    )
+                )
+            except (psutil.NoSuchProcess, psutil.AccessDenied, psutil.ZombieProcess):
+                continue
+        results.sort(key=lambda p: (-p.memory_bytes, p.name.lower()))
+        return results[: max(limit, 0)]
+
     def details(self, pid: int) -> ProcessInfo:
         try:
             proc = psutil.Process(pid)

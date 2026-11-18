@@ -1,7 +1,11 @@
 from __future__ import annotations
 
-from PySide6.QtCore import Qt
+from dataclasses import replace
+from datetime import datetime
+
+from PySide6.QtCore import Qt, QTimer
 from PySide6.QtWidgets import (
+    QComboBox,
     QFileDialog,
     QFrame,
     QHBoxLayout,
@@ -18,7 +22,8 @@ from PySide6.QtWidgets import (
     QWidget,
 )
 
-from app.gaming.service import DetectedGame, GamingError, GamingService
+from app.gaming.service import GAMING_PROFILES, DetectedGame, GamingError, GamingService
+from app.gaming.telemetry import GameSession, GamingTelemetryService
 from app.i18n import tr
 
 from .activity import ActivityLog, outcome_level
@@ -28,15 +33,34 @@ from .tasks import Task
 from .theme import CARD_PADDING
 
 COLUMN_KEYS = ("game_col_game", "game_col_source", "game_col_status", "game_col_location")
+SESSION_COLUMN_KEYS = (
+    "game_telemetry_hist_col_time",
+    "game_telemetry_hist_col_game",
+    "game_telemetry_hist_col_profile",
+    "game_telemetry_hist_col_fps",
+    "game_telemetry_hist_col_low",
+)
 
 
 class GamingPage(QWidget):
-    def __init__(self, service: GamingService | None = None, parent: QWidget | None = None) -> None:
+    def __init__(
+        self,
+        service: GamingService | None = None,
+        parent: QWidget | None = None,
+        *,
+        telemetry: GamingTelemetryService | None = None,
+    ) -> None:
         super().__init__(parent)
         self.setObjectName("page")
         self._service = service or GamingService()
+        self._telemetry = telemetry or GamingTelemetryService()
         self._games: list[DetectedGame] = []
         self._task: Task | None = None
+        self._snapshot = None
+        self._session_history_loaded = False
+        self._telemetry_timer = QTimer(self)
+        self._telemetry_timer.setInterval(500)
+        self._telemetry_timer.timeout.connect(self._poll_telemetry)
 
         layout = QVBoxLayout(self)
         layout.setContentsMargins(40, 36, 40, 32)
@@ -127,6 +151,17 @@ class GamingPage(QWidget):
             self.detail_rows[key] = row
             details_layout.addWidget(row)
 
+        profile_row = QHBoxLayout()
+        profile_label = QLabel(tr("game_profile_label"))
+        profile_label.setObjectName("cardSub")
+        profile_row.addWidget(profile_label)
+        self.profile_combo = QComboBox()
+        for profile in GAMING_PROFILES:
+            self.profile_combo.addItem(tr(f"opt_profile_{profile.lower()}"), profile)
+        self.profile_combo.currentIndexChanged.connect(self._on_profile_changed)
+        profile_row.addWidget(self.profile_combo, 1)
+        details_layout.addLayout(profile_row)
+
         actions = QHBoxLayout()
         self.launch_button = QPushButton(tr("game_launch"))
         self.launch_button.setEnabled(False)
@@ -150,6 +185,64 @@ class GamingPage(QWidget):
         splitter.setStretchFactor(1, 1)
         layout.addWidget(splitter, 1)
 
+        telemetry_card = QFrame()
+        telemetry_card.setObjectName("card")
+        telemetry_layout = QVBoxLayout(telemetry_card)
+        telemetry_layout.setContentsMargins(CARD_PADDING, CARD_PADDING, CARD_PADDING, CARD_PADDING)
+        telemetry_layout.setSpacing(8)
+        telemetry_title = CardTitleLabel(tr("game_telemetry_title"))
+        telemetry_layout.addWidget(telemetry_title)
+        self._telemetry_title = telemetry_title
+
+        telemetry_toolbar = QHBoxLayout()
+        self.session_start_button = QPushButton(tr("game_telemetry_start"))
+        self.session_start_button.setProperty("primary", True)
+        self.session_start_button.clicked.connect(self.start_telemetry_session)
+        telemetry_toolbar.addWidget(self.session_start_button)
+        self.session_stop_button = QPushButton(tr("game_telemetry_stop"))
+        self.session_stop_button.setProperty("secondary", True)
+        self.session_stop_button.setEnabled(False)
+        self.session_stop_button.clicked.connect(self.stop_telemetry_session)
+        telemetry_toolbar.addWidget(self.session_stop_button)
+        self.telemetry_source_label = QLabel("")
+        self.telemetry_source_label.setObjectName("cardSub")
+        telemetry_toolbar.addWidget(self.telemetry_source_label, 1)
+        telemetry_layout.addLayout(telemetry_toolbar)
+
+        self.telemetry_values = QLabel(tr("game_telemetry_idle"))
+        self.telemetry_values.setObjectName("cardRow")
+        self.telemetry_values.setWordWrap(True)
+        telemetry_layout.addWidget(self.telemetry_values)
+        self.telemetry_resources = QLabel("")
+        self.telemetry_resources.setObjectName("cardSub")
+        telemetry_layout.addWidget(self.telemetry_resources)
+        self.telemetry_temp = QLabel("")
+        self.telemetry_temp.setObjectName("cardSub")
+        telemetry_layout.addWidget(self.telemetry_temp)
+        self.telemetry_before = QLabel("")
+        self.telemetry_before.setObjectName("cardSub")
+        telemetry_layout.addWidget(self.telemetry_before)
+
+        history_title = CardTitleLabel(tr("game_telemetry_history_title"))
+        telemetry_layout.addWidget(history_title)
+        self._session_history_title = history_title
+        self.session_history = QTableWidget(0, len(SESSION_COLUMN_KEYS))
+        self.session_history.setHorizontalHeaderLabels([tr(k) for k in SESSION_COLUMN_KEYS])
+        self.session_history.verticalHeader().setVisible(False)
+        self.session_history.setShowGrid(False)
+        self.session_history.setAlternatingRowColors(True)
+        self.session_history.setEditTriggers(QTableWidget.EditTrigger.NoEditTriggers)
+        self.session_history.setSelectionBehavior(QTableWidget.SelectionBehavior.SelectRows)
+        attach_empty_hint(self.session_history, "game_telemetry_history_empty")
+        session_header = self.session_history.horizontalHeader()
+        for col in range(len(SESSION_COLUMN_KEYS)):
+            session_header.setSectionResizeMode(col, QHeaderView.ResizeMode.ResizeToContents)
+        session_header.setSectionResizeMode(1, QHeaderView.ResizeMode.Stretch)
+        telemetry_layout.addWidget(self.session_history)
+        layout.addWidget(telemetry_card, 0)
+
+        self._render_telemetry(None)
+
     def retranslate(self) -> None:
         """Refresh static texts after a language change."""
         self._title.setText(tr("game_title"))
@@ -160,8 +253,22 @@ class GamingPage(QWidget):
         self.remove_button.setText(tr("game_remove"))
         self._details_title.setText(tr("game_details"))
         self.note.setText(tr("game_note"))
+        current_profile = self.profile_combo.currentData()
+        self.profile_combo.blockSignals(True)
+        self.profile_combo.clear()
+        for profile in GAMING_PROFILES:
+            self.profile_combo.addItem(tr(f"opt_profile_{profile.lower()}"), profile)
+        index = self.profile_combo.findData(current_profile)
+        self.profile_combo.setCurrentIndex(max(index, 0))
+        self.profile_combo.blockSignals(False)
+        self.session_start_button.setText(tr("game_telemetry_start"))
+        self.session_stop_button.setText(tr("game_telemetry_stop"))
+        self._telemetry_title.setText(tr("game_telemetry_title"))
+        self._session_history_title.setText(tr("game_telemetry_history_title"))
         self.table.setHorizontalHeaderLabels([tr(k) for k in COLUMN_KEYS])
+        self.session_history.setHorizontalHeaderLabels([tr(k) for k in SESSION_COLUMN_KEYS])
         self._on_selection_changed()
+        self._render_telemetry(self._telemetry.session)
 
     @property
     def service(self) -> GamingService:
@@ -171,6 +278,9 @@ class GamingPage(QWidget):
         super().showEvent(event)
         if not self._games and self._task is None:
             self.start_refresh()
+        if not self._session_history_loaded:
+            self._refresh_session_history()
+            self._session_history_loaded = True
 
     def start_refresh(self) -> None:
         if self._task is not None:
@@ -204,6 +314,133 @@ class GamingPage(QWidget):
             self.mode_label.setText(tr("game_mode_off"))
             self.mode_button.setText(tr("game_enable_btn"))
 
+    def apply_snapshot(self, snapshot) -> None:
+        self._snapshot = snapshot
+
+    def start_telemetry_session(self) -> None:
+        game = self._selected_game()
+        if game is None or self._telemetry.active:
+            return
+        session = self._telemetry.start_session(game.id, game.name, game.profile, self._snapshot)
+        self._telemetry_timer.start()
+        self.session_start_button.setEnabled(False)
+        self.session_stop_button.setEnabled(True)
+        self.status_label.setText(tr("game_telemetry_started", name=game.name))
+        self._render_telemetry(session)
+
+    def stop_telemetry_session(self) -> None:
+        if not self._telemetry.active:
+            return
+        session = self._telemetry.finish_session()
+        self._telemetry_timer.stop()
+        self.session_start_button.setEnabled(True)
+        self.session_stop_button.setEnabled(False)
+        self._refresh_session_history()
+        if session is not None:
+            self.status_label.setText(tr("game_telemetry_saved", count=session.frames_count))
+        self._render_telemetry(None)
+
+    def _poll_telemetry(self) -> None:
+        session = self._telemetry.poll(self._snapshot)
+        if session is not None:
+            self._render_telemetry(session)
+
+    @staticmethod
+    def _value(value: float | None, suffix: str = "") -> str:
+        return f"{value:.0f}{suffix}" if value is not None else "—"
+
+    def _render_telemetry(self, session: GameSession | None) -> None:
+        if not self._telemetry.available:
+            self.telemetry_source_label.setText(tr("game_telemetry_no_source"))
+        else:
+            self.telemetry_source_label.setText(
+                tr("game_telemetry_source", source=self._telemetry.source_name)
+            )
+        if session is None:
+            self.telemetry_values.setText(tr("game_telemetry_idle"))
+            self.telemetry_resources.setText("")
+            self.telemetry_temp.setText("")
+            self.telemetry_before.setText("")
+            return
+        stats = session.stats
+        parts = [tr("game_telemetry_fps", avg=stats.fps_avg)]
+        if stats.frametime_avg:
+            parts.append(tr("game_telemetry_frame", ms=stats.frametime_avg))
+        if stats.low_1 is not None:
+            parts.append(tr("game_telemetry_low1", fps=stats.low_1))
+        if stats.low_01 is not None:
+            parts.append(tr("game_telemetry_low01", fps=stats.low_01))
+        parts.append(tr("game_telemetry_frames", count=stats.samples))
+        self.telemetry_values.setText(" · ".join(parts))
+        after = session.after
+        if any(v is not None for v in (after.cpu_percent, after.ram_percent, after.gpu_percent)):
+            self.telemetry_resources.setText(
+                tr(
+                    "game_telemetry_resources",
+                    cpu=after.cpu_percent or 0.0,
+                    ram=after.ram_percent or 0.0,
+                    gpu=after.gpu_percent or 0.0,
+                )
+            )
+        else:
+            self.telemetry_resources.setText("")
+        if any(v is not None for v in (after.system_temp, after.gpu_temp, after.gpu_hotspot)):
+            self.telemetry_temp.setText(
+                tr(
+                    "game_telemetry_temp",
+                    cpu=after.system_temp or 0.0,
+                    gpu=after.gpu_temp or 0.0,
+                    hot=after.gpu_hotspot or 0.0,
+                )
+            )
+        else:
+            self.telemetry_temp.setText("")
+        before = session.before
+        if any(v is not None for v in (before.cpu_percent, after.cpu_percent, before.ram_percent, after.ram_percent)):
+            self.telemetry_before.setText(
+                tr(
+                    "game_telemetry_before_after",
+                    before=before.cpu_percent or 0.0,
+                    after=after.cpu_percent or 0.0,
+                    rb=before.ram_percent or 0.0,
+                    ra=after.ram_percent or 0.0,
+                )
+            )
+        else:
+            self.telemetry_before.setText("")
+
+    def _refresh_session_history(self) -> None:
+        sessions = self._telemetry.sessions(limit=10)
+        self.session_history.setRowCount(len(sessions))
+        for row, session in enumerate(sessions):
+            when = datetime.fromtimestamp(session.started).strftime("%Y-%m-%d %H:%M")
+            values = (
+                when,
+                session.game_name,
+                tr(f"opt_profile_{session.profile.lower()}"),
+                self._value(session.stats.fps_avg),
+                self._value(session.stats.low_1),
+            )
+            for col, value in enumerate(values):
+                self.session_history.setItem(row, col, QTableWidgetItem(value))
+
+    def _on_profile_changed(self) -> None:
+        game = self._selected_game()
+        profile = self.profile_combo.currentData()
+        if game is None or not profile:
+            return
+        try:
+            self._service.set_game_profile(game.id, str(profile))
+        except GamingError as e:
+            QMessageBox.warning(self, tr("game_add_warn"), str(e))
+            return
+        game = replace(game, profile=str(profile))
+        for index, item in enumerate(self._games):
+            if item.id == game.id:
+                self._games[index] = game
+                break
+        self.status_label.setText(tr("game_profile_label") + ": " + self.profile_combo.currentText())
+
     def start_toggle_mode(self) -> None:
         if self._task is not None:
             return
@@ -226,6 +463,8 @@ class GamingPage(QWidget):
         if active:
             runner = self._service.deactivate
         else:
+            selected = self._selected_game()
+            profile = selected.profile if selected else self._service.active_profile
             want_restore = (
                 QMessageBox.question(
                     self,
@@ -237,7 +476,7 @@ class GamingPage(QWidget):
                 == QMessageBox.StandardButton.Yes
             )
             def runner() -> object:
-                return self._service.activate(with_restore_point=want_restore)
+                return self._service.activate(with_restore_point=want_restore, profile=profile)
         self.status_label.setText(running_text)
         self._set_busy(True)
         self._task = Task(runner, parent=self)
@@ -384,6 +623,10 @@ class GamingPage(QWidget):
             self.remove_button.setEnabled(False)
             return
         self.detail_name.setText(game.name)
+        index = self.profile_combo.findData(game.profile)
+        self.profile_combo.blockSignals(True)
+        self.profile_combo.setCurrentIndex(max(index, 0))
+        self.profile_combo.blockSignals(False)
         self.detail_rows["source"].setText(tr("game_detail_source", value=game.source))
         self.detail_rows["status"].setText(tr("game_detail_status", value=self._render_status(game)))
         self.detail_rows["location"].setText(tr("game_detail_location", value=game.location))
