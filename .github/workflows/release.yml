@@ -38,7 +38,17 @@ jobs:
       - name: Pytest
         env:
           QT_QPA_PLATFORM: offscreen
-        run: python -m pytest tests -q --no-header
+        shell: pwsh
+        run: |
+          python -m pytest tests -q --no-header 2>&1 | Tee-Object -FilePath pytest.log
+          $code = $LASTEXITCODE
+          if ($code -ne 0) {
+            Get-Content pytest.log |
+              Select-String -Pattern 'FAILED|ERROR|^E   |short test summary' |
+              Select-Object -First 40 |
+              ForEach-Object { "::error::$($_.Line)" }
+            exit $code
+          }
 
       - name: Build exe
         shell: pwsh
