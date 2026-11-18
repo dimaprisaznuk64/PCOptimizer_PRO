@@ -7,12 +7,12 @@
   paths + UTF-8/OEM decoding, honest restore statuses, COM/background-task
   cleanup and safer update redirects. GitHub Release and the silent `app_run`
   upgrade are done.
-- Local commit `94d999b` (cooperative shutdown, venv-aware launcher) is still
-  unpushed: `main` is one commit ahead of `origin/main`.
-- Uncommitted v2.0.0 Stage 1 work: dedicated `tests/test_winpaths.py` (9 tests)
-  and opt-in COM for background `Task`s — COM is now initialized only for
-  hardware/health scans, not for psutil/subprocess work.
-- Uncommitted v2.0.0 Stage 2 work: session peaks in Monitor/GPU pages,
+- Latest commit `e05e94f` (v2.0.0 Stage 2 extensions) is pushed to `origin/main`;
+  earlier `94d999b` (cooperative shutdown, venv-aware launcher) is also pushed.
+- v2.0.0 Stage 1 work: dedicated `tests/test_winpaths.py` (9 tests) and opt-in
+  COM for background `Task`s — COM is now initialized only for hardware/health
+  scans, not for psutil/subprocess work.
+- v2.0.0 Stage 2 work: session peaks in Monitor/GPU pages,
   extended NVML telemetry (GPU hotspot, memory clock, honest clock-limit reason),
   Windows commit-charge / virtual-memory detail, top RAM-consuming processes,
   7-day history with advanced telemetry, and Gaming Mode 2.0 telemetry/profiles.
@@ -140,7 +140,7 @@
 - v2.0.0 Stage 2 remaining: trustworthy CPU package power / thermal-throttling
   source (only if a reliable Windows API appears), per-process RAM history,
   long-term Gaming session comparison charts.
-- Push `94d999b` and all uncommitted Stage 1/2 work when the user asks
-  (commits/pushes are explicit requests).
+- Continue Stage 2 with trustworthy CPU package power / thermal-throttling source
+  only if a reliable Windows API appears.
 - Optional: wire `mypy` into the verification routine and fix the first batch
   of findings.
