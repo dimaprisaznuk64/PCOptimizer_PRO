@@ -42,6 +42,20 @@ def isolated_data_root(tmp_path, monkeypatch):
 
 
 @pytest.fixture(autouse=True)
+def finish_background_tasks(qapp):
+    """Join QThreads started by pages before the next test begins.
+
+    Leftover psutil/WMI/COM tasks can otherwise be garbage-collected during a
+    later test and abort the interpreter with an access violation.
+    """
+    from app.ui.tasks import stop_all
+
+    yield
+    stop_all(timeout_ms=5000)
+    qapp.processEvents()
+
+
+@pytest.fixture(autouse=True)
 def reset_theme():
     """Restore the shipped palette after each test.
 

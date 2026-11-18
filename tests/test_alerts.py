@@ -169,7 +169,9 @@ def test_main_window_alerts_on_hot_snapshot(qapp) -> None:
     from app.settings import SettingsService
     from app.ui.main_window import MainWindow
 
-    settings = SettingsService(data={"temp_alerts_enabled": True})
+    settings = SettingsService(
+        data={"temp_alerts_enabled": True, "alerts_quiet_during_games": False}
+    )
     window = MainWindow(settings=settings)
     tray = _StubTray()
     window.tray = tray
@@ -192,7 +194,9 @@ def test_main_window_uses_fixed_temp_limits(qapp, monkeypatch) -> None:
 
     monkeypatch.setattr(main_window_module, "TEMP_CPU_C", 90.0)
     monkeypatch.setattr(main_window_module, "TEMP_GPU_C", 100.0)
-    settings = SettingsService(data={"temp_alerts_enabled": True})
+    settings = SettingsService(
+        data={"temp_alerts_enabled": True, "alerts_quiet_during_games": False}
+    )
     window = MainWindow(settings=settings)
     tray = _StubTray()
     window.tray = tray
@@ -253,6 +257,7 @@ def test_main_window_alerts_on_high_cpu_and_ram(qapp) -> None:
         data={
             "temp_alerts_enabled": False,
             "usage_alerts_enabled": True,
+            "alerts_quiet_during_games": False,
         }
     )
     window = MainWindow(settings=settings)
@@ -277,6 +282,7 @@ def test_main_window_alerts_on_full_disk(qapp, monkeypatch) -> None:
         data={
             "temp_alerts_enabled": False,
             "usage_alerts_enabled": True,
+            "alerts_quiet_during_games": False,
         }
     )
     window = MainWindow(settings=settings)
