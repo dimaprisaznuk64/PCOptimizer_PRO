@@ -10,6 +10,7 @@ from .service import (
     GamingService,
 )
 from .telemetry import (
+    SESSION_COMPARE_METRICS,
     CsvFrameProvider,
     FrameProvider,
     FrameSample,
@@ -20,6 +21,8 @@ from .telemetry import (
     StaticFrameProvider,
     frame_stats,
     resource_metrics,
+    session_metric_unit,
+    session_metric_value,
 )
 
 __all__ = [
@@ -38,7 +41,10 @@ __all__ = [
     "GameSession",
     "GamingTelemetryService",
     "ResourceMetrics",
+    "SESSION_COMPARE_METRICS",
     "StaticFrameProvider",
     "frame_stats",
     "resource_metrics",
+    "session_metric_unit",
+    "session_metric_value",
 ]

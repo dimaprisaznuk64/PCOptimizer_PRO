@@ -3,7 +3,8 @@ from __future__ import annotations
 from dataclasses import replace
 from datetime import datetime
 
-from PySide6.QtCore import Qt, QTimer
+from PySide6.QtCore import QRectF, Qt, QTimer
+from PySide6.QtGui import QColor, QFontMetrics, QPainter, QPen
 from PySide6.QtWidgets import (
     QComboBox,
     QFileDialog,
@@ -23,14 +24,20 @@ from PySide6.QtWidgets import (
 )
 
 from app.gaming.service import GAMING_PROFILES, DetectedGame, GamingError, GamingService
-from app.gaming.telemetry import GameSession, GamingTelemetryService
+from app.gaming.telemetry import (
+    SESSION_COMPARE_METRICS,
+    GameSession,
+    GamingTelemetryService,
+    session_metric_unit,
+    session_metric_value,
+)
 from app.i18n import tr
 
 from .activity import ActivityLog, outcome_level
 from .activity import record as log_action
 from .components import CardTitleLabel, attach_empty_hint
 from .tasks import Task
-from .theme import CARD_PADDING
+from .theme import ACCENT, BORDER, CARD_PADDING, DANGER, OK, TEXT, TEXT_DIM
 
 COLUMN_KEYS = ("game_col_game", "game_col_source", "game_col_status", "game_col_location")
 SESSION_COLUMN_KEYS = (
@@ -40,6 +47,75 @@ SESSION_COLUMN_KEYS = (
     "game_telemetry_hist_col_fps",
     "game_telemetry_hist_col_low",
 )
+
+
+class SessionCompareChart(QWidget):
+    def __init__(self, parent: QWidget | None = None) -> None:
+        super().__init__(parent)
+        self.setMinimumHeight(110)
+        self.setSizePolicy(QSizePolicy.Expanding, QSizePolicy.MinimumExpanding)
+        self._sessions: list[GameSession] = []
+        self._metric = "cpu"
+
+    def set_sessions(self, sessions: list[GameSession]) -> None:
+        self._sessions = list(sessions)
+        self.update()
+
+    def set_metric(self, metric: str) -> None:
+        self._metric = metric
+        self.update()
+
+    def paintEvent(self, event) -> None:
+        painter = QPainter(self)
+        painter.setRenderHint(QPainter.RenderHint.Antialiasing)
+        rect = self.rect().adjusted(8, 8, -8, -22)
+        pairs: list[tuple[GameSession, float | None, float | None]] = []
+        for session in self._sessions:
+            before = session_metric_value(session, self._metric, "before")
+            after = session_metric_value(session, self._metric, "after")
+            if before is not None or after is not None:
+                pairs.append((session, before, after))
+        if rect.width() <= 0 or rect.height() <= 0:
+            return
+        if not pairs:
+            painter.setPen(QColor(TEXT_DIM))
+            painter.drawText(self.rect(), Qt.AlignmentFlag.AlignCenter, tr("game_chart_empty"))
+            return
+        top = max(max(value or 0.0 for value in pair[1:]) for pair in pairs) * 1.15
+        if self._metric in ("cpu", "ram", "gpu"):
+            top = max(100.0, top)
+        top = max(1.0, top)
+        axis_y = rect.bottom()
+        painter.setPen(QPen(QColor(BORDER), 1))
+        painter.drawLine(int(rect.left()), int(axis_y), int(rect.right()), int(axis_y))
+        group_width = rect.width() / len(pairs)
+        bar_width = max(4.0, min(18.0, group_width * 0.28))
+        metrics = QFontMetrics(self.font())
+        for index, (session, before, after) in enumerate(pairs):
+            center = rect.left() + group_width * (index + 0.5)
+            for slot, value in enumerate((before, after)):
+                if value is None:
+                    continue
+                height = value / top * rect.height()
+                x = center - bar_width * 1.1 + slot * bar_width * 1.1
+                painter.fillRect(
+                    QRectF(x, axis_y - height, bar_width, height),
+                    QColor(TEXT_DIM) if slot == 0 else QColor(ACCENT),
+                )
+                if bar_width >= 12:
+                    painter.setPen(QColor(TEXT))
+                    painter.drawText(
+                        QRectF(x - 4, axis_y - height - 16, bar_width + 8, 14),
+                        Qt.AlignmentFlag.AlignCenter,
+                        f"{value:.0f}",
+                    )
+            label = metrics.elidedText(session.game_name, Qt.TextElideMode.ElideRight, int(group_width - 6))
+            painter.setPen(QColor(TEXT_DIM))
+            painter.drawText(
+                QRectF(center - group_width / 2 + 3, axis_y + 3, group_width - 6, 16),
+                Qt.AlignmentFlag.AlignCenter,
+                label,
+            )
 
 
 class GamingPage(QWidget):
@@ -58,6 +134,7 @@ class GamingPage(QWidget):
         self._task: Task | None = None
         self._snapshot = None
         self._session_history_loaded = False
+        self._compare_sessions: list[GameSession] = []
         self._telemetry_timer = QTimer(self)
         self._telemetry_timer.setInterval(500)
         self._telemetry_timer.timeout.connect(self._poll_telemetry)
@@ -233,6 +310,8 @@ class GamingPage(QWidget):
         self.session_history.setAlternatingRowColors(True)
         self.session_history.setEditTriggers(QTableWidget.EditTrigger.NoEditTriggers)
         self.session_history.setSelectionBehavior(QTableWidget.SelectionBehavior.SelectRows)
+        self.session_history.setMinimumHeight(120)
+        self.session_history.setMaximumHeight(180)
         attach_empty_hint(self.session_history, "game_telemetry_history_empty")
         session_header = self.session_history.horizontalHeader()
         for col in range(len(SESSION_COLUMN_KEYS)):
@@ -240,6 +319,32 @@ class GamingPage(QWidget):
         session_header.setSectionResizeMode(1, QHeaderView.ResizeMode.Stretch)
         telemetry_layout.addWidget(self.session_history)
         layout.addWidget(telemetry_card, 0)
+
+        compare_card = QFrame()
+        compare_card.setObjectName("card")
+        compare_layout = QVBoxLayout(compare_card)
+        compare_layout.setContentsMargins(CARD_PADDING, CARD_PADDING, CARD_PADDING, CARD_PADDING)
+        compare_layout.setSpacing(8)
+        compare_title = CardTitleLabel(tr("game_chart_title"))
+        compare_layout.addWidget(compare_title)
+        self._compare_title = compare_title
+
+        compare_toolbar = QHBoxLayout()
+        self._compare_metric_label = QLabel(tr("game_chart_metric"))
+        self._compare_metric_label.setObjectName("cardSub")
+        compare_toolbar.addWidget(self._compare_metric_label)
+        self.compare_metric_combo = QComboBox()
+        for metric in SESSION_COMPARE_METRICS:
+            self.compare_metric_combo.addItem(tr(f"game_chart_metric_{metric}"), metric)
+        self.compare_metric_combo.currentIndexChanged.connect(self._on_compare_metric_changed)
+        compare_toolbar.addWidget(self.compare_metric_combo)
+        self.compare_summary = QLabel("")
+        self.compare_summary.setObjectName("cardSub")
+        compare_toolbar.addWidget(self.compare_summary, 1)
+        compare_layout.addLayout(compare_toolbar)
+        self.compare_chart = SessionCompareChart()
+        compare_layout.addWidget(self.compare_chart)
+        layout.addWidget(compare_card, 0)
 
         self._render_telemetry(None)
 
@@ -265,10 +370,21 @@ class GamingPage(QWidget):
         self.session_stop_button.setText(tr("game_telemetry_stop"))
         self._telemetry_title.setText(tr("game_telemetry_title"))
         self._session_history_title.setText(tr("game_telemetry_history_title"))
+        self._compare_title.setText(tr("game_chart_title"))
+        self._compare_metric_label.setText(tr("game_chart_metric"))
+        current_metric = self.compare_metric_combo.currentData()
+        self.compare_metric_combo.blockSignals(True)
+        self.compare_metric_combo.clear()
+        for metric in SESSION_COMPARE_METRICS:
+            self.compare_metric_combo.addItem(tr(f"game_chart_metric_{metric}"), metric)
+        index = self.compare_metric_combo.findData(current_metric)
+        self.compare_metric_combo.setCurrentIndex(max(index, 0))
+        self.compare_metric_combo.blockSignals(False)
         self.table.setHorizontalHeaderLabels([tr(k) for k in COLUMN_KEYS])
         self.session_history.setHorizontalHeaderLabels([tr(k) for k in SESSION_COLUMN_KEYS])
         self._on_selection_changed()
         self._render_telemetry(self._telemetry.session)
+        self._refresh_compare_chart(self._compare_sessions)
 
     @property
     def service(self) -> GamingService:
@@ -411,6 +527,7 @@ class GamingPage(QWidget):
 
     def _refresh_session_history(self) -> None:
         sessions = self._telemetry.sessions(limit=10)
+        self._refresh_compare_chart(sessions)
         self.session_history.setRowCount(len(sessions))
         for row, session in enumerate(sessions):
             when = datetime.fromtimestamp(session.started).strftime("%Y-%m-%d %H:%M")
@@ -423,6 +540,31 @@ class GamingPage(QWidget):
             )
             for col, value in enumerate(values):
                 self.session_history.setItem(row, col, QTableWidgetItem(value))
+
+    def _refresh_compare_chart(self, sessions: list[GameSession]) -> None:
+        self._compare_sessions = list(sessions)
+        ordered = list(reversed(sessions))
+        metric = str(self.compare_metric_combo.currentData() or "cpu")
+        self.compare_chart.set_metric(metric)
+        self.compare_chart.set_sessions(ordered)
+        deltas = []
+        for session in ordered:
+            before = session_metric_value(session, metric, "before")
+            after = session_metric_value(session, metric, "after")
+            if before is not None and after is not None:
+                deltas.append(after - before)
+        if not deltas:
+            self.compare_summary.setText(tr("game_chart_no_delta"))
+            self.compare_summary.setStyleSheet(f"color: {TEXT_DIM};")
+            return
+        average = sum(deltas) / len(deltas)
+        self.compare_summary.setText(tr("game_chart_delta", delta=average, unit=session_metric_unit(metric)))
+        beneficial = average > 0 if metric == "fps" else average < 0
+        color = TEXT_DIM if abs(average) < 0.5 else OK if beneficial else DANGER
+        self.compare_summary.setStyleSheet(f"color: {color};")
+
+    def _on_compare_metric_changed(self) -> None:
+        self._refresh_compare_chart(self._compare_sessions)
 
     def _on_profile_changed(self) -> None:
         game = self._selected_game()

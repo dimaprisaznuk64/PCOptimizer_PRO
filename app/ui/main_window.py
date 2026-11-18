@@ -40,6 +40,7 @@ from app.gaming import GamingService
 from app.history import PerformanceHistory
 from app.i18n import I18nService, tr
 from app.logs import get_logger
+from app.processes.service import ProcessService
 from app.settings import SettingsService
 
 from .pages import build_pages
@@ -138,6 +139,7 @@ class MainWindow(QMainWindow):
         parent: QWidget | None = None,
         *,
         gaming: GamingService | None = None,
+        processes: ProcessService | None = None,
     ) -> None:
         super().__init__(parent)
         self.setWindowTitle("PCOptimizer PRO")
@@ -154,6 +156,7 @@ class MainWindow(QMainWindow):
         self._update_task = None
         self.settings = settings or SettingsService()
         self._gaming = gaming or GamingService()
+        self._processes = processes or ProcessService()
         self._game_running = False
         self._game_watcher: _GamePresenceWatcher | None = None
         self._force_quit = False
@@ -163,7 +166,7 @@ class MainWindow(QMainWindow):
         self._back_shortcut = QShortcut(QKeySequence("Alt+Left"), self)
         self._back_shortcut.setContext(Qt.ShortcutContext.WindowShortcut)
         self._back_shortcut.activated.connect(self.go_back)
-        self._history = PerformanceHistory()
+        self._history = PerformanceHistory(process_top=self._processes.top_by_memory)
         cooldown = COOLDOWN_S
         self._cpu_monitor = TemperatureAlertMonitor(
             reading=max_cpu_thermal, cooldown_s=cooldown

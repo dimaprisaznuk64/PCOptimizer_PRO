@@ -3,7 +3,7 @@ from __future__ import annotations
 import json
 import logging
 import time
-from collections.abc import Callable
+from collections.abc import Callable, Sequence
 from dataclasses import dataclass
 from pathlib import Path
 
@@ -33,9 +33,10 @@ class HistorySample:
     gpu_power: float | None = None
     gpu_throttling: bool | None = None
     commit_percent: float | None = None
+    top_processes: tuple[tuple[str, float], ...] = ()
 
-    def to_dict(self) -> dict[str, float | bool | None]:
-        out: dict[str, float | bool | None] = {"ts": round(self.ts, 1)}
+    def to_dict(self) -> dict[str, object]:
+        out: dict[str, object] = {"ts": round(self.ts, 1)}
         for key in (
             "cpu",
             "ram",
@@ -51,10 +52,24 @@ class HistorySample:
             value = getattr(self, key)
             out[key] = round(value, 1) if value is not None else None
         out["gpu_throttling"] = self.gpu_throttling
+        out["top_processes"] = [[name, round(mb, 1)] for name, mb in self.top_processes]
         return out
 
     @classmethod
     def from_dict(cls, d: dict) -> HistorySample | None:
+        top_processes: list[tuple[str, float]] = []
+        raw_top = d.get("top_processes") or []
+        if isinstance(raw_top, list):
+            for item in raw_top[:8]:
+                if not isinstance(item, (list, tuple)) or len(item) != 2:
+                    continue
+                try:
+                    name = str(item[0])
+                    mb = float(item[1])
+                except (TypeError, ValueError):
+                    continue
+                if mb >= 0:
+                    top_processes.append((name, mb))
         try:
             return cls(
                 ts=float(d["ts"]),
@@ -69,6 +84,7 @@ class HistorySample:
                 gpu_power=d.get("gpu_power"),
                 gpu_throttling=d.get("gpu_throttling"),
                 commit_percent=d.get("commit_percent"),
+                top_processes=tuple(top_processes),
             )
         except (KeyError, TypeError, ValueError):
             return None
@@ -90,10 +106,12 @@ class PerformanceHistory:
         store: Path | str | None = None,
         max_age_hours: float = _DEFAULT_MAX_AGE_HOURS,
         now: Callable[[], float] | None = None,
+        process_top: Callable[[], Sequence[object]] | None = None,
     ) -> None:
         self._store = Path(store) if store else data_root() / _DEFAULT_STORE
         self._max_age_s = max_age_hours * 3600.0
         self._now = now or time.time
+        self._process_top = process_top
         self._last_record = 0.0
         self._append_count = 0
 
@@ -112,7 +130,16 @@ class PerformanceHistory:
         if now - self._last_record < self.SAMPLE_INTERVAL_S:
             return False
         self._last_record = now
-        sample = self._from_snapshot(snapshot, now)
+        top_processes: tuple[tuple[str, float], ...] = ()
+        if self._process_top is not None:
+            try:
+                rows = list(self._process_top() or [])[:8]
+                top_processes = tuple(
+                    (str(row.name), round(row.memory_bytes / 1048576.0, 1)) for row in rows
+                )
+            except Exception as exc:
+                log.warning("history process scan failed: %s", exc)
+        sample = self._from_snapshot(snapshot, now, top_processes)
         self._append(sample)
         self._compact_if_due()
         return True
@@ -134,7 +161,12 @@ class PerformanceHistory:
 
     # ---------- internals ----------
 
-    def _from_snapshot(self, snapshot, now: float) -> HistorySample:
+    def _from_snapshot(
+        self,
+        snapshot,
+        now: float,
+        top_processes: tuple[tuple[str, float], ...] = (),
+    ) -> HistorySample:
         cpu = snapshot.cpu.percent if snapshot.cpu else None
         ram = snapshot.memory.percent if snapshot.memory else None
         gpu = gpu_mem = temp_gpu = gpu_hotspot = gpu_mem_clock = gpu_power = None
@@ -172,6 +204,7 @@ class PerformanceHistory:
             gpu_power=gpu_power,
             gpu_throttling=gpu_throttling,
             commit_percent=commit_percent,
+            top_processes=top_processes,
         )
 
     def _append(self, sample: HistorySample) -> None:
@@ -239,4 +272,26 @@ def stats(samples: list[HistorySample], field: str) -> tuple[float, float, float
     values = [getattr(s, field) for s in samples if getattr(s, field) is not None]
     if not values:
         return None
-    return min(values), sum(values) / len(values), max(values)
+    lo = min(values)
+    hi = max(values)
+    return lo, sum(values) / len(values), hi
+
+
+def top_process_summary(
+    samples: list[HistorySample], limit: int = 8
+) -> list[tuple[str, float | None, float, int]]:
+    if not samples:
+        return []
+    latest = dict(samples[-1].top_processes)
+    peaks: dict[str, float] = {}
+    counts: dict[str, int] = {}
+    for sample in samples:
+        for name, mb in sample.top_processes:
+            peaks[name] = max(peaks.get(name, 0.0), mb)
+            counts[name] = counts.get(name, 0) + 1
+    names = [name for name, _ in samples[-1].top_processes]
+    names.extend(name for name in peaks if name not in latest)
+    rows: list[tuple[str, float | None, float, int]] = []
+    for name in names[:limit]:
+        rows.append((name, latest.get(name), peaks.get(name, 0.0), counts.get(name, 0)))
+    return rows

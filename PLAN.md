@@ -9,15 +9,18 @@
   upgrade are done.
 - Latest commit `e05e94f` (v2.0.0 Stage 2 extensions) is pushed to `origin/main`;
   earlier `94d999b` (cooperative shutdown, venv-aware launcher) is also pushed.
+  R68 gaming session charts and R69 per-process RAM history are source-only and
+  not committed.
 - v2.0.0 Stage 1 work: dedicated `tests/test_winpaths.py` (9 tests) and opt-in
   COM for background `Task`s — COM is now initialized only for hardware/health
   scans, not for psutil/subprocess work.
 - v2.0.0 Stage 2 work: session peaks in Monitor/GPU pages,
   extended NVML telemetry (GPU hotspot, memory clock, honest clock-limit reason),
   Windows commit-charge / virtual-memory detail, top RAM-consuming processes,
-  7-day history with advanced telemetry, and Gaming Mode 2.0 telemetry/profiles.
+  7-day history with advanced telemetry and per-process RAM history, and Gaming
+  Mode 2.0 telemetry/profiles/session comparison charts.
 - 17 pages, 29 themes, default theme **TITANIUM**.
-- Pytest suite is passing (**657 tests**). Ruff linter is clean. A pre-existing
+- Pytest suite is passing (**663 tests**). Ruff linter is clean. A pre-existing
   faulthandler artifact still prints native access-violation/0x80040155 traces
   during a full run; all tests pass. Two signal/thread timing flakes in task and
   dashboard tests were made deterministic.
@@ -39,8 +42,9 @@
   / clock-limit reason, session peaks for CPU/RAM/temperature and GPU metrics,
   Windows commit-charge detail for RAM.
 - Monitor shows the top RAM-consuming processes; History keeps 7 days and records
-  advanced GPU/commit telemetry; Gaming has per-game profiles, ARC Raiders, and
-  honest session FPS/frametime telemetry without an overlay or game injection.
+  advanced GPU/commit telemetry plus per-process RAM snapshots; Gaming has
+  per-game profiles, ARC Raiders, honest session FPS/frametime telemetry and
+  before/after comparison charts without an overlay or game injection.
 
 ## Audit v1.6.6 — step 1 (critical errors)
 - Date: 2026-11-04.
@@ -121,7 +125,7 @@
   throttling state and commit-charge percent; old entries remain readable.
 - History page has a 7-day range and commit/hotspot metric cards.
 - Verification: targeted Monitor/Processes/History/i18n suites 26 + 27 passed;
-  full suite 657 passed.
+  full suite 663 passed.
 
 ## v2.0.0 Stage 2 — Gaming Mode 2.0 telemetry
 - Added ARC Raiders (Steam appid `1808500`, `PioneerGame.exe`) and per-game
@@ -134,12 +138,35 @@
 - Gaming mode state is persisted separately in `gaming_mode.json`; a plain
   BALANCED optimizer backup no longer falsely restores «mode on».
 - Verification: targeted Gaming/Launcher/i18n suites 72 passed; full suite
-  657 passed; `ruff` and `compileall` clean.
+  663 passed; `ruff` and `compileall` clean.
+
+## v2.0.0 Stage 2 — Gaming session comparison charts
+- Gaming Page now has a «SESSION COMPARISON» card with a metric selector
+  (CPU/RAM/GPU load, GPU temp, FPS) and a grouped before/after bar chart built
+  from the last recorded sessions.
+- `session_metric_value()` / `session_metric_unit()` in `app/gaming/telemetry.py`
+  keep metric extraction pure and testable; FPS honestly has no before value
+  without a configured baseline.
+- The summary shows the average before→after change with direction-aware colour
+  (lower load/temp and higher FPS are good).
+- Verification: +2 tests (helpers + UI chart/metric switch); full suite 663
+  passed; `ruff` and `compileall` clean.
+
+## v2.0.0 Stage 2 — per-process RAM history
+- `HistorySample` now carries the top 8 RAM-consuming processes per snapshot as
+  `[name, MB]` pairs; old JSONL entries stay readable with an empty process list.
+- `PerformanceHistory` accepts an injectable `process_top` callback wired to
+  `ProcessService.top_by_memory()`; scan failures are logged and recorded as an
+  empty list without dropping the rest of the snapshot.
+- History page has a «TOP RAM PROCESSES» card showing latest usage, peak usage
+  and sample count per process, with EN/UA labels.
+- Verification: +5 tests (roundtrip, capture, failure, summary, page rendering);
+  targeted suite 50 passed; full suite 663 passed in 352.96s; `ruff` and
+  `compileall` clean.
 
 ## Next
 - v2.0.0 Stage 2 remaining: trustworthy CPU package power / thermal-throttling
-  source (only if a reliable Windows API appears), per-process RAM history,
-  long-term Gaming session comparison charts.
+  source (only if a reliable Windows API appears).
 - Continue Stage 2 with trustworthy CPU package power / thermal-throttling source
   only if a reliable Windows API appears.
 - Optional: wire `mypy` into the verification routine and fix the first batch

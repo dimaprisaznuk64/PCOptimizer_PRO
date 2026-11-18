@@ -448,6 +448,18 @@ TRANSLATIONS: dict[str, dict[str, str]] = {
         "game_telemetry_hist_col_low": "1% low",
         "game_telemetry_started": "Session started for {name}",
         "game_telemetry_saved": "Session saved ({count} frames)",
+        "game_chart_title": "SESSION COMPARISON",
+        "game_chart_metric": "Metric",
+        "game_chart_before": "Before",
+        "game_chart_after": "After",
+        "game_chart_empty": "No session data for this metric",
+        "game_chart_delta": "Average change: {delta:+.1f}{unit}",
+        "game_chart_no_delta": "Record sessions with before/after readings to see a delta",
+        "game_chart_metric_cpu": "CPU load",
+        "game_chart_metric_ram": "RAM usage",
+        "game_chart_metric_gpu": "GPU load",
+        "game_chart_metric_gpu_temp": "GPU temp",
+        "game_chart_metric_fps": "FPS",
 
         # Game launcher
         "launch_title": "Game Launcher",
@@ -795,6 +807,12 @@ TRANSLATIONS: dict[str, dict[str, str]] = {
         "hist_no_data": "No data recorded yet. Keep the app running — samples are saved every 30 seconds.",
         "hist_max_min": "max {max:.0f}% · min {min:.0f}%",
         "hist_max_only": "max {max:.0f}°C",
+        "hist_proc_title": "TOP RAM PROCESSES",
+        "hist_proc_empty": "No process samples recorded yet",
+        "hist_proc_col_name": "Process",
+        "hist_proc_col_latest": "Latest",
+        "hist_proc_col_peak": "Peak",
+        "hist_proc_col_samples": "Samples",
 
         # Settings
         "set_title": "Settings",
@@ -1435,6 +1453,18 @@ TRANSLATIONS: dict[str, dict[str, str]] = {
         "game_telemetry_hist_col_low": "1% low",
         "game_telemetry_started": "Сесію почато для {name}",
         "game_telemetry_saved": "Сесію збережено ({count} кадрів)",
+        "game_chart_title": "ПОРІВНЯННЯ СЕСІЙ",
+        "game_chart_metric": "Метрика",
+        "game_chart_before": "До",
+        "game_chart_after": "Після",
+        "game_chart_empty": "Для цієї метрики немає даних",
+        "game_chart_delta": "Середня зміна: {delta:+.1f}{unit}",
+        "game_chart_no_delta": "Запиши сесії з показниками до/після, щоб побачити різницю",
+        "game_chart_metric_cpu": "Завантаження CPU",
+        "game_chart_metric_ram": "Використання RAM",
+        "game_chart_metric_gpu": "Завантаження GPU",
+        "game_chart_metric_gpu_temp": "Температура GPU",
+        "game_chart_metric_fps": "FPS",
 
         # Game launcher
         "launch_title": "Лаунчер ігор",
@@ -1782,6 +1812,12 @@ TRANSLATIONS: dict[str, dict[str, str]] = {
         "hist_no_data": "Дані ще не записані. Залиште програму працювати — зразки зберігаються кожні 30 секунд.",
         "hist_max_min": "макс {max:.0f}% · мін {min:.0f}%",
         "hist_max_only": "макс {max:.0f}°C",
+        "hist_proc_title": "ТОП ПРОЦЕСІВ ЗА RAM",
+        "hist_proc_empty": "Ще немає даних по процесах",
+        "hist_proc_col_name": "Процес",
+        "hist_proc_col_latest": "Останнє",
+        "hist_proc_col_peak": "Пік",
+        "hist_proc_col_samples": "Зразків",
 
         # Settings
         "set_title": "Налаштування",

@@ -3,17 +3,28 @@ from __future__ import annotations
 from PySide6.QtCore import Qt
 from PySide6.QtWidgets import (
     QButtonGroup,
+    QFrame,
     QHBoxLayout,
+    QHeaderView,
     QLabel,
     QPushButton,
+    QTableWidget,
+    QTableWidgetItem,
     QVBoxLayout,
     QWidget,
 )
 
-from app.history import PerformanceHistory, downsample, stats
+from app.history import PerformanceHistory, downsample, stats, top_process_summary
 from app.i18n import tr
 
-from .components import MetricCard, PerfChart
+from .components import (
+    CardTitleLabel,
+    MetricCard,
+    PerfChart,
+    align_numeric_headers,
+    attach_empty_hint,
+)
+from .theme import CARD_PADDING
 
 _RANGES: tuple[tuple[str, float], ...] = (
     ("hist_range_1h", 60.0),
@@ -23,6 +34,12 @@ _RANGES: tuple[tuple[str, float], ...] = (
 )
 
 _CHART_POINTS = 120
+_PROC_COLUMN_KEYS = (
+    "hist_proc_col_name",
+    "hist_proc_col_latest",
+    "hist_proc_col_peak",
+    "hist_proc_col_samples",
+)
 
 
 class HistoryPage(QWidget):
@@ -98,6 +115,31 @@ class HistoryPage(QWidget):
         self._chart = PerfChart(title=tr("hist_chart_title"), points=_CHART_POINTS)
         layout.addWidget(self._chart, 1)
 
+        proc_card = QFrame()
+        proc_card.setObjectName("card")
+        proc_layout = QVBoxLayout(proc_card)
+        proc_layout.setContentsMargins(CARD_PADDING, CARD_PADDING, CARD_PADDING, CARD_PADDING)
+        proc_layout.setSpacing(8)
+        self._proc_title = CardTitleLabel(tr("hist_proc_title"))
+        proc_layout.addWidget(self._proc_title)
+        self.proc_table = QTableWidget(0, len(_PROC_COLUMN_KEYS))
+        self.proc_table.setHorizontalHeaderLabels([tr(k) for k in _PROC_COLUMN_KEYS])
+        self.proc_table.verticalHeader().setVisible(False)
+        self.proc_table.setShowGrid(False)
+        self.proc_table.setAlternatingRowColors(True)
+        self.proc_table.setEditTriggers(QTableWidget.EditTrigger.NoEditTriggers)
+        self.proc_table.setSelectionBehavior(QTableWidget.SelectionBehavior.SelectRows)
+        self.proc_table.setMinimumHeight(120)
+        self.proc_table.setMaximumHeight(180)
+        attach_empty_hint(self.proc_table, "hist_proc_empty")
+        proc_header = self.proc_table.horizontalHeader()
+        for col in range(len(_PROC_COLUMN_KEYS)):
+            proc_header.setSectionResizeMode(col, QHeaderView.ResizeMode.ResizeToContents)
+        proc_header.setSectionResizeMode(0, QHeaderView.ResizeMode.Stretch)
+        align_numeric_headers(self.proc_table, (1, 2, 3))
+        proc_layout.addWidget(self.proc_table)
+        layout.addWidget(proc_card, 0)
+
         self._refresh()
 
     @property
@@ -116,6 +158,7 @@ class HistoryPage(QWidget):
     def _refresh(self) -> None:
         samples = self._history.query(self._minutes)
         count = len(samples)
+        self.proc_table.setRowCount(0)
         self._chart.clear()
         if count == 0:
             self._info.setText(tr("hist_no_data"))
@@ -141,6 +184,20 @@ class HistoryPage(QWidget):
         points = downsample(samples, _CHART_POINTS)
         for s in points:
             self._chart.push(s.ts, cpu=s.cpu, ram=s.ram, gpu=s.gpu)
+        self._render_processes(samples)
+
+    def _render_processes(self, samples) -> None:
+        rows = top_process_summary(samples)
+        self.proc_table.setRowCount(len(rows))
+        for row_index, (name, latest, peak, samples_count) in enumerate(rows):
+            latest_text = f"{latest:.0f} MB" if latest is not None else "—"
+            values = (name, latest_text, f"{peak:.0f} MB", str(samples_count))
+            for col, value in enumerate(values):
+                item = QTableWidgetItem(value)
+                item.setFlags(item.flags() & ~Qt.ItemFlag.ItemIsEditable)
+                if col:
+                    item.setTextAlignment(Qt.AlignmentFlag.AlignRight | Qt.AlignmentFlag.AlignVCenter)
+                self.proc_table.setItem(row_index, col, item)
 
     @staticmethod
     def _update_stats(card: MetricCard, samples, field: str) -> None:
@@ -208,4 +265,7 @@ class HistoryPage(QWidget):
         self._temp_card.set_title(tr("hist_temp"))
         self._commit_card.set_title(tr("hist_commit"))
         self._hotspot_card.set_title(tr("hist_hotspot"))
+        self._proc_title.setText(tr("hist_proc_title"))
+        self.proc_table.setHorizontalHeaderLabels([tr(k) for k in _PROC_COLUMN_KEYS])
+        align_numeric_headers(self.proc_table, (1, 2, 3))
         self._refresh()

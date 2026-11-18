@@ -12,6 +12,8 @@ from pathlib import Path
 
 from app.settings import data_root
 
+SESSION_COMPARE_METRICS = ("cpu", "ram", "gpu", "gpu_temp", "fps")
+
 
 @dataclass(frozen=True, slots=True)
 class FrameSample:
@@ -234,6 +236,31 @@ def resource_metrics(snapshot) -> ResourceMetrics:
         system_temp=system_temp,
         commit_percent=commit_percent,
     )
+
+
+def session_metric_value(session: GameSession, metric: str, phase: str) -> float | None:
+    if metric == "fps":
+        if phase != "after" or not session.stats.samples:
+            return None
+        return session.stats.fps_avg
+    values = session.before if phase == "before" else session.after
+    if metric == "cpu":
+        return values.cpu_percent
+    if metric == "ram":
+        return values.ram_percent
+    if metric == "gpu":
+        return values.gpu_percent
+    if metric == "gpu_temp":
+        return values.gpu_temp
+    return None
+
+
+def session_metric_unit(metric: str) -> str:
+    if metric == "gpu_temp":
+        return "°C"
+    if metric == "fps":
+        return ""
+    return "%"
 
 
 def frame_stats(frames: Sequence[FrameSample]) -> FrameStats:

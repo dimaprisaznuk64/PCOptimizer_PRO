@@ -7,12 +7,16 @@ from app.gaming import (
     CsvFrameProvider,
     DetectedGame,
     FrameSample,
+    FrameStats,
+    GameSession,
     GamingService,
     GamingTelemetryService,
     ResourceMetrics,
     StaticFrameProvider,
     frame_stats,
     resource_metrics,
+    session_metric_unit,
+    session_metric_value,
 )
 from app.optimizer import ApplyReport, OptimizerService
 from app.ui.gaming import GamingPage
@@ -81,6 +85,26 @@ def test_resource_metrics_reads_advanced_snapshot() -> None:
     assert metrics.gpu_hotspot == 81.0
     assert metrics.system_temp == 66.0
     assert metrics.commit_percent == 80.0
+
+
+def test_session_metric_value_and_unit() -> None:
+    session = GameSession(
+        game_id="pubg",
+        game_name="PUBG",
+        profile="GAMING",
+        started=1.0,
+        before=ResourceMetrics(cpu_percent=50.0, gpu_temp=70.0),
+        after=ResourceMetrics(cpu_percent=40.0, gpu_temp=76.0),
+        stats=FrameStats(fps_avg=120.0, samples=10),
+    )
+    assert session_metric_value(session, "cpu", "before") == 50.0
+    assert session_metric_value(session, "cpu", "after") == 40.0
+    assert session_metric_value(session, "gpu_temp", "after") == 76.0
+    assert session_metric_value(session, "fps", "before") is None
+    assert session_metric_value(session, "fps", "after") == 120.0
+    assert session_metric_unit("cpu") == "%"
+    assert session_metric_unit("gpu_temp") == "°C"
+    assert session_metric_unit("fps") == ""
 
 
 def test_telemetry_session_lifecycle_and_history(tmp_path) -> None:
@@ -167,3 +191,10 @@ def test_gaming_page_session_buttons_and_snapshot(qapp, tmp_path) -> None:
     assert telemetry.active is False
     assert page.session_history.rowCount() == 1
     assert page.session_history.item(0, 1).text() == "PUBG: BATTLEGROUNDS"
+    assert len(page._compare_sessions) == 1
+    assert not page.compare_chart.grab().isNull()
+    assert "Average change" in page.compare_summary.text()
+    fps_index = page.compare_metric_combo.findData("fps")
+    page.compare_metric_combo.setCurrentIndex(fps_index)
+    assert page.compare_chart._metric == "fps"
+    assert page.compare_summary.text() == "Record sessions with before/after readings to see a delta"

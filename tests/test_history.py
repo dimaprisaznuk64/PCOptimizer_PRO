@@ -2,10 +2,17 @@ from __future__ import annotations
 
 import json
 import time
+from types import SimpleNamespace
 
 import pytest
 
-from app.history import HistorySample, PerformanceHistory, downsample, stats
+from app.history import (
+    HistorySample,
+    PerformanceHistory,
+    downsample,
+    stats,
+    top_process_summary,
+)
 from app.ui.history import HistoryPage
 
 
@@ -96,6 +103,16 @@ def test_sample_from_legacy_dict_defaults_new_fields():
     assert s.gpu_hotspot is None
     assert s.commit_percent is None
     assert s.gpu_throttling is None
+    assert s.top_processes == ()
+
+
+def test_sample_top_processes_roundtrip():
+    s = HistorySample(ts=1.0, top_processes=(("chrome.exe", 1200.5), ("python.exe", 300.0)))
+    back = HistorySample.from_dict(s.to_dict())
+    assert back == s
+    legacy = HistorySample.from_dict({"ts": 1.0, "top_processes": [["bad"], ["x", -1]]})
+    assert legacy is not None
+    assert legacy.top_processes == ()
 
 
 # ---------- PerformanceHistory.record / query ----------
@@ -189,6 +206,26 @@ def test_record_extracts_advanced_telemetry(tmp_path):
     assert s.commit_percent == pytest.approx(80.0)
 
 
+def test_record_captures_top_processes(tmp_path):
+    rows = [
+        SimpleNamespace(name="chrome.exe", memory_bytes=1024 * 1024 * 800),
+        SimpleNamespace(name="python.exe", memory_bytes=1024 * 1024 * 250),
+    ]
+    h = PerformanceHistory(store=tmp_path / "h.jsonl", process_top=lambda: rows)
+    assert h.record(FakeSnapshot()) is True
+    sample = h.query(1.0)[0]
+    assert sample.top_processes == (("chrome.exe", 800.0), ("python.exe", 250.0))
+
+
+def test_record_survives_process_scan_failure(tmp_path):
+    def broken():
+        raise RuntimeError("access denied")
+
+    h = PerformanceHistory(store=tmp_path / "h.jsonl", process_top=broken)
+    assert h.record(FakeSnapshot()) is True
+    assert h.query(1.0)[0].top_processes == ()
+
+
 def test_record_no_gpu_no_thermal(tmp_path):
     h = PerformanceHistory(store=tmp_path / "h.jsonl")
     h.record(FakeSnapshot(gpu_util=None, thermal_max=None))
@@ -269,6 +306,34 @@ def test_history_page_shows_7d_range_and_advanced_cards(qapp, tmp_path) -> None:
     assert page._hotspot_card.value.text() == "85°C"
 
 
+def test_top_process_summary_latest_peak_and_counts():
+    samples = [
+        HistorySample(ts=1.0, top_processes=(("a.exe", 100.0), ("gone.exe", 50.0))),
+        HistorySample(ts=2.0, top_processes=(("a.exe", 180.0), ("b.exe", 90.0))),
+        HistorySample(ts=3.0, top_processes=(("a.exe", 120.0), ("b.exe", 200.0))),
+    ]
+    rows = top_process_summary(samples)
+    assert rows[0] == ("a.exe", 120.0, 180.0, 3)
+    assert rows[1] == ("b.exe", 200.0, 200.0, 2)
+    assert ("gone.exe", None, 50.0, 1) in rows
+
+
+def test_history_page_renders_top_process_history(qapp, tmp_path):
+    store = tmp_path / "h.jsonl"
+    now = time.time()
+    samples = [
+        HistorySample(ts=now - 60, top_processes=(("a.exe", 100.0),)),
+        HistorySample(ts=now, top_processes=(("a.exe", 150.0), ("b.exe", 90.0))),
+    ]
+    store.write_text("\n".join(json.dumps(s.to_dict()) for s in samples) + "\n", encoding="utf-8")
+    page = HistoryPage(PerformanceHistory(store=store))
+    assert page.proc_table.rowCount() == 2
+    assert page.proc_table.item(0, 0).text() == "a.exe"
+    assert page.proc_table.item(0, 1).text() == "150 MB"
+    assert page.proc_table.item(0, 2).text() == "150 MB"
+    assert page.proc_table.item(0, 3).text() == "2"
+
+
 # ---------- downsample ----------
 
 
@@ -333,6 +398,7 @@ def test_main_window_records_history(qapp, tmp_path, monkeypatch):
     try:
         assert window._history is not None
         assert window._history.store == tmp_path / "performance_history.jsonl"
+        assert window._history._process_top is not None
     finally:
         window.shutdown()
         window.deleteLater()
