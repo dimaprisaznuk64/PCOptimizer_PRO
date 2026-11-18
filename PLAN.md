@@ -7,10 +7,9 @@
   paths + UTF-8/OEM decoding, honest restore statuses, COM/background-task
   cleanup and safer update redirects. GitHub Release and the silent `app_run`
   upgrade are done.
-- Latest commit `e05e94f` (v2.0.0 Stage 2 extensions) is pushed to `origin/main`;
-  earlier `94d999b` (cooperative shutdown, venv-aware launcher) is also pushed.
-  R68 gaming session charts and R69 per-process RAM history are source-only and
-  not committed.
+- Latest commit `3dc29ce` (v2.0.0 tools batch + Task lifecycle fix) is pushed to
+  `origin/main`; `d6bb2db` (R68 gaming session charts, R69 per-process RAM
+  history) and earlier `e05e94f`/`94d999b` are also pushed.
 - v2.0.0 Stage 1 work: dedicated `tests/test_winpaths.py` (9 tests) and opt-in
   COM for background `Task`s — COM is now initialized only for hardware/health
   scans, not for psutil/subprocess work.
@@ -21,7 +20,7 @@
   Mode 2.0 telemetry/profiles/session comparison charts.
 - 19 pages, 29 themes, default theme **TITANIUM**.
 - Newest v2 tools work (Cleaner 2.0, Diagnostics 2.0, Drivers, System Report) is
-  source-only and not committed; version/exe/installer are unchanged (v1.7.1).
+  committed in `3dc29ce`; version/exe/installer are unchanged (v1.7.1).
 - Pytest suite is passing (**747 tests**). Ruff linter is clean. A pre-existing
   faulthandler artifact still prints native access-violation/0x80040155 traces
   during a full run; all tests pass. Two signal/thread timing flakes in task and
