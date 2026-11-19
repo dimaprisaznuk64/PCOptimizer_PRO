@@ -1,21 +1,22 @@
 from __future__ import annotations
 
-from app.ui.components import MetricCard, PerfChart, RingCard, ScoreRing, Sparkline, level_color
-from app.ui.theme import ACCENT, DANGER, OK, WARN
+from app.ui import components as ui_components
+from app.ui import theme
+from app.ui.components import MetricCard, PerfChart, RingCard, Sparkline
 
 
 def test_level_color_thresholds() -> None:
-    assert level_color(95) == DANGER
-    assert level_color(90) == DANGER
-    assert level_color(75) == WARN
-    assert level_color(74) == ACCENT
-    assert level_color(0) == ACCENT
+    assert ui_components.level_color(95) == ui_components.DANGER
+    assert ui_components.level_color(90) == ui_components.DANGER
+    assert ui_components.level_color(75) == ui_components.WARN
+    assert ui_components.level_color(74) == ui_components.ACCENT
+    assert ui_components.level_color(0) == ui_components.ACCENT
 
 
 def test_level_color_thresholds_with_custom_base() -> None:
-    assert level_color(30, base=OK) == OK
-    assert level_color(90, base=OK) == DANGER
-    assert level_color(80, base=OK) == WARN
+    assert ui_components.level_color(30, base=ui_components.OK) == ui_components.OK
+    assert ui_components.level_color(90, base=ui_components.OK) == ui_components.DANGER
+    assert ui_components.level_color(80, base=ui_components.OK) == ui_components.WARN
 
 
 def test_metric_card_spark_range_stored(qapp) -> None:
@@ -29,19 +30,27 @@ def test_sparkline_explicit_range(qapp) -> None:
 
 
 def test_metric_card_bar_color_follows_level(qapp) -> None:
-    card = MetricCard("CPU", color=ACCENT)
+    card = MetricCard("CPU", color=ui_components.ACCENT)
     card.update_metric("80%", percent=80)
-    assert card.bar._color == WARN
+    assert card.bar._color == ui_components.WARN
     card.update_metric("95%", percent=95)
-    assert card.bar._color == DANGER
+    assert card.bar._color == ui_components.DANGER
     card.update_metric("50%", percent=50)
-    assert card.bar._color == ACCENT
+    assert card.bar._color == ui_components.ACCENT
 
 
 def test_ring_card_displays_value(qapp) -> None:
-    card = RingCard("CPU", ACCENT)
+    card = RingCard("CPU", ui_components.ACCENT)
     card.update_metric("42%", percent=42.0)
     assert card.value.text() == "42%"
+
+
+def test_component_animations_use_shared_motion_tokens(qapp) -> None:
+    from PySide6.QtWidgets import QLabel
+
+    assert RingCard("CPU", ui_components.ACCENT)._shadow_anim.duration() == theme.MOTION_BASE
+    assert ui_components._Ring(ui_components.ACCENT)._anim.duration() == theme.MOTION_VALUE
+    assert ui_components.ScoreRing(QLabel())._anim.duration() == theme.MOTION_AMOUNT
 
 
 def test_perf_chart_clear_removes_old_series(qapp) -> None:
@@ -54,9 +63,9 @@ def test_perf_chart_clear_removes_old_series(qapp) -> None:
 
 
 def test_score_ring_color_for(qapp) -> None:
-    assert ScoreRing.color_for(90) == OK
-    assert ScoreRing.color_for(60) == WARN
-    assert ScoreRing.color_for(20) == DANGER
+    assert ui_components.ScoreRing.color_for(90) == ui_components.OK
+    assert ui_components.ScoreRing.color_for(60) == ui_components.WARN
+    assert ui_components.ScoreRing.color_for(20) == ui_components.DANGER
 
 
 def test_chart_time_axis_single_formatter(qapp) -> None:
@@ -85,14 +94,14 @@ def test_chart_axis_labels_are_monotonic(qapp) -> None:
 
 def test_chart_series_colors_are_distinct_and_match_cards(qapp) -> None:
     from app.ui.components import chart_series_color
-    from app.ui.theme import C2, C3, WARN
 
-    assert chart_series_color("C2") == C2
-    assert chart_series_color("C3") == C3
-    assert chart_series_color("WARN") == WARN
+    assert chart_series_color("C2") == theme.C2
+    assert chart_series_color("C3") == theme.C3
+    assert chart_series_color("WARN") == theme.WARN
     # CPU / GPU / RAM map to three different colours (the conftest pins EN; the
     # exact hex comes from the active theme).
-    assert len({C2, C3, WARN}) == 3
+    assert len({theme.C2, theme.C3, theme.WARN}) == 3
+
 
 
 def test_perf_chart_legend_follows_selected_tab(qapp) -> None:
@@ -275,14 +284,14 @@ def test_ring_keeps_series_color_and_marks_threshold_only(qapp) -> None:
 
     from app.ui.components import _Ring
 
-    ring = _Ring(ACCENT, size=124)
+    ring = _Ring(ui_components.ACCENT, size=124)
     ring.resize(124, 124)
     ring.set_percent(95.0)
     pixmap = QPixmap(ring.size())
     ring.render(pixmap)
     image = pixmap.toImage()
-    danger = QColor(DANGER)
-    accent = QColor(ACCENT)
+    danger = QColor(ui_components.DANGER)
+    accent = QColor(ui_components.ACCENT)
     danger_hits = accent_hits = 0
     for y in range(image.height()):
         for x in range(image.width()):
@@ -317,7 +326,7 @@ def test_bar_marker_and_card_panel_propagation(qapp) -> None:
 
 
 def test_ring_card_border_is_property_driven(qapp) -> None:
-    card = RingCard("CPU", ACCENT)
+    card = RingCard("CPU", ui_components.ACCENT)
     # No CSS :hover (it could get stuck) — explicit hot property instead.
     assert "hover" not in card.styleSheet()
     assert '[hot="true"]' in card.styleSheet()

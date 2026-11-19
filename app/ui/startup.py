@@ -23,7 +23,7 @@ from app.startup import StartupItem, StartupService
 from .components import CardTitleLabel, attach_empty_hint
 from .format import mb
 from .tasks import Task
-from .theme import CARD_PADDING
+from .theme import CARD_PADDING, PAGE_MARGINS
 
 COLUMN_KEYS = ("start_col_name", "start_col_source", "start_col_command", "start_col_impact", "start_col_state")
 COLUMNS = tuple(tr(k) for k in COLUMN_KEYS)
@@ -80,7 +80,7 @@ class StartupPage(QWidget):
         self.detail_rows: dict[str, QLabel] = {}
 
         layout = QVBoxLayout(self)
-        layout.setContentsMargins(40, 36, 40, 32)
+        layout.setContentsMargins(*PAGE_MARGINS)
         layout.setSpacing(10)
 
         title = QLabel(tr("start_title"))

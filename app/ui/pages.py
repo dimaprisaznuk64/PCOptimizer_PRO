@@ -31,7 +31,9 @@ class PlaceholderPage(QWidget):
         layout.addStretch(1)
 
 
-def build_pages(settings=None, on_theme_applied=None) -> list[tuple[str, QWidget]]:
+def build_pages(
+    settings=None, on_theme_applied=None, history=None, on_scale_applied=None
+) -> list[tuple[str, QWidget]]:
     from app.settings import SettingsService
 
     from .benchmarks import BenchmarksPage
@@ -61,7 +63,7 @@ def build_pages(settings=None, on_theme_applied=None) -> list[tuple[str, QWidget
         settings = SettingsService()
 
     return [
-        ("dashboard", DashboardPage()),
+        ("dashboard", DashboardPage(history=history)),
         ("monitor", MonitorPage()),
         ("temperature", TemperaturePage()),
         ("gpu", GpuPage()),
@@ -74,7 +76,7 @@ def build_pages(settings=None, on_theme_applied=None) -> list[tuple[str, QWidget
         ("launcher", LauncherPage()),
         ("benchmarks", BenchmarksPage()),
         ("hardware_benchmark", HardwareBenchmarkPage()),
-        ("history", HistoryPage()),
+        ("history", HistoryPage(history)),
         ("network", NetworkPage()),
         ("disk", DiskPage()),
         ("diagnostics", DiagnosticsPage()),
@@ -82,5 +84,10 @@ def build_pages(settings=None, on_theme_applied=None) -> list[tuple[str, QWidget
         ("system_report", SystemReportPage()),
         ("export_center", ExportCenterPage()),
         ("health", HealthPage()),
-        ("settings", SettingsPage(settings, on_theme_applied=on_theme_applied)),
+        (
+            "settings",
+            SettingsPage(
+                settings, on_theme_applied=on_theme_applied, on_scale_applied=on_scale_applied
+            ),
+        ),
     ]

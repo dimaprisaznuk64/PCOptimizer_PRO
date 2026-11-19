@@ -24,7 +24,7 @@ from .components import (
     align_numeric_headers,
     attach_empty_hint,
 )
-from .theme import CARD_PADDING
+from .theme import CARD_PADDING, PAGE_MARGINS
 
 _RANGES: tuple[tuple[str, float], ...] = (
     ("hist_range_1h", 60.0),
@@ -56,7 +56,7 @@ class HistoryPage(QWidget):
         self._minutes = 360.0  # default 6 h
 
         layout = QVBoxLayout(self)
-        layout.setContentsMargins(40, 36, 40, 32)
+        layout.setContentsMargins(*PAGE_MARGINS)
         layout.setSpacing(10)
 
         title = QLabel(tr("hist_title"))

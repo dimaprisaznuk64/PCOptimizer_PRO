@@ -117,6 +117,7 @@ def test_collect_values_shape(qapp, tmp_path) -> None:
         "log_level",
         "theme",
         "language",
+        "ui_scale",
     }
     assert isinstance(values["sample_interval_ms"], int)
     assert isinstance(values["minimize_to_tray"], bool)
@@ -151,6 +152,29 @@ def test_reset_applies_default_theme(qapp, tmp_path) -> None:
     page.reset()
     assert applied == [DEFAULTS["theme"]]
     assert page.theme_combo.currentData() == DEFAULTS["theme"]
+
+
+def test_ui_scale_is_persisted_and_applied_live(qapp, tmp_path) -> None:
+    applied: list[int] = []
+    page = _page(qapp, tmp_path, on_scale_applied=applied.append)
+    assert page.scale_spin.minimum() == 100
+    assert page.scale_spin.maximum() == 150
+    page.scale_spin.setValue(125)
+    page.save()
+    assert applied == [125]
+    assert SettingsService(tmp_path / "settings.json").get("ui_scale") == 125
+
+
+def test_reset_restores_default_ui_scale(qapp, tmp_path) -> None:
+    applied: list[int] = []
+    page = _page(qapp, tmp_path, on_scale_applied=applied.append)
+    page.scale_spin.setValue(140)
+    page.save()
+    assert applied == [140]
+    applied.clear()
+    page.reset()
+    assert applied == [DEFAULTS["ui_scale"]]
+    assert page.scale_spin.value() == DEFAULTS["ui_scale"]
 
 
 def test_restart_admin_cancel_keeps_app_running(qapp, tmp_path, monkeypatch) -> None:

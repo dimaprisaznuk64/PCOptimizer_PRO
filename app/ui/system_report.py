@@ -21,7 +21,7 @@ from app.i18n import tr
 from app.reports.system import SystemReportConfig, build_system_report
 
 from .tasks import Task
-from .theme import CARD_PADDING
+from .theme import CARD_PADDING, PAGE_MARGINS
 
 SECTION_KEYS = (
     "system",
@@ -110,7 +110,7 @@ class SystemReportPage(QWidget):
         self._format = "html"
 
         layout = QVBoxLayout(self)
-        layout.setContentsMargins(40, 36, 40, 32)
+        layout.setContentsMargins(*PAGE_MARGINS)
         layout.setSpacing(10)
 
         title = QLabel(tr("sys_title"))

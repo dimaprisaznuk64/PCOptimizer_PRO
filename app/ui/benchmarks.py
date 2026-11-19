@@ -26,7 +26,7 @@ from app.settings import data_root
 
 from .components import CardTitleLabel, attach_empty_hint
 from .tasks import Task
-from .theme import CARD_PADDING, DANGER, OK
+from .theme import CARD_PADDING, DANGER, OK, PAGE_MARGINS
 
 _COLUMNS = (
     "bench_col_metric",
@@ -79,7 +79,7 @@ class BenchmarksPage(QWidget):
         self._task: Task | None = None
 
         layout = QVBoxLayout(self)
-        layout.setContentsMargins(40, 36, 40, 32)
+        layout.setContentsMargins(*PAGE_MARGINS)
         layout.setSpacing(10)
 
         title = QLabel(tr("bench_title"))

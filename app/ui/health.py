@@ -26,7 +26,7 @@ from .activity import ActivityLog
 from .activity import record as log_action
 from .components import ScoreRing, attach_empty_hint
 from .tasks import Task
-from .theme import ACCENT, CARD_PADDING, DANGER, OK, TEXT_DIM, WARN
+from .theme import ACCENT, CARD_PADDING, DANGER, OK, PAGE_MARGINS, TEXT_DIM, WARN
 
 HEALTH_COLUMN_KEYS = (
     "health_col_category", "health_col_severity", "health_col_issue",
@@ -142,7 +142,7 @@ class HealthPage(QWidget):
         self._action_cells: list[QWidget] = []
 
         layout = QVBoxLayout(self)
-        layout.setContentsMargins(40, 36, 40, 32)
+        layout.setContentsMargins(*PAGE_MARGINS)
         layout.setSpacing(10)
 
         title = QLabel(tr("health_title"))

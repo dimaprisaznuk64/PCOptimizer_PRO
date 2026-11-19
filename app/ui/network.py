@@ -23,7 +23,7 @@ from app.network import DEFAULT_PING_HOST, CheckResult, NetworkService, PingResu
 from .activity import record as log_action
 from .components import CardTitleLabel, attach_empty_hint
 from .tasks import Task
-from .theme import CARD_PADDING
+from .theme import CARD_PADDING, PAGE_MARGINS
 
 PING_COLUMN_KEYS = ("net_col_time", "net_col_host", "net_col_avg", "net_col_loss", "net_col_result")
 DIAG_COLUMN_KEYS = ("net_col_check", "net_col_status", "net_col_detail")
@@ -65,7 +65,7 @@ class NetworkPage(QWidget):
         self._results: list[PingResult] = []
 
         layout = QVBoxLayout(self)
-        layout.setContentsMargins(40, 36, 40, 32)
+        layout.setContentsMargins(*PAGE_MARGINS)
         layout.setSpacing(10)
 
         title = QLabel(tr("net_title"))

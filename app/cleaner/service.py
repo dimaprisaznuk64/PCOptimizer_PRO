@@ -483,8 +483,14 @@ class CleanerService:
         script = PS_UTF8_PREFIX + (
             "$rb=(New-Object -ComObject Shell.Application).NameSpace(0xA);"
             "$its=@($rb.Items());"
-            "$sum=($its | Measure-Object -Property Size -Sum).Sum;"
-            'Write-Output ("{0};{1}" -f $its.Count, [int64]$sum)'
+            "$sum=[uint64]0;"
+            "foreach($it in $its){"
+            "$p=$it.Path;"
+            "if($p -and (Test-Path -LiteralPath $p)){"
+            "try{$sum += [uint64](Get-Item -LiteralPath $p -Force).Length}catch{}"
+            "}else{$sz=[int64]$it.Size;if($sz -gt 0){$sum += [uint64]$sz}}"
+            "}"
+            'Write-Output ("{0};{1}" -f $its.Count, $sum)'
         )
         try:
             out = subprocess.run(
@@ -502,7 +508,7 @@ class CleanerService:
         line = (stdout.strip().splitlines() or [""])[-1]
         try:
             count_text, bytes_text = line.split(";")
-            return ScanResult(target.id, int(count_text), int(bytes_text))
+            return ScanResult(target.id, max(0, int(count_text)), max(0, int(bytes_text)))
         except ValueError:
             return ScanResult(target.id, 0, 0, f"unexpected output: {line[:100]}")
 

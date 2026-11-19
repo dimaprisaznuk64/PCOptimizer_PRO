@@ -41,7 +41,7 @@ from .activity import record as log_action
 from .components import CardTitleLabel, align_numeric_headers
 from .format import size
 from .tasks import Task
-from .theme import CARD_PADDING
+from .theme import CARD_PADDING, PAGE_MARGINS
 
 COLUMN_KEYS = ("clean_col_target", "clean_col_category", "clean_col_files", "clean_col_size", "clean_col_status")
 COLUMNS = tuple(tr(k) for k in COLUMN_KEYS)
@@ -106,7 +106,7 @@ class CleanerPage(QWidget):
         self._task: Task | None = None
 
         layout = QVBoxLayout(self)
-        layout.setContentsMargins(40, 36, 40, 32)
+        layout.setContentsMargins(*PAGE_MARGINS)
         layout.setSpacing(10)
 
         title = QLabel(tr("clean_title"))

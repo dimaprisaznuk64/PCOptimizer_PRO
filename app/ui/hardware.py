@@ -22,7 +22,7 @@ from app.i18n import tr
 from .components import CardTitleLabel, ValueListCard, attach_empty_hint
 from .format import size as fmt_size
 from .tasks import Task
-from .theme import CARD_PADDING
+from .theme import CARD_PADDING, PAGE_MARGINS
 
 MEM_COLUMN_KEYS = (
     "hw_col_slot",
@@ -67,7 +67,7 @@ class HardwarePage(QWidget):
         self._loaded = False
 
         layout = QVBoxLayout(self)
-        layout.setContentsMargins(40, 36, 40, 32)
+        layout.setContentsMargins(*PAGE_MARGINS)
         layout.setSpacing(10)
 
         title = QLabel(tr("hw_title"))

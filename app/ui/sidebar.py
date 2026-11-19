@@ -20,19 +20,25 @@ from .theme import (
     BRAND_A,
     BRAND_B,
     C1,
+    LOGO_SIZE,
+    NAV_ICON_SIZE,
     OK,
+    PADDING_LG,
+    PADDING_SM,
     PANEL,
+    RADIUS_LG,
+    RADIUS_MD,
+    SIDEBAR_COMPACT_WIDTH,
+    SIDEBAR_WIDTH,
+    SPACING_MD,
     T_BRAND,
     T_CAPTION,
     T_MICRO,
     T_SMALL,
     TEXT,
     TEXT_DIM,
+    ls,
 )
-
-# Sidebar widths: the full rail shows labels, the compact rail is icons only.
-SIDEBAR_WIDTH = 238
-SIDEBAR_COMPACT_WIDTH = 64
 
 NAV_KEYS: tuple[tuple[str, str], ...] = (
     ("dashboard", "nav_dashboard"),
@@ -61,31 +67,48 @@ NAV_KEYS: tuple[tuple[str, str], ...] = (
 
 NAV_ITEMS: tuple[tuple[str, str], ...] = tuple((k, tr(kk)) for k, kk in NAV_KEYS)
 
-NAV_SECTIONS: dict[str, str] = {}
+# One source of truth for the grouped rail. Every navigation key appears exactly
+# once; NAV_KEYS stays unchanged so TopBar page numbers and tests keep working.
+NAV_GROUPS: tuple[tuple[str, str, tuple[str, ...]], ...] = (
+    ("overview", "nav_group_overview", ("dashboard", "health")),
+    ("monitoring", "nav_group_monitoring", ("monitor", "temperature", "gpu", "history")),
+    ("hardware", "nav_group_hardware", ("hardware", "processes", "drivers")),
+    ("optimization", "nav_group_optimization", ("cleaner", "startup", "optimizer", "disk")),
+    ("gaming", "nav_group_gaming", ("gaming", "launcher", "benchmarks", "hardware_benchmark")),
+    ("tools", "nav_group_tools", ("network", "diagnostics", "system_report", "export_center")),
+    ("settings", "nav_group_settings", ("settings",)),
+)
+
+_GROUP_OF_KEY: dict[str, str] = {
+    key: group for group, _tr_key, keys in NAV_GROUPS for key in keys
+}
 
 
 class _LogoMark(QWidget):
     def __init__(self, parent: QWidget | None = None) -> None:
         super().__init__(parent)
-        self.setFixedSize(36, 36)
+        self.setFixedSize(LOGO_SIZE, LOGO_SIZE)
 
     def paintEvent(self, event) -> None:
         from PySide6.QtGui import QColor, QLinearGradient, QPainter, QPainterPath
 
         p = QPainter(self)
         p.setRenderHint(QPainter.RenderHint.Antialiasing)
-        grad = QLinearGradient(0, 0, 36, 36)
+        grad = QLinearGradient(0, 0, LOGO_SIZE, LOGO_SIZE)
         grad.setColorAt(0.0, QColor(BRAND_A))
         grad.setColorAt(1.0, QColor(BRAND_B))
         p.setBrush(grad)
         p.setPen(Qt.PenStyle.NoPen)
         path = QPainterPath()
-        path.addRoundedRect(2, 2, 32, 32, 9, 9)
+        inset = ls(2)
+        path.addRoundedRect(
+            inset, inset, LOGO_SIZE - inset * 2, LOGO_SIZE - inset * 2, RADIUS_MD, RADIUS_MD
+        )
         p.drawPath(path)
         p.setPen(QColor("#FFFFFF"))
         font = p.font()
         font.setBold(True)
-        font.setPointSize(11)
+        font.setPointSize(max(8, T_CAPTION - 1))
         p.setFont(font)
         p.drawText(self.rect(), Qt.AlignmentFlag.AlignCenter, "PC")
 
@@ -158,16 +181,33 @@ class Sidebar(QWidget):
         for key, _tr_key in NAV_KEYS:
             button = QPushButton(f"  {tr(_tr_key)}")
             button.setAccessibleName(tr(_tr_key))
+            button.setToolTip(tr(f"tip_nav_{key}"))
             button.setProperty("nav", True)
             button.setIcon(nav_icon(key))
-            button.setIconSize(QSize(18, 18))
+            button.setIconSize(QSize(NAV_ICON_SIZE, NAV_ICON_SIZE))
             button.setCheckable(True)
             button.setCursor(Qt.CursorShape.PointingHandCursor)
             button.installEventFilter(self)  # own hover state (Qt's :hover can get stuck)
             button.clicked.connect(lambda _=False, k=key: self.navigated.emit(k))
-            nav_layout.addWidget(button)
             self._group.addButton(button)
             self._buttons[key] = button
+
+        self._group_buttons: dict[str, QPushButton] = {}
+        self._group_tr = {group: tr_key for group, tr_key, _ in NAV_GROUPS}
+        self._group_keys = {group: keys for group, _, keys in NAV_GROUPS}
+        self._collapsed: set[str] = set()
+        for group, _tr_key, keys in NAV_GROUPS:
+            header = QPushButton()
+            header.setObjectName("navGroup")
+            header.setProperty("navGroup", True)
+            header.setCheckable(True)
+            header.setChecked(True)
+            header.setCursor(Qt.CursorShape.PointingHandCursor)
+            header.clicked.connect(lambda _=False, g=group: self.toggle_group(g))
+            nav_layout.addWidget(header)
+            self._group_buttons[group] = header
+            for key in keys:
+                nav_layout.addWidget(self._buttons[key])
 
         nav_layout.addStretch(1)
 
@@ -189,16 +229,17 @@ class Sidebar(QWidget):
         user_card.setObjectName("card")
         user_card.setStyleSheet(
             f"QFrame#card {{ background: {PANEL}; border: 1px solid {BORDER}; "
-            "border-radius: 12px; margin: 0px 12px 10px 12px; padding: 6px; } "
+            f"border-radius: {RADIUS_LG}px; margin: 0px {ls(12)}px {ls(10)}px {ls(12)}px; "
+            f"padding: {ls(6)}px; }} "
             "QFrame#card QLabel { background: transparent; border: none; padding: 0; margin: 0; }"
         )
         user_row = QHBoxLayout(user_card)
-        user_row.setContentsMargins(8, 8, 8, 8)
-        user_row.setSpacing(10)
+        user_row.setContentsMargins(PADDING_SM, PADDING_SM, PADDING_SM, PADDING_SM)
+        user_row.setSpacing(SPACING_MD)
         from .icons import glyph
         shield_icon = QLabel()
-        shield_icon.setPixmap(glyph("shield", C1).scaled(20, 20, Qt.AspectRatioMode.KeepAspectRatio, Qt.TransformationMode.SmoothTransformation))
-        shield_icon.setFixedSize(22, 22)
+        shield_icon.setPixmap(glyph("shield", C1).scaled(ls(20), ls(20), Qt.AspectRatioMode.KeepAspectRatio, Qt.TransformationMode.SmoothTransformation))
+        shield_icon.setFixedSize(ls(22), ls(22))
         user_row.addWidget(shield_icon)
 
         user_text = QVBoxLayout()
@@ -224,12 +265,19 @@ class Sidebar(QWidget):
         self.status = QLabel(f"● {self._status_text}")
         self.status.setObjectName("sysStatus")
         self.status.setProperty("level", "ok")
-        self.status.setStyleSheet(f"font-size: {T_SMALL}px; font-weight: 600; color: {OK}; padding: 4px 18px;")
+        self.status.setStyleSheet(f"font-size: {T_SMALL}px; font-weight: 600; color: {OK}; padding: {ls(4)}px {PADDING_LG}px;")
         bottom_layout.addWidget(self.status)
         self._bottom = bottom
         layout.addWidget(bottom)
 
+        for group in self._group_buttons:
+            self._apply_group(group)
         self.select("dashboard")
+
+    def _nav_tooltip(self, key: str) -> str:
+        label = tr(self._nav_tr[key])
+        description = tr(f"tip_nav_{key}")
+        return f"{label}\n{description}" if self._compact else description
 
     def set_compact(self, compact: bool) -> None:
         """Switch between the full rail (labels) and the icon-only rail.
@@ -250,10 +298,12 @@ class Sidebar(QWidget):
         for key, button in self._buttons.items():
             label = tr(self._nav_tr[key])
             button.setText("" if compact else f"  {label}")
-            button.setToolTip(label if compact else "")
+            button.setToolTip(self._nav_tooltip(key))
             button.setProperty("compact", compact)
             button.style().unpolish(button)
             button.style().polish(button)
+        for group in self._group_buttons:
+            self._apply_group(group)
 
         self.user_card.setVisible(not compact)
         self._apply_status()
@@ -267,13 +317,13 @@ class Sidebar(QWidget):
             self.status.setText("●")
             self.status.setToolTip(self._status_text)
             self.status.setStyleSheet(
-                f"font-size: {T_SMALL}px; font-weight: 600; color: {OK}; padding: 4px 0px;"
+                f"font-size: {T_SMALL}px; font-weight: 600; color: {OK}; padding: {ls(4)}px 0px;"
             )
         else:
             self.status.setText(f"● {self._status_text}")
             self.status.setToolTip("")
             self.status.setStyleSheet(
-                f"font-size: {T_SMALL}px; font-weight: 600; color: {OK}; padding: 4px 18px;"
+                f"font-size: {T_SMALL}px; font-weight: 600; color: {OK}; padding: {ls(4)}px {PADDING_LG}px;"
             )
 
     def resizeEvent(self, event) -> None:
@@ -288,8 +338,10 @@ class Sidebar(QWidget):
             label = tr(tr_key)
             button = self._buttons[key]
             button.setText("" if self._compact else f"  {label}")
-            button.setToolTip(label if self._compact else "")
+            button.setToolTip(self._nav_tooltip(key))
             button.setAccessibleName(label)
+        for group in self._group_buttons:
+            self._apply_group(group)
         self.brand_subtitle.setText(tr("app_subtitle"))
         self.u_title.setText(tr("sidebar_user_title"))
         self.u_sub.setText(tr("sidebar_user_sub"))
@@ -328,15 +380,60 @@ class Sidebar(QWidget):
         self._set_hot(None)
         super().leaveEvent(event)
 
+    def _apply_group(self, group: str) -> None:
+        """Sync a group header (label, arrow, tooltip) and its children's visibility."""
+        header = self._group_buttons[group]
+        label = tr(self._group_tr[group])
+        collapsed = group in self._collapsed
+        count = len(self._group_keys[group])
+        summary = tr("nav_group_count", group=label, count=count)
+        header.setChecked(not collapsed)
+        header.setText(
+            "─" if self._compact else f"{'▸' if collapsed else '▾'}  {label.upper()} · {count}"
+        )
+        header.setAccessibleName(label)
+        action = tr("nav_group_expand" if collapsed else "nav_group_collapse", group=label)
+        header.setToolTip(f"{label if self._compact else action}\n{summary}")
+        header.setProperty("collapsed", collapsed)
+        header.setProperty("compact", self._compact)
+        header.style().unpolish(header)
+        header.style().polish(header)
+        for key in self._group_keys[group]:
+            self._buttons[key].setVisible(not collapsed)
+
+    def toggle_group(self, group: str) -> None:
+        """Collapse or expand one group without changing the selected page."""
+        if group in self._collapsed:
+            self._collapsed.discard(group)
+        else:
+            self._collapsed.add(group)
+        self._apply_group(group)
+
+    def _expand_group_for(self, key: str) -> None:
+        group = _GROUP_OF_KEY.get(key)
+        if group is not None and group in self._collapsed:
+            self._collapsed.discard(group)
+            self._apply_group(group)
+
+    def collapsed_groups(self) -> tuple[str, ...]:
+        return tuple(group for group in self._group_buttons if group in self._collapsed)
+
+    def set_collapsed_groups(self, groups) -> None:
+        self._collapsed = set(groups) & set(self._group_buttons)
+        for group in self._group_buttons:
+            self._apply_group(group)
+
     def set_current(self, key: str) -> None:
         self._set_hot(None)
         button = self._buttons.get(key)
         if button is not None:
+            self._expand_group_for(key)
             button.setChecked(True)
 
     def select(self, key: str) -> None:
         button = self._buttons.get(key)
         if button is None:
             return
+        self._expand_group_for(key)
         button.setChecked(True)
         self.navigated.emit(key)

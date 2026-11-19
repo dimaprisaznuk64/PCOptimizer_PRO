@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import getpass
+import time
 
 from PySide6.QtCore import QDateTime, Qt, QTimer, Signal
 from PySide6.QtGui import QFont
@@ -16,13 +17,14 @@ from PySide6.QtWidgets import (
     QWidget,
 )
 
+from app.history import PerformanceHistory, downsample
 from app.i18n import tr
 from app.network import NetworkService
 from app.processes import ProcessService
 from app.sensors import Snapshot
 
 from .activity import ActivityLog
-from .components import CardPanel, MetricCard, PerfChart, RingCard
+from .components import CardPanel, CardTitleLabel, MetricCard, PerfChart, RingCard
 from .format import gb as _gb
 from .format import rate as _rate
 from .format import zone_label
@@ -98,6 +100,163 @@ def _activity_style(level: str) -> tuple[str, str]:
     if level == "error":
         return theme.DANGER, "error"
     return theme.WARN, "warning"
+
+
+class StatusStripWidget(QFrame):
+    """Compact top-line telemetry: CPU / GPU / RAM / temperature / disk."""
+
+    _KEYS = (
+        ("cpu", "dash_cpu"),
+        ("gpu", "dash_gpu"),
+        ("ram", "dash_mem"),
+        ("temp", "dash_temp"),
+        ("disk", "dash_ring_disks"),
+    )
+
+    def __init__(self, parent: QWidget | None = None) -> None:
+        super().__init__(parent)
+        self.setObjectName("card")
+        self.setStyleSheet(
+            f"QFrame#card {{ background: {PANEL}; border: 1px solid {BORDER}; "
+            f"border-radius: 12px; }} QFrame#card:hover {{ border-color: {BORDER_HI}; }}"
+        )
+        hud_brackets(self)
+        layout = QHBoxLayout(self)
+        layout.setContentsMargins(CARD_PADDING, 10, CARD_PADDING, 10)
+        layout.setSpacing(12)
+
+        self._captions: dict[str, QLabel] = {}
+        self._values: dict[str, QLabel] = {}
+        for key, caption_key in self._KEYS:
+            cell = QVBoxLayout()
+            cell.setSpacing(2)
+            caption = QLabel(tr(caption_key).upper())
+            caption.setObjectName("hudTag")
+            set_mono(caption, size=T_CAPTION, weight=QFont.Weight.DemiBold, spacing_pct=12.0)
+            value = QLabel("—")
+            value.setObjectName("cardValue")
+            set_mono(value, size=T_BODY, weight=QFont.Weight.DemiBold)
+            value.setStyleSheet(f"color: {TEXT_DIM};")
+            cell.addWidget(caption)
+            cell.addWidget(value)
+            layout.addLayout(cell)
+            self._captions[key] = caption
+            self._values[key] = value
+
+    def set_value(self, key: str, text: str, color: str | None = None) -> None:
+        label = self._values[key]
+        label.setText(text)
+        label.setStyleSheet(f"color: {color or TEXT_DIM};")
+
+    def retranslate(self) -> None:
+        for key, caption_key in self._KEYS:
+            self._captions[key].setText(tr(caption_key).upper())
+
+
+class ResourceHistoryWidget(QWidget):
+    """Last 60 minutes of recorded CPU/RAM/GPU samples (persistent history)."""
+
+    def __init__(self, history: PerformanceHistory | None = None, parent: QWidget | None = None) -> None:
+        super().__init__(parent)
+        self.setSizePolicy(QSizePolicy.Policy.Ignored, QSizePolicy.Policy.Preferred)
+        self.history = history or PerformanceHistory()
+        self._last_refresh = 0.0
+
+        layout = QVBoxLayout(self)
+        layout.setContentsMargins(0, 0, 0, 0)
+        layout.setSpacing(4)
+        self.chart = PerfChart(title=tr("dash_hist_title"), points=120)
+        layout.addWidget(self.chart, 1)
+        self.info = QLabel("")
+        self.info.setObjectName("cardSub")
+        self.info.setStyleSheet(f"font-size: {T_CAPTION}px; color: {TEXT_DIM};")
+        layout.addWidget(self.info)
+        self.refresh()
+
+    def refresh(self) -> None:
+        self._last_refresh = time.monotonic()
+        samples = self.history.query(60.0)
+        self.chart.clear()
+        if not samples:
+            self.info.setText(tr("dash_hist_empty"))
+            return
+        for sample in downsample(samples, 120):
+            self.chart.push(sample.ts, cpu=sample.cpu, ram=sample.ram, gpu=sample.gpu)
+        self.info.setText(tr("hist_samples", count=len(samples)))
+
+    def maybe_refresh(self) -> None:
+        if time.monotonic() - self._last_refresh >= 30.0:
+            self.refresh()
+
+    def retranslate(self) -> None:
+        self.chart.retranslate()
+        self.chart.set_title(tr("dash_hist_title"))
+        self.refresh()
+
+
+class RecommendationsWidget(QFrame):
+    """Actionable hints derived from the current snapshot."""
+
+    action_triggered = Signal(str)
+
+    def __init__(self, parent: QWidget | None = None) -> None:
+        super().__init__(parent)
+        self.setObjectName("card")
+        self.setStyleSheet(
+            f"QFrame#card {{ background: {PANEL}; border: 1px solid {BORDER}; "
+            f"border-radius: 12px; }} QFrame#card:hover {{ border-color: {BORDER_HI}; }}"
+        )
+        hud_brackets(self)
+        layout = QVBoxLayout(self)
+        layout.setContentsMargins(16, 12, 16, 12)
+        layout.setSpacing(8)
+
+        self.title = CardTitleLabel(tr("dash_rec_title"), C1)
+        layout.addWidget(self.title)
+        self._rows = QVBoxLayout()
+        self._rows.setSpacing(8)
+        layout.addLayout(self._rows)
+        layout.addStretch(1)
+        self._specs: list[tuple[str, dict[str, object], str | None]] = []
+        self._render()
+
+    def set_items(self, specs: list[tuple[str, dict[str, object], str | None]]) -> None:
+        self._specs = list(specs)
+        self._render()
+
+    def _render(self) -> None:
+        _clear_layout(self._rows)
+        if not self._specs:
+            hint = QLabel(tr("dash_rec_ok"))
+            hint.setWordWrap(True)
+            hint.setAlignment(Qt.AlignmentFlag.AlignCenter)
+            hint.setStyleSheet(f"font-size: {T_SMALL}px; color: {TEXT_DIM};")
+            self._rows.addWidget(hint)
+            return
+        for key, fmt, target in self._specs:
+            row = QHBoxLayout()
+            row.setSpacing(8)
+            dot = QLabel("●")
+            dot.setStyleSheet(f"font-size: {T_CAPTION}px; color: {WARN if target else OK};")
+            row.addWidget(dot)
+            text = QLabel(tr(key, **fmt))
+            text.setWordWrap(True)
+            text.setStyleSheet(f"font-size: {T_SMALL}px; color: {TEXT};")
+            row.addWidget(text, 1)
+            if target:
+                button = QPushButton(tr("dash_rec_open"))
+                button.setCursor(Qt.CursorShape.PointingHandCursor)
+                button.setProperty("secondary", True)
+                button.setProperty("compact", True)
+                button.style().unpolish(button)
+                button.style().polish(button)
+                button.clicked.connect(lambda _=False, t=target: self.action_triggered.emit(t))
+                row.addWidget(button)
+            self._rows.addLayout(row)
+
+    def retranslate(self) -> None:
+        self.title.setText(tr("dash_rec_title").upper())
+        self._render()
 
 
 class HealthWidget(QFrame):
@@ -639,7 +798,12 @@ class NotificationsWidget(QFrame):
 class DashboardPage(QWidget):
     navigate = Signal(str)
 
-    def __init__(self, parent: QWidget | None = None) -> None:
+    def __init__(
+        self,
+        parent: QWidget | None = None,
+        *,
+        history: PerformanceHistory | None = None,
+    ) -> None:
         super().__init__(parent)
         self.setObjectName("page")
 
@@ -704,7 +868,22 @@ class DashboardPage(QWidget):
         self.date.hide()
         layout.addLayout(head)
 
-        # ROW 1: 4 RingCards + PC Health + Quick Actions
+        self.status_strip = StatusStripWidget()
+        layout.addWidget(self.status_strip)
+
+        def _section(key: str) -> CardTitleLabel:
+            return CardTitleLabel(tr(key), C1)
+
+        self._section_keys = (
+            "dash_sec_overview",
+            "dash_sec_monitoring",
+            "dash_sec_system",
+            "dash_sec_activity",
+        )
+        self.sections = [_section(key) for key in self._section_keys]
+
+        # ZONE 1 — live overview: rings, hottest sensor and health score.
+        layout.addWidget(self.sections[0])
         row1 = QGridLayout()
         row1.setSpacing(8)
 
@@ -716,6 +895,8 @@ class DashboardPage(QWidget):
         self.gpu.set_center_sub(tr("dash_ring_load"))
         self.disk = RingCard(tr("dash_ring_disks"), C4, icon_name="disk")
         self.disk.set_center_sub(tr("dash_ring_full"))
+        self.temp_tile = MetricCard(tr("dash_temp"), sparkline=False, bar=False, color=WARN)
+        self.temp_tile.update_metric("—", tr("dash_temp_none"))
 
         # Clicking a card opens the page with the matching detail view.
         self.cpu.clicked.connect(lambda: self.navigate.emit("monitor"))
@@ -723,54 +904,65 @@ class DashboardPage(QWidget):
         self.gpu.clicked.connect(lambda: self.navigate.emit("gpu"))
         self.disk.clicked.connect(lambda: self.navigate.emit("disk"))
 
-
         self.health_card = HealthWidget()
         self.health_card.full_check_clicked.connect(lambda: self.navigate.emit("health"))
-
-        self.quick_actions = QuickActionsWidget()
-        self.quick_actions.action_triggered.connect(self.navigate.emit)
-
         layout.addLayout(row1)
 
-        # ROW 2: System Load Chart + Temperatures + Fans
-        self._grids: dict[str, QGridLayout] = {}
+        # ZONE 2 — live chart, persistent 60-minute history and temperatures.
+        layout.addWidget(self.sections[1])
         row2 = QGridLayout()
         row2.setSpacing(8)
-
         self.chart = PerfChart()
+        self.chart.setSizePolicy(QSizePolicy.Policy.Ignored, QSizePolicy.Policy.Preferred)
+        self.history_widget = ResourceHistoryWidget(history)
         self.thermal = CardPanel(tr("dash_thermals_title"))
         self.fans = CardPanel(tr("dash_fans_title"))
-        # Default fans items
         self.fans.hide()  # no fan sensor data is collected
         self.thermal.set_rows([])
         layout.addLayout(row2)
 
-        # ROW 3: Storage + Recent Actions + Process Load
+        # ZONE 3 — storage, top processes and shortcuts.
+        layout.addWidget(self.sections[2])
         row3 = QGridLayout()
         row3.setSpacing(8)
-
         self.disks = CardPanel(tr("dash_disks_title"))
         self.disks.set_rows([])
-        self.recent_actions = RecentActionsWidget()
         self.proc_load = ProcessLoadWidget()
         self.proc_load.view_all_clicked.connect(lambda: self.navigate.emit("processes"))
+        self.quick_actions = QuickActionsWidget()
+        self.quick_actions.action_triggered.connect(self.navigate.emit)
         layout.addLayout(row3)
 
-        # ROW 4: Gaming Banner + Network + Notifications
         row4 = QGridLayout()
         row4.setSpacing(8)
-
         self.gaming_banner = GamingBannerWidget()
         self.gaming_banner.configure_clicked.connect(lambda: self.navigate.emit("gaming"))
         self.net_widget = NetworkWidget()
         self.notif_widget = NotificationsWidget()
         layout.addLayout(row4)
 
+        # ZONE 4 — recent actions and actionable recommendations.
+        layout.addWidget(self.sections[3])
+        row5 = QGridLayout()
+        row5.setSpacing(8)
+        self.recent_actions = RecentActionsWidget()
+        self.recommendations = RecommendationsWidget()
+        self.recommendations.action_triggered.connect(self.navigate.emit)
+        layout.addLayout(row5)
+
         # Responsive layout: (widget, row, col, colspan) per mode on a 12-column grid.
-        r1 = [self.cpu, self.ram, self.gpu, self.disk, self.health_card, self.quick_actions]
-        self._grid_rows = {"row1": (row1, r1), "row2": (row2, [self.chart, self.thermal]),
-                           "row3": (row3, [self.disks, self.recent_actions, self.proc_load]),
-                           "row4": (row4, [self.gaming_banner, self.net_widget, self.notif_widget])}
+        r1 = [self.cpu, self.ram, self.gpu, self.disk, self.temp_tile, self.health_card]
+        r2 = [self.chart, self.history_widget, self.thermal]
+        r3 = [self.disks, self.proc_load, self.quick_actions]
+        r4 = [self.gaming_banner, self.net_widget, self.notif_widget]
+        r5 = [self.recent_actions, self.recommendations]
+        self._grid_rows = {
+            "row1": (row1, r1),
+            "row2": (row2, r2),
+            "row3": (row3, r3),
+            "row4": (row4, r4),
+            "row5": (row5, r5),
+        }
         self._mode = ""
         self._relayout(1200)
 
@@ -866,21 +1058,24 @@ class DashboardPage(QWidget):
         spec = {
             "wide": {
                 "row1": [(0, 0, 2), (0, 2, 2), (0, 4, 2), (0, 6, 2), (0, 8, 2), (0, 10, 2)],
-                "row2": [(0, 0, 8), (0, 8, 4)],
+                "row2": [(0, 0, 5), (0, 5, 4), (0, 9, 3)],
                 "row3": [(0, 0, 4), (0, 4, 4), (0, 8, 4)],
                 "row4": [(0, 0, 4), (0, 4, 4), (0, 8, 4)],
+                "row5": [(0, 0, 6), (0, 6, 6)],
             },
             "mid": {
                 "row1": [(0, 0, 4), (0, 4, 4), (0, 8, 4), (1, 0, 4), (1, 4, 4), (1, 8, 4)],
-                "row2": [(0, 0, 12), (1, 0, 12)],
+                "row2": [(0, 0, 12), (1, 0, 6), (1, 6, 6)],
                 "row3": [(0, 0, 4), (0, 4, 4), (0, 8, 4)],
                 "row4": [(0, 0, 12), (1, 0, 6), (1, 6, 6)],
+                "row5": [(0, 0, 6), (0, 6, 6)],
             },
             "compact": {
                 "row1": [(0, 0, 6), (0, 6, 6), (1, 0, 6), (1, 6, 6), (2, 0, 6), (2, 6, 6)],
-                "row2": [(0, 0, 12), (1, 0, 12)],
+                "row2": [(0, 0, 12), (1, 0, 12), (2, 0, 12)],
                 "row3": [(0, 0, 12), (1, 0, 6), (1, 6, 6)],
                 "row4": [(0, 0, 12), (1, 0, 6), (1, 6, 6)],
+                "row5": [(0, 0, 12), (1, 0, 12)],
             },
         }[mode]
         for key, (grid, widgets) in self._grid_rows.items():
@@ -899,15 +1094,20 @@ class DashboardPage(QWidget):
         """Refresh static texts after a language change."""
         self.greeting.setText(f"{_greeting()}, {self._user_display}!")
         self.verdict.setText(tr(self._verdict_key))
+        for label, key in zip(self.sections, self._section_keys, strict=False):
+            label.setText(tr(key).upper())
+        self.status_strip.retranslate()
         self.cpu.set_center_sub(tr("dash_ring_load"))
         self.cpu.set_header(tr("dash_cpu") + getattr(self, "_cpu_head_suffix", ""))
         self.ram.set_center_sub(tr("dash_ring_used"))
         self.gpu.set_center_sub(tr("dash_ring_load"))
         self.disk.set_center_sub(tr("dash_ring_full"))
+        self.temp_tile.set_title(tr("dash_temp"))
         self.thermal.set_title(tr("dash_thermals_title"))
         self.fans.set_title(tr("dash_fans_title"))
         self.disks.set_title(tr("dash_disks_title"))
         self.chart.retranslate()
+        self.history_widget.retranslate()
         for widget in (
             self.health_card,
             self.quick_actions,
@@ -916,6 +1116,7 @@ class DashboardPage(QWidget):
             self.proc_load,
             self.net_widget,
             self.notif_widget,
+            self.recommendations,
         ):
             widget.retranslate()
 
@@ -943,6 +1144,14 @@ class DashboardPage(QWidget):
         else:
             cpu_temp = None
         gpu_temp = s.gpu.temperature if s.gpu is not None and s.gpu.temperature is not None else None
+        all_temps = list(temps)
+        if gpu_temp is not None:
+            all_temps.append((tr("GPU"), gpu_temp))
+        hottest = max(all_temps, key=lambda item: item[1], default=None)
+        if hottest is not None:
+            self.temp_tile.update_metric(f"{hottest[1]:.0f}°C", tr("dash_temp_sub"))
+        else:
+            self.temp_tile.update_metric("—", tr("dash_temp_none"))
 
         cpu_pct = ram_pct = gpu_pct = None
         if s.cpu:
@@ -990,6 +1199,7 @@ class DashboardPage(QWidget):
             self.gpu.set_header("GPU")
             self.gpu.update_metric("—", tr("dash_no_gpu"))
 
+        full_disk = None
         if s.disks:
             main = next((d for d in s.disks if d.mountpoint.upper().startswith("C")), s.disks[0])
             self.disk.set_header(f"{main.mountpoint.rstrip(chr(92) + '/') or main.device}")
@@ -1006,9 +1216,10 @@ class DashboardPage(QWidget):
                 for d in s.disks
             ]
             self.disks.set_rows(rows)
-            full = next((d for d in s.disks if d.percent >= 80), None)
+            full_disk = next((d for d in s.disks if d.percent >= 80), None)
             self.notif_widget.set_live_warning(
-                tr("notif_disk_full", mount=full.mountpoint.rstrip("\\/") or full.device, pct=int(full.percent)) if full else ""
+                tr("notif_disk_full", mount=full_disk.mountpoint.rstrip("\\/") or full_disk.device, pct=int(full_disk.percent))
+                if full_disk else ""
             )
 
         net_down = None
@@ -1026,7 +1237,36 @@ class DashboardPage(QWidget):
             self.net_widget.down_val.setText(f"{_rate(n.recv_rate)}/s")
             self.net_widget.up_val.setText(f"{_rate(n.send_rate)}/s")
 
+        self.status_strip.set_value(
+            "cpu",
+            f"{cpu_pct:.0f}%" if cpu_pct is not None else "—",
+            _level_color(cpu_pct) if cpu_pct is not None else None,
+        )
+        self.status_strip.set_value(
+            "gpu",
+            f"{gpu_pct:.0f}%" if gpu_pct is not None else "—",
+            _level_color(gpu_pct) if gpu_pct is not None else None,
+        )
+        self.status_strip.set_value(
+            "ram",
+            f"{ram_pct:.0f}%" if ram_pct is not None else "—",
+            _level_color(ram_pct) if ram_pct is not None else None,
+        )
+        hottest_value = hottest[1] if hottest is not None else None
+        self.status_strip.set_value(
+            "temp",
+            f"{hottest_value:.0f}°C" if hottest_value is not None else "—",
+            _level_color(hottest_value) if hottest_value is not None else None,
+        )
+        disk_pct = main.percent if s.disks else None
+        self.status_strip.set_value(
+            "disk",
+            f"{disk_pct:.0f}%" if disk_pct is not None else "—",
+            _level_color(disk_pct) if disk_pct is not None else None,
+        )
+
         self.chart.push(s.ts, cpu=cpu_pct, ram=ram_pct, gpu=gpu_pct, net_down=net_down, net_up=net_up)
+        self.history_widget.maybe_refresh()
 
         loads = [v for v in (cpu_pct, ram_pct) if v is not None]
         peak = max(loads) if loads else None
@@ -1049,6 +1289,24 @@ class DashboardPage(QWidget):
             thermal_rows.append((zone_label(name), min(value, 100.0), f"{value:.0f}°C"))
         if thermal_rows:
             self.thermal.set_rows(thermal_rows, marker=85.0)
+
+        recs: list[tuple[str, dict[str, object], str | None]] = []
+        if cpu_pct is not None and cpu_pct >= 90:
+            recs.append(("dash_rec_high_cpu", {"pct": int(cpu_pct)}, "processes"))
+        if gpu_pct is not None and gpu_pct >= 90:
+            recs.append(("dash_rec_high_gpu", {"pct": int(gpu_pct)}, "gpu"))
+        if hottest is not None and hottest[1] >= 85:
+            recs.append(("dash_rec_hot", {"temp": int(hottest[1])}, "temperature"))
+        if full_disk is not None:
+            recs.append((
+                "dash_rec_disk",
+                {"mount": full_disk.mountpoint.rstrip("\\/") or full_disk.device, "pct": int(full_disk.percent)},
+                "cleaner",
+            ))
+        health = ActivityLog.instance().health
+        if health is not None and health[0] < 70:
+            recs.append(("dash_rec_health", {"score": health[0]}, "health"))
+        self.recommendations.set_items(recs[:4])
 
         shown_errors = {k: v for k, v in s.errors.items() if k != "thermal"}
         if shown_errors:

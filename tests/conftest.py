@@ -67,6 +67,10 @@ def reset_theme():
 
     if theme.CURRENT_THEME != theme.DEFAULT_THEME:
         theme.set_theme(theme.DEFAULT_THEME)
+    if theme.UI_SCALE != 100:
+        theme.set_ui_scale(100)
     yield
     if theme.CURRENT_THEME != theme.DEFAULT_THEME:
         theme.set_theme(theme.DEFAULT_THEME)
+    if theme.UI_SCALE != 100:
+        theme.set_ui_scale(100)

@@ -33,7 +33,7 @@ from app.processes import (
 from .components import CardTitleLabel, align_numeric_headers
 from .format import mb, uptime
 from .tasks import Task
-from .theme import CARD_PADDING
+from .theme import CARD_PADDING, PAGE_MARGINS
 
 COLUMN_KEYS = ("proc_col_name", "proc_col_pid", "proc_col_cpu", "proc_col_mem", "proc_col_user")
 COLUMNS = tuple(tr(k) for k in COLUMN_KEYS)
@@ -98,7 +98,7 @@ class ProcessPage(QWidget):
         self._all: list[ProcessInfo] | None = None
 
         layout = QVBoxLayout(self)
-        layout.setContentsMargins(40, 36, 40, 32)
+        layout.setContentsMargins(*PAGE_MARGINS)
         layout.setSpacing(10)
 
         title = QLabel(tr("proc_title"))

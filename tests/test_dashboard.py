@@ -1,11 +1,15 @@
 from __future__ import annotations
 
+import json
 import threading
 import time
 
 from PySide6.QtCore import Qt
 from PySide6.QtTest import QSignalSpy, QTest
+from PySide6.QtWidgets import QPushButton
 
+from app.history import HistorySample, PerformanceHistory
+from app.i18n import tr
 from app.sensors import MockBackend, SensorManager
 from app.ui.components import RingCard
 from app.ui.dashboard import DashboardPage
@@ -147,6 +151,54 @@ def test_dashboard_thermal_rows_show_cpu_and_gpu(qapp) -> None:
     assert any(k.startswith("GPU") for k in keys)
 
 
+def test_dashboard_status_strip_shows_live_values(qapp) -> None:
+    from app.i18n import tr
+    from app.sensors.types import (
+        CpuStat,
+        DiskStat,
+        GpuStat,
+        MemoryStat,
+        Snapshot,
+        ThermalStat,
+    )
+
+    page = DashboardPage()
+    s = Snapshot(
+        ts=0.0,
+        cpu=CpuStat(percent=42.0, per_core=(42.0,), physical_cores=1, logical_cores=1),
+        memory=MemoryStat(
+            total=8 * 1024**3,
+            used=3 * 1024**3,
+            available=5 * 1024**3,
+            percent=37.5,
+            swap_total=0,
+            swap_used=0,
+            swap_percent=0.0,
+        ),
+        disks=(
+            DiskStat(
+                device="C:\\",
+                mountpoint="C:\\",
+                fstype="NTFS",
+                total=100 * 1024**3,
+                used=61 * 1024**3,
+                free=39 * 1024**3,
+                percent=61.0,
+            ),
+        ),
+        gpus=(GpuStat(index=0, name="RTX", utilization=73.0, memory_used=1, memory_total=4, temperature=68.0),),
+        thermal=ThermalStat(source="wmi_acpi", temperatures=(("CPU", 71.0),)),
+    )
+    page.apply_snapshot(s)
+    values = page.status_strip._values
+    assert values["cpu"].text() == "42%"
+    assert values["gpu"].text() == "73%"
+    assert values["ram"].text() == "38%"
+    assert values["temp"].text() == "71°C"
+    assert values["disk"].text() == "61%"
+    assert page.status_strip._captions["cpu"].text() == tr("dash_cpu").upper()
+
+
 def test_dashboard_notifications_hidden_when_empty(qapp) -> None:
     from app.ui.activity import ActivityLog
 
@@ -177,12 +229,12 @@ def test_dashboard_error_entry_shows_in_notifications(qapp) -> None:
 
 
 def test_activity_style_levels(qapp) -> None:
+    from app.ui import theme
     from app.ui.dashboard import _activity_style
-    from app.ui.theme import DANGER, OK, WARN
 
-    assert _activity_style("ok") == (OK, "check")
-    assert _activity_style("warn") == (WARN, "warning")
-    assert _activity_style("error") == (DANGER, "error")
+    assert _activity_style("ok") == (theme.OK, "check")
+    assert _activity_style("warn") == (theme.WARN, "warning")
+    assert _activity_style("error") == (theme.DANGER, "error")
 
 
 def test_dashboard_disk_extra_color_follows_level(qapp) -> None:
@@ -254,3 +306,111 @@ def test_dashboard_thermal_bars_have_threshold_marker(qapp) -> None:
     page.apply_snapshot(snap)
     markers = [b._marker for _l, b, _t in page.thermal._rows.values()]
     assert markers and all(m == 85.0 for m in markers)
+
+
+def _row_spans(page: DashboardPage, row: str, width: int) -> list[int]:
+    page._relayout(width)
+    grid, widgets = page._grid_rows[row]
+    spans: list[int] = []
+    for w in widgets:
+        for i in range(grid.count()):
+            if grid.itemAt(i).widget() is w:
+                spans.append(grid.getItemPosition(i)[3])
+                break
+    return spans
+
+
+def test_dashboard_four_zone_layout_spans(qapp) -> None:
+    page = DashboardPage()
+    assert len(page.sections) == 4
+    assert [label.text() for label in page.sections] == [
+        tr("dash_sec_overview").upper(),
+        tr("dash_sec_monitoring").upper(),
+        tr("dash_sec_system").upper(),
+        tr("dash_sec_activity").upper(),
+    ]
+    assert _row_spans(page, "row1", 1600) == [2, 2, 2, 2, 2, 2]
+    assert _row_spans(page, "row2", 1600) == [5, 4, 3]
+    assert _row_spans(page, "row5", 1600) == [6, 6]
+    assert _row_spans(page, "row2", 800) == [12, 12, 12]
+
+
+def test_dashboard_temp_tile_shows_hottest_sensor(qapp) -> None:
+    from app.sensors.types import GpuStat, Snapshot, ThermalStat
+
+    page = DashboardPage()
+    snap = Snapshot(
+        ts=1.0,
+        thermal=ThermalStat(source="t", temperatures=(("CPU", 72.0), ("zone1", 61.0))),
+        gpus=(GpuStat(index=0, name="RTX", utilization=20.0, memory_used=0, memory_total=1, temperature=79.0),),
+    )
+    page.apply_snapshot(snap)
+    assert page.temp_tile.value.text() == "79°C"
+    assert page.temp_tile.sub.text() == tr("dash_temp_sub")
+
+    page.apply_snapshot(SensorManager([]).snapshot())
+    assert page.temp_tile.value.text() == "—"
+    assert page.temp_tile.sub.text() == tr("dash_temp_none")
+
+
+def test_dashboard_resource_history_reads_last_hour(qapp, tmp_path) -> None:
+    store = tmp_path / "history.jsonl"
+    now = time.time()
+    samples = [
+        HistorySample(ts=now - 40 * 60, cpu=31.0, ram=48.0, gpu=12.0),
+        HistorySample(ts=now - 10 * 60, cpu=62.0, ram=55.0, gpu=35.0),
+        HistorySample(ts=now - 2 * 3600, cpu=99.0, ram=99.0, gpu=99.0),
+    ]
+    store.write_text("".join(json.dumps(s.to_dict()) + "\n" for s in samples), encoding="utf-8")
+    history = PerformanceHistory(store=store)
+    page = DashboardPage(history=history)
+    assert page.history_widget.history is history
+    assert len(page.history_widget.chart._canvas._times) == 2
+    assert list(page.history_widget.chart._canvas._history["cpu"]) == [31.0, 62.0]
+    assert tr("hist_samples", count=2) in page.history_widget.info.text()
+
+    page.retranslate()
+    assert page.history_widget.chart._title_label.text() == tr("dash_hist_title")
+
+
+def test_dashboard_recommendations_from_snapshot(qapp) -> None:
+    from app.sensors.types import DiskStat, GpuStat, Snapshot, ThermalStat
+
+    page = DashboardPage()
+    snap = Snapshot(
+        ts=1.0,
+        cpu=SensorManager([MockBackend(cpu_percent=94.0)]).snapshot().cpu,
+        memory=SensorManager([MockBackend(memory_percent=50.0)]).snapshot().memory,
+        thermal=ThermalStat(source="t", temperatures=(("CPU", 88.0),)),
+        gpus=(GpuStat(index=0, name="RTX", utilization=92.0, memory_used=0, memory_total=1, temperature=70.0),),
+        disks=(
+            DiskStat(
+                device="C:\\",
+                mountpoint="C:\\",
+                fstype="NTFS",
+                total=100 * 1024**3,
+                used=87 * 1024**3,
+                free=13 * 1024**3,
+                percent=87.0,
+            ),
+        ),
+    )
+    page.apply_snapshot(snap)
+    keys = [key for key, _fmt, target in page.recommendations._specs]
+    assert keys == ["dash_rec_high_cpu", "dash_rec_high_gpu", "dash_rec_hot", "dash_rec_disk"]
+
+    buttons = [w for w in page.recommendations.findChildren(QPushButton) if w.text() == tr("dash_rec_open")]
+    assert len(buttons) == 4
+    spy = QSignalSpy(page.navigate)
+    QTest.mouseClick(buttons[0], Qt.MouseButton.LeftButton)
+    assert [spy.at(i)[0] for i in range(spy.count())] == ["processes"]
+
+
+def test_main_window_shares_history_with_dashboard(qapp, tmp_path) -> None:
+    history = PerformanceHistory(store=tmp_path / "shared.jsonl")
+    window = MainWindow(history=history)
+    dashboard = window.page("dashboard")
+    history_page = window.page("history")
+    assert dashboard.history_widget.history is history
+    assert history_page._history is history
+    window.close()

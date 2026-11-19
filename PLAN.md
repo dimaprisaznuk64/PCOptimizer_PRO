@@ -4,6 +4,14 @@
 - Released **v2.0.0** — completion of Stage 2: 22 pages, Hardware Benchmark,
   Temperature Dashboard and Export Center, Cleaner/Diagnostics 2.0, Drivers,
   System Report, extended CPU/GPU/RAM telemetry, Gaming 2.0, 803 tests.
+- In progress **Stage 3 UI/UX 2.0**: grouped/collapsible navigation rail with
+  persistent collapse state across theme rebuilds, compact mode and language
+  switches, redesigned Dashboard with 4 sections/history/recommendations, and a
+  live interface scale of 100–150%, scaled layout tokens and uniform page
+  margins, WCAG-readable status/accent tokens in all 29 themes; 22 pages
+  preserved, status strip with live CPU/GPU/RAM/temp/disk, localized nav
+  tooltips/group counts and shared motion tokens; 25 new tests, full
+  suite 828 passed / 1 skipped.
 - Released **v1.7.1** (`d9f83ab`) — reliability/stabilization batch: fixed safe
   alert limits and quiet CPU/GPU alerts during games, Settings reset applies
   language/theme, Restart-as-admin handles cancel/error, absolute PowerShell
@@ -27,7 +35,7 @@
 - Newest v2 tools work (Cleaner 2.0, Diagnostics 2.0, Drivers, System Report,
   Hardware Benchmark, Temperature Dashboard, Export Center) is committed in
   `3dc29ce` and `d1b930d`; version/exe/installer are bumped to **v2.0.0**.
-- Pytest suite is passing (**803 tests, 1 skipped**). Ruff linter is clean. A pre-existing
+- Pytest suite is passing (**828 tests, 1 skipped**). Ruff linter is clean. A pre-existing
   faulthandler artifact still prints native access-violation/0x80040155 traces
   during a full run; all tests pass. Two signal/thread timing flakes in task and
   dashboard tests were made deterministic.
@@ -193,8 +201,88 @@
 - Verification: full suite 803 passed, 1 skipped in 351.64s; `ruff` and
   `compileall` clean. Native faulthandler/COM traces remain environmental.
 
+## v2.0.0 Stage 3 — grouped navigation and Dashboard redesign
+- `NAV_KEYS` order and all 22 pages are unchanged; keys are mapped into 7 groups:
+  overview, monitoring, hardware, optimization, gaming, tools, settings.
+- `Sidebar` renders group headers as checkable `QPushButton` (`navGroup`) with
+  `▾`/`▸` (or `─` in compact mode); collapsing hides only that group's buttons.
+  Navigating to a page expands its group automatically.
+- `MainWindow.apply_theme()` saves/restores `collapsed_groups()` so theme
+  switching does not silently expand the rail.
+- Added `nav_group_*` EN/UA keys and `QPushButton[navGroup="true"]` QSS (including
+  compact styling); 5 new tests in `tests/test_ui.py`.
+- Dashboard redesigned into 4 sections: **OVERVIEW**, **MONITORING & HISTORY**,
+  **SYSTEM**, **ACTIVITY & RECOMMENDATIONS** with `temp_tile`, `ResourceHistoryWidget`
+  (60m/120pt from `performance_history.jsonl`), and `RecommendationsWidget`
+  (actionable rules for CPU/GPU/temp/disk/health with navigation).
+- `MainWindow`/`build_pages` now share a single `PerformanceHistory` instance;
+  5 new Dashboard tests added (layout/temp/history/recommendations/shared history).
+- Fixed 1024×640 horizontal-scroll regression: `ResourceHistoryWidget` and
+  `PerfChart` use `QSizePolicy.Policy.Ignored` for horizontal growth.
+- Fixed post-reload theme-token drift in `tests/test_components.py` by importing
+  live `components`/`theme` modules.
+- Verification: `PYTHONFAULTHANDLER=0 .venv/Scripts/python.exe -m pytest tests
+  --no-header && .venv/Scripts/python.exe -m ruff check . &&
+  .venv/Scripts/python.exe -m compileall -q app` → **813 passed, 1 skipped in
+  607.02s (0:10:07)**; `All checks passed!`; compileall clean.
+
+## v2.0.0 Stage 3 — UI scale 100–150%
+- `SettingsService` stores `ui_scale` (100–150); Settings has a live spin box
+  with tooltip, applies immediately and keeps the current page.
+- `theme.set_ui_scale()` recalculates all type tokens and the QSS. `main.py`
+  applies the saved scale before UI modules are imported; `run()` applies it
+  before `theme.apply(app)`.
+- `MainWindow.apply_ui_scale()` reuses the theme rebuild path. 5 new tests in
+  `tests/test_theme.py`, `tests/test_settings_page.py` and `tests/test_ui.py`.
+- Verification: `.venv/Scripts/python.exe -m pytest tests --no-header
+  -p no:faulthandler` → **818 passed, 1 skipped in 1614.65s (0:26:54)**;
+  ruff and compileall clean. Native COM artifacts remain environmental.
+
+## v2.0.0 Stage 3 — scaled layout density
+- `theme.ls()` grows paddings/margins/radii/control sizes at half the font rate;
+  `set_ui_scale()` refreshes every layout token, including topbar/sidebar widths.
+- Topbar, sidebar, icon tiles, gauges, empty hints and all 16 page roots now use
+  the shared tokens instead of hardcoded sizes.
+- Fixed startup scale: `main.py` exports `PCOPTIMIZER_UI_SCALE` before the UI
+  package import, so the saved scale reaches topbar/sidebar/pages on first build.
+- Verification: `.venv/Scripts/python.exe -m pytest tests --no-header
+  -p no:faulthandler` → **820 passed, 1 skipped in 1558.82s (0:25:58)**;
+  ruff and compileall clean.
+
+## v2.0.0 Stage 3 — 29-theme contrast pass
+- Every palette is normalized at import: `TEXT_DIM`, `ACCENT`, `OK`, `WARN`,
+  `DANGER` are blended until they reach 4.5:1 on BG/PANEL/PANEL_ALT, and
+  `ON_ACCENT` is checked against `ACCENT`.
+- Added a regression test covering all 29 themes / 7 foreground tokens.
+- Verification: `.venv/Scripts/python.exe -m pytest tests --no-header
+  -p no:faulthandler` → **821 passed, 1 skipped in 1742.83s (0:29:02)**;
+  ruff and compileall clean.
+
+## v2.0.0 Stage 3 — Dashboard status strip
+- A compact top-line card now shows CPU/GPU/RAM/temperature/disk values beside
+  the greeting, colored by the same load/temperature levels as the rings.
+- It follows live language switching and is fed from the same sensor snapshot
+  as the rest of the dashboard; 1 new test in `tests/test_dashboard.py`.
+- Verification: `.venv/Scripts/python.exe -m pytest tests --no-header
+  -p no:faulthandler` → **822 passed, 1 skipped in 1450.35s (0:24:10)**;
+  ruff and compileall clean.
+
+## v2.0.0 Stage 3 — navigation polish and tooltips
+- Sidebar buttons now carry localized `tip_nav_*` tooltips; compact mode shows
+  label + description, group headers show the localized item count and a summary
+  tooltip. The topbar status pill also explains its current state.
+- Shared `MOTION_FAST/BASE/VALUE/AMOUNT/PULSE` tokens in `theme.py` unify page
+  fades, ring/gauge animations and the status pulse.
+- Fixed a live scan bug: `Shell.Application` size wraps above 2 GB, so the
+  recycle-bin scan now sums real item lengths as `uint64` and clamps negatives.
+- Verification: `.venv/Scripts/python.exe -m pytest tests --no-header
+  -p no:faulthandler` → **828 passed, 1 skipped** (829 collected, rc 0);
+  ruff and compileall clean.
+
 ## Next
-- Stage 3 UI/UX 2.0: grouped navigation, unified density and dashboard redesign.
+- Stage 3 UI/UX 2.0 (remaining): grouped navigation, tooltips, motion tokens and
+  Dashboard status strip are done; next is a structured review of panels/tables
+  and final visual consistency across the 22 pages.
 - v2.0.x reliability: trustworthy CPU package power / thermal-throttling source
   only if a reliable Windows API appears.
 - Optional: wire `mypy` into the verification routine and fix the first batch

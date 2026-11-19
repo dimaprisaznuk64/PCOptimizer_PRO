@@ -19,7 +19,7 @@ from app.i18n import tr
 
 from .components import attach_empty_hint
 from .tasks import Task
-from .theme import CARD_PADDING
+from .theme import CARD_PADDING, PAGE_MARGINS
 
 COLUMN_KEYS = (
     "drv_col_device",
@@ -42,7 +42,7 @@ class DriversPage(QWidget):
         self._errors: tuple[str, ...] = ()
 
         layout = QVBoxLayout(self)
-        layout.setContentsMargins(40, 36, 40, 32)
+        layout.setContentsMargins(*PAGE_MARGINS)
         layout.setSpacing(10)
 
         title = QLabel(tr("drv_title"))

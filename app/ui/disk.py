@@ -28,7 +28,7 @@ from .combos import CompactCombo, tune_combo
 from .components import Bar, CardTitleLabel, attach_empty_hint
 from .format import size as fmt_size
 from .tasks import Task
-from .theme import CARD_PADDING
+from .theme import CARD_PADDING, PAGE_MARGINS
 
 SCAN_COLUMN_KEYS = ("disk_col_name", "disk_col_type", "disk_col_size")
 LARGE_COLUMN_KEYS = ("disk_col_size", "disk_col_modified", "disk_col_path")
@@ -49,7 +49,7 @@ class DiskPage(QWidget):
         self._large_errors: list[str] = []
 
         layout = QVBoxLayout(self)
-        layout.setContentsMargins(40, 36, 40, 32)
+        layout.setContentsMargins(*PAGE_MARGINS)
         layout.setSpacing(10)
 
         title = QLabel(tr("disk_title"))

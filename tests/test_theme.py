@@ -105,6 +105,91 @@ def _contrast(a: str, b: str) -> float:
     return (max(la, lb) + 0.05) / (min(la, lb) + 0.05)
 
 
+def test_ui_scale_updates_type_scale_and_stylesheet():
+    from app.ui import theme as tract
+
+    original = tract.UI_SCALE
+    try:
+        base_body = tract.T_BODY
+        base_pad = tract.CARD_PADDING
+        base_margin = tract.PAGE_MARGINS
+        base_topbar = tract.TOPBAR_HEIGHT
+        base_sidebar = tract.SIDEBAR_WIDTH
+        base_radius = tract.RADIUS_LG
+        assert tract.set_ui_scale(150) == 150
+        assert tract.UI_SCALE == 150
+        assert tract.T_BODY > base_body
+        assert tract.BASE_FONT_PX == round(13 * tract.FONT_SCALE)
+        assert tract.LAYOUT_SCALE > 1
+        assert tract.CARD_PADDING > base_pad
+        assert all(
+            new >= old
+            for new, old in zip(tract.PAGE_MARGINS, base_margin, strict=False)
+        )
+        assert tract.TOPBAR_HEIGHT > base_topbar
+        assert tract.SIDEBAR_WIDTH > base_sidebar
+        assert tract.RADIUS_LG > base_radius
+        stylesheet = tract.build_stylesheet()
+        assert f"font-size: {tract.T_BODY}px" in stylesheet
+        assert f"padding: {tract.TOPBAR_ICON_PAD}px" in stylesheet
+
+        assert tract.set_ui_scale(200) == 150
+        assert tract.set_ui_scale(50) == 100
+        assert tract.T_BODY == base_body
+        assert tract.CARD_PADDING == base_pad
+        assert tract.PAGE_MARGINS == base_margin
+        assert tract.TOPBAR_HEIGHT == base_topbar
+        assert tract.SIDEBAR_WIDTH == base_sidebar
+        assert tract.RADIUS_LG == base_radius
+    finally:
+        tract.set_ui_scale(original)
+
+
+def test_ui_scale_survives_module_reload():
+    import importlib
+
+    from app.ui import theme as tract
+
+    original = tract.UI_SCALE
+    try:
+        tract.set_ui_scale(130)
+        importlib.reload(tract)
+        assert tract.UI_SCALE == 130
+        assert tract.T_BODY == tract.fs(13)
+    finally:
+        tract.set_ui_scale(original)
+        importlib.reload(tract)
+
+
+def test_ui_scale_reads_startup_environment(monkeypatch):
+    import importlib
+
+    from app.ui import theme as tract
+
+    original = tract.UI_SCALE
+    monkeypatch.setenv("PCOPTIMIZER_UI_SCALE", "135")
+    monkeypatch.delattr(tract, "UI_SCALE", raising=False)
+    try:
+        importlib.reload(tract)
+        assert tract.UI_SCALE == 135
+        assert tract.T_BODY == tract.fs(13)
+        assert tract.SIDEBAR_WIDTH == tract.ls(238)
+    finally:
+        monkeypatch.delenv("PCOPTIMIZER_UI_SCALE", raising=False)
+        tract.set_ui_scale(original)
+        importlib.reload(tract)
+
+
+def test_all_palettes_have_readable_text_and_status_colors():
+    from app.ui import theme as tract
+
+    for name, pal in tract.PALETTES.items():
+        for fg in ("TEXT", "TEXT_DIM", "ACCENT", "OK", "WARN", "DANGER"):
+            for surface in ("BG", "PANEL", "PANEL_ALT"):
+                assert _contrast(pal[fg], pal[surface]) >= 4.5, (name, fg, surface)
+        assert _contrast(pal["ON_ACCENT"], pal["ACCENT"]) >= 4.5, name
+
+
 def test_light_palettes_keep_dim_text_readable():
     from app.ui import theme as tract
 

@@ -18,6 +18,16 @@ def _use_project_venv() -> None:
 
 if __name__ == "__main__":
     _use_project_venv()
+    from app.settings.service import SettingsService
+
+    scale = int(SettingsService().get("ui_scale"))
+    os.environ["PCOPTIMIZER_UI_SCALE"] = str(scale)
+
+    from app.ui import theme
+
+    os.environ.pop("PCOPTIMIZER_UI_SCALE", None)
+    theme.set_ui_scale(scale)
+
     from app.ui.main_window import run
 
     raise SystemExit(run())

@@ -37,7 +37,7 @@ from .activity import ActivityLog, outcome_level
 from .activity import record as log_action
 from .components import CardTitleLabel, attach_empty_hint
 from .tasks import Task
-from .theme import ACCENT, BORDER, CARD_PADDING, DANGER, OK, TEXT, TEXT_DIM
+from .theme import ACCENT, BORDER, CARD_PADDING, DANGER, OK, PAGE_MARGINS, TEXT, TEXT_DIM
 
 COLUMN_KEYS = ("game_col_game", "game_col_source", "game_col_status", "game_col_location")
 SESSION_COLUMN_KEYS = (
@@ -140,7 +140,7 @@ class GamingPage(QWidget):
         self._telemetry_timer.timeout.connect(self._poll_telemetry)
 
         layout = QVBoxLayout(self)
-        layout.setContentsMargins(40, 36, 40, 32)
+        layout.setContentsMargins(*PAGE_MARGINS)
         layout.setSpacing(10)
 
         title = QLabel(tr("game_title"))

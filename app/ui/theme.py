@@ -1,5 +1,7 @@
 from __future__ import annotations
 
+import os
+
 _BASE = {
     "BG": "#070A13",
     "PANEL": "#0B1120",
@@ -408,6 +410,43 @@ PALETTES: dict[str, dict] = {
     },
 }
 
+
+def _wcag_lum(color: str) -> float:
+    channels = [int(color[i : i + 2], 16) / 255 for i in (1, 3, 5)]
+    channels = [c / 12.92 if c <= 0.03928 else ((c + 0.055) / 1.055) ** 2.4 for c in channels]
+    return 0.2126 * channels[0] + 0.7152 * channels[1] + 0.0722 * channels[2]
+
+
+def _wcag_contrast(a: str, b: str) -> float:
+    la, lb = _wcag_lum(a), _wcag_lum(b)
+    return (max(la, lb) + 0.05) / (min(la, lb) + 0.05)
+
+
+def _blend(a: str, b: str, t: float) -> str:
+    ca = [int(a[i : i + 2], 16) for i in (1, 3, 5)]
+    cb = [int(b[i : i + 2], 16) for i in (1, 3, 5)]
+    return "#" + "".join(f"{round(x + (y - x) * t):02X}" for x, y in zip(ca, cb, strict=False))
+
+
+def _readable_on(color: str, backgrounds: tuple[str, ...], minimum: float = 4.5) -> str:
+    if all(_wcag_contrast(color, bg) >= minimum for bg in backgrounds):
+        return color
+    worst = min(backgrounds, key=lambda bg: _wcag_contrast(color, bg))
+    target = "#000000" if _wcag_lum(worst) > 0.18 else "#FFFFFF"
+    candidate = color
+    for step in range(1, 101):
+        candidate = _blend(color, target, step / 100)
+        if all(_wcag_contrast(candidate, bg) >= minimum for bg in backgrounds):
+            return candidate
+    return candidate
+
+
+for _palette in PALETTES.values():
+    _surfaces = (_palette["BG"], _palette["PANEL"], _palette["PANEL_ALT"])
+    for _key in ("TEXT_DIM", "ACCENT", "OK", "WARN", "DANGER"):
+        _palette[_key] = _readable_on(_palette[_key], _surfaces)
+    _palette["ON_ACCENT"] = _readable_on(_palette["ON_ACCENT"], (_palette["ACCENT"],))
+
 THEME_ALIASES: dict[str, str] = {
     "MATRIX": "CYBER",
     "CYBERPUNK": "CYBER",
@@ -529,8 +568,6 @@ def set_theme(name: str) -> str:
     globals().update(PALETTES[CURRENT_THEME])
     return CURRENT_THEME
 
-NAV_WIDTH = 232
-
 UI_FONTS = '"Inter", "Segoe UI Variable Text", "Segoe UI", sans-serif'
 MONO_FONTS = '"JetBrains Mono", "Cascadia Mono", "Consolas", monospace'
 
@@ -538,13 +575,37 @@ FONT_UI = UI_FONTS
 FONT_DISPLAY = UI_FONTS
 FONT_MONO = MONO_FONTS
 
-FONT_SCALE = 1.12
+# Shared motion timings (ms): short UI changes feel immediate, value counters
+# stay readable, and the status pill keeps its slow HUD breath.
+MOTION_FAST = 170
+MOTION_BASE = 180
+MOTION_VALUE = 380
+MOTION_AMOUNT = 600
+MOTION_PULSE = 1600
+
+# UI scale is a percentage (100–150%). Like CURRENT_THEME it survives module
+# reloads, because apply_theme() re-imports every UI module after a palette switch.
+if "UI_SCALE" not in globals():
+    UI_SCALE = int(os.environ.get("PCOPTIMIZER_UI_SCALE", 100))
+UI_SCALE = max(100, min(150, int(UI_SCALE)))
+BASE_FONT_SCALE = 1.12
+FONT_SCALE = BASE_FONT_SCALE * UI_SCALE / 100
 BASE_FONT_PX = round(13 * FONT_SCALE)
 
 
 def fs(px: int) -> int:
-    """Scale a design-time font size (px) by the global FONT_SCALE."""
+    """Scale a design-time font size (px) by the active FONT_SCALE."""
     return max(1, round(px * FONT_SCALE))
+
+
+# Layout grows at half the font rate: large text must not push the UI into
+# huge empty cards, but paddings/heights still have to keep up with it.
+LAYOUT_SCALE = 1 + (UI_SCALE - 100) / 200
+
+
+def ls(px: int) -> int:
+    """Scale a design-time layout size (px) by the active LAYOUT_SCALE."""
+    return max(1, round(px * LAYOUT_SCALE))
 
 
 # --- Type scale ------------------------------------------------------------
@@ -565,32 +626,83 @@ T_CAPTION   = fs(11)  # captions, units, timestamps
 T_MICRO     = fs(10)  # badges, ring captions
 
 
+def set_ui_scale(percent: int) -> int:
+    """Set the interface scale (100–150%) and refresh every derived token."""
+    global UI_SCALE, FONT_SCALE, LAYOUT_SCALE, BASE_FONT_PX
+    global T_HERO, T_VALUE, T_TITLE, T_H1, T_H2, T_LEAD, T_BODY, T_BRAND, T_SMALL, T_CAPTION, T_MICRO
+    global NAV_WIDTH, SIDEBAR_WIDTH, SIDEBAR_COMPACT_WIDTH, TOPBAR_HEIGHT, ICON_SIZE
+    global AVATAR_SIZE, AVATAR_BOX_SIZE, STATUS_HEIGHT, CONTROL_HEIGHT, LOGO_SIZE, NAV_ICON_SIZE
+    global TOPBAR_ICON_PAD, TOPBAR_PAD_X
+    global PAGE_MARGINS, PAGE_SPACING, CARD_PADDING
+    global RADIUS_SM, RADIUS_MD, RADIUS_LG, RADIUS_XL
+    global SPACING_XS, SPACING_SM, SPACING_MD, SPACING_LG, SPACING_XL
+    global PADDING_SM, PADDING_MD, PADDING_LG, PADDING_XL
+    global CARD_SPACING, CARD_GAP
+    UI_SCALE = max(100, min(150, int(percent)))
+    FONT_SCALE = BASE_FONT_SCALE * UI_SCALE / 100
+    LAYOUT_SCALE = 1 + (UI_SCALE - 100) / 200
+    BASE_FONT_PX = round(13 * FONT_SCALE)
+    T_HERO, T_VALUE, T_TITLE = fs(44), fs(32), fs(24)
+    T_H1, T_H2, T_LEAD = fs(19), fs(15), fs(14)
+    T_BODY, T_BRAND = fs(13), fs(14)
+    T_SMALL, T_CAPTION, T_MICRO = fs(12), fs(11), fs(10)
+    NAV_WIDTH = ls(232)
+    SIDEBAR_WIDTH = ls(238)
+    SIDEBAR_COMPACT_WIDTH = ls(64)
+    ICON_SIZE = ls(18)
+    AVATAR_SIZE = ls(24)
+    AVATAR_BOX_SIZE = ls(36)
+    STATUS_HEIGHT = ls(28)
+    CONTROL_HEIGHT = ls(36)
+    LOGO_SIZE = ls(36)
+    NAV_ICON_SIZE = ls(18)
+    TOPBAR_ICON_PAD = ls(6)
+    TOPBAR_PAD_X = ls(28)
+    TOPBAR_HEIGHT = max(ls(68), T_H2 + T_SMALL + ls(16))
+    PAGE_MARGINS = tuple(ls(v) for v in (40, 32, 40, 28))
+    PAGE_SPACING = ls(12)
+    CARD_PADDING = ls(16)
+    RADIUS_SM, RADIUS_MD = ls(6), ls(10)
+    RADIUS_LG, RADIUS_XL = ls(12), ls(16)
+    SPACING_XS, SPACING_SM = ls(4), ls(8)
+    SPACING_MD, SPACING_LG, SPACING_XL = ls(12), ls(16), ls(24)
+    PADDING_SM, PADDING_MD = ls(8), ls(12)
+    PADDING_LG, PADDING_XL = ls(16), ls(24)
+    CARD_SPACING, CARD_GAP = ls(8), ls(16)
+    return UI_SCALE
+
+
 # --- Canonical layout scale -------------------------------------------------
 # Every page must use these so cards, paddings and headers share one rhythm.
-# Strict 4px grid: 4, 8, 12, 16, 20, 24, 32, 40, 48
-PAGE_MARGINS = (40, 32, 40, 28)  # page header + outer chrome (4px grid)
-PAGE_SPACING = 12                # was 10
-CARD_PADDING = 16                # inner padding of every card (4px grid)
+# Strict 4px grid at 100%: 4, 8, 12, 16, 20, 24, 32, 40, 48
+NAV_WIDTH = ls(232)
+SIDEBAR_WIDTH = ls(238)
+SIDEBAR_COMPACT_WIDTH = ls(64)
+ICON_SIZE = ls(18)
+AVATAR_SIZE = ls(24)
+AVATAR_BOX_SIZE = ls(36)
+STATUS_HEIGHT = ls(28)
+CONTROL_HEIGHT = ls(36)
+LOGO_SIZE = ls(36)
+NAV_ICON_SIZE = ls(18)
+TOPBAR_ICON_PAD = ls(6)
+TOPBAR_PAD_X = ls(28)
+TOPBAR_HEIGHT = max(ls(68), T_H2 + T_SMALL + ls(16))
 
-# Design tokens (unify radii/spacing/padding across UI)
-RADIUS_SM = 6    # was 8
-RADIUS_MD = 10   # was 10
-RADIUS_LG = 12   # was 12
-RADIUS_XL = 16   # was 14
+PAGE_MARGINS = tuple(ls(v) for v in (40, 32, 40, 28))
+PAGE_SPACING = ls(12)
+CARD_PADDING = ls(16)
 
-SPACING_XS = 4
-SPACING_SM = 8   # was 6
-SPACING_MD = 12  # was 8
-SPACING_LG = 16  # was 12
-SPACING_XL = 24  # was 16
+RADIUS_SM, RADIUS_MD = ls(6), ls(10)
+RADIUS_LG, RADIUS_XL = ls(12), ls(16)
 
-PADDING_SM = 8   # was 10
-PADDING_MD = 12  # was 12
-PADDING_LG = 16  # was 16
-PADDING_XL = 24  # was 20
+SPACING_XS, SPACING_SM = ls(4), ls(8)
+SPACING_MD, SPACING_LG, SPACING_XL = ls(12), ls(16), ls(24)
 
-CARD_SPACING = 8   # spacing between rows inside a card
-CARD_GAP = 16      # spacing between sibling cards on a page (was 14)
+PADDING_SM, PADDING_MD = ls(8), ls(12)
+PADDING_LG, PADDING_XL = ls(16), ls(24)
+
+CARD_SPACING, CARD_GAP = ls(8), ls(16)
 
 
 def _fonts_dir():
@@ -897,6 +1009,30 @@ QPushButton[nav="true"][compact="true"]:checked:focus,
 QPushButton[nav="true"][compact="true"]:checked:hover {{
     padding-left: 0px;
 }}
+QPushButton[navGroup="true"] {{
+    background: transparent;
+    border: none;
+    border-top: 1px solid {BORDER};
+    border-radius: 0;
+    color: {TEXT_DIM};
+    text-align: left;
+    padding: {SPACING_MD}px 14px {SPACING_XS}px 14px;
+    margin: 8px 10px 3px 10px;
+    font-size: {T_CAPTION}px;
+    font-weight: 700;
+    letter-spacing: 0.1em;
+}}
+QPushButton[navGroup="true"]:hover,
+QPushButton[navGroup="true"]:checked {{
+    color: {ACCENT};
+}}
+QPushButton[navGroup="true"][compact="true"] {{
+    text-align: center;
+    padding: 3px 0;
+    margin: 5px 8px 2px 8px;
+    font-size: {T_MICRO}px;
+    letter-spacing: 0em;
+}}
 QScrollBar:vertical {{
     background: transparent;
     width: 6px;
@@ -953,12 +1089,6 @@ QLabel#pageDesc {{
     font-size: {T_BODY}px;
     color: {TEXT_DIM};
     letter-spacing: 0.01em;
-}}
-QFrame#card {{
-    background: qlineargradient(x1:0, y1:0, x2:0, y2:1, stop:0 {_mix(PANEL, TEXT, 0.06)}, stop:1 {PANEL});
-    border: 1px solid {BORDER_HI};
-    border-top: 1px solid {_mix(BORDER_HI, ACCENT, 0.35)};
-    border-radius: {RADIUS_LG}px;
 }}
 QLabel#cardTitle {{
     font-family: {FONT_MONO};
@@ -1237,7 +1367,7 @@ QPushButton#topBarIcon {{
     background: transparent;
     border: none;
     border-radius: {RADIUS_SM}px;
-    padding: 6px;
+    padding: {TOPBAR_ICON_PAD}px;
 }}
 QPushButton#topBarIcon:hover {{
     background: {PANEL_ALT};

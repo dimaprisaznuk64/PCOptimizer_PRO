@@ -46,7 +46,7 @@ from app.settings import SettingsService
 from .pages import build_pages
 from .sampler import SensorSampler
 from .sidebar import NAV_ITEMS, NAV_KEYS, Sidebar
-from .theme import apply, set_application_fonts
+from .theme import set_application_fonts
 from .topbar import TopBar
 from .tray import AppTray
 
@@ -140,6 +140,7 @@ class MainWindow(QMainWindow):
         *,
         gaming: GamingService | None = None,
         processes: ProcessService | None = None,
+        history: PerformanceHistory | None = None,
     ) -> None:
         super().__init__(parent)
         self.setWindowTitle("PCOptimizer PRO")
@@ -155,6 +156,9 @@ class MainWindow(QMainWindow):
         self.tray: AppTray | None = None
         self._update_task = None
         self.settings = settings or SettingsService()
+        from . import theme as th
+
+        th.set_ui_scale(int(self.settings.get("ui_scale")))
         self._gaming = gaming or GamingService()
         self._processes = processes or ProcessService()
         self._game_running = False
@@ -166,7 +170,7 @@ class MainWindow(QMainWindow):
         self._back_shortcut = QShortcut(QKeySequence("Alt+Left"), self)
         self._back_shortcut.setContext(Qt.ShortcutContext.WindowShortcut)
         self._back_shortcut.activated.connect(self.go_back)
-        self._history = PerformanceHistory(process_top=self._processes.top_by_memory)
+        self._history = history or PerformanceHistory(process_top=self._processes.top_by_memory)
         cooldown = COOLDOWN_S
         self._cpu_monitor = TemperatureAlertMonitor(
             reading=max_cpu_thermal, cooldown_s=cooldown
@@ -200,7 +204,14 @@ class MainWindow(QMainWindow):
         self.stack = QStackedWidget()
 
         self._index_by_key: dict[str, int] = {}
-        for i, (key, page) in enumerate(build_pages(self.settings, on_theme_applied=self.apply_theme)):
+        for i, (key, page) in enumerate(
+            build_pages(
+                self.settings,
+                on_theme_applied=self.apply_theme,
+                on_scale_applied=self.apply_ui_scale,
+                history=self._history,
+            )
+        ):
             self._index_by_key[key] = i
             self.stack.addWidget(page)
 
@@ -275,11 +286,13 @@ class MainWindow(QMainWindow):
         from PySide6.QtCore import QPropertyAnimation
         from PySide6.QtWidgets import QGraphicsOpacityEffect
 
+        from . import theme as th
+
         effect = QGraphicsOpacityEffect(page)
         effect.setOpacity(0.0)
         page.setGraphicsEffect(effect)
         anim = QPropertyAnimation(effect, b"opacity", page)
-        anim.setDuration(170)
+        anim.setDuration(th.MOTION_FAST)
         anim.setStartValue(0.0)
         anim.setEndValue(1.0)
         anim.finished.connect(lambda: page.setGraphicsEffect(None))
@@ -342,6 +355,13 @@ class MainWindow(QMainWindow):
             if module is not None:
                 importlib.reload(module)
 
+    def apply_ui_scale(self, percent: int) -> None:
+        """Apply a new interface scale instantly (reuses the theme rebuild path)."""
+        from . import theme as th
+
+        th.set_ui_scale(percent)
+        self.apply_theme(th.CURRENT_THEME)
+
     def apply_theme(self, name: str) -> None:
         """Apply a new theme instantly (no restart): restyle the app + rebuild every page."""
         from PySide6.QtWidgets import QApplication
@@ -367,6 +387,7 @@ class MainWindow(QMainWindow):
 
         geometry = self.geometry()
         key = self.current_key
+        collapsed_groups = self.sidebar.collapsed_groups()
 
         self.sidebar.deleteLater()
         self.topbar.deleteLater()
@@ -378,6 +399,7 @@ class MainWindow(QMainWindow):
         self._content.deleteLater()
 
         self.sidebar = Sidebar()
+        self.sidebar.set_collapsed_groups(collapsed_groups)
         self.topbar = TopBar()
         self.topbar.settings_requested.connect(lambda: self.show_page("settings"))
         self.topbar.back_requested.connect(self.go_back)
@@ -385,7 +407,12 @@ class MainWindow(QMainWindow):
         self.stack = QStackedWidget()
         self._index_by_key = {}
         for i, (page_key, page) in enumerate(
-            build_pages(self.settings, on_theme_applied=self.apply_theme)
+            build_pages(
+                self.settings,
+                on_theme_applied=self.apply_theme,
+                on_scale_applied=self.apply_ui_scale,
+                history=self._history,
+            )
         ):
             self._index_by_key[page_key] = i
             self.stack.addWidget(page)
@@ -684,19 +711,20 @@ def run(argv: list[str] | None = None) -> int:
         Qt.HighDpiScaleFactorRoundingPolicy.PassThrough
     )
     app = QApplication(argv if argv is not None else sys.argv)
-    from .theme import load_fonts
+    settings = SettingsService()
+    if not settings.path.exists():
+        settings.save()
+    from . import theme as th
 
-    load_fonts()
+    th.load_fonts()
+    th.set_ui_scale(int(settings.get("ui_scale")))
     # Initialize application-wide font settings
     set_application_fonts()
     app.setApplicationName("PCOptimizer PRO")
     app.setApplicationDisplayName("PCOptimizer PRO")
     app.setAttribute(Qt.ApplicationAttribute.AA_DontShowIconsInMenus, True)
-    apply(app)
+    th.apply(app)
 
-    settings = SettingsService()
-    if not settings.path.exists():
-        settings.save()
     log_file = setup_logging(settings.get("log_level"))
     log = get_logger("main")
 

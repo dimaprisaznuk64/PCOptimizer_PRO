@@ -44,7 +44,11 @@ from .theme import (
     CARD_PADDING,
     CARD_SPACING,
     DANGER,
+    MOTION_AMOUNT,
+    MOTION_BASE,
+    MOTION_VALUE,
     OK,
+    PADDING_XL,
     PANEL,
     PANEL_ALT,
     RADIUS_LG,
@@ -62,6 +66,7 @@ from .theme import (
     _mix,
     card_shadow,
     hud_brackets,
+    ls,
     set_mono,
 )
 
@@ -108,7 +113,7 @@ class ScoreRing(QWidget):
         self._value: float | None = None
         self._shown = 0.0
         self._anim = QVariantAnimation(self)
-        self._anim.setDuration(600)
+        self._anim.setDuration(MOTION_AMOUNT)
         self._anim.setEasingCurve(QEasingCurve.Type.OutCubic)
         self._anim.valueChanged.connect(self._on_anim)
         layout = QVBoxLayout(self)
@@ -202,13 +207,13 @@ def card_heading(text: str, accent: str = ACCENT) -> QWidget:
     return row
 
 
-def glyph_tile(icon: str, color: str = ACCENT, size: int = 38) -> QLabel:
+def glyph_tile(icon: str, color: str = ACCENT, size: int | None = None) -> QLabel:
     tile = QLabel()
     tile.setObjectName("iconTile")
-    tile.setFixedSize(size, size)
+    tile.setFixedSize(size or ls(38), size or ls(38))
     tile.setAlignment(Qt.AlignmentFlag.AlignCenter)
     tile.setPixmap(
-        glyph(icon, color).scaled(22, 22, Qt.AspectRatioMode.KeepAspectRatio, Qt.TransformationMode.SmoothTransformation)
+        glyph(icon, color).scaled(ls(22), ls(22), Qt.AspectRatioMode.KeepAspectRatio, Qt.TransformationMode.SmoothTransformation)
     )
     return tile
 
@@ -224,7 +229,7 @@ class _Ring(QWidget):
         self._shown = 0.0
         self._has_value = False
         self._anim = QVariantAnimation(self)
-        self._anim.setDuration(380)
+        self._anim.setDuration(MOTION_VALUE)
         self._anim.setEasingCurve(QEasingCurve.Type.OutCubic)
         self._anim.valueChanged.connect(self._on_anim)
 
@@ -311,7 +316,7 @@ class RingCard(QFrame):
         self._shadow = card_shadow(self)
         hud_brackets(self)
         self._shadow_anim = QPropertyAnimation(self._shadow, b"blurRadius", self)
-        self._shadow_anim.setDuration(180)
+        self._shadow_anim.setDuration(MOTION_BASE)
         self._shadow_anim.setEasingCurve(QEasingCurve.Type.OutCubic)
         self.setCursor(Qt.CursorShape.PointingHandCursor)
         # Hover is driven by explicit enter/leave events (property "hot"):
@@ -621,7 +626,7 @@ def chart_line_spec(key: str, multi: bool) -> tuple[bool, float]:
 class _ChartCanvas(QWidget):
     def __init__(self, points: int, parent: QWidget | None = None) -> None:
         super().__init__(parent)
-        self.setMinimumHeight(130)
+        self.setMinimumHeight(ls(130))
         self.setMouseTracking(True)
         self.key = "all"
         self._percent = True
@@ -923,12 +928,12 @@ class _EmptyHint(QLabel):
         self.setWordWrap(True)
         self.setAlignment(Qt.AlignmentFlag.AlignCenter)
         self.setStyleSheet(
-            f"color: {TEXT_DIM}; font-size: {T_BODY}px; background: transparent; padding: 24px;"
+            f"color: {TEXT_DIM}; font-size: {T_BODY}px; background: transparent; padding: {PADDING_XL}px;"
         )
         # Subtle HUD glyph above the copy so an empty table still looks designed.
         self.setPixmap(
             glyph("search", _mix(TEXT_DIM, PANEL, 0.35)).scaled(
-                30, 30, Qt.AspectRatioMode.KeepAspectRatio, Qt.TransformationMode.SmoothTransformation
+                ls(30), ls(30), Qt.AspectRatioMode.KeepAspectRatio, Qt.TransformationMode.SmoothTransformation
             )
         )
         self.setAttribute(Qt.WidgetAttribute.WA_TransparentForMouseEvents)
@@ -984,7 +989,7 @@ class ArcGauge(QWidget):
 
     def __init__(self, caption: str = "Utilization", base: str = ACCENT, parent: QWidget | None = None) -> None:
         super().__init__(parent)
-        self.setFixedSize(150, 132)
+        self.setFixedSize(ls(150), ls(132))
         self._base = base
         self._percent = 0.0
         self._has_value = False
@@ -1063,9 +1068,9 @@ class GaugeCard(QFrame):
         left.setSpacing(CARD_SPACING)
         tile = QLabel()
         tile.setObjectName("iconTile")
-        tile.setFixedSize(38, 38)
+        tile.setFixedSize(ls(38), ls(38))
         tile.setAlignment(Qt.AlignmentFlag.AlignCenter)
-        tile.setPixmap(glyph(icon, color).scaled(22, 22, Qt.AspectRatioMode.KeepAspectRatio, Qt.TransformationMode.SmoothTransformation))
+        tile.setPixmap(glyph(icon, color).scaled(ls(22), ls(22), Qt.AspectRatioMode.KeepAspectRatio, Qt.TransformationMode.SmoothTransformation))
         left.addWidget(tile)
         left.addSpacing(SPACING_SM)
         name = QLabel(title)
@@ -1180,9 +1185,9 @@ class ActionTile(QPushButton):
         row.setSpacing(SPACING_MD)
         tile = QLabel()
         tile.setObjectName("iconTile")
-        tile.setFixedSize(38, 38)
+        tile.setFixedSize(ls(38), ls(38))
         tile.setAlignment(Qt.AlignmentFlag.AlignCenter)
-        tile.setPixmap(glyph(icon, ACCENT).scaled(22, 22, Qt.AspectRatioMode.KeepAspectRatio, Qt.TransformationMode.SmoothTransformation))
+        tile.setPixmap(glyph(icon, ACCENT).scaled(ls(22), ls(22), Qt.AspectRatioMode.KeepAspectRatio, Qt.TransformationMode.SmoothTransformation))
         row.addWidget(tile)
         texts = QVBoxLayout()
         texts.setSpacing(SPACING_XS)
@@ -1405,12 +1410,12 @@ class CardPanel(QFrame):
         hud_brackets(self)
         self._layout = QVBoxLayout(self)
         self._layout.setContentsMargins(CARD_PADDING, CARD_PADDING, CARD_PADDING, CARD_PADDING)
-        self._layout.setSpacing(8)
+        self._layout.setSpacing(CARD_SPACING)
         heading = card_heading(title)
         self._layout.addWidget(heading)
         self.title_label = heading._label  # type: ignore[attr-defined]
         self.body = QVBoxLayout()
-        self.body.setSpacing(6)
+        self.body.setSpacing(SPACING_SM)
         self._layout.addLayout(self.body)
         self._layout.addStretch(1)
         self._rows: dict[str, tuple[QLabel, Bar, QLabel]] = {}
@@ -1464,7 +1469,7 @@ class ValueListCard(QFrame):
         hud_brackets(self)
         self._layout = QVBoxLayout(self)
         self._layout.setContentsMargins(CARD_PADDING, CARD_PADDING, CARD_PADDING, CARD_PADDING)
-        self._layout.setSpacing(6)
+        self._layout.setSpacing(CARD_SPACING)
         heading = card_heading(title)
         self._layout.addWidget(heading)
         self.title_label = heading._label  # type: ignore[attr-defined]

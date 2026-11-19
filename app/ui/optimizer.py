@@ -28,7 +28,7 @@ from .activity import outcome_level
 from .activity import record as log_action
 from .components import CardTitleLabel, glyph_tile
 from .tasks import Task
-from .theme import CARD_PADDING
+from .theme import CARD_PADDING, PAGE_MARGINS
 
 _PROFILE_ICONS = {"balanced": "health", "gaming": "gaming", "performance": "cpu"}
 
@@ -117,7 +117,7 @@ class OptimizerPage(QWidget):
         self._selected_profile: str | None = None
 
         layout = QVBoxLayout(self)
-        layout.setContentsMargins(40, 36, 40, 32)
+        layout.setContentsMargins(*PAGE_MARGINS)
         layout.setSpacing(10)
 
         title = QLabel(tr("opt_title"))

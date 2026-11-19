@@ -16,6 +16,7 @@ from PySide6.QtWidgets import (
     QPushButton,
     QScrollArea,
     QSizePolicy,
+    QSpinBox,
     QVBoxLayout,
     QWidget,
 )
@@ -28,7 +29,7 @@ from app.update import RELEASES_PAGE, UpdateService, download_installer
 
 from .combos import COMBO_HEIGHT, COMBO_WIDTH_WIDE, CompactCombo, tune_combo
 from .components import CardTitleLabel
-from .theme import CURRENT_THEME, T_SMALL, THEME_LABELS
+from .theme import CARD_PADDING, CURRENT_THEME, PAGE_MARGINS, PAGE_SPACING, T_SMALL, THEME_LABELS
 from .theme_picker import ThemeSwatchDelegate
 
 INTERVAL_OPTIONS = (250, 500, 1000, 2000, 5000)
@@ -43,6 +44,7 @@ class SettingsPage(QWidget):
         log_directory: Path | str | None = None,
         parent: QWidget | None = None,
         on_theme_applied=None,
+        on_scale_applied=None,
         update_service: UpdateService | None = None,
     ) -> None:
         super().__init__(parent)
@@ -50,6 +52,7 @@ class SettingsPage(QWidget):
         self._service = service or SettingsService()
         self._log_directory = Path(log_directory) if log_directory is not None else None
         self._on_theme_applied = on_theme_applied
+        self._on_scale_applied = on_scale_applied
         self._update_service = update_service
         self._check_task = None
         self._download_task = None
@@ -72,8 +75,8 @@ class SettingsPage(QWidget):
         scroll.setWidget(content)
 
         layout = QVBoxLayout(content)
-        layout.setContentsMargins(40, 36, 40, 32)
-        layout.setSpacing(14)
+        layout.setContentsMargins(*PAGE_MARGINS)
+        layout.setSpacing(PAGE_SPACING)
 
         title = QLabel(tr("set_title"))
         title.setObjectName("pageTitle")
@@ -94,7 +97,7 @@ class SettingsPage(QWidget):
         actions_bar = QFrame()
         actions_bar.setObjectName("card")
         actions_outer = QHBoxLayout(actions_bar)
-        actions_outer.setContentsMargins(16, 12, 16, 12)
+        actions_outer.setContentsMargins(CARD_PADDING, PAGE_SPACING, CARD_PADDING, PAGE_SPACING)
         actions_outer.setSpacing(8)
         self.save_button = QPushButton(tr("set_save_btn"))
         self.save_button.setProperty("primary", True)
@@ -133,6 +136,8 @@ class SettingsPage(QWidget):
         for i in range(self.theme_combo.count()):
             self.theme_combo.setItemText(i, tr(f"theme_{self.theme_combo.itemData(i)}"))
         self._language_label.setText(tr("set_language"))
+        self._scale_label.setText(tr("set_ui_scale"))
+        self._scale_label.setToolTip(tr("set_ui_scale_tip"))
         self._data_label.setText(tr("set_data_dir"))
         self._data_label.setToolTip(tr("set_data_dir_tip"))
         self._level_label.setText(tr("set_log_level"))
@@ -199,35 +204,46 @@ class SettingsPage(QWidget):
         tune_combo(self.language_combo)
         grid.addWidget(self.language_combo, 3, 1)
 
+        self._scale_label = QLabel(tr("set_ui_scale"))
+        self._scale_label.setToolTip(tr("set_ui_scale_tip"))
+        grid.addWidget(self._scale_label, 4, 0)
+        self.scale_spin = QSpinBox()
+        self.scale_spin.setRange(100, 150)
+        self.scale_spin.setSingleStep(5)
+        self.scale_spin.setSuffix("%")
+        self.scale_spin.setFixedHeight(COMBO_HEIGHT)
+        self.scale_spin.setFixedWidth(120)
+        grid.addWidget(self.scale_spin, 4, 1)
+
         self._data_label = QLabel(tr("set_data_dir"))
         self._data_label.setToolTip(tr("set_data_dir_tip"))
-        grid.addWidget(self._data_label, 4, 0)
+        grid.addWidget(self._data_label, 5, 0)
         self.data_dir_edit = QLineEdit(str(data_root()))
         self.data_dir_edit.setReadOnly(True)
         self.data_dir_edit.setFixedHeight(COMBO_HEIGHT)
         self.data_dir_edit.setSizePolicy(QSizePolicy.Expanding, QSizePolicy.Fixed)
-        grid.addWidget(self.data_dir_edit, 4, 1)
+        grid.addWidget(self.data_dir_edit, 5, 1)
 
         self.minimize_check = QCheckBox(tr("set_minimize_tray"))
-        grid.addWidget(self.minimize_check, 5, 0, 1, 2)
+        grid.addWidget(self.minimize_check, 6, 0, 1, 2)
 
         self.start_minimized_check = QCheckBox(tr("set_start_minimized"))
-        grid.addWidget(self.start_minimized_check, 6, 0, 1, 2)
+        grid.addWidget(self.start_minimized_check, 7, 0, 1, 2)
 
         self.tray_metrics_check = QCheckBox(tr("set_tray_metrics"))
-        grid.addWidget(self.tray_metrics_check, 7, 0, 1, 2)
+        grid.addWidget(self.tray_metrics_check, 8, 0, 1, 2)
 
         self.temp_alerts_check = QCheckBox(tr("set_temp_alerts"))
-        grid.addWidget(self.temp_alerts_check, 8, 0, 1, 2)
+        grid.addWidget(self.temp_alerts_check, 9, 0, 1, 2)
 
         self.quiet_games_check = QCheckBox(tr("set_quiet_games"))
-        grid.addWidget(self.quiet_games_check, 9, 0, 1, 2)
+        grid.addWidget(self.quiet_games_check, 10, 0, 1, 2)
 
         self.usage_alerts_check = QCheckBox(tr("set_usage_alerts"))
-        grid.addWidget(self.usage_alerts_check, 10, 0, 1, 2)
+        grid.addWidget(self.usage_alerts_check, 11, 0, 1, 2)
 
         self._version_label = QLabel(tr("set_version"))
-        grid.addWidget(self._version_label, 11, 0)
+        grid.addWidget(self._version_label, 12, 0)
         version_row = QHBoxLayout()
         version_row.setSpacing(8)
         self.version_value = QLabel(f"v{__version__}")
@@ -248,16 +264,16 @@ class SettingsPage(QWidget):
         self.check_updates_button.setProperty("secondary", True)
         self.check_updates_button.clicked.connect(self.check_for_updates)
         version_row.addWidget(self.check_updates_button)
-        grid.addLayout(version_row, 11, 1)
+        grid.addLayout(version_row, 12, 1)
 
         self.update_check = QCheckBox(tr("set_update_check"))
-        grid.addWidget(self.update_check, 12, 0, 1, 2)
+        grid.addWidget(self.update_check, 13, 0, 1, 2)
 
         self.update_status = QLabel("")
         self.update_status.setObjectName("cardSub")
         self.update_status.setWordWrap(True)
         self.update_status.setVisible(False)
-        grid.addWidget(self.update_status, 13, 0, 1, 2)
+        grid.addWidget(self.update_status, 14, 0, 1, 2)
 
         for check in (
             self.minimize_check,
@@ -345,6 +361,8 @@ class SettingsPage(QWidget):
         self.theme_combo.setCurrentIndex(max(theme_index, 0))
         self._loaded_theme = str(self._service.get("theme"))
         self._sync_theme_check()
+        self.scale_spin.setValue(int(self._service.get("ui_scale")))
+        self._loaded_scale = self.scale_spin.value()
         language_index = self.language_combo.findData(self._service.get("language"))
         self.language_combo.setCurrentIndex(max(language_index, 0))
         self.minimize_check.setChecked(self._service.get("minimize_to_tray"))
@@ -362,6 +380,7 @@ class SettingsPage(QWidget):
         return {
             "sample_interval_ms": int(self.interval_combo.currentData()),
             "language": str(self.language_combo.currentData()),
+            "ui_scale": self.scale_spin.value(),
             "minimize_to_tray": self.minimize_check.isChecked(),
             "start_minimized": self.start_minimized_check.isChecked(),
             "tray_metrics": self.tray_metrics_check.isChecked(),
@@ -387,25 +406,33 @@ class SettingsPage(QWidget):
         setup_logging(self._service.get("log_level"), directory=self._log_directory)
         previous_language = I18nService.instance().current_language
         previous_theme = getattr(self, "_loaded_theme", CURRENT_THEME)
+        previous_scale = getattr(self, "_loaded_scale", 100)
         self.status_label.setObjectName("cardSub")
         self.status_label.style().unpolish(self.status_label)
         self.status_label.style().polish(self.status_label)
         self.status_label.setText(tr("set_saved", path=path))
         self.refresh_preview()
-        self._apply_live_changes(previous_language, previous_theme)
+        self._apply_live_changes(previous_language, previous_theme, previous_scale)
 
-    def _apply_live_changes(self, previous_language: str, previous_theme: str) -> None:
+    def _apply_live_changes(
+        self, previous_language: str, previous_theme: str, previous_scale: int
+    ) -> None:
         language = str(self._service.get("language"))
         theme = str(self._service.get("theme"))
+        scale = int(self._service.get("ui_scale"))
         self._loaded_theme = theme
+        self._loaded_scale = scale
         if language != previous_language:
             I18nService.instance().set_language(language)
+        if scale != previous_scale and self._on_scale_applied is not None:
+            self._on_scale_applied(scale)
         if theme != previous_theme and self._on_theme_applied is not None:
             self._on_theme_applied(theme)
 
     def reset(self) -> None:
         previous_language = I18nService.instance().current_language
         previous_theme = getattr(self, "_loaded_theme", CURRENT_THEME)
+        previous_scale = getattr(self, "_loaded_scale", 100)
         self._service.reset()
         try:
             self._service.save()
@@ -414,7 +441,7 @@ class SettingsPage(QWidget):
             return
         self.load_values()
         self.status_label.setText(tr("set_reset_done"))
-        self._apply_live_changes(previous_language, previous_theme)
+        self._apply_live_changes(previous_language, previous_theme, previous_scale)
 
     # ---------- updates ----------
 

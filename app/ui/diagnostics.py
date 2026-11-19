@@ -23,7 +23,7 @@ from .combos import CompactCombo, tune_combo
 from .components import CardTitleLabel, attach_empty_hint
 from .format import size as fmt_size
 from .tasks import Task
-from .theme import ACCENT, CARD_PADDING, DANGER, OK, WARN
+from .theme import ACCENT, CARD_PADDING, DANGER, OK, PAGE_MARGINS, WARN
 
 DISK_COLUMN_KEYS = (
     "diag_col_name",
@@ -200,7 +200,7 @@ class DiagnosticsPage(QWidget):
         self._loaded = False
 
         layout = QVBoxLayout(self)
-        layout.setContentsMargins(40, 36, 40, 32)
+        layout.setContentsMargins(*PAGE_MARGINS)
         layout.setSpacing(10)
 
         title = QLabel(tr("diag_title"))

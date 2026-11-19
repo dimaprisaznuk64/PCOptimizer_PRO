@@ -35,7 +35,7 @@ from .activity import record as log_action
 from .combos import CompactCombo, tune_combo
 from .components import CardTitleLabel, attach_empty_hint
 from .tasks import Task
-from .theme import CARD_PADDING
+from .theme import CARD_PADDING, PAGE_MARGINS
 
 _COVER_W = 168
 _COVER_H = 94
@@ -191,7 +191,7 @@ class LauncherPage(QWidget):
         self._cols = 3
 
         layout = QVBoxLayout(self)
-        layout.setContentsMargins(40, 36, 40, 32)
+        layout.setContentsMargins(*PAGE_MARGINS)
         layout.setSpacing(10)
 
         title = QLabel(tr("launch_title"))

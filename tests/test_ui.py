@@ -258,6 +258,134 @@ def test_alt_left_shortcut_goes_back(qapp) -> None:
     window.close()
 
 
+def test_nav_groups_cover_all_keys_once(qapp) -> None:
+    from app.ui.sidebar import NAV_GROUPS, NAV_KEYS
+
+    grouped = [key for _group, _tr, keys in NAV_GROUPS for key in keys]
+    assert len(NAV_GROUPS) == 7
+    assert len(grouped) == len(set(grouped)) == len(NAV_KEYS)
+    assert set(grouped) == {key for key, _tr in NAV_KEYS}
+
+
+def test_group_headers_collapse_and_expand(qapp) -> None:
+    window = MainWindow()
+    sb = window.sidebar
+    assert len(sb._group_buttons) == 7
+    assert set(sb._group_keys["overview"]) == {"dashboard", "health"}
+
+    sb.toggle_group("overview")
+    assert sb.collapsed_groups() == ("overview",)
+    assert sb._buttons["dashboard"].isHidden() is True
+    assert sb._buttons["health"].isHidden() is True
+    assert sb._buttons["gpu"].isHidden() is False
+
+    sb.toggle_group("overview")
+    assert sb.collapsed_groups() == ()
+    assert sb._buttons["dashboard"].isHidden() is False
+    window.close()
+
+
+def test_collapsed_group_expands_on_navigation(qapp) -> None:
+    window = MainWindow()
+    sb = window.sidebar
+    sb.toggle_group("gaming")
+    assert sb._buttons["launcher"].isHidden() is True
+
+    window.show_page("launcher")
+    assert window.current_key == "launcher"
+    assert sb._buttons["launcher"].isHidden() is False
+    assert sb.collapsed_groups() == ()
+    window.close()
+
+
+def test_group_state_survives_theme_rebuild(qapp) -> None:
+    from app.ui import theme as tract
+
+    orig = tract.CURRENT_THEME
+    try:
+        window = MainWindow()
+        window.sidebar.toggle_group("tools")
+        assert window.sidebar.collapsed_groups() == ("tools",)
+
+        window.apply_theme("CYBER")
+        assert window.sidebar.collapsed_groups() == ("tools",)
+        assert window.sidebar._buttons["export_center"].isHidden() is True
+        window.close()
+    finally:
+        tract.set_theme(orig)
+
+
+def test_group_headers_follow_compact_and_language(qapp) -> None:
+    from app.i18n import I18nService
+
+    window = MainWindow()
+    sb = window.sidebar
+    header = sb._group_buttons["overview"]
+    assert header.text().startswith("▾")
+
+    window.resize(1024, 640)
+    window.show()
+    qapp.processEvents()
+    assert header.text() == "─"
+    assert header.toolTip() != ""
+
+    window.resize(1440, 900)
+    qapp.processEvents()
+    assert len(header.text()) > 2
+
+    I18nService.instance().set_language("EN")
+    assert "OVERVIEW" in header.text()
+    I18nService.instance().set_language("UA")
+    assert "ОГЛЯД" in header.text()
+    window.close()
+
+
+def test_nav_tooltips_describe_destination(qapp) -> None:
+    from app.i18n import tr
+    from app.ui.sidebar import NAV_KEYS
+
+    window = MainWindow()
+    sb = window.sidebar
+    for key, _label_key in NAV_KEYS:
+        tip = sb._buttons[key].toolTip()
+        assert tip == tr(f"tip_nav_{key}"), key
+        assert tip
+
+    sb.set_compact(True)
+    compact_tip = sb._buttons["monitor"].toolTip()
+    assert tr("nav_monitor") in compact_tip
+    assert tr("tip_nav_monitor") in compact_tip
+    window.close()
+
+
+def test_group_header_tooltip_includes_count(qapp) -> None:
+    from app.i18n import tr
+
+    window = MainWindow()
+    header = window.sidebar._group_buttons["overview"]
+    summary = tr("nav_group_count", group=tr("nav_group_overview"), count=2)
+    assert summary in header.toolTip()
+    assert "· 2" in header.text()
+    window.close()
+
+
+def test_topbar_status_tooltip_follows_set_status(qapp) -> None:
+    from app.i18n import tr
+
+    window = MainWindow()
+    window.topbar.set_status("Busy", "warn")
+    assert window.topbar.status.toolTip() == tr("topbar_status_tip", text="Busy")
+    window.close()
+
+
+def test_topbar_pulse_uses_shared_motion_token(qapp) -> None:
+    from app.ui import theme as tract
+
+    window = MainWindow()
+    assert window.topbar._pulse.duration() == tract.MOTION_PULSE
+    window.close()
+
+
 def test_topbar_title_follows_live_language_switch(qapp) -> None:
     from app.i18n import I18nService, tr
 
@@ -276,4 +404,52 @@ def test_topbar_title_follows_live_language_switch(qapp) -> None:
     assert window.topbar.title.text() == tr("nav_monitor")
     assert not window.topbar.title.text().isascii()
     window.close()
+
+
+def test_scaled_layout_tokens_reach_topbar_and_sidebar(qapp) -> None:
+    import importlib
+
+    from app.ui import sidebar as sidebar_mod
+    from app.ui import theme as tract
+    from app.ui import topbar as topbar_mod
+
+    original = tract.UI_SCALE
+    try:
+        assert tract.set_ui_scale(150) == 150
+        importlib.reload(topbar_mod)
+        importlib.reload(sidebar_mod)
+
+        bar = topbar_mod.TopBar()
+        rail = sidebar_mod.Sidebar()
+        assert bar.height() == tract.TOPBAR_HEIGHT
+        assert bar.back_button.iconSize().width() == tract.ICON_SIZE
+        assert bar.status.height() == tract.STATUS_HEIGHT
+        assert rail.width() == tract.SIDEBAR_WIDTH
+        assert rail._buttons["dashboard"].iconSize().width() == tract.NAV_ICON_SIZE
+        bar.close()
+        rail.close()
+    finally:
+        tract.set_ui_scale(original)
+        importlib.reload(topbar_mod)
+        importlib.reload(sidebar_mod)
+
+
+def test_apply_ui_scale_updates_theme_and_rebuilds_pages(qapp, monkeypatch) -> None:
+    from app.ui import theme as tract
+
+    original = tract.UI_SCALE
+    window = MainWindow()
+    applied: list[str] = []
+    monkeypatch.setattr(window, "apply_theme", applied.append)
+    try:
+        window.apply_ui_scale(140)
+        assert tract.UI_SCALE == 140
+        assert tract.T_BODY == tract.fs(13)
+        assert applied == [tract.CURRENT_THEME]
+        tract.apply(qapp)
+        assert f"font-size: {tract.T_BODY}px" in qapp.styleSheet()
+    finally:
+        tract.set_ui_scale(original)
+        tract.apply(qapp)
+        window.close()
 

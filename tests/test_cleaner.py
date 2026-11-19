@@ -248,6 +248,27 @@ def test_recycle_reports_scanned_counts(monkeypatch) -> None:
     assert outcome.error is None
 
 
+def test_recycle_scan_clamps_negative_size(monkeypatch) -> None:
+    import types
+
+    seen: dict[str, object] = {}
+
+    def fake_run(args, **kwargs):
+        seen["args"] = args
+        return types.SimpleNamespace(returncode=0, stdout=b"4;-1429090185\n", stderr=b"")
+
+    monkeypatch.setattr("app.cleaner.service.subprocess.run", fake_run)
+    target = CleanTarget(RECYCLE_BIN_ID, "Recycle Bin", "System", kind="recycle")
+    result = CleanerService([target]).scan(target)
+    assert result.files == 4
+    assert result.bytes == 0
+    assert result.error is None
+    script = seen["args"][-1]
+    assert isinstance(script, str)
+    assert "Get-Item -LiteralPath $p" in script
+    assert "Measure-Object" not in script
+
+
 def test_default_service_scan_runs() -> None:
     service = CleanerService()
     results = service.scan_all()

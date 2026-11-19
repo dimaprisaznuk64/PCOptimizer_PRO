@@ -22,6 +22,7 @@ DEFAULTS: dict[str, Any] = {
     "update_check_enabled": True,
     "log_level": "INFO",
     "theme": "TITANIUM",
+    "ui_scale": 100,
     "language": "UA",
     "temp_alerts_enabled": True,
     "alerts_quiet_during_games": True,
@@ -40,6 +41,7 @@ CHOICES: dict[str, tuple[str, ...]] = {
 
 RANGES: dict[str, tuple[int, int]] = {
     "sample_interval_ms": (250, 10000),
+    "ui_scale": (100, 150),
 }
 
 

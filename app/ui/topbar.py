@@ -15,7 +15,26 @@ from PySide6.QtWidgets import (
 from app.i18n import tr
 
 from .icons import glyph
-from .theme import ACCENT, BORDER_HI, T_BODY, T_CAPTION, T_H2, T_SMALL, TEXT, TEXT_DIM
+from .theme import (
+    ACCENT,
+    AVATAR_BOX_SIZE,
+    AVATAR_SIZE,
+    BORDER_HI,
+    ICON_SIZE,
+    MOTION_PULSE,
+    RADIUS_MD,
+    SPACING_SM,
+    SPACING_XS,
+    STATUS_HEIGHT,
+    T_BODY,
+    T_CAPTION,
+    T_H2,
+    T_SMALL,
+    TEXT,
+    TEXT_DIM,
+    TOPBAR_HEIGHT,
+    TOPBAR_PAD_X,
+)
 
 
 class TopBar(QWidget):
@@ -28,12 +47,13 @@ class TopBar(QWidget):
     def __init__(self, parent: QWidget | None = None) -> None:
         super().__init__(parent)
         self.setObjectName("topBar")
-        self.setFixedHeight(68)
+        self.setFixedHeight(TOPBAR_HEIGHT)
         self._last_title: str = tr("nav_dashboard")
+        self._status_text: str = tr("status_healthy")
 
         layout = QHBoxLayout(self)
-        layout.setContentsMargins(28, 0, 28, 0)
-        layout.setSpacing(14)
+        layout.setContentsMargins(TOPBAR_PAD_X, 0, TOPBAR_PAD_X, 0)
+        layout.setSpacing(SPACING_SM)
 
         # Back button (standard app navigation history)
         self.back_button = QPushButton()
@@ -42,7 +62,7 @@ class TopBar(QWidget):
         back_icon.addPixmap(glyph("back", TEXT_DIM), QIcon.Mode.Normal, QIcon.State.Off)
         back_icon.addPixmap(glyph("back", BORDER_HI), QIcon.Mode.Disabled, QIcon.State.Off)
         self.back_button.setIcon(back_icon)
-        self.back_button.setIconSize(QSize(18, 18))
+        self.back_button.setIconSize(QSize(ICON_SIZE, ICON_SIZE))
         self.back_button.setToolTip(tr("topbar_back_tip"))
         self.back_button.setCursor(Qt.CursorShape.ArrowCursor)
         self.back_button.setEnabled(False)
@@ -51,22 +71,22 @@ class TopBar(QWidget):
 
         # Avatar / badge (accent follows the active theme)
         avatar = QLabel()
-        avatar.setPixmap(glyph("shield", ACCENT).scaled(24, 24, Qt.AspectRatioMode.KeepAspectRatio, Qt.TransformationMode.SmoothTransformation))
-        avatar.setFixedSize(36, 36)
+        avatar.setPixmap(glyph("shield", ACCENT).scaled(AVATAR_SIZE, AVATAR_SIZE, Qt.AspectRatioMode.KeepAspectRatio, Qt.TransformationMode.SmoothTransformation))
+        avatar.setFixedSize(AVATAR_BOX_SIZE, AVATAR_BOX_SIZE)
         ac = QColor(ACCENT)
         avatar.setStyleSheet(
             f"background: rgba({ac.red()}, {ac.green()}, {ac.blue()}, 0.15);"
-            f" border: 1px solid rgba({ac.red()}, {ac.green()}, {ac.blue()}, 0.4); border-radius: 10px;"
+            f" border: 1px solid rgba({ac.red()}, {ac.green()}, {ac.blue()}, 0.4); border-radius: {RADIUS_MD}px;"
         )
         avatar.setAlignment(Qt.AlignmentFlag.AlignCenter)
         layout.addWidget(avatar)
 
         # HUD index + page title / subtitle
         info_col = QVBoxLayout()
-        info_col.setSpacing(2)
+        info_col.setSpacing(SPACING_XS)
         info_col.setAlignment(Qt.AlignmentFlag.AlignVCenter)
         title_row = QHBoxLayout()
-        title_row.setSpacing(8)
+        title_row.setSpacing(SPACING_SM)
         title_row.setAlignment(Qt.AlignmentFlag.AlignVCenter)
         self.index = QLabel("01")
         self.index.setObjectName("hudIndex")
@@ -85,14 +105,15 @@ class TopBar(QWidget):
         layout.addStretch(1)
 
         # Status badge (kept for API compatibility) with a slow HUD "breath"
-        self.status = QLabel(f"● {tr('status_healthy')}")
+        self.status = QLabel(f"● {self._status_text}")
+        self.status.setToolTip(tr("topbar_status_tip", text=self._status_text))
         self.status.setObjectName("topBarStatus")
-        self.status.setFixedHeight(28)
+        self.status.setFixedHeight(STATUS_HEIGHT)
         self._status_fx = QGraphicsOpacityEffect(self.status)
         self._status_fx.setOpacity(1.0)
         self.status.setGraphicsEffect(self._status_fx)
         self._pulse = QVariantAnimation(self)
-        self._pulse.setDuration(1600)
+        self._pulse.setDuration(MOTION_PULSE)
         self._pulse.setLoopCount(-1)
         self._pulse.setKeyValues([(0.0, 1.0), (0.5, 0.62), (1.0, 1.0)])
         self._pulse.valueChanged.connect(self._status_fx.setOpacity)
@@ -123,7 +144,7 @@ class TopBar(QWidget):
         self.notify_button = QPushButton()
         self.notify_button.setObjectName("topBarIcon")
         self.notify_button.setIcon(glyph("bell", TEXT_DIM))
-        self.notify_button.setIconSize(QSize(18, 18))
+        self.notify_button.setIconSize(QSize(ICON_SIZE, ICON_SIZE))
         self.notify_button.setToolTip(tr("topbar_notify_tip"))
         self.notify_button.setCursor(Qt.CursorShape.PointingHandCursor)
         self.notify_button.setMenu(self._build_notify_menu())
@@ -133,7 +154,7 @@ class TopBar(QWidget):
         self.settings_button = QPushButton()
         self.settings_button.setObjectName("topBarIcon")
         self.settings_button.setIcon(glyph("settings", TEXT_DIM))
-        self.settings_button.setIconSize(QSize(18, 18))
+        self.settings_button.setIconSize(QSize(ICON_SIZE, ICON_SIZE))
         self.settings_button.setToolTip(tr("topbar_settings_tip"))
         self.settings_button.setCursor(Qt.CursorShape.PointingHandCursor)
         self.settings_button.clicked.connect(self.settings_requested.emit)
@@ -178,6 +199,7 @@ class TopBar(QWidget):
         self.settings_button.setToolTip(tr("topbar_settings_tip"))
         self.back_button.setToolTip(tr("topbar_back_tip"))
         self.notify_button.setMenu(self._build_notify_menu())
+        self.status.setToolTip(tr("topbar_status_tip", text=self._status_text))
         self.set_title(self._last_title or tr("nav_dashboard"))
 
     def set_title(self, text: str) -> None:
@@ -198,7 +220,9 @@ class TopBar(QWidget):
         )
 
     def set_status(self, text: str, level: str = "ok") -> None:
+        self._status_text = text
         self.status.setText(f"● {text}")
+        self.status.setToolTip(tr("topbar_status_tip", text=text))
         if self.status.property("level") != level:
             self.status.setProperty("level", level)
             self.status.style().unpolish(self.status)

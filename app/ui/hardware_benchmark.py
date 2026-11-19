@@ -24,7 +24,7 @@ from app.reports import ReportError, format_for_path, timestamp_name, write_repo
 
 from .components import CardTitleLabel, ValueListCard, attach_empty_hint
 from .tasks import Task
-from .theme import CARD_PADDING, DANGER, OK
+from .theme import CARD_PADDING, DANGER, OK, PAGE_MARGINS
 
 COLUMN_KEYS = (
     "hwb_col_metric",
@@ -73,7 +73,7 @@ class HardwareBenchmarkPage(QWidget):
         self._report: HardwareBenchmarkReport | None = None
 
         layout = QVBoxLayout(self)
-        layout.setContentsMargins(40, 36, 40, 32)
+        layout.setContentsMargins(*PAGE_MARGINS)
         layout.setSpacing(10)
 
         title = QLabel(tr("hwb_title"))
