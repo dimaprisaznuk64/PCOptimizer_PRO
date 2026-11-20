@@ -1220,6 +1220,37 @@ QListWidget#historyList::item:selected {{
     color: {TEXT};
     border-radius: 6px;
 }}
+QFrame#commandPalette {{
+    background: {PANEL_ALT};
+    border: 1px solid {BORDER_HI};
+    border-radius: {RADIUS_MD}px;
+}}
+QLineEdit#commandSearch {{
+    background: {PANEL};
+    border: 1px solid {BORDER_HI};
+    border-radius: {RADIUS_SM}px;
+    padding: {PADDING_SM}px {PADDING_MD}px;
+    color: {TEXT};
+    font-size: {T_BODY}px;
+}}
+QListWidget#commandResults {{
+    background: transparent;
+    border: none;
+    outline: none;
+}}
+QListWidget#commandResults::item {{
+    color: {TEXT};
+    padding: {PADDING_SM}px {PADDING_MD}px;
+    border-radius: {RADIUS_SM}px;
+}}
+QListWidget#commandResults::item:selected {{
+    background: {ACCENT_TINT};
+    color: {TEXT};
+}}
+QLabel#commandHint {{
+    color: {TEXT_DIM};
+    font-size: {T_CAPTION}px;
+}}
 QFrame#hero {{
     background: qlineargradient(x1:0, y1:0, x2:1, y2:1, stop:0 {HERO_TOP}, stop:0.6 {PANEL}, stop:1 {PANEL_ALT});
     border: 1px solid {_mix(BORDER_HI, ACCENT, 0.4)};

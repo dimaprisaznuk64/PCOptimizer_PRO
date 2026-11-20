@@ -10,8 +10,9 @@
   live interface scale of 100–150%, scaled layout tokens and uniform page
   margins, WCAG-readable status/accent tokens in all 29 themes; 22 pages
   preserved, status strip with live CPU/GPU/RAM/temp/disk, localized nav
-  tooltips/group counts and shared motion tokens; 25 new tests, full
-  suite 828 passed / 1 skipped.
+   tooltips/group counts and shared motion tokens; global search palette
+   (Ctrl+K) with recent pages; 25 new tests, full suite 839 passed /
+   1 skipped.
 - Released **v1.7.1** (`d9f83ab`) — reliability/stabilization batch: fixed safe
   alert limits and quiet CPU/GPU alerts during games, Settings reset applies
   language/theme, Restart-as-admin handles cancel/error, absolute PowerShell
@@ -35,7 +36,7 @@
 - Newest v2 tools work (Cleaner 2.0, Diagnostics 2.0, Drivers, System Report,
   Hardware Benchmark, Temperature Dashboard, Export Center) is committed in
   `3dc29ce` and `d1b930d`; version/exe/installer are bumped to **v2.0.0**.
-- Pytest suite is passing (**828 tests, 1 skipped**). Ruff linter is clean. A pre-existing
+- Pytest suite is passing (**839 tests, 1 skipped**). Ruff linter is clean. A pre-existing
   faulthandler artifact still prints native access-violation/0x80040155 traces
   during a full run; all tests pass. Two signal/thread timing flakes in task and
   dashboard tests were made deterministic.
@@ -279,10 +280,26 @@
   -p no:faulthandler` → **828 passed, 1 skipped** (829 collected, rc 0);
   ruff and compileall clean.
 
+## v2.0.0 Stage 4 — global search palette
+- New `app/ui/command_palette.py`: `SearchEntry`, `build_entries()` and pure
+  `search_entries()` match page labels, groups, descriptions and keys; recent
+  pages are pinned first when opened from the current navigation history.
+- `TopBar` gained a search button and `search_requested`; `MainWindow` wires
+  `Ctrl+K`, reuses one palette across theme rebuilds and retranslates it with
+  the rest of the shell. Arrow keys, Enter and Escape work from the search box.
+- Added the search glyph, palette QSS and 4 EN/UA keys; 11 new tests in
+  `tests/test_command_palette.py`.
+- Verification: `.venv/Scripts/python.exe -m pytest tests --no-header
+  -p no:faulthandler` → **839 passed, 1 skipped in 1668.67s (0:27:48)**;
+  ruff and compileall clean. A pre-existing `IUnknown` release message remains
+  environmental.
+
 ## Next
-- Stage 3 UI/UX 2.0 (remaining): grouped navigation, tooltips, motion tokens and
-  Dashboard status strip are done; next is a structured review of panels/tables
-  and final visual consistency across the 22 pages.
+- Stage 4 usability (remaining): notification center, recent operations center,
+  first-run wizard, dashboard customization and context menus / quick actions.
+- Stage 3 UI/UX 2.0: grouped navigation, tooltips, motion tokens, status strip
+  and global search are done; a structured review of panels/tables and final
+  visual consistency across the 22 pages is still open.
 - v2.0.x reliability: trustworthy CPU package power / thermal-throttling source
   only if a reliable Windows API appears.
 - Optional: wire `mypy` into the verification routine and fix the first batch

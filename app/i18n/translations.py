@@ -105,8 +105,15 @@ TRANSLATIONS: dict[str, dict[str, str]] = {
         "topbar_notify_tip": "Notifications",
         "topbar_settings_tip": "Settings",
         "topbar_back_tip": "Back (Alt+Left)",
+        "topbar_search_tip": "Search pages (Ctrl+K)",
         "topbar_status_tip": "System status: {text}",
         "topbar_notify_empty": "No new notifications",
+
+        # Command palette
+        "palette_placeholder": "Search pages, tools, settings…",
+        "palette_hint": "↑↓ select · Enter open · Esc close",
+        "palette_empty": "Nothing found",
+        "palette_recent": "Recent",
 
         # Global status (sidebar + topbar pill)
         "status_healthy": "System healthy",
@@ -1351,8 +1358,15 @@ TRANSLATIONS: dict[str, dict[str, str]] = {
         "topbar_notify_tip": "Сповіщення",
         "topbar_settings_tip": "Налаштування",
         "topbar_back_tip": "Назад (Alt+←)",
+        "topbar_search_tip": "Пошук сторінок (Ctrl+K)",
         "topbar_status_tip": "Стан системи: {text}",
         "topbar_notify_empty": "Немає нових сповіщень",
+
+        # Command palette
+        "palette_placeholder": "Пошук сторінок, інструментів, налаштувань…",
+        "palette_hint": "↑↓ вибір · Enter відкрити · Esc закрити",
+        "palette_empty": "Нічого не знайдено",
+        "palette_recent": "Нещодавні",
 
         # Global status (sidebar + topbar pill)
         "status_healthy": "Система в нормі",

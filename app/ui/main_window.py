@@ -170,6 +170,9 @@ class MainWindow(QMainWindow):
         self._back_shortcut = QShortcut(QKeySequence("Alt+Left"), self)
         self._back_shortcut.setContext(Qt.ShortcutContext.WindowShortcut)
         self._back_shortcut.activated.connect(self.go_back)
+        self._search_shortcut = QShortcut(QKeySequence("Ctrl+K"), self)
+        self._search_shortcut.setContext(Qt.ShortcutContext.WindowShortcut)
+        self._search_shortcut.activated.connect(self.open_search)
         self._history = history or PerformanceHistory(process_top=self._processes.top_by_memory)
         cooldown = COOLDOWN_S
         self._cpu_monitor = TemperatureAlertMonitor(
@@ -200,7 +203,9 @@ class MainWindow(QMainWindow):
         self.topbar = TopBar()
         self.topbar.settings_requested.connect(lambda: self.show_page("settings"))
         self.topbar.back_requested.connect(self.go_back)
+        self.topbar.search_requested.connect(self.open_search)
         self.topbar.set_can_go_back(bool(self._nav_history))
+        self._connect_palette()
         self.stack = QStackedWidget()
 
         self._index_by_key: dict[str, int] = {}
@@ -269,6 +274,23 @@ class MainWindow(QMainWindow):
                 return
         self.topbar.set_can_go_back(False)
 
+    def _connect_palette(self) -> None:
+        from .command_palette import CommandPalette
+
+        old = getattr(self, "_palette", None)
+        if old is not None:
+            old.deleteLater()
+        self._palette = CommandPalette(self)
+        self._palette.selected.connect(self.show_page)
+
+    def open_search(self) -> None:
+        """Open the global search palette (Ctrl+K / topbar button)."""
+        palette = getattr(self, "_palette", None)
+        if palette is None:
+            self._connect_palette()
+            palette = self._palette
+        palette.open(list(reversed(self._nav_history[-5:])))
+
     def _select_page(self, key: str) -> None:
         index = self._index_by_key[key]
         changed = self.stack.currentIndex() != index
@@ -308,6 +330,9 @@ class MainWindow(QMainWindow):
         self.settings.set("language", I18nService.instance().current_language)
         self.sidebar.retranslate()
         self.topbar.retranslate()
+        palette = getattr(self, "_palette", None)
+        if palette is not None:
+            palette.retranslate()
         if self.tray is not None:
             self.tray.retranslate()
         for i in range(self.stack.count()):
@@ -345,7 +370,7 @@ class MainWindow(QMainWindow):
         import importlib
 
         for name in (
-            "theme", "icons", "components", "monitor", "temperature", "dashboard", "gpu",
+            "theme", "icons", "components", "command_palette", "monitor", "temperature", "dashboard", "gpu",
             "hardware", "hardware_benchmark", "processes", "cleaner", "startup",
             "optimizer", "gaming", "launcher", "benchmarks", "history", "network",
             "disk", "diagnostics", "drivers", "system_report", "export_center",
@@ -403,7 +428,9 @@ class MainWindow(QMainWindow):
         self.topbar = TopBar()
         self.topbar.settings_requested.connect(lambda: self.show_page("settings"))
         self.topbar.back_requested.connect(self.go_back)
+        self.topbar.search_requested.connect(self.open_search)
         self.topbar.set_can_go_back(bool(self._nav_history))
+        self._connect_palette()
         self.stack = QStackedWidget()
         self._index_by_key = {}
         for i, (page_key, page) in enumerate(

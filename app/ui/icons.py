@@ -259,6 +259,11 @@ def _export_center(p: QPainter) -> None:
     p.drawLine(QPointF(13, 10), QPointF(10, 7))
 
 
+def _search(p: QPainter) -> None:
+    p.drawEllipse(QRectF(3, 2.5, 11, 11))
+    p.drawLine(QPointF(12, 12), QPointF(17, 17))
+
+
 _DRAWERS = {
     "cpu": _cpu,
     "ram": _ram,
@@ -294,6 +299,7 @@ _DRAWERS = {
     "system_report": _system_report,
     "export_center": _export_center,
     "back": _back,
+    "search": _search,
 }
 
 

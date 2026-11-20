@@ -43,6 +43,7 @@ class TopBar(QWidget):
     settings_requested = Signal()
     notifications_requested = Signal()
     back_requested = Signal()
+    search_requested = Signal()
 
     def __init__(self, parent: QWidget | None = None) -> None:
         super().__init__(parent)
@@ -68,6 +69,15 @@ class TopBar(QWidget):
         self.back_button.setEnabled(False)
         self.back_button.clicked.connect(self.back_requested.emit)
         layout.addWidget(self.back_button)
+
+        self.search_button = QPushButton()
+        self.search_button.setObjectName("topBarIcon")
+        self.search_button.setIcon(glyph("search", TEXT_DIM))
+        self.search_button.setIconSize(QSize(ICON_SIZE, ICON_SIZE))
+        self.search_button.setToolTip(tr("topbar_search_tip"))
+        self.search_button.setCursor(Qt.CursorShape.PointingHandCursor)
+        self.search_button.clicked.connect(self.search_requested.emit)
+        layout.addWidget(self.search_button)
 
         # Avatar / badge (accent follows the active theme)
         avatar = QLabel()
@@ -198,6 +208,7 @@ class TopBar(QWidget):
         self.notify_button.setToolTip(tr("topbar_notify_tip"))
         self.settings_button.setToolTip(tr("topbar_settings_tip"))
         self.back_button.setToolTip(tr("topbar_back_tip"))
+        self.search_button.setToolTip(tr("topbar_search_tip"))
         self.notify_button.setMenu(self._build_notify_menu())
         self.status.setToolTip(tr("topbar_status_tip", text=self._status_text))
         self.set_title(self._last_title or tr("nav_dashboard"))
