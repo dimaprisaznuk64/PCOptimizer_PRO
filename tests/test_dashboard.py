@@ -151,52 +151,12 @@ def test_dashboard_thermal_rows_show_cpu_and_gpu(qapp) -> None:
     assert any(k.startswith("GPU") for k in keys)
 
 
-def test_dashboard_status_strip_shows_live_values(qapp) -> None:
-    from app.i18n import tr
-    from app.sensors.types import (
-        CpuStat,
-        DiskStat,
-        GpuStat,
-        MemoryStat,
-        Snapshot,
-        ThermalStat,
-    )
-
+def test_dashboard_has_no_status_strip(qapp) -> None:
     page = DashboardPage()
-    s = Snapshot(
-        ts=0.0,
-        cpu=CpuStat(percent=42.0, per_core=(42.0,), physical_cores=1, logical_cores=1),
-        memory=MemoryStat(
-            total=8 * 1024**3,
-            used=3 * 1024**3,
-            available=5 * 1024**3,
-            percent=37.5,
-            swap_total=0,
-            swap_used=0,
-            swap_percent=0.0,
-        ),
-        disks=(
-            DiskStat(
-                device="C:\\",
-                mountpoint="C:\\",
-                fstype="NTFS",
-                total=100 * 1024**3,
-                used=61 * 1024**3,
-                free=39 * 1024**3,
-                percent=61.0,
-            ),
-        ),
-        gpus=(GpuStat(index=0, name="RTX", utilization=73.0, memory_used=1, memory_total=4, temperature=68.0),),
-        thermal=ThermalStat(source="wmi_acpi", temperatures=(("CPU", 71.0),)),
-    )
+    assert not hasattr(page, "status_strip")
+    s = SensorManager([MockBackend(cpu_percent=42.0, memory_percent=60.0)]).snapshot()
     page.apply_snapshot(s)
-    values = page.status_strip._values
-    assert values["cpu"].text() == "42%"
-    assert values["gpu"].text() == "73%"
-    assert values["ram"].text() == "38%"
-    assert values["temp"].text() == "71°C"
-    assert values["disk"].text() == "61%"
-    assert page.status_strip._captions["cpu"].text() == tr("dash_cpu").upper()
+    assert page.cpu.value.text() == "42%"
 
 
 def test_dashboard_notifications_hidden_when_empty(qapp) -> None:

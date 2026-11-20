@@ -9,10 +9,11 @@
   switches, redesigned Dashboard with 4 sections/history/recommendations, and a
   live interface scale of 100–150%, scaled layout tokens and uniform page
   margins, WCAG-readable status/accent tokens in all 29 themes; 22 pages
-  preserved, status strip with live CPU/GPU/RAM/temp/disk, localized nav
-   tooltips/group counts and shared motion tokens; global search palette
-   (Ctrl+K) with recent pages; 25 new tests, full suite 839 passed /
-   1 skipped.
+  preserved, localized nav tooltips/group counts and shared motion tokens;
+   global search palette (Ctrl+K) with recent pages; 25 new tests, full suite
+   839 passed / 1 skipped. The temporary dashboard status strip was removed at
+   the user's request; installed `app_run` 2.0.0 was rebuilt and relaunched.
+
 - Released **v1.7.1** (`d9f83ab`) — reliability/stabilization batch: fixed safe
   alert limits and quiet CPU/GPU alerts during games, Settings reset applies
   language/theme, Restart-as-admin handles cancel/error, absolute PowerShell
@@ -259,11 +260,13 @@
   -p no:faulthandler` → **821 passed, 1 skipped in 1742.83s (0:29:02)**;
   ruff and compileall clean.
 
-## v2.0.0 Stage 3 — Dashboard status strip
-- A compact top-line card now shows CPU/GPU/RAM/temperature/disk values beside
+## v2.0.0 Stage 3 — Dashboard status strip (removed)
+- Later removed at the user's request; the dashboard keeps the ring cards and
+  the rest of the live telemetry without the extra top strip.
+- A compact top-line card showed CPU/GPU/RAM/temperature/disk values beside
   the greeting, colored by the same load/temperature levels as the rings.
-- It follows live language switching and is fed from the same sensor snapshot
-  as the rest of the dashboard; 1 new test in `tests/test_dashboard.py`.
+- It followed live language switching and was fed from the same sensor snapshot
+  as the rest of the dashboard.
 - Verification: `.venv/Scripts/python.exe -m pytest tests --no-header
   -p no:faulthandler` → **822 passed, 1 skipped in 1450.35s (0:24:10)**;
   ruff and compileall clean.
@@ -297,8 +300,8 @@
 ## Next
 - Stage 4 usability (remaining): notification center, recent operations center,
   first-run wizard, dashboard customization and context menus / quick actions.
-- Stage 3 UI/UX 2.0: grouped navigation, tooltips, motion tokens, status strip
-  and global search are done; a structured review of panels/tables and final
+- Stage 3 UI/UX 2.0: grouped navigation, tooltips, motion tokens and global
+  search are done; a structured review of panels/tables and final
   visual consistency across the 22 pages is still open.
 - v2.0.x reliability: trustworthy CPU package power / thermal-throttling source
   only if a reliable Windows API appears.

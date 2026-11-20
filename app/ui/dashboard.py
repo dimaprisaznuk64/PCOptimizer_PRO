@@ -102,57 +102,6 @@ def _activity_style(level: str) -> tuple[str, str]:
     return theme.WARN, "warning"
 
 
-class StatusStripWidget(QFrame):
-    """Compact top-line telemetry: CPU / GPU / RAM / temperature / disk."""
-
-    _KEYS = (
-        ("cpu", "dash_cpu"),
-        ("gpu", "dash_gpu"),
-        ("ram", "dash_mem"),
-        ("temp", "dash_temp"),
-        ("disk", "dash_ring_disks"),
-    )
-
-    def __init__(self, parent: QWidget | None = None) -> None:
-        super().__init__(parent)
-        self.setObjectName("card")
-        self.setStyleSheet(
-            f"QFrame#card {{ background: {PANEL}; border: 1px solid {BORDER}; "
-            f"border-radius: 12px; }} QFrame#card:hover {{ border-color: {BORDER_HI}; }}"
-        )
-        hud_brackets(self)
-        layout = QHBoxLayout(self)
-        layout.setContentsMargins(CARD_PADDING, 10, CARD_PADDING, 10)
-        layout.setSpacing(12)
-
-        self._captions: dict[str, QLabel] = {}
-        self._values: dict[str, QLabel] = {}
-        for key, caption_key in self._KEYS:
-            cell = QVBoxLayout()
-            cell.setSpacing(2)
-            caption = QLabel(tr(caption_key).upper())
-            caption.setObjectName("hudTag")
-            set_mono(caption, size=T_CAPTION, weight=QFont.Weight.DemiBold, spacing_pct=12.0)
-            value = QLabel("—")
-            value.setObjectName("cardValue")
-            set_mono(value, size=T_BODY, weight=QFont.Weight.DemiBold)
-            value.setStyleSheet(f"color: {TEXT_DIM};")
-            cell.addWidget(caption)
-            cell.addWidget(value)
-            layout.addLayout(cell)
-            self._captions[key] = caption
-            self._values[key] = value
-
-    def set_value(self, key: str, text: str, color: str | None = None) -> None:
-        label = self._values[key]
-        label.setText(text)
-        label.setStyleSheet(f"color: {color or TEXT_DIM};")
-
-    def retranslate(self) -> None:
-        for key, caption_key in self._KEYS:
-            self._captions[key].setText(tr(caption_key).upper())
-
-
 class ResourceHistoryWidget(QWidget):
     """Last 60 minutes of recorded CPU/RAM/GPU samples (persistent history)."""
 
@@ -868,9 +817,6 @@ class DashboardPage(QWidget):
         self.date.hide()
         layout.addLayout(head)
 
-        self.status_strip = StatusStripWidget()
-        layout.addWidget(self.status_strip)
-
         def _section(key: str) -> CardTitleLabel:
             return CardTitleLabel(tr(key), C1)
 
@@ -1096,7 +1042,6 @@ class DashboardPage(QWidget):
         self.verdict.setText(tr(self._verdict_key))
         for label, key in zip(self.sections, self._section_keys, strict=False):
             label.setText(tr(key).upper())
-        self.status_strip.retranslate()
         self.cpu.set_center_sub(tr("dash_ring_load"))
         self.cpu.set_header(tr("dash_cpu") + getattr(self, "_cpu_head_suffix", ""))
         self.ram.set_center_sub(tr("dash_ring_used"))
@@ -1236,34 +1181,6 @@ class DashboardPage(QWidget):
             )
             self.net_widget.down_val.setText(f"{_rate(n.recv_rate)}/s")
             self.net_widget.up_val.setText(f"{_rate(n.send_rate)}/s")
-
-        self.status_strip.set_value(
-            "cpu",
-            f"{cpu_pct:.0f}%" if cpu_pct is not None else "—",
-            _level_color(cpu_pct) if cpu_pct is not None else None,
-        )
-        self.status_strip.set_value(
-            "gpu",
-            f"{gpu_pct:.0f}%" if gpu_pct is not None else "—",
-            _level_color(gpu_pct) if gpu_pct is not None else None,
-        )
-        self.status_strip.set_value(
-            "ram",
-            f"{ram_pct:.0f}%" if ram_pct is not None else "—",
-            _level_color(ram_pct) if ram_pct is not None else None,
-        )
-        hottest_value = hottest[1] if hottest is not None else None
-        self.status_strip.set_value(
-            "temp",
-            f"{hottest_value:.0f}°C" if hottest_value is not None else "—",
-            _level_color(hottest_value) if hottest_value is not None else None,
-        )
-        disk_pct = main.percent if s.disks else None
-        self.status_strip.set_value(
-            "disk",
-            f"{disk_pct:.0f}%" if disk_pct is not None else "—",
-            _level_color(disk_pct) if disk_pct is not None else None,
-        )
 
         self.chart.push(s.ts, cpu=cpu_pct, ram=ram_pct, gpu=gpu_pct, net_down=net_down, net_up=net_up)
         self.history_widget.maybe_refresh()
