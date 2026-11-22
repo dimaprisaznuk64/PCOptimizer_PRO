@@ -23,7 +23,7 @@ from app.network import NetworkService
 from app.processes import ProcessService
 from app.sensors import Snapshot
 from app.sensors.temperature_names import temperature_kind
-from app.temperature import target_temperatures
+from app.temperature import localized_temperature_notes, target_temperatures
 
 from .activity import ActivityLog
 from .components import CardPanel, CardTitleLabel, MetricCard, PerfChart, RingCard
@@ -857,6 +857,7 @@ class DashboardPage(QWidget):
 
         self.health_card = HealthWidget()
         self.health_card.full_check_clicked.connect(lambda: self.navigate.emit("health"))
+        self._device_name_cache: dict[str, str] | None = None
         layout.addLayout(row1)
 
         # ZONE 2 — live chart, persistent 60-minute history and temperatures.
@@ -1115,6 +1116,56 @@ class DashboardPage(QWidget):
         ):
             widget.retranslate()
 
+    def _device_names(self, s: Snapshot) -> dict[str, str]:
+        if self._device_name_cache is not None:
+            names = dict(self._device_name_cache)
+            gpus = [g for g in (getattr(s, "gpus", ()) or ()) if not getattr(g, "stale", False)]
+            if gpus:
+                gpu_name = str(getattr(gpus[0], "name", "") or "").strip()
+                if gpu_name:
+                    names["gpu"] = gpu_name
+            return names
+        names = {"cpu": "", "board": "", "gpu": ""}
+        cpu_name = str(getattr(getattr(s, "cpu", None), "name", "") or "").strip()
+        if not cpu_name:
+            try:
+                from app.hardware.service import HardwareService
+
+                cpu_name = str(getattr(HardwareService()._cpu([]), "name", "") or "").strip()
+            except Exception:
+                cpu_name = ""
+        names["cpu"] = cpu_name
+        gpus = [g for g in (getattr(s, "gpus", ()) or ()) if not getattr(g, "stale", False)]
+        if gpus:
+            names["gpu"] = str(getattr(gpus[0], "name", "") or "").strip()
+        thermal = getattr(s, "thermal", None)
+        for raw, _value in (getattr(thermal, "temperatures", ()) or ()):
+            text = str(raw).strip()
+            if temperature_kind(text) != "board":
+                continue
+            label = zone_label(text)
+            if label and label.strip().casefold() not in {
+                "board",
+                "motherboard",
+                "mainboard",
+                "system board",
+                "материнка",
+                "материнська плата",
+            }:
+                names["board"] = label
+                break
+        if not names["board"]:
+            try:
+                from app.hardware.service import HardwareService
+
+                info = HardwareService()._board([])
+                parts = [p for p in (info.manufacturer, info.product) if p]
+                names["board"] = " ".join(parts).strip()
+            except Exception:
+                pass
+        self._device_name_cache = dict(names)
+        return names
+
     def apply_snapshot(self, s: Snapshot) -> None:
         from PySide6.QtCore import QLocale
 
@@ -1234,6 +1285,7 @@ class DashboardPage(QWidget):
             self._verdict_key = "dash_verdict_ok"
         self.verdict.setText(tr(self._verdict_key))
 
+        device_names = self._device_names(s)
         thermal_rows: list[tuple[str, float | None, str]] = []
         for kind, key in (
             ("cpu", "temp_target_cpu"),
@@ -1241,9 +1293,13 @@ class DashboardPage(QWidget):
             ("gpu", "temp_target_gpu"),
         ):
             value, _source = targets[kind]
+            label = tr(key)
+            device = device_names.get(kind, "")
+            if device:
+                label = f"{label} · {device}"
             thermal_rows.append(
                 (
-                    tr(key),
+                    label,
                     None if value is None else min(value, 100.0),
                     "—" if value is None else f"{value:.0f}°C",
                 )
@@ -1253,6 +1309,9 @@ class DashboardPage(QWidget):
                 continue
             thermal_rows.append((zone_label(name), min(value, 100.0), f"{value:.0f}°C"))
         self.thermal.set_rows(thermal_rows, marker=85.0)
+        thermal_notes = " · ".join(localized_temperature_notes(s))
+        self.thermal.setToolTip(thermal_notes)
+        self.thermal.title_label.setToolTip(thermal_notes)
 
         recs: list[tuple[str, dict[str, object], str | None]] = []
         if cpu_pct is not None and cpu_pct >= 90:

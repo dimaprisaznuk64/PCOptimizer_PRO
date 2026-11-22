@@ -6,7 +6,13 @@ import threading
 from collections.abc import Callable, Iterable
 from pathlib import Path
 
-from .temperature_names import KIND_BOARD, KIND_CPU, KIND_GPU, temperature_kind
+from .temperature_names import (
+    KIND_BOARD,
+    KIND_CPU,
+    KIND_GPU,
+    temperature_kind,
+    temperature_priority,
+)
 
 _DLL_NAMES = (
     "LibreHardwareMonitorLib",
@@ -20,13 +26,7 @@ _DLL_NAMES = (
     "System.Buffers",
 )
 
-_PREFER: dict[str, tuple[str, ...]] = {
-    KIND_CPU: ("Tctl/Tdie", "Package", "Core"),
-    KIND_BOARD: ("System", "Motherboard", "CPU Socket"),
-    KIND_GPU: ("GPU Core",),
-}
-
-_TARGETS = frozenset(_PREFER)
+_TARGETS = frozenset((KIND_CPU, KIND_BOARD, KIND_GPU))
 
 
 class LhmUnavailable(Exception):
@@ -46,21 +46,15 @@ def lhm_dll_dir() -> Path:
     return Path(__file__).resolve().parents[2] / "assets" / "lib" / "lhm"
 
 
-def _score(raw: str, kind: str) -> int:
-    lowered = raw.lower()
-    for index, preferred in enumerate(_PREFER[kind]):
-        if preferred.lower() in lowered:
-            return len(_PREFER[kind]) - index
-    return 0
-
-
 def pick_temperatures(entries: Iterable[tuple[str, float]]) -> dict[str, tuple[float, str]]:
     best: dict[str, tuple[int, float, str]] = {}
     for raw, value in entries:
+        if not value or value <= 0.0:
+            continue
         kind = temperature_kind(raw)
         if kind not in _TARGETS:
             continue
-        score = _score(raw, kind)
+        score = temperature_priority(raw, kind)
         current = best.get(kind)
         if current is None or (score, value) > (current[0], current[1]):
             best[kind] = (score, float(value), raw)
@@ -82,6 +76,7 @@ class LhmReader:
         self._loaded = False
         self._lock = threading.RLock()
         self.last_error: str = ""
+        self.last_raw: tuple[tuple[str, float], ...] = ()
         self._disabled = (
             os.environ.get("PCOPTIMIZER_LHM_DISABLED") == "1"
             and add_reference is None
@@ -124,8 +119,6 @@ class LhmReader:
             if value is None:
                 continue
             value = float(value)
-            if value <= 0.0:
-                continue
             raw = str(getattr(sensor, "Name", "") or "").strip()
             if raw:
                 yield raw, value
@@ -144,6 +137,7 @@ class LhmReader:
                 for hardware in getattr(self._computer, "Hardware", ()) or ():
                     hardware.Update()
                     entries.extend(self._walk(hardware))
+                self.last_raw = tuple(entries)
                 result = pick_temperatures(entries)
                 self.last_error = ""
                 return result or None

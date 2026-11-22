@@ -1,4 +1,5 @@
 from .base import Backend, Partial, SensorError, SensorUnavailable
+from .hwinfo import HwinfoReader
 from .manager import SensorManager
 from .mock_backend import MockBackend
 from .types import (
@@ -18,6 +19,7 @@ __all__ = [
     "CpuStat",
     "DiskStat",
     "GpuStat",
+    "HwinfoReader",
     "MemoryStat",
     "MockBackend",
     "NetStat",

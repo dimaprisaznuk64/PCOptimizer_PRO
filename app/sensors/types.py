@@ -71,6 +71,8 @@ class GpuStat:
 class ThermalStat:
     source: str
     temperatures: tuple[tuple[str, float], ...]
+    notes: tuple[str, ...] = ()
+    sources: tuple[str, ...] = ()
 
 
 @dataclass(frozen=True)

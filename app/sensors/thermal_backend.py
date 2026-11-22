@@ -2,24 +2,91 @@ from __future__ import annotations
 
 import threading
 from time import monotonic
+from typing import Any
 
 from .base import Backend, Partial, SensorUnavailable
 from .lhm_backend import LhmReader
-from .temperature_names import KIND_BOARD, KIND_CPU, KIND_GPU, canonical_temperature_name
+from .temperature_names import (
+    KIND_BOARD,
+    KIND_CPU,
+    KIND_GPU,
+    KIND_HOTSPOT,
+    KIND_SYSTEM,
+    canonical_temperature_name,
+    temperature_kind,
+)
 from .types import ThermalStat
 
 _TTL_S = 2.0
+_LHM_NAMESPACES = ("root\\LibreHardwareMonitor", "root\\OpenHardwareMonitor")
+_KIND_ORDER = (KIND_CPU, KIND_BOARD, KIND_GPU, KIND_HOTSPOT, KIND_SYSTEM)
+_SOURCE_PRIORITY = {"hwinfo": 5, "lhm": 4, "lhm_pythonnet": 3, "wmi_acpi": 1}
+
+
+def _is_admin() -> bool:
+    try:
+        import ctypes
+
+        return bool(ctypes.windll.shell32.IsUserAnAdmin())
+    except Exception:
+        return False
+
+
+def _merge_stats(stats: tuple[ThermalStat, ...], notes: tuple[str, ...]) -> ThermalStat:
+    best: dict[str, tuple[int, float, str]] = {}
+    system: dict[str, tuple[int, float]] = {}
+    sources: list[str] = []
+    for stat in stats:
+        if not stat.temperatures:
+            continue
+        priority = _SOURCE_PRIORITY.get(stat.source, 0)
+        sources.append(stat.source)
+        for name, value in stat.temperatures:
+            kind = temperature_kind(name)
+            if kind == KIND_SYSTEM:
+                previous = system.get(name)
+                if previous is None or (priority, value) > previous:
+                    system[name] = (priority, value)
+                continue
+            current = best.get(kind)
+            if current is None or (priority, value) > (current[0], current[1]):
+                best[kind] = (priority, value, name)
+    temperatures = [(name, value) for _priority, value, name in best.values()]
+    temperatures.extend((name, value) for name, (priority, value) in system.items())
+    temperatures.sort(key=lambda item: item[0])
+    source = " + ".join(sources) if sources else (stats[0].source if stats else "")
+    merged_notes = tuple(dict.fromkeys([*(note for stat in stats for note in stat.notes), *notes]))
+    return ThermalStat(source, tuple(temperatures), merged_notes, tuple(dict.fromkeys(sources)))
 
 
 class ThermalBackend(Backend):
     name = "thermal"
 
-    def __init__(self, lhm_reader: LhmReader | None = None) -> None:
-        self._zones: object | None = None
+    def __init__(
+        self,
+        lhm_reader: LhmReader | None = None,
+        *,
+        hwinfo_reader: Any | None = None,
+    ) -> None:
+        self._zones: Any = None
         self._source: str | None = None
         self._owner_thread_id: int | None = None
         self._cache: tuple[float, Partial] | None = None
         self._lhm_reader = lhm_reader
+        self._hwinfo_reader = hwinfo_reader
+
+    def _hwinfo(self) -> ThermalStat:
+        if self._hwinfo_reader is None:
+            raise SensorUnavailable("HWiNFO reader is not enabled")
+        values = self._hwinfo_reader.read()
+        if not values:
+            raise SensorUnavailable(self._hwinfo_reader.last_error or "no HWiNFO temperature sensors")
+        temperatures = tuple((kind, values[kind][0]) for kind in sorted(values))
+        return ThermalStat(
+            source="hwinfo",
+            temperatures=temperatures,
+            sources=("hwinfo",),
+        )
 
     def _pythonnet(self) -> ThermalStat:
         if self._lhm_reader is None:
@@ -27,9 +94,25 @@ class ThermalBackend(Backend):
         values = self._lhm_reader.read()
         if not values:
             raise SensorUnavailable(self._lhm_reader.last_error or "no LHM temperature sensors")
+        raw = tuple(getattr(self._lhm_reader, "last_raw", ()) or ())
+        notes: list[str] = []
+        if self._lhm_reader.last_error:
+            notes.append(f"LHM: {self._lhm_reader.last_error}")
+        cpu_zero = any(
+            temperature_kind(name) == KIND_CPU
+            and value <= 0.0
+            and ("temp" in name.lower() or "tctl" in name.lower() or "tdie" in name.lower() or "core" in name.lower())
+            for name, value in raw
+        )
+        if cpu_zero and KIND_CPU not in values:
+            notes.append("LHM CPU temperature sensor reports 0°C (driver or CPU unsupported)")
+        if not any(temperature_kind(name) == KIND_BOARD and value > 0.0 for name, value in raw):
+            notes.append("LHM motherboard has no temperature sensors")
         return ThermalStat(
             source="lhm_pythonnet",
             temperatures=tuple((kind, values[kind][0]) for kind in sorted(values)),
+            notes=tuple(notes),
+            sources=("lhm_pythonnet",),
         )
 
     def _acpi(self) -> ThermalStat:
@@ -43,58 +126,101 @@ class ThermalBackend(Backend):
             self._source = "wmi_acpi"
             self._owner_thread_id = threading.get_ident()
         temps = []
-        for index, zone in enumerate(self._zones):  # type: ignore[union-attr]
+        for index, zone in enumerate(self._zones):
             raw = str(getattr(zone, "InstanceName", "") or "").strip() or f"zone{index}"
             value = float(zone.CurrentTemperature) / 10.0 - 273.15
             temps.append((raw, value))
-        return ThermalStat(source="wmi_acpi", temperatures=tuple(temps))
+        notes: tuple[str, ...] = ()
+        if not any(temperature_kind(name) in (KIND_CPU, KIND_BOARD) for name, _value in temps):
+            notes = ("ACPI exposes system zones only; CPU/motherboard need HWiNFO or LHM",)
+        return ThermalStat(
+            source="wmi_acpi",
+            temperatures=tuple(temps),
+            notes=notes,
+            sources=("wmi_acpi",),
+        )
 
-    def _lhm(self) -> ThermalStat:
-        if self._zones is None or self._source != "lhm":
-            import wmi
+    def _lhm_namespace(self, namespace: str) -> ThermalStat | None:
+        import wmi
 
-            sensors = wmi.WMI(namespace="root\\OpenHardwareMonitor").Sensor()
-            if not sensors:
-                raise SensorUnavailable("no LHM sensors")
-            self._zones = sensors
-            self._source = "lhm"
-            self._owner_thread_id = threading.get_ident()
-        best: dict[str, float] = {}
-        for sensor in self._zones:  # type: ignore[union-attr]
+        sensors = wmi.WMI(namespace=namespace).Sensor()
+        if not sensors:
+            return None
+        best: dict[str, tuple[int, float, str]] = {}
+        for sensor in sensors:
             if str(getattr(sensor, "SensorType", "")).lower() != "temperature":
                 continue
             raw = str(getattr(sensor, "Name", "") or "").strip()
+            identifier = str(getattr(sensor, "Identifier", "") or "")
             if not raw:
                 continue
-            name = canonical_temperature_name(raw)
-            if name not in (KIND_CPU, KIND_BOARD, KIND_GPU):
+            kind = temperature_kind(raw, identifier)
+            if kind not in (KIND_CPU, KIND_BOARD, KIND_GPU, KIND_HOTSPOT):
                 continue
             value = float(sensor.Value)
-            best[name] = max(best.get(name, value), value)
+            score = len(raw) if raw.lower() in (KIND_CPU, KIND_BOARD, KIND_GPU) else 0
+            current = best.get(kind)
+            if current is None or (score, value) > (current[0], current[1]):
+                best[kind] = (score, value, canonical_temperature_name(raw))
         if not best:
-            raise SensorUnavailable("no LHM target temperature sensors")
-        return ThermalStat(source="lhm", temperatures=tuple(sorted(best.items())))
+            return None
+        self._zones = sensors
+        self._source = "lhm"
+        self._owner_thread_id = threading.get_ident()
+        return ThermalStat(
+            source="lhm",
+            temperatures=tuple((kind, entry[1]) for kind, entry in sorted(best.items())),
+            sources=("lhm",),
+        )
+
+    def _lhm(self) -> ThermalStat:
+        errors: list[str] = []
+        for namespace in _LHM_NAMESPACES:
+            try:
+                stat = self._lhm_namespace(namespace)
+                if stat is not None:
+                    return stat
+                errors.append(f"{namespace}: no target sensors")
+            except Exception as exc:
+                errors.append(f"{namespace}: {exc}")
+        raise SensorUnavailable("; ".join(errors) or "no LHM WMI sensors")
 
     def collect(self) -> Partial:
         now = monotonic()
         if self._cache is not None and now - self._cache[0] < _TTL_S:
             return self._cache[1]
-        part: Partial | None = None
+        stats: list[ThermalStat] = []
+        notes: list[str] = []
+
+        if self._hwinfo_reader is not None:
+            try:
+                stats.append(self._hwinfo())
+            except Exception as exc:
+                notes.append(f"HWiNFO: {exc}")
+
         if self._lhm_reader is not None:
             try:
-                part = {"thermal": self._pythonnet()}
-            except Exception:
-                part = None
-        if part is None:
+                stats.append(self._pythonnet())
+            except Exception as exc:
+                notes.append(f"LHM: {exc}")
+
+        try:
+            stats.append(self._acpi())
+        except Exception as exc:
+            if not _is_admin() and ("denied" in str(exc).lower() or "0x80041003" in str(exc)):
+                notes.append("ACPI: access denied; restart as administrator to read system zones")
+            else:
+                notes.append(f"ACPI: {exc}")
             try:
-                part = {"thermal": self._acpi()}
-            except Exception:
-                try:
-                    part = {"thermal": self._lhm()}
-                except Exception:
-                    return {}
-        self._cache = (now, part)
-        return part
+                stats.append(self._lhm())
+            except Exception as exc2:
+                notes.append(f"LHM WMI: {exc2}")
+
+        if not stats:
+            return {}
+        result: Partial = {"thermal": _merge_stats(tuple(stats), tuple(notes))}
+        self._cache = (now, result)
+        return result
 
     def close(self) -> None:
         self._cache = None

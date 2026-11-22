@@ -146,10 +146,31 @@ def test_dashboard_thermal_rows_show_cpu_and_gpu(qapp) -> None:
     )
     page.apply_snapshot(s)
     keys = list(page.thermal._rows)
-    assert keys[:3] == ["CPU", "Motherboard", "GPU"]
+    assert keys[0].startswith(tr("temp_target_cpu"))
+    assert keys[1].startswith(tr("temp_target_board"))
+    assert keys[2].startswith(tr("temp_target_gpu"))
     assert any("System zone 0 (ACPI)" in key for key in keys)
-    assert page.thermal._rows["CPU"][2].text() == "—"
-    assert page.thermal._rows["GPU"][2].text() == "79°C"
+    assert page.thermal._rows[keys[0]][2].text() == "—"
+    assert page.thermal._rows[keys[2]][2].text() == "79°C"
+
+
+def test_dashboard_thermal_card_explains_missing_sensors(qapp) -> None:
+    from app.sensors.types import Snapshot, ThermalStat
+
+    page = DashboardPage()
+    snapshot = Snapshot(
+        ts=0.0,
+        thermal=ThermalStat(
+            source="lhm_pythonnet",
+            temperatures=(("gpu", 52.0),),
+            notes=("LHM CPU temperature sensor reports 0°C", "LHM motherboard has no temperature sensors"),
+            sources=("lhm_pythonnet",),
+        ),
+    )
+    page.apply_snapshot(snapshot)
+    tooltip = page.thermal.toolTip()
+    assert tr("temp_note_cpu_zero") in tooltip
+    assert tr("temp_note_board_missing") in tooltip
 
 
 def test_dashboard_has_no_status_strip(qapp) -> None:

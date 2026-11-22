@@ -4,6 +4,7 @@ from collections.abc import Iterable
 from time import time
 
 from .base import Backend, SensorUnavailable
+from .hwinfo import HwinfoReader
 from .lhm_backend import LhmReader
 from .nvml_backend import NvmlBackend
 from .psutil_backend import PsutilBackend
@@ -25,7 +26,7 @@ class SensorManager:
         for factory in AUTO_BACKENDS:
             try:
                 if factory is ThermalBackend:
-                    backends.append(factory(LhmReader()))
+                    backends.append(factory(LhmReader(), hwinfo_reader=HwinfoReader()))
                 else:
                     backends.append(factory())
             except SensorUnavailable as e:

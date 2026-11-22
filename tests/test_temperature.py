@@ -6,7 +6,7 @@ import pytest
 
 from app.alerts.service import TEMP_CPU_C, TEMP_GPU_C
 from app.history.service import HistorySample
-from app.i18n import I18nService
+from app.i18n import I18nService, tr
 from app.i18n.translations import TRANSLATIONS
 from app.sensors.types import GpuStat, Snapshot, ThermalStat
 from app.temperature import (
@@ -14,6 +14,7 @@ from app.temperature import (
     SYSTEM_WARN_C,
     TemperatureService,
     classify,
+    localized_temperature_notes,
     target_temperatures,
     thresholds,
 )
@@ -201,7 +202,7 @@ def test_temperature_page_shows_cpu_board_gpu_summary(qapp) -> None:
             gpus=(_gpu(temperature=68.0),),
         )
     )
-    values = [label.text() for _title, label in page._target_labels.values()]
+    values = [widgets[1].text() for widgets in page._target_labels.values()]
     assert values == ["78°C", "44°C", "68°C"]
 
 
@@ -383,3 +384,64 @@ def test_kind_field_identifies_hotspot_without_localized_text(
         assert page.hotspot_card.value.text() == "75°C"
     finally:
         I18nService.instance().set_language("EN")
+
+
+def test_localized_temperature_notes_translate_backend_diagnostics() -> None:
+    snapshot = Snapshot(
+        ts=0.0,
+        thermal=ThermalStat(
+            "lhm_pythonnet",
+            (("gpu", 52.0),),
+            notes=(
+                "LHM CPU temperature sensor reports 0°C (driver or CPU unsupported)",
+                "LHM motherboard has no temperature sensors",
+                "HWiNFO: shared memory not available",
+                "ACPI: access denied; restart as administrator",
+                "LHM WMI: unavailable",
+            ),
+            sources=("lhm_pythonnet",),
+        ),
+    )
+    notes = localized_temperature_notes(snapshot)
+    assert notes[0] == tr("temp_sources_label", sources="lhm_pythonnet")
+    assert tr("temp_note_cpu_zero") in notes
+    assert tr("temp_note_board_missing") in notes
+    assert tr("temp_note_hwinfo") in notes
+    assert tr("temp_note_admin") in notes
+    assert tr("temp_note_lhm_wmi") in notes
+
+
+def test_temperature_page_shows_missing_sensor_diagnostics(qapp, monkeypatch: pytest.MonkeyPatch) -> None:
+    monkeypatch.setattr("app.ui.temperature._is_admin", lambda: False)
+    snapshot = Snapshot(
+        ts=0.0,
+        thermal=ThermalStat(
+            "lhm_pythonnet",
+            (("gpu", 52.0),),
+            notes=(
+                "LHM CPU temperature sensor reports 0°C (driver or CPU unsupported)",
+                "LHM motherboard has no temperature sensors",
+            ),
+            sources=("lhm_pythonnet",),
+        ),
+        gpus=(_gpu(temperature=52.0, hotspot=58.0),),
+    )
+    page = TemperaturePage(service=TemperatureService(now=lambda: 1.0))
+    page.apply_snapshot(snapshot)
+
+    assert not page.admin_button.isHidden()
+    assert page.admin_button.text() == tr("temp_admin")
+    assert not page.diagnostics.isHidden()
+    text = page.diagnostics.text()
+    assert tr("temp_note_cpu_zero") in text
+    assert tr("temp_note_board_missing") in text
+    assert page._target_labels["cpu"][1].toolTip() == tr("temp_note_cpu_zero")
+    assert page._target_labels["board"][1].toolTip() == tr("temp_note_board_missing")
+
+
+def test_temperature_page_admin_restart_cancel_is_reported(qapp, monkeypatch: pytest.MonkeyPatch) -> None:
+    monkeypatch.setattr("app.ui.temperature.restart_app_as_admin", lambda: 1223)
+    page = TemperaturePage()
+    page.restart_as_admin()
+    assert not page.diagnostics.isHidden()
+    assert page.diagnostics.text() == tr("temp_admin_cancelled")

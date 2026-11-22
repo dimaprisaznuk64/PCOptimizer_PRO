@@ -7,6 +7,7 @@ from typing import Protocol
 
 from app.alerts.service import TEMP_CPU_C, TEMP_GPU_C, max_cpu_thermal, max_gpu_thermal
 from app.history.service import HistorySample
+from app.i18n import tr
 from app.sensors.temperature_names import (
     KIND_BOARD,
     KIND_CPU,
@@ -105,6 +106,37 @@ def target_temperatures(snapshot: Snapshot) -> dict[str, tuple[float | None, str
         if current is None or value > current:
             targets[KIND_GPU] = (value, f"{base} core")
     return targets
+
+
+_NOTE_KEYS: tuple[tuple[str, str], ...] = (
+    ("temperature sensor reports 0", "temp_note_cpu_zero"),
+    ("motherboard has no temperature sensors", "temp_note_board_missing"),
+    ("hwinfo", "temp_note_hwinfo"),
+    ("access denied", "temp_note_admin"),
+    ("lhm wmi", "temp_note_lhm_wmi"),
+)
+
+
+def temperature_notes(snapshot: Snapshot) -> tuple[str, ...]:
+    thermal = getattr(snapshot, "thermal", None)
+    notes = tuple(getattr(thermal, "notes", ()) or ())
+    if thermal is not None:
+        sources = tuple(getattr(thermal, "sources", ()) or ())
+        if sources:
+            return (f"sources: {', '.join(sources)}", *notes)
+    return notes
+
+
+def localized_temperature_notes(snapshot: Snapshot) -> tuple[str, ...]:
+    localized: list[str] = []
+    for note in temperature_notes(snapshot):
+        if note.startswith("sources: "):
+            localized.append(tr("temp_sources_label", sources=note.split(": ", 1)[1]))
+            continue
+        lowered = note.lower()
+        key = next((key for fragment, key in _NOTE_KEYS if fragment in lowered), "")
+        localized.append(tr(key) if key else note)
+    return tuple(dict.fromkeys(localized))
 
 
 def _history_source(field: str) -> str:

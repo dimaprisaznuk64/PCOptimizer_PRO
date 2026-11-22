@@ -126,6 +126,34 @@ def test_thermal_backend_uses_pythonnet_reader() -> None:
         backend.close()
 
 
+def test_thermal_backend_reports_missing_cpu_and_board_sensors(monkeypatch) -> None:
+    from app.sensors.base import SensorUnavailable
+    from app.sensors.thermal_backend import ThermalBackend
+
+    class _RawReader(_StaticReader):
+        def __init__(self) -> None:
+            super().__init__({KIND_GPU: (56.0, "GPU Core")})
+            self.last_raw = (
+                ("Core (Tctl/Tdie)", 0.0),
+                ("GPU Core", 56.0),
+            )
+
+    backend = ThermalBackend(_RawReader())
+
+    def _unavailable() -> None:
+        raise SensorUnavailable("unavailable")
+
+    monkeypatch.setattr(backend, "_acpi", _unavailable)
+    monkeypatch.setattr(backend, "_lhm", _unavailable)
+    try:
+        thermal = backend.collect()["thermal"]
+        assert thermal.temperatures == ((KIND_GPU, 56.0),)
+        assert any("CPU" in note and "0" in note for note in thermal.notes)
+        assert any("motherboard" in note for note in thermal.notes)
+    finally:
+        backend.close()
+
+
 def test_thermal_backend_closes_reader() -> None:
     from app.sensors.thermal_backend import ThermalBackend
 

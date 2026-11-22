@@ -5,7 +5,9 @@ from .service import (
     TemperatureReport,
     TemperatureService,
     classify,
+    localized_temperature_notes,
     target_temperatures,
+    temperature_notes,
     thresholds,
 )
 
@@ -16,6 +18,8 @@ __all__ = [
     "TemperatureReport",
     "TemperatureService",
     "classify",
+    "localized_temperature_notes",
     "target_temperatures",
+    "temperature_notes",
     "thresholds",
 ]

@@ -3,6 +3,7 @@ from __future__ import annotations
 from PySide6.QtCore import Qt
 from PySide6.QtGui import QColor
 from PySide6.QtWidgets import (
+    QApplication,
     QFrame,
     QHBoxLayout,
     QHeaderView,
@@ -15,6 +16,7 @@ from PySide6.QtWidgets import (
 )
 
 from app.i18n import tr
+from app.sensors.temperature_names import temperature_kind
 from app.sensors.types import Snapshot
 from app.temperature.service import (
     STATUS_DANGER,
@@ -22,6 +24,7 @@ from app.temperature.service import (
     STATUS_WARN,
     TemperatureReport,
     TemperatureService,
+    localized_temperature_notes,
     target_temperatures,
 )
 
@@ -32,7 +35,7 @@ from .components import (
     align_numeric_headers,
     attach_empty_hint,
 )
-from .format import temp_text
+from .format import temp_text, zone_label
 from .tasks import Task
 from .theme import ACCENT, C2, C3, CARD_PADDING, DANGER, OK, PAGE_MARGINS, PAGE_SPACING, WARN
 
@@ -58,6 +61,30 @@ _CARD_KEYS: tuple[str, ...] = (
     "temp_metric_hotspot",
     "temp_metric_clock",
 )
+
+_MISSING_NOTE_KEYS = {
+    "cpu": "temp_note_cpu_zero",
+    "board": "temp_note_board_missing",
+}
+
+
+def _is_admin() -> bool:
+    try:
+        import ctypes
+
+        return bool(ctypes.windll.shell32.IsUserAnAdmin())
+    except Exception:
+        return False
+
+
+def restart_app_as_admin() -> int:
+    import sys
+
+    exe = sys.executable
+    args = "" if getattr(sys, "frozen", False) else " ".join(f'"{a}"' for a in sys.argv)
+    import ctypes
+
+    return int(ctypes.windll.shell32.ShellExecuteW(None, "runas", exe, args, None, 1))
 
 
 class TemperaturePage(QWidget):
@@ -107,6 +134,12 @@ class TemperaturePage(QWidget):
         self.refresh_button.setProperty("secondary", True)
         self.refresh_button.clicked.connect(self._load_history)
         toolbar.addWidget(self.refresh_button)
+        self.admin_button = QPushButton(tr("temp_admin"))
+        self.admin_button.setProperty("secondary", True)
+        self.admin_button.setToolTip(tr("temp_admin_tip"))
+        self.admin_button.setVisible(not _is_admin())
+        self.admin_button.clicked.connect(self.restart_as_admin)
+        toolbar.addWidget(self.admin_button)
         toolbar.addStretch(1)
         layout.addLayout(toolbar)
 
@@ -115,7 +148,8 @@ class TemperaturePage(QWidget):
         targets_layout = QHBoxLayout(targets)
         targets_layout.setContentsMargins(CARD_PADDING, CARD_PADDING, CARD_PADDING, CARD_PADDING)
         targets_layout.setSpacing(12)
-        self._target_labels: dict[str, tuple[QLabel, QLabel]] = {}
+        self._target_labels: dict[str, tuple[QLabel, QLabel, QLabel]] = {}
+        self._device_name_cache: dict[str, str] | None = None
         for kind, key in (
             ("cpu", "temp_target_cpu"),
             ("board", "temp_target_board"),
@@ -129,10 +163,15 @@ class TemperaturePage(QWidget):
             value.setObjectName("cardValue")
             value.setMinimumWidth(0)
             value.setWordWrap(True)
+            name = QLabel("")
+            name.setObjectName("cardSub")
+            name.setWordWrap(True)
             column.addWidget(title)
-            column.addWidget(value, 1)
+            column.addWidget(value)
+            column.addWidget(name)
+            column.addStretch(1)
             targets_layout.addLayout(column, 1)
-            self._target_labels[kind] = (title, value)
+            self._target_labels[kind] = (title, value, name)
         layout.addWidget(targets)
 
         cards = QHBoxLayout()
@@ -187,6 +226,11 @@ class TemperaturePage(QWidget):
         self.errors.setObjectName("errorLine")
         self.errors.setVisible(False)
         layout.addWidget(self.errors)
+        self.diagnostics = QLabel("")
+        self.diagnostics.setObjectName("cardSub")
+        self.diagnostics.setWordWrap(True)
+        self.diagnostics.setVisible(False)
+        layout.addWidget(self.diagnostics)
 
         self._update_legend()
         self._render_cards(None)
@@ -205,6 +249,7 @@ class TemperaturePage(QWidget):
         self._render_cards(report)
         self._render_targets(snapshot)
         self._show_errors(report.errors)
+        self._render_diagnostics(snapshot)
 
     def retranslate(self) -> None:
         self.pageTitle.setText(tr("temp_title"))
@@ -214,7 +259,10 @@ class TemperaturePage(QWidget):
             ("board", "temp_target_board"),
             ("gpu", "temp_target_gpu"),
         ):
-            self._target_labels[kind][0].setText(tr(key))
+            title, _value, name = self._target_labels[kind]
+            title.setText(tr(key))
+            if not name.text().strip():
+                name.setText("")
         self._range_label.setText(tr("temp_range_label"))
         index = self.range_combo.currentIndex()
         self.range_combo.blockSignals(True)
@@ -223,6 +271,8 @@ class TemperaturePage(QWidget):
         self.range_combo.setCurrentIndex(index)
         self.range_combo.blockSignals(False)
         self.refresh_button.setText(tr("temp_refresh"))
+        self.admin_button.setText(tr("temp_admin"))
+        self.admin_button.setToolTip(tr("temp_admin_tip"))
         self._results_title.setText(tr("temp_results_title"))
         self.table.setHorizontalHeaderLabels([tr(key) for key in COLUMN_KEYS])
         align_numeric_headers(self.table, (1, 2, 3, 4))
@@ -244,6 +294,7 @@ class TemperaturePage(QWidget):
         self._render_cards(report)
         self._render_targets(self._snapshot)
         self._show_errors(report.errors if report else ())
+        self._render_diagnostics(self._snapshot)
 
     def showEvent(self, event) -> None:
         super().showEvent(event)
@@ -338,6 +389,70 @@ class TemperaturePage(QWidget):
                     item.setForeground(QColor(color))
                 self.table.setItem(row, column, item)
 
+    def _device_names(self, snapshot: Snapshot | None) -> dict[str, str]:
+        if self._device_name_cache is not None:
+            names = dict(self._device_name_cache)
+            gpus = [g for g in (getattr(snapshot, "gpus", ()) or ()) if not getattr(g, "stale", False)]
+            if gpus:
+                gpu_name = str(getattr(gpus[0], "name", "") or "").strip()
+                if gpu_name:
+                    names["gpu"] = gpu_name
+            return names
+        names = {"cpu": self._cpu_name(snapshot), "board": self._board_name(snapshot), "gpu": ""}
+        gpus = [g for g in (getattr(snapshot, "gpus", ()) or ()) if not getattr(g, "stale", False)]
+        if gpus:
+            gpu_name = str(getattr(gpus[0], "name", "") or "").strip()
+            if gpu_name:
+                names["gpu"] = gpu_name
+        self._device_name_cache = dict(names)
+        return names
+
+    def _cpu_name(self, snapshot: Snapshot | None) -> str:
+        cpu = getattr(snapshot, "cpu", None) if snapshot is not None else None
+        name = str(getattr(cpu, "name", "") or "").strip()
+        if name:
+            return name
+        try:
+            from app.hardware.service import HardwareService
+
+            info = HardwareService()._cpu([])
+            name = str(getattr(info, "name", "") or "").strip()
+            if name:
+                return name
+        except Exception:
+            pass
+        try:
+            import platform
+
+            return platform.processor().strip()
+        except Exception:
+            return ""
+
+    def _board_name(self, snapshot: Snapshot | None) -> str:
+        thermal = getattr(snapshot, "thermal", None) if snapshot is not None else None
+        for raw, _value in (getattr(thermal, "temperatures", ()) or ()):
+            text = str(raw).strip()
+            if temperature_kind(text) != "board":
+                continue
+            label = zone_label(text)
+            if label and label.strip().casefold() not in {
+                "board",
+                "motherboard",
+                "mainboard",
+                "system board",
+                "материнка",
+                "материнська плата",
+            }:
+                return label
+        try:
+            from app.hardware.service import HardwareService
+
+            info = HardwareService()._board([])
+            parts = [p for p in (info.manufacturer, info.product) if p]
+            return " ".join(parts).strip()
+        except Exception:
+            return ""
+
     def _render_cards(self, report: TemperatureReport | None) -> None:
         system = self._pick(report, "system")
         gpu = self._pick(report, "gpu")
@@ -357,10 +472,44 @@ class TemperaturePage(QWidget):
 
     def _render_targets(self, snapshot: Snapshot | None) -> None:
         targets = target_temperatures(snapshot) if snapshot is not None else {}
-        for kind, (title, value) in self._target_labels.items():
+        device_names = self._device_names(snapshot)
+        for kind, (title, value, name) in self._target_labels.items():
             current, source = targets.get(kind, (None, ""))
+            device = device_names.get(kind, "")
             value.setText(temp_text(current))
-            title.setToolTip(source)
+            title.setToolTip(device or source)
+            if current is None and kind in _MISSING_NOTE_KEYS:
+                value.setToolTip(tr(_MISSING_NOTE_KEYS[kind]))
+                name.setText(device or tr(_MISSING_NOTE_KEYS[kind]))
+                name.setToolTip(device or tr(_MISSING_NOTE_KEYS[kind]))
+            else:
+                label = device or source
+                name.setText(label)
+                tip = source if current is not None else tr("no_data")
+                value.setToolTip(tip)
+                name.setToolTip(tip)
+
+    def _render_diagnostics(self, snapshot: Snapshot | None) -> None:
+        notes = localized_temperature_notes(snapshot) if snapshot is not None else ()
+        self.diagnostics.setText(" · ".join(notes))
+        self.diagnostics.setVisible(bool(notes))
+
+    def restart_as_admin(self) -> None:
+        try:
+            result = restart_app_as_admin()
+        except OSError as exc:
+            self.diagnostics.setText(tr("temp_admin_failed", code=exc))
+            self.diagnostics.setVisible(True)
+            return
+        if result == 1223:
+            self.diagnostics.setText(tr("temp_admin_cancelled"))
+            self.diagnostics.setVisible(True)
+            return
+        if result <= 32:
+            self.diagnostics.setText(tr("temp_admin_failed", code=result))
+            self.diagnostics.setVisible(True)
+            return
+        QApplication.quit()
 
     def _set_card(self, card: MetricCard, reading) -> None:
         if reading is None or not reading.available or reading.current is None:

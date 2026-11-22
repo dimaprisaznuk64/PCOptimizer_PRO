@@ -481,6 +481,33 @@
   -p no:faulthandler` = **888 passed, 1 skipped in 3063.58s (0:51:03)**;
   `ruff`, `compileall -q app` clean. Pre-existing native shutdown artifacts remain.
 
+### Temperature source diagnostics + HWiNFO reader (2026-11-22)
+- Added `app/sensors/hwinfo.py`: read-only HWiNFO shared-memory reader
+  (`HWiS`, `HWiNFO_SENS_SM2`) with CPU/board/GPU/hotspot classification,
+  unsigned/positive-value filtering and graceful unavailable status. No admin
+  rights are needed when HWiNFO itself is running with Sensor Sharing enabled.
+- `ThermalBackend` now merges HWiNFO + pythonnet LHM + LHM WMI + ACPI with an
+  explicit source priority and carries honest `notes`/`sources` into
+  `ThermalStat`. Missing CPU/board sensors, `0°C` LHM CPU readings, disabled
+  HWiNFO, ACPI access denied and LHM WMI failures are no longer swallowed.
+- LHM reader keeps raw readings for diagnostics and filters non-positive values
+  in `pick_temperatures()` instead of losing the reason.
+- `TemperaturePage` now shows the backend notes inline, sets explanatory
+  tooltips on missing CPU/board values and adds a «Restart as admin» button.
+  Dashboard thermal card exposes the same notes via tooltip.
+- i18n: 11 EN/UA keys (`temp_admin*`, `temp_note_*`, `temp_sources_label`).
+- Fixed mojibake in `tests/test_temperature.py` literals (`В°C`, `Р...`)
+  that only failed in the full suite when the real translations were active.
+- Verification: targeted sensors/hwinfo/lhm/temperature/i18n/dashboard =
+  **90 passed**; full suite in two parts = **913 passed, 1 skipped**
+  (`tests --ignore=tests/test_ui.py` = 884 + `test_ui.py` = 29; UI hang test
+  run separately); `ruff check .`, `compileall -q app`, `git diff --check`
+  clean. `pyi-archive_viewer -r` confirms `app.sensors.hwinfo`,
+  `app.sensors.temperature_names`, `app.sensors.thermal_backend` and
+  `app.temperature.service` are bundled.
+- Local `app_run` was rebuilt from the updated sources and relaunched
+  (PID 8344). Version remains 2.0.1; no installer/release was rebuilt yet.
+
 ## Next
 
 - The baseline design is frozen and the 23-module / 100-150% scaling audit is
