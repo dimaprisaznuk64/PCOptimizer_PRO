@@ -1,6 +1,11 @@
 # Development Plan
 
 ## Status
+- Released **v2.0.1** — Stage 3/4 UX polish plus Stage 5 monitoring profiles
+  (`ECO`/`BALANCED`/`PERFORMANCE`) and an optional pythonnet/LibreHardwareMonitor
+  temperature backend. 23 pages, 904 passed / 1 skipped, TITANIUM baseline,
+  Geist fonts, bundled LHM DLLs, EN/UA. The local `.venv` was repaired to
+  Python 3.13 after its old 3.15 home disappeared.
 - Released **v2.0.0** — completion of Stage 2: 22 pages, Hardware Benchmark,
   Temperature Dashboard and Export Center, Cleaner/Diagnostics 2.0, Drivers,
   System Report, extended CPU/GPU/RAM telemetry, Gaming 2.0, 803 tests.
@@ -471,8 +476,8 @@
 
 - The baseline design is frozen and the 23-module / 100-150% scaling audit is
   complete; no further structural UI changes without a new request.
-- Readability follow-ups from the approved baseline are now done; user review of
-  the live charts / Health Score breakdown is the next gate before any commit.
+- Readability follow-ups from the approved baseline are done and shipped in
+  v2.0.1; user review of the live charts / Health Score breakdown is complete.
 - v2.0.x reliability: trustworthy CPU package power / thermal-throttling source
   only if a reliable Windows API appears.
 - Optional: wire `mypy` into the verification routine and fix the first batch
