@@ -331,7 +331,7 @@ def test_page_launch_records_history(qapp, tmp_path) -> None:
     page.start_launch("pubg")
     assert _wait_until(qapp, lambda: bool(service.history()))
     assert service.history()[0].id == "pubg"
-    assert page.history_list.count() == 1
+    assert _wait_until(qapp, lambda: page.history_list.count() == 1)
 
 
 def test_page_toggle_favorite(qapp, tmp_path) -> None:
