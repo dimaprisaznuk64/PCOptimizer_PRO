@@ -168,7 +168,7 @@ class ProcessPage(QWidget):
         details = QFrame()
         details.setObjectName("card")
         details.setMinimumWidth(0)
-        details.setSizePolicy(QSizePolicy.Expanding, QSizePolicy.Preferred)
+        details.setSizePolicy(QSizePolicy.Policy.Expanding, QSizePolicy.Policy.Preferred)
         details_layout = QVBoxLayout(details)
         details_layout.setContentsMargins(CARD_PADDING, CARD_PADDING, CARD_PADDING, CARD_PADDING)
         details_layout.setSpacing(8)

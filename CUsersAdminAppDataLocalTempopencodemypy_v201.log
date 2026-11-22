@@ -1,0 +1,167 @@
+app\reports\system.py:177: error: Name "rows" already defined on line 170  [no-redef]
+app\processes\service.py:49: error: Argument 1 to "float" has incompatible type "object"; expected "str | Buffer | SupportsFloat | SupportsIndex"  [arg-type]
+app\processes\service.py:147: error: Function "app.processes.service.ProcessService.list" is not valid as a type  [valid-type]
+app\processes\service.py:147: note: Perhaps you need "Callable[...]" or a callback protocol?
+app\disk\service.py:93: error: Item "object" of "object | Any" has no attribute "total"  [union-attr]
+app\disk\service.py:100: error: Item "object" of "object | Any" has no attribute "used"  [union-attr]
+app\disk\service.py:101: error: Item "object" of "object | Any" has no attribute "free"  [union-attr]
+app\disk\service.py:102: error: Item "object" of "object | Any" has no attribute "used"  [union-attr]
+app\sensors\lhm_backend.py:111: error: "object" has no attribute "IsCpuEnabled"  [attr-defined]
+app\sensors\lhm_backend.py:112: error: "object" has no attribute "IsGpuEnabled"  [attr-defined]
+app\sensors\lhm_backend.py:113: error: "object" has no attribute "IsMotherboardEnabled"  [attr-defined]
+app\sensors\lhm_backend.py:114: error: "object" has no attribute "Open"  [attr-defined]
+app\sensors\lhm_backend.py:159: error: "object" has no attribute "Close"  [attr-defined]
+app\sensors\thermal_backend.py:46: error: Unused "type: ignore" comment  [unused-ignore]
+app\sensors\thermal_backend.py:46: error: Argument 1 to "enumerate" has incompatible type "object | Any"; expected "Iterable[Any]"  [arg-type]
+app\sensors\thermal_backend.py:46: note: Error code "arg-type" not covered by "type: ignore" comment
+app\ui\single_instance.py:66: error: No overload variant of "bytes" matches argument type "QByteArray"  [call-overload]
+app\ui\single_instance.py:66: note: Possible overload variants:
+app\ui\single_instance.py:66: note:     def bytes(Iterable[SupportsIndex] | SupportsIndex | SupportsBytes | Buffer, /) -> bytes
+app\ui\single_instance.py:66: note:     def bytes(str, /, encoding: str, errors: str = ...) -> bytes
+app\ui\single_instance.py:66: note:     def bytes() -> bytes
+app\ui\combos.py:107: error: "QAbstractItemView" has no attribute "setUniformItemSizes"  [attr-defined]
+app\ui\theme.py:555: error: Cannot determine type of "CURRENT_THEME"  [has-type]
+app\ui\theme.py:555: error: Name "CURRENT_THEME" is used before definition  [used-before-def]
+app\ui\theme.py:748: error: "QCoreApplication" has no attribute "setFont"  [attr-defined]
+app\ui\theme.py:837: error: Item "QObject" of "QObject | None" has no attribute "rect"  [union-attr]
+app\ui\theme.py:837: error: Item "None" of "QObject | None" has no attribute "rect"  [union-attr]
+app\history\service.py:148: error: "object" has no attribute "name"  [attr-defined]
+app\history\service.py:148: error: "object" has no attribute "memory_bytes"  [attr-defined]
+app\gaming\telemetry.py:407: error: Argument 1 to "float" has incompatible type "Any | None"; expected "str | Buffer | SupportsFloat | SupportsIndex"  [arg-type]
+app\optimizer\service.py:213: error: No overload variant of "int" matches argument type "object"  [call-overload]
+app\optimizer\service.py:213: note: Possible overload variants:
+app\optimizer\service.py:213: note:     def int(str | Buffer | SupportsInt | SupportsIndex | SupportsTrunc = ..., /) -> int
+app\optimizer\service.py:213: note:     def int(str | bytes | bytearray, /, base: SupportsIndex) -> int
+app\temperature\service.py:304: error: Incompatible types in assignment (expression has type "None", variable has type "float")  [assignment]
+app\temperature\service.py:329: error: Incompatible types in assignment (expression has type "tuple[HistorySample, ...]", variable has type "tuple[()]")  [assignment]
+app\temperature\service.py:331: error: Incompatible types in assignment (expression has type "tuple[str]", variable has type "tuple[()]")  [assignment]
+app\startup\service.py:395: error: Returning Any from function declared to return "str"  [no-any-return]
+app\startup\service.py:512: error: No overload variant of "SetValueEx" matches argument types "HKEYType", "str", "int", "int", "object"  [call-overload]
+app\startup\service.py:512: note: Possible overload variants:
+app\startup\service.py:512: note:     def SetValueEx(HKEYType | int, str | None, object, Literal[4, 5], int | None, /) -> None
+app\startup\service.py:512: note:     def SetValueEx(HKEYType | int, str | None, object, Literal[1, 2], str | None, /) -> None
+app\startup\service.py:512: note:     def SetValueEx(HKEYType | int, str | None, object, Literal[7], list[str] | None, /) -> None
+app\startup\service.py:512: note:     def SetValueEx(HKEYType | int, str | None, object, Literal[0, 3, 8, 9, 10, 11], Buffer | None, /) -> None
+app\startup\service.py:512: note:     def SetValueEx(HKEYType | int, str | None, object, int, int | str | list[str] | Buffer | None, /) -> None
+app\gaming\service.py:315: error: Incompatible return value type (got "tuple[bool, str | None]", expected "tuple[bool, str]")  [return-value]
+app\ui\command_palette.py:169: error: Argument 1 of "eventFilter" is incompatible with supertype "PySide6.QtCore.QObject"; supertype defines the argument type as "QObject"  [override]
+app\ui\command_palette.py:169: note: This violates the Liskov substitution principle
+app\ui\command_palette.py:169: note: See https://mypy.readthedocs.io/en/stable/common_issues.html#incompatible-overrides
+app\reports\pdf.py:31: error: "type[QPrinter]" has no attribute "HighResolution"  [attr-defined]
+app\reports\pdf.py:32: error: "type[QPrinter]" has no attribute "PdfFormat"  [attr-defined]
+app\reports\pdf.py:34: error: "type[QPageSize]" has no attribute "A4"  [attr-defined]
+app\reports\pdf.py:37: error: "type[QPageLayout]" has no attribute "Millimeter"  [attr-defined]
+app\ui\theme_picker.py:32: error: Item "None" of "QObject | None" has no attribute "view"  [union-attr]
+app\ui\components.py:324: error: "type[QSizePolicy]" has no attribute "Expanding"  [attr-defined]
+app\ui\components.py:324: error: "type[QSizePolicy]" has no attribute "Preferred"  [attr-defined]
+app\ui\components.py:621: error: Item "None" of "QLayoutItem | None" has no attribute "widget"  [union-attr]
+app\ui\components.py:639: error: Incompatible types in assignment (expression has type "QPushButton", target has type "QLabel")  [assignment]
+app\ui\components.py:656: error: "QLabel" has no attribute "setChecked"  [attr-defined]
+app\ui\components.py:1158: error: "type[QSizePolicy]" has no attribute "Expanding"  [attr-defined]
+app\ui\components.py:1158: error: "type[QSizePolicy]" has no attribute "Preferred"  [attr-defined]
+app\ui\components.py:1246: error: "type[QSizePolicy]" has no attribute "Expanding"  [attr-defined]
+app\ui\components.py:1246: error: "type[QSizePolicy]" has no attribute "Preferred"  [attr-defined]
+app\ui\components.py:1252: error: Incompatible types in assignment (expression has type "QLabel", variable has type "str")  [assignment]
+app\ui\components.py:1253: error: "str" has no attribute "setObjectName"  [attr-defined]
+app\ui\components.py:1254: error: Argument 1 to "addWidget" of "QBoxLayout" has incompatible type "str"; expected "QWidget"  [arg-type]
+app\ui\components.py:1443: error: "type[QSizePolicy]" has no attribute "Expanding"  [attr-defined]
+app\ui\components.py:1443: error: "type[QSizePolicy]" has no attribute "Preferred"  [attr-defined]
+app\ui\components.py:1506: error: "type[QSizePolicy]" has no attribute "Expanding"  [attr-defined]
+app\ui\components.py:1506: error: "type[QSizePolicy]" has no attribute "Preferred"  [attr-defined]
+app\ui\components.py:1540: error: Incompatible types in assignment (expression has type "str", variable has type "QLabel")  [assignment]
+app\ui\components.py:1557: error: Argument 1 to "setText" of "QLabel" has incompatible type "QLabel"; expected "str"  [arg-type]
+app\ui\components.py:1565: error: "type[QSizePolicy]" has no attribute "Expanding"  [attr-defined]
+app\ui\components.py:1565: error: "type[QSizePolicy]" has no attribute "Preferred"  [attr-defined]
+app\reports\center.py:107: error: Argument 1 to "float" has incompatible type "object"; expected "str | Buffer | SupportsFloat | SupportsIndex"  [arg-type]
+app\reports\center.py:134: error: "object" has no attribute "to_dict"  [attr-defined]
+app\reports\center.py:160: error: "object" has no attribute "ts"  [attr-defined]
+app\reports\center.py:161: error: "object" has no attribute "cpu"  [attr-defined]
+app\reports\center.py:162: error: "object" has no attribute "ram"  [attr-defined]
+app\reports\center.py:163: error: "object" has no attribute "gpu"  [attr-defined]
+app\reports\center.py:164: error: "object" has no attribute "gpu_mem"  [attr-defined]
+app\reports\center.py:166: error: "object" has no attribute "temp_gpu"  [attr-defined]
+app\reports\center.py:167: error: "object" has no attribute "gpu_hotspot"  [attr-defined]
+app\reports\center.py:168: error: "object" has no attribute "gpu_power"  [attr-defined]
+app\reports\center.py:169: error: "object" has no attribute "commit_percent"  [attr-defined]
+app\reports\center.py:170: error: "object" has no attribute "top_processes"  [attr-defined]
+app\reports\center.py:256: error: Argument 1 to "export_health_pdf" has incompatible type "object"; expected "HealthReport"  [arg-type]
+app\reports\center.py:257: error: Argument 1 to "health_to_json" has incompatible type "object"; expected "HealthReport"  [arg-type]
+app\reports\center.py:257: error: Argument 1 to "health_to_csv" has incompatible type "object"; expected "HealthReport"  [arg-type]
+app\reports\center.py:269: error: Argument 1 to "export_history_pdf" has incompatible type "object"; expected "Iterable[HistoryEntry]"  [arg-type]
+app\reports\center.py:271: error: Argument 1 to "history_to_json" has incompatible type "object"; expected "Iterable[HistoryEntry]"  [arg-type]
+app\reports\center.py:271: error: Argument 1 to "history_to_csv" has incompatible type "object"; expected "Iterable[HistoryEntry]"  [arg-type]
+app\reports\center.py:284: error: Argument 1 to "export_diagnostics_pdf" has incompatible type "object"; expected "DiagnosticsReport"  [arg-type]
+app\reports\center.py:287: error: Argument 1 to "diagnostic_to_json" has incompatible type "object"; expected "DiagnosticsReport"  [arg-type]
+app\reports\center.py:287: error: Argument 1 to "diagnostic_to_csv" has incompatible type "object"; expected "DiagnosticsReport"  [arg-type]
+app\reports\center.py:294: error: Argument 1 to "_write_performance_history" has incompatible type "object"; expected "Sequence[object]"  [arg-type]
+app\update\service.py:139: error: Argument "url" to "UpdateInfo" has incompatible type "object"; expected "str"  [arg-type]
+app\ui\temperature.py:73: error: Argument "history" to "TemperatureService" has incompatible type "object | None"; expected "_HistoryLike | None"  [arg-type]
+app\ui\temperature.py:175: error: Incompatible types in assignment (expression has type "int", variable has type "QVBoxLayout")  [assignment]
+app\ui\temperature.py:176: error: No overload variant of "setSectionResizeMode" of "QHeaderView" matches argument types "QVBoxLayout", "ResizeMode"  [call-overload]
+app\ui\temperature.py:176: note: Possible overload variants:
+app\ui\temperature.py:176: note:     def setSectionResizeMode(self, ResizeMode, /) -> None
+app\ui\temperature.py:176: note:     def setSectionResizeMode(self, int, ResizeMode, /) -> None
+app\ui\startup.py:159: error: "type[QSizePolicy]" has no attribute "Expanding"  [attr-defined]
+app\ui\startup.py:159: error: "type[QSizePolicy]" has no attribute "Preferred"  [attr-defined]
+app\ui\startup.py:316: error: Item "None" of "StartupItem | None" has no attribute "id"  [union-attr]
+app\ui\startup.py:338: error: Incompatible types in assignment (expression has type "QTableWidgetItem | None", variable has type "StartupItem")  [assignment]
+app\ui\startup.py:339: error: "StartupItem" has no attribute "data"  [attr-defined]
+app\ui\processes.py:171: error: "type[QSizePolicy]" has no attribute "Expanding"  [attr-defined]
+app\ui\processes.py:171: error: "type[QSizePolicy]" has no attribute "Preferred"  [attr-defined]
+app\ui\processes.py:416: error: Cannot infer type of lambda  [misc]
+app\ui\optimizer.py:102: error: No overload variant of "int" matches argument type "object"  [call-overload]
+app\ui\optimizer.py:102: note: Possible overload variants:
+app\ui\optimizer.py:102: note:     def int(str | Buffer | SupportsInt | SupportsIndex | SupportsTrunc = ..., /) -> int
+app\ui\optimizer.py:102: note:     def int(str | bytes | bytearray, /, base: SupportsIndex) -> int
+app\ui\optimizer.py:104: error: No overload variant of "int" matches argument type "object"  [call-overload]
+app\ui\optimizer.py:104: note: Possible overload variants:
+app\ui\optimizer.py:104: note:     def int(str | Buffer | SupportsInt | SupportsIndex | SupportsTrunc = ..., /) -> int
+app\ui\optimizer.py:104: note:     def int(str | bytes | bytearray, /, base: SupportsIndex) -> int
+app\ui\optimizer.py:201: error: "type[QSizePolicy]" has no attribute "Expanding"  [attr-defined]
+app\ui\optimizer.py:201: error: "type[QSizePolicy]" has no attribute "Preferred"  [attr-defined]
+app\ui\optimizer.py:473: error: Argument 2 to "RestoreResult" has incompatible type "str | None"; expected "str"  [arg-type]
+app\ui\monitor.py:433: error: Argument 1 to "set_rows" of "CardPanel" has incompatible type "list[tuple[str, float, str]]"; expected "list[tuple[str, float | None, str]]"  [arg-type]
+app\ui\monitor.py:433: note: "list" is invariant -- see https://mypy.readthedocs.io/en/stable/common_issues.html#variance
+app\ui\monitor.py:433: note: Consider using "Sequence" instead, which is covariant
+app\ui\main_window.py:441: error: Returning Any from function declared to return "QWidget"  [no-any-return]
+app\ui\main_window.py:442: error: Returning Any from function declared to return "QWidget"  [no-any-return]
+app\ui\main_window.py:553: error: Argument 1 to "removeWidget" of "QStackedWidget" has incompatible type "QWidget | None"; expected "QWidget"  [arg-type]
+app\ui\main_window.py:554: error: Item "None" of "QWidget | None" has no attribute "deleteLater"  [union-attr]
+app\ui\main_window.py:649: error: Argument "parent" to "_GamePresenceWatcher" has incompatible type "MainWindow"; expected "QThread | None"  [arg-type]
+app\ui\main_window.py:809: error: Incompatible types in assignment (expression has type "Task", variable has type "None")  [assignment]
+app\ui\launcher.py:421: error: Item "None" of "QLayoutItem | None" has no attribute "widget"  [union-attr]
+app\ui\health.py:258: error: Argument 1 to "_render_report" of "HealthPage" has incompatible type "HealthReport | None"; expected "HealthReport"  [arg-type]
+app\ui\health.py:383: error: Argument 3 to "setCellWidget" of "QTableWidget" has incompatible type "None"; expected "QWidget"  [arg-type]
+app\ui\hardware.py:118: error: Argument 4 to "_make_table" of "HardwarePage" has incompatible type "dict[int, object]"; expected "dict[int, int | str]"  [arg-type]
+app\ui\hardware.py:123: error: Argument 4 to "_make_table" of "HardwarePage" has incompatible type "dict[int, object]"; expected "dict[int, int | str]"  [arg-type]
+app\ui\gaming.py:56: error: "type[QSizePolicy]" has no attribute "Expanding"  [attr-defined]
+app\ui\gaming.py:56: error: "type[QSizePolicy]" has no attribute "MinimumExpanding"  [attr-defined]
+app\ui\gaming.py:208: error: "type[QSizePolicy]" has no attribute "Expanding"  [attr-defined]
+app\ui\gaming.py:208: error: "type[QSizePolicy]" has no attribute "Preferred"  [attr-defined]
+app\ui\gaming.py:620: error: Incompatible redefinition (redefinition with type "Callable[[], object]", original type "Callable[[], ApplyReport]")  [misc]
+app\ui\disk.py:211: error: Item "None" of "QLayoutItem | None" has no attribute "widget"  [union-attr]
+app\ui\disk.py:227: error: "type[QSizePolicy]" has no attribute "Expanding"  [attr-defined]
+app\ui\disk.py:227: error: "type[QSizePolicy]" has no attribute "Preferred"  [attr-defined]
+app\ui\dashboard.py:539: error: Item "None" of "QLayoutItem | None" has no attribute "layout"  [union-attr]
+app\ui\dashboard.py:542: error: Item "None" of "QLayoutItem | Any | None" has no attribute "widget"  [union-attr]
+app\ui\dashboard.py:545: error: Item "None" of "QLayoutItem | None" has no attribute "widget"  [union-attr]
+app\ui\dashboard.py:546: error: Item "None" of "QLayoutItem | None" has no attribute "widget"  [union-attr]
+app\ui\dashboard.py:546: error: Item "None" of "QWidget | Any | None" has no attribute "deleteLater"  [union-attr]
+app\ui\dashboard.py:771: error: "type[QSizePolicy]" has no attribute "Expanding"  [attr-defined]
+app\ui\dashboard.py:1041: error: Unused "type: ignore" comment  [unused-ignore]
+app\ui\dashboard.py:1041: error: "object" has no attribute "__iter__"; maybe "__dir__" or "__str__"? (not iterable)  [attr-defined]
+app\ui\dashboard.py:1041: note: Error code "attr-defined" not covered by "type: ignore" comment
+app\ui\dashboard.py:1076: error: "object" has no attribute "__iter__"; maybe "__dir__" or "__str__"? (not iterable)  [attr-defined]
+app\ui\dashboard.py:1200: error: Argument 1 to "set_rows" of "CardPanel" has incompatible type "list[tuple[str, float, str]]"; expected "list[tuple[str, float | None, str]]"  [arg-type]
+app\ui\dashboard.py:1200: note: "list" is invariant -- see https://mypy.readthedocs.io/en/stable/common_issues.html#variance
+app\ui\dashboard.py:1200: note: Consider using "Sequence" instead, which is covariant
+app\ui\cleaner.py:272: error: Item "None" of "ScanResult | None" has no attribute "bytes"  [union-attr]
+app\ui\cleaner.py:272: error: Generator has incompatible item type "int | Any"; expected "bool"  [misc]
+app\ui\cleaner.py:495: error: Argument 1 to "list" has incompatible type "list[LeftoverCandidate]"; expected "Iterable[CleanTarget]"  [arg-type]
+app\ui\benchmarks.py:213: error: Cannot infer type of lambda  [misc]
+app\ui\settings.py:400: error: "type[QSizePolicy]" has no attribute "Expanding"  [attr-defined]
+app\ui\settings.py:400: error: "type[QSizePolicy]" has no attribute "Fixed"  [attr-defined]
+app\ui\settings.py:531: error: "type[QSizePolicy]" has no attribute "Expanding"  [attr-defined]
+app\ui\settings.py:722: error: Incompatible types in assignment (expression has type "Task", variable has type "None")  [assignment]
+app\ui\settings.py:771: error: Incompatible types in assignment (expression has type "Task", variable has type "None")  [assignment]
+Found 135 errors in 35 files (checked 119 source files)

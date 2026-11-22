@@ -397,7 +397,7 @@ class SettingsPage(QWidget):
         self.data_dir_edit = QLineEdit(str(data_root()))
         self.data_dir_edit.setReadOnly(True)
         self.data_dir_edit.setFixedHeight(COMBO_HEIGHT)
-        self.data_dir_edit.setSizePolicy(QSizePolicy.Expanding, QSizePolicy.Fixed)
+        self.data_dir_edit.setSizePolicy(QSizePolicy.Policy.Expanding, QSizePolicy.Policy.Fixed)
         grid.addWidget(self.data_dir_edit, 5, 1)
 
         self.minimize_check = QCheckBox(tr("set_minimize_tray"))
@@ -528,7 +528,7 @@ class SettingsPage(QWidget):
         self.preview = QPlainTextEdit()
         self.preview.setReadOnly(True)
         self.preview.setMinimumHeight(160)
-        self.preview.setSizePolicy(QSizePolicy.Expanding, QSizePolicy.Expanding)
+        self.preview.setSizePolicy(QSizePolicy.Policy.Expanding, QSizePolicy.Policy.Expanding)
         self.preview.setLineWrapMode(QPlainTextEdit.LineWrapMode.NoWrap)
         mono = QFont()
         mono.setFamilies(["Cascadia Mono", "Consolas", "Courier New"])

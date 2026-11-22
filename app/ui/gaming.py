@@ -53,7 +53,7 @@ class SessionCompareChart(QWidget):
     def __init__(self, parent: QWidget | None = None) -> None:
         super().__init__(parent)
         self.setMinimumHeight(110)
-        self.setSizePolicy(QSizePolicy.Expanding, QSizePolicy.MinimumExpanding)
+        self.setSizePolicy(QSizePolicy.Policy.Expanding, QSizePolicy.Policy.MinimumExpanding)
         self._sessions: list[GameSession] = []
         self._metric = "cpu"
 
@@ -205,7 +205,7 @@ class GamingPage(QWidget):
         details = QFrame()
         details.setObjectName("card")
         details.setMinimumWidth(0)
-        details.setSizePolicy(QSizePolicy.Expanding, QSizePolicy.Preferred)
+        details.setSizePolicy(QSizePolicy.Policy.Expanding, QSizePolicy.Policy.Preferred)
         details_layout = QVBoxLayout(details)
         details_layout.setContentsMargins(CARD_PADDING, CARD_PADDING, CARD_PADDING, CARD_PADDING)
         details_layout.setSpacing(8)

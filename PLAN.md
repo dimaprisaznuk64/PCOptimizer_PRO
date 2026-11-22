@@ -489,5 +489,9 @@
   v2.0.1; user review of the live charts / Health Score breakdown is complete.
 - v2.0.x reliability: trustworthy CPU package power / thermal-throttling source
   only if a reliable Windows API appears.
-- Optional: wire `mypy` into the verification routine and fix the first batch
-  of findings.
+- `mypy` is wired into CI as non-blocking. Dev dependency is pinned to
+  `>=1.11,<2` after mypy 2.4.1 crashed internally on this tree. First batch
+  fixed: all 28 PySide6 `QSizePolicy` enum errors (`Policy.Expanding`,
+  `Policy.Preferred`, `Policy.Fixed`, `Policy.MinimumExpanding`); mypy count
+  dropped from 135 to 107 errors in 35 files. Remaining findings are mostly
+  `attr-defined`/`arg-type`/`union-attr` in reports/UI code.

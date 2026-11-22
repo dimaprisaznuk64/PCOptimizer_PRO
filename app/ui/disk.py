@@ -224,7 +224,7 @@ class DiskPage(QWidget):
         frame = QFrame()
         frame.setObjectName("card")
         frame.setMinimumWidth(0)
-        frame.setSizePolicy(QSizePolicy.Expanding, QSizePolicy.Preferred)
+        frame.setSizePolicy(QSizePolicy.Policy.Expanding, QSizePolicy.Policy.Preferred)
         body = QVBoxLayout(frame)
         body.setContentsMargins(14, 10, 14, 10)
         body.setSpacing(4)

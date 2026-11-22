@@ -14,7 +14,7 @@ dependencies = [
 ]
 
 [project.optional-dependencies]
-dev = ["pytest>=8", "pyinstaller>=6.0", "pillow>=10.0", "ruff>=0.6", "mypy>=1.11"]
+dev = ["pytest>=8", "pyinstaller>=6.0", "pillow>=10.0", "ruff>=0.6", "mypy>=1.11,<2"]
 
 [project.urls]
 Homepage = "https://github.com/dimaprisaznuk64/PCOptimizer_PRO"
