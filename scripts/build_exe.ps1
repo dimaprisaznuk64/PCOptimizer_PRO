@@ -4,9 +4,10 @@ $root = Split-Path -Parent $PSScriptRoot
 Set-Location $root
 
 $venvPy = Join-Path $root ".venv\Scripts\python.exe"
-$pyCmd = if (Test-Path $venvPy) { "`"$venvPy`"" } elseif (Get-Command py -ErrorAction SilentlyContinue) { "py -3.13" } else { "python" }
+$pyExe = if (Test-Path $venvPy) { $venvPy } elseif (Get-Command py -ErrorAction SilentlyContinue) { "py" } else { "python" }
+$pyArgs = if ($pyExe -eq "py") { @("-3.13") } else { @() }
 if (-not (Test-Path (Join-Path $root "assets\app.ico"))) {
-    Invoke-Expression "$pyCmd scripts/make_icon.py"
+    & $pyExe @pyArgs scripts/make_icon.py
 }
 
 # Preserve user data (settings/logs live next to the exe in `<exe_dir>\data`),
@@ -25,7 +26,7 @@ try {
     # PowerShell would turn those lines into terminating NativeCommandError.
     $prevEap = $ErrorActionPreference
     $ErrorActionPreference = "Continue"
-    Invoke-Expression "$pyCmd -m PyInstaller --clean --noconfirm PCOptimizer_PRO.spec"
+    & $pyExe @pyArgs -m PyInstaller --clean --noconfirm PCOptimizer_PRO.spec
     $buildExit = $LASTEXITCODE
     $ErrorActionPreference = $prevEap
     if ($buildExit -ne 0) {
