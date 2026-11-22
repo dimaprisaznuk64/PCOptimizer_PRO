@@ -10,7 +10,7 @@ from .temperature_names import (
     KIND_BOARD,
     KIND_CPU,
     KIND_GPU,
-    temperature_kind,
+    raw_temperature_kind,
     temperature_priority,
 )
 
@@ -51,7 +51,7 @@ def pick_temperatures(entries: Iterable[tuple[str, float]]) -> dict[str, tuple[f
     for raw, value in entries:
         if not value or value <= 0.0:
             continue
-        kind = temperature_kind(raw)
+        kind = raw_temperature_kind(raw)
         if kind not in _TARGETS:
             continue
         score = temperature_priority(raw, kind)
@@ -103,10 +103,10 @@ class LhmReader:
             from LibreHardwareMonitor.Hardware import Computer
 
             computer = Computer()
-        computer.IsCpuEnabled = True
-        computer.IsGpuEnabled = True
-        computer.IsMotherboardEnabled = True
-        computer.Open()
+        computer.IsCpuEnabled = True  # type: ignore[attr-defined]
+        computer.IsGpuEnabled = True  # type: ignore[attr-defined]
+        computer.IsMotherboardEnabled = True  # type: ignore[attr-defined]
+        computer.Open()  # type: ignore[attr-defined]
         return computer
 
     @staticmethod
@@ -150,6 +150,6 @@ class LhmReader:
             computer, self._computer = self._computer, None
             if computer is not None:
                 try:
-                    computer.Close()
+                    computer.Close()  # type: ignore[attr-defined]
                 except Exception:
                     pass

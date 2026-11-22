@@ -99,12 +99,15 @@ def tune_combo(combo: QComboBox, width: int = COMBO_WIDTH, expand: bool = False)
         combo.setSizePolicy(QSizePolicy.Policy.Fixed, QSizePolicy.Policy.Fixed)
     combo.setMaxVisibleItems(MAX_VISIBLE_ROWS)
     view = combo.view()
+    if view is None:
+        return combo
     view.setMinimumWidth(width)
     if expand:
         view.setMaximumWidth(16777215)
     else:
         view.setMaximumWidth(width)
-    view.setUniformItemSizes(True)
+    if hasattr(view, "setUniformItemSizes"):
+        view.setUniformItemSizes(True)
     view.setVerticalScrollMode(QAbstractItemView.ScrollMode.ScrollPerPixel)
     view.setVerticalScrollBarPolicy(Qt.ScrollBarPolicy.ScrollBarAsNeeded)
     view.setHorizontalScrollBarPolicy(Qt.ScrollBarPolicy.ScrollBarAlwaysOff)

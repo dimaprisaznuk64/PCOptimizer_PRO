@@ -14,7 +14,7 @@
   <img src="https://img.shields.io/badge/platform-Windows%2010%2F11%20x64-0078D6" alt="Platform">
   <img src="https://img.shields.io/badge/python-3.13-3776AB" alt="Python">
   <img src="https://img.shields.io/badge/UI-PySide6%20(Qt%206)-41CD52" alt="PySide6">
-   <img src="https://img.shields.io/badge/tests-904%20passed-brightgreen" alt="Tests">
+   <img src="https://img.shields.io/badge/tests-900%2B%20passed-brightgreen" alt="Tests">
   <a href="https://github.com/dimaprisaznuk64/PCOptimizer_PRO/actions/workflows/ci.yml"><img src="https://github.com/dimaprisaznuk64/PCOptimizer_PRO/actions/workflows/ci.yml/badge.svg" alt="CI"></a>
   <img src="https://img.shields.io/badge/license-MIT-green" alt="License">
   <img src="https://img.shields.io/badge/version-2.0.1-blue" alt="Version">
@@ -79,6 +79,8 @@
 ### Панель температур
 - Живі показання з LibreHardwareMonitor (CPU / материнська плата / GPU), ACPI-зон (системна температура), NVIDIA GPU та hotspot; застарілі NVML-значення ігноруються
 - LHM читається через pythonnet з DLL у `assets/lib/lhm`; для доступу до апаратних сенсорів потрібен запуск від адміністратора. Якщо плата не віддає температуру (наприклад, 0 °C або порожній набір), панель чесно показує «—»
+- **HWiNFO Shared Memory** (найвищий пріоритет): якщо LHM не бачить CPU або материнську плату (типово для Ryzen + деякі плати), запустіть HWiNFO із вікном Sensors від адміністратора й увімкніть *Shared Memory Support*. Пріоритет джерел: HWiNFO → LHM (pythonnet) → LHM WMI → ACPI. У безкоштовній версії HWiNFO Shared Memory вимикається через 12 год — застосунок покаже підказку «перезапустіть HWiNFO», а застарілі дані (HWiNFO завис) ігноруються
+- Температура диска (S.M.A.R.T.) показується окремим рядком «Диск», а не як «Система»
 - Історія 1 год / 6 год / 24 год / 7 днів із піком, середнім, максимумом і статусом за порогами
 - Окремий Refresh інвалідує кеш історії; піки сесії зберігаються при перемиканні мови
 - чесно показує відсутність джерела: немає вигаданої температури CPU, якщо Windows її не віддає
@@ -358,7 +360,7 @@ app/
   logs/                  — ротаційне логування
   i18n/                  — локалізація UA / EN
   core/, hardware/, monitor/, health/, diagnostics/, alerts/, benchmarks/, gaming/ — допоміжні модулі
-tests/                   — pytest-тести (904)
+tests/                   — pytest-тести (900+)
 scripts/                 — збірка exe/інсталятора, генерація іконки
 installer/               — скрипт Inno Setup
 docs/screenshots/        — скріншоти

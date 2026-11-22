@@ -422,7 +422,7 @@ class MonitorPage(QWidget):
             self.net_total_sub.setText(tr("mon_total_sub", down=gb(n.bytes_recv), up=gb(n.bytes_sent)))
 
         if s.disks:
-            rows = [
+            rows: list[tuple[str, float | None, str]] = [
                 (
                     d.mountpoint.rstrip("\\/") or d.device,
                     d.percent,

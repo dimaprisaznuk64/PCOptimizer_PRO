@@ -29,7 +29,7 @@ class ThemeSwatchDelegate(QStyledItemDelegate):
         """Mark the applied theme so it can be drawn with a check mark."""
         self._current_key = str(key) if key else None
         parent = self.parent()
-        view = parent.view() if hasattr(parent, "view") else None
+        view = parent.view() if parent is not None and hasattr(parent, "view") else None
         if view is not None:
             view.viewport().update()
 

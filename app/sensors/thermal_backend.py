@@ -13,13 +13,13 @@ from .temperature_names import (
     KIND_HOTSPOT,
     KIND_SYSTEM,
     canonical_temperature_name,
+    raw_temperature_kind,
     temperature_kind,
 )
 from .types import ThermalStat
 
 _TTL_S = 2.0
 _LHM_NAMESPACES = ("root\\LibreHardwareMonitor", "root\\OpenHardwareMonitor")
-_KIND_ORDER = (KIND_CPU, KIND_BOARD, KIND_GPU, KIND_HOTSPOT, KIND_SYSTEM)
 _SOURCE_PRIORITY = {"hwinfo": 5, "lhm": 4, "lhm_pythonnet": 3, "wmi_acpi": 1}
 
 
@@ -99,14 +99,14 @@ class ThermalBackend(Backend):
         if self._lhm_reader.last_error:
             notes.append(f"LHM: {self._lhm_reader.last_error}")
         cpu_zero = any(
-            temperature_kind(name) == KIND_CPU
+            raw_temperature_kind(name) == KIND_CPU
             and value <= 0.0
             and ("temp" in name.lower() or "tctl" in name.lower() or "tdie" in name.lower() or "core" in name.lower())
             for name, value in raw
         )
         if cpu_zero and KIND_CPU not in values:
             notes.append("LHM CPU temperature sensor reports 0°C (driver or CPU unsupported)")
-        if not any(temperature_kind(name) == KIND_BOARD and value > 0.0 for name, value in raw):
+        if not any(raw_temperature_kind(name) == KIND_BOARD and value > 0.0 for name, value in raw):
             notes.append("LHM motherboard has no temperature sensors")
         return ThermalStat(
             source="lhm_pythonnet",
@@ -131,7 +131,7 @@ class ThermalBackend(Backend):
             value = float(zone.CurrentTemperature) / 10.0 - 273.15
             temps.append((raw, value))
         notes: tuple[str, ...] = ()
-        if not any(temperature_kind(name) in (KIND_CPU, KIND_BOARD) for name, _value in temps):
+        if not any(raw_temperature_kind(name) in (KIND_CPU, KIND_BOARD) for name, _value in temps):
             notes = ("ACPI exposes system zones only; CPU/motherboard need HWiNFO or LHM",)
         return ThermalStat(
             source="wmi_acpi",
@@ -154,7 +154,7 @@ class ThermalBackend(Backend):
             identifier = str(getattr(sensor, "Identifier", "") or "")
             if not raw:
                 continue
-            kind = temperature_kind(raw, identifier)
+            kind = raw_temperature_kind(raw, identifier)
             if kind not in (KIND_CPU, KIND_BOARD, KIND_GPU, KIND_HOTSPOT):
                 continue
             value = float(sensor.Value)

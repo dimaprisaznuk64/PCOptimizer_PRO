@@ -508,6 +508,25 @@
 - Local `app_run` was rebuilt from the updated sources and relaunched
   (PID 8344). Version remains 2.0.1; no installer/release was rebuilt yet.
 
+## v2.0.2 (unreleased) — sensors/typing fixes after the 2026-11-22 review
+
+- Fixed regression in `temperature_kind`: the canonical-key shortcut turned a raw
+  SuperIO sensor literally named `System` into the `system` kind, so LHM lost its
+  board temperature. Added `raw_temperature_kind` (no shortcut) for backends and
+  kept `temperature_kind` (canonical keys pass through) for the merged snapshot,
+  UI and services. Two `tests/test_lhm.py` tests had caught it.
+- New `disk` temperature kind: HWiNFO S.M.A.R.T. drive temperature is no longer
+  mislabelled as `system`; `zone_label` now translates `hotspot`/`system`/`disk`.
+- HWiNFO reader: ignores stale shared memory (poll stamp older than 120 s; an
+  absent/implausible stamp is "unknown" and never hides data), wording now says
+  *Shared Memory Support*, plus a 12-hour free-version hint (EN/UA).
+- Real bug found by mypy: `psutil.TimeoutOccurred` does not exist
+  (`TimeoutExpired`); a slow-to-exit process raised `AttributeError` instead of
+  `terminate()` returning `False`. Regression test added.
+- mypy: 10 existing errors fixed (0 errors on `mypy app` with the project config).
+- Repo hygiene: `.venv*/` ignored, `pythonnet` added to `pyproject.toml`,
+  `requires-python` capped at `<3.15`, README badge no longer hard-codes a test count.
+
 ## Next
 
 - The baseline design is frozen and the 23-module / 100-150% scaling audit is

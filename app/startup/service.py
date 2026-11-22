@@ -392,7 +392,7 @@ class StartupService:
         else:
             raise StartupError(f"unknown backup action {entry['action']}")
         history.write_text("\n".join(lines[:-1]) + ("\n" if len(lines) > 1 else ""), encoding="utf-8")
-        return entry.get("description", "restored")
+        return str(entry.get("description", "restored"))
 
     def _remove_registry(self, item: StartupItem) -> str:
         if item.hive is None or item.key_path is None or item.approved_name is None:
@@ -509,7 +509,7 @@ class StartupService:
 
     def _reg_set(self, hive: str, key_path: str, name: str, value_type: int, data: object) -> None:
         with winreg.CreateKeyEx(_hive(hive), key_path, 0, winreg.KEY_SET_VALUE) as key:
-            winreg.SetValueEx(key, name, 0, value_type, data)
+            winreg.SetValueEx(key, name, 0, value_type, data)  # type: ignore[call-overload]
 
     def _reg_delete(self, hive: str, key_path: str, name: str) -> None:
         with winreg.OpenKey(_hive(hive), key_path, 0, winreg.KEY_SET_VALUE) as key:

@@ -30,6 +30,7 @@ from app.cleaner import (
     CleanerWhitelist,
     CleanOutcome,
     CleanTarget,
+    LeftoverCandidate,
     ScanResult,
     list_leftover_candidates,
     scan_large_files,
@@ -269,7 +270,10 @@ class CleanerPage(QWidget):
         selected = self._selected_targets()
         if not selected:
             return
-        total = sum(self._scans.get(t.id).bytes for t in selected if self._scans.get(t.id))
+        total = sum(
+            (scan.bytes if (scan := self._scans.get(t.id)) is not None else 0)
+            for t in selected
+        )
         if not self._ask_confirm(len(selected), total):
             return
         self.status_label.setText(tr("clean_cleaning"))
@@ -491,7 +495,7 @@ class CleanerPage(QWidget):
         self._task.failed.connect(self._on_task_failed)
         self._task.start()
 
-    def _load_leftovers(self) -> list[CleanTarget]:
+    def _load_leftovers(self) -> list[LeftoverCandidate]:
         return list(list_leftover_candidates())
 
     def _apply_leftovers(self, found: object) -> None:

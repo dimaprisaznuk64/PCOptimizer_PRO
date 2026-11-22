@@ -97,7 +97,7 @@ class TemperaturePage(QWidget):
     ) -> None:
         super().__init__(parent)
         self.setObjectName("page")
-        self._service = service or TemperatureService(history=history)
+        self._service = service or TemperatureService(history=history)  # type: ignore[arg-type]
         self._report: TemperatureReport | None = None
         self._history_report: TemperatureReport | None = None
         self._snapshot: Snapshot | None = None
@@ -211,9 +211,10 @@ class TemperaturePage(QWidget):
         self.table.setMinimumHeight(180)
         attach_empty_hint(self.table, "temp_empty")
         header = self.table.horizontalHeader()
-        for column in range(len(COLUMN_KEYS)):
-            header.setSectionResizeMode(column, QHeaderView.ResizeMode.ResizeToContents)
-        header.setSectionResizeMode(0, QHeaderView.ResizeMode.Stretch)
+        if header is not None:
+            for col_index in range(len(COLUMN_KEYS)):
+                header.setSectionResizeMode(col_index, QHeaderView.ResizeMode.ResizeToContents)
+            header.setSectionResizeMode(0, QHeaderView.ResizeMode.Stretch)
         align_numeric_headers(self.table, (1, 2, 3, 4))
         results_layout.addWidget(self.table, 1)
 

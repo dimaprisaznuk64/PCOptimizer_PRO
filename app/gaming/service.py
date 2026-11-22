@@ -312,7 +312,7 @@ class GamingService:
                 profile = str(data.get("profile", "GAMING"))
                 if profile in GAMING_PROFILES:
                     return bool(data.get("active")), profile
-        return fallback, backup_profile if fallback else "GAMING"
+        return fallback, "GAMING"
 
     def _save_mode_state(self, active: bool, profile: str) -> None:
         try:

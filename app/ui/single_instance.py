@@ -63,5 +63,5 @@ class SingleInstanceGuard(QObject):
         conn.disconnected.connect(conn.deleteLater)
 
     def _read(self, conn: QLocalSocket) -> None:
-        if bytes(conn.readAll()) == _SHOW:
+        if bytes(conn.readAll().data()) == _SHOW:
             self.show_requested.emit()

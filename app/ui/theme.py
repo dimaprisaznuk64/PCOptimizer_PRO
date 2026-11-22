@@ -552,7 +552,8 @@ def saved_theme() -> str:
     return name if name in PALETTES else DEFAULT_THEME
 
 
-if "CURRENT_THEME" not in globals() or CURRENT_THEME not in PALETTES:
+CURRENT_THEME: str = globals().get("CURRENT_THEME", DEFAULT_THEME)
+if CURRENT_THEME not in PALETTES:
     CURRENT_THEME = saved_theme()
 globals().update(PALETTES[CURRENT_THEME])
 
@@ -745,7 +746,8 @@ def _set_global_fonts() -> None:
     font.setHintingPreference(QFont.HintingPreference.PreferNoHinting)
 
     # Set application-wide font
-    app.setFont(font)
+    if hasattr(app, "setFont"):
+        app.setFont(font)
 
     # Load custom fonts for consistent appearance
     load_fonts()
@@ -833,8 +835,9 @@ def _overlay_class():
             self.show()
 
         def eventFilter(self, obj, event) -> bool:
-            if event.type() == QEvent.Type.Resize and self.parent() is not None:
-                self.setGeometry(self.parent().rect())
+            parent = self.parent()
+            if event.type() == QEvent.Type.Resize and isinstance(parent, QWidget):
+                self.setGeometry(parent.rect())
             return False
 
         def paintEvent(self, event) -> None:  # noqa: N802 - Qt naming

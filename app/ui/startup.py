@@ -313,7 +313,8 @@ class StartupPage(QWidget):
             return False
 
     def _render_table(self) -> None:
-        selected_id = self._selected_item().id if self._selected_item() else None
+        selected = self._selected_item()
+        selected_id = selected.id if selected is not None else None
         self.table.blockSignals(True)
         self.table.setSortingEnabled(False)
         self.table.setRowCount(len(self._items))
@@ -335,8 +336,8 @@ class StartupPage(QWidget):
         self.table.blockSignals(False)
         if selected_id:
             for row in range(self.table.rowCount()):
-                item = self.table.item(row, 0)
-                if item is not None and item.data(Qt.ItemDataRole.UserRole) == selected_id:
+                cell = self.table.item(row, 0)
+                if cell is not None and cell.data(Qt.ItemDataRole.UserRole) == selected_id:
                     self.table.selectRow(row)
                     return
 

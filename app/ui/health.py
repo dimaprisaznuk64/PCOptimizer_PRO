@@ -254,8 +254,9 @@ class HealthPage(QWidget):
         self._fit_action_column()
         for row in range(self.findings_table.rowCount()):
             self._retranslate_finding_row(row)
-        if getattr(self, "_report", None) is not None:
-            self._render_report(self._report)
+        report = getattr(self, "_report", None)
+        if report is not None:
+            self._render_report(report)
         else:
             self.penalty_label.setText(tr("health_penalties_none"))
 
@@ -380,7 +381,7 @@ class HealthPage(QWidget):
         (otherwise restyling hits a dangling pointer).
         """
         for row in range(self.findings_table.rowCount()):
-            self.findings_table.setCellWidget(row, 4, None)
+            self.findings_table.removeCellWidget(row, 4)
         for cell in self._action_cells:
             cell.hide()
             cell.deleteLater()

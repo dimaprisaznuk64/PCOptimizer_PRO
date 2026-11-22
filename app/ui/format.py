@@ -58,6 +58,9 @@ def zone_label(name: str) -> str:
         "cpu": "temp_target_cpu",
         "board": "temp_target_board",
         "gpu": "temp_target_gpu",
+        "hotspot": "temp_target_hotspot",
+        "system": "temp_target_system",
+        "disk": "temp_target_disk",
     }.get(raw.lower())
     if canonical:
         return tr(canonical)

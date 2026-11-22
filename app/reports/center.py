@@ -104,7 +104,12 @@ def _iso(ts: float) -> str:
 
 
 def _number(value: object) -> str:
-    return "" if value is None else f"{float(value):.1f}"
+    if value is None:
+        return ""
+    try:
+        return f"{float(value):.1f}"  # type: ignore[arg-type]
+    except (TypeError, ValueError):
+        return ""
 
 
 def _unique_path(directory: Path, name: str, used: set[str]) -> Path:
@@ -131,7 +136,10 @@ def _write_performance_history(
             {
                 "exported": generated,
                 "count": len(samples),
-                "samples": [sample.to_dict() for sample in samples],
+                "samples": [
+                sample.to_dict() if hasattr(sample, "to_dict") else dict(sample)  # type: ignore[call-overload]
+                for sample in samples
+            ],
             },
             ensure_ascii=False,
             indent=2,
@@ -155,19 +163,21 @@ def _write_performance_history(
             )
         )
         for sample in samples:
+            ts = getattr(sample, "ts", 0.0)
+            top = getattr(sample, "top_processes", ()) or ()
             writer.writerow(
                 (
-                    _iso(float(sample.ts)),
-                    _number(sample.cpu),
-                    _number(sample.ram),
-                    _number(sample.gpu),
-                    _number(sample.gpu_mem),
+                    _iso(float(ts)),
+                    _number(getattr(sample, "cpu", None)),
+                    _number(getattr(sample, "ram", None)),
+                    _number(getattr(sample, "gpu", None)),
+                    _number(getattr(sample, "gpu_mem", None)),
                     _number(getattr(sample, "temp_cpu", None)),
-                    _number(sample.temp_gpu),
-                    _number(sample.gpu_hotspot),
-                    _number(sample.gpu_power),
-                    _number(sample.commit_percent),
-                    "; ".join(f"{name} {mb:.0f}MB" for name, mb in sample.top_processes),
+                    _number(getattr(sample, "temp_gpu", None)),
+                    _number(getattr(sample, "gpu_hotspot", None)),
+                    _number(getattr(sample, "gpu_power", None)),
+                    _number(getattr(sample, "commit_percent", None)),
+                    "; ".join(f"{name} {mb:.0f}MB" for name, mb in top),
                 )
             )
         text = buf.getvalue()
@@ -253,8 +263,12 @@ def default_exporters(
         if fmt == PDF:
             from .pdf import export_health_pdf
 
-            return export_health_pdf(report, path)
-        return write_report(path, health_to_json(report) if fmt == JSON else health_to_csv(report), fmt)
+            return export_health_pdf(report, path)  # type: ignore[arg-type]
+        return write_report(
+            path,
+            health_to_json(report) if fmt == JSON else health_to_csv(report),  # type: ignore[arg-type]
+            fmt,
+        )
 
     def benchmarks(path: Path, data: object | None, fmt: str) -> Path:
         _require_format(ExportKind.BENCHMARKS, fmt)
@@ -266,9 +280,11 @@ def default_exporters(
         if fmt == PDF:
             from .pdf import export_history_pdf
 
-            return export_history_pdf(entries, path)
+            return export_history_pdf(entries, path)  # type: ignore[arg-type]
         return write_report(
-            path, history_to_json(entries) if fmt == JSON else history_to_csv(entries), fmt
+            path,
+            history_to_json(entries) if fmt == JSON else history_to_csv(entries),  # type: ignore[arg-type]
+            fmt,
         )
 
     def diagnostics(path: Path, data: object | None, fmt: str) -> Path:
@@ -281,16 +297,20 @@ def default_exporters(
         if fmt == PDF:
             from .pdf import export_diagnostics_pdf
 
-            return export_diagnostics_pdf(report, path)
+            return export_diagnostics_pdf(report, path)  # type: ignore[arg-type]
         return write_report(
             path,
-            diagnostic_to_json(report) if fmt == JSON else diagnostic_to_csv(report),
+            diagnostic_to_json(report) if fmt == JSON else diagnostic_to_csv(report),  # type: ignore[arg-type]
             fmt,
         )
 
     def performance_history(path: Path, data: object | None, fmt: str) -> Path:
         _require_format(ExportKind.PERFORMANCE_HISTORY, fmt)
-        samples = data if data is not None else _query_history(history, clock)
+        raw = data if data is not None else _query_history(history, clock)
+        if isinstance(raw, Sequence):
+            samples: Sequence[object] = list(raw)
+        else:
+            samples = []
         return _write_performance_history(samples, path, fmt, _iso(clock()))
 
     def system_report(path: Path, data: object | None, fmt: str) -> Path:

@@ -445,3 +445,16 @@ def test_temperature_page_admin_restart_cancel_is_reported(qapp, monkeypatch: py
     page.restart_as_admin()
     assert not page.diagnostics.isHidden()
     assert page.diagnostics.text() == tr("temp_admin_cancelled")
+
+
+def test_zone_label_translates_hotspot_system_and_disk() -> None:
+    from app.i18n import I18nService, tr
+    from app.ui.format import zone_label
+
+    I18nService.instance().set_language("UA")
+    try:
+        assert zone_label("hotspot") == tr("temp_target_hotspot")
+        assert zone_label("disk") == "Диск"
+        assert zone_label("system") == "Система"
+    finally:
+        I18nService.instance().set_language("EN")

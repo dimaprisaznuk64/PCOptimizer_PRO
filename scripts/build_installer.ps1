@@ -42,5 +42,43 @@ if (-not (Test-Path $exe)) {
 }
 
 $iss = Join-Path $root "installer\PCOptimizer_PRO.iss"
+$versionFile = Join-Path $root "assets\version_info.txt"
+$expectedVersion = $null
+if (Test-Path $versionFile) {
+    $match = Select-String -Path $versionFile -Pattern "StringStruct\(u'ProductVersion', u'([^']+)'\)" | Select-Object -First 1
+    if ($match) { $expectedVersion = $match.Matches[0].Groups[1].Value }
+}
+$outDir = Join-Path $root "dist\installer"
+$before = @{}
+if (Test-Path $outDir) {
+    Get-ChildItem $outDir -Filter *.exe -ErrorAction SilentlyContinue | ForEach-Object {
+        $before[$_.FullName] = $_.LastWriteTimeUtc
+    }
+}
+
 & $iscc $iss
-Write-Host "Done. Installer in $root\dist\installer"
+$exitCode = $LASTEXITCODE
+if ($exitCode -ne 0) {
+    throw "ISCC.exe failed with exit code $exitCode."
+}
+
+if (-not (Test-Path $outDir)) {
+    throw "Installer output directory not found: $outDir"
+}
+$installer = Get-ChildItem $outDir -Filter *.exe -ErrorAction SilentlyContinue |
+    Where-Object { -not $before.ContainsKey($_.FullName) -or $_.LastWriteTimeUtc -gt $before[$_.FullName] } |
+    Sort-Object LastWriteTimeUtc -Descending |
+    Select-Object -First 1
+if (-not $installer) {
+    $installer = Get-ChildItem $outDir -Filter *.exe -ErrorAction SilentlyContinue |
+        Sort-Object LastWriteTimeUtc -Descending |
+        Select-Object -First 1
+}
+if (-not $installer) {
+    throw "ISCC.exe reported success but no installer .exe was found in $outDir"
+}
+if ($expectedVersion -and $installer.Name -notlike "*$expectedVersion*") {
+    Write-Warning "Installer name '$($installer.Name)' does not contain expected version '$expectedVersion'."
+}
+
+Write-Host "Done. Installer: $($installer.FullName)"

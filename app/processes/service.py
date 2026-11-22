@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import builtins
 import os
 import sys
 import time
@@ -46,7 +47,11 @@ def _app_dir() -> str | None:
 def _normalize_cpu(value: object) -> float:
     """psutil reports per-process CPU as a share of ONE core (can reach 100 * cores); show it like Task Manager."""
     cores = psutil.cpu_count(logical=True) or 1
-    return max(0.0, min(100.0, float(value or 0.0) / cores))
+    try:
+        raw = float(value)  # type: ignore[arg-type]
+    except (TypeError, ValueError):
+        raw = 0.0
+    return max(0.0, min(100.0, raw / cores))
 
 
 class ProcessServiceError(Exception):
@@ -144,7 +149,7 @@ class ProcessService:
         results.sort(key=lambda p: (-p.cpu_percent, -p.memory_bytes, p.name.lower()))
         return results
 
-    def top_by_memory(self, limit: int = 8) -> list[ProcessInfo]:
+    def top_by_memory(self, limit: int = 8) -> builtins.list[ProcessInfo]:
         attrs = ["pid", "name", "memory_percent", "memory_info"]
         results: list[ProcessInfo] = []
         for proc in psutil.process_iter(attrs, ad_value=None):
@@ -244,7 +249,7 @@ class ProcessService:
             else:
                 proc.terminate()
             proc.wait(timeout=3)
-        except psutil.TimeoutOccurred:
+        except psutil.TimeoutExpired:
             return False
         except psutil.AccessDenied as e:
             raise ProcessServiceError(

@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+from collections.abc import Callable
 from dataclasses import replace
 from datetime import datetime
 
@@ -602,6 +603,7 @@ class GamingPage(QWidget):
         )
         if answer != QMessageBox.StandardButton.Yes:
             return
+        runner: Callable[[], object]
         if active:
             runner = self._service.deactivate
         else:
@@ -617,6 +619,7 @@ class GamingPage(QWidget):
                 )
                 == QMessageBox.StandardButton.Yes
             )
+
             def runner() -> object:
                 return self._service.activate(with_restore_point=want_restore, profile=profile)
         self.status_label.setText(running_text)

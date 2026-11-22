@@ -53,9 +53,11 @@ def finish_background_tasks(qapp):
     from app.ui.tasks import stop_all
 
     yield
-    stop_all(timeout_ms=5000)
+    stopped = stop_all(timeout_ms=5000)
     qapp.processEvents()
     gc.collect()
+    if not stopped:
+        pytest.fail("Background UI tasks did not stop within 5000 ms after test")
 
 
 @pytest.fixture(autouse=True)

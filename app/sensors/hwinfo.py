@@ -4,15 +4,17 @@ import ctypes
 import math
 import os
 import struct
+import time
 from collections.abc import Callable
 
 from .temperature_names import (
     KIND_BOARD,
     KIND_CPU,
+    KIND_DISK,
     KIND_GPU,
     KIND_HOTSPOT,
     KIND_SYSTEM,
-    temperature_kind,
+    raw_temperature_kind,
     temperature_priority,
 )
 
@@ -25,7 +27,11 @@ _SIGNATURE = int.from_bytes(b"HWiS", "little")
 _HEADER = struct.Struct("<IIIqIIIIII")
 _TEMP_READING = 1
 _MAX_BYTES = 16 * 1024 * 1024
-_KINDS = (KIND_CPU, KIND_BOARD, KIND_GPU, KIND_HOTSPOT, KIND_SYSTEM)
+_KINDS = (KIND_CPU, KIND_BOARD, KIND_GPU, KIND_HOTSPOT, KIND_SYSTEM, KIND_DISK)
+# HWiNFO refreshes shared memory every poll (1-2 s by default). If the stamp is
+# older than this, HWiNFO is frozen or stopped writing: do not show stale values.
+_STALE_AFTER_S = 120.0
+_MIN_SANE_EPOCH = 1_500_000_000
 
 
 def _cstr(data: bytes, offset: int, size: int) -> str:
@@ -84,7 +90,7 @@ def parse_hwinfo_bytes(data: bytes) -> dict[str, tuple[float, str]]:
             continue
         parent = sensors[sensor_index]
         raw = f"{parent} {label}".strip()
-        kind = temperature_kind(raw)
+        kind = raw_temperature_kind(raw)
         if kind not in _KINDS:
             continue
         score = temperature_priority(raw, kind)
@@ -92,6 +98,21 @@ def parse_hwinfo_bytes(data: bytes) -> dict[str, tuple[float, str]]:
         if current is None or (score, value) > (current[0], current[1]):
             best[kind] = (score, float(value), raw)
     return {kind: (entry[1], f"hwinfo · {entry[2]}") for kind, entry in best.items()}
+
+
+def hwinfo_poll_age(data: bytes, now: float | None = None) -> float | None:
+    """Seconds since HWiNFO last polled its sensors, or None when unknown.
+
+    The header carries the last polling time as a Unix timestamp. A zero or
+    implausible stamp is treated as "unknown" so valid data is never hidden.
+    """
+    if len(data) < _HEADER.size:
+        return None
+    poll_time = int(_HEADER.unpack_from(data, 0)[3])
+    current = time.time() if now is None else now
+    if poll_time < _MIN_SANE_EPOCH or poll_time > current + 86_400:
+        return None
+    return max(current - poll_time, 0.0)
 
 
 class HwinfoReader:
@@ -116,9 +137,16 @@ class HwinfoReader:
         try:
             data = self._read_bytes() if self._read_bytes is not None else self._map_bytes()
             if not data:
-                self.last_error = "HWiNFO shared memory not available (enable Sensor Sharing)"
+                self.last_error = (
+                    "HWiNFO shared memory not available "
+                    "(run HWiNFO with Sensors and enable Shared Memory Support)"
+                )
                 return None
             result = parse_hwinfo_bytes(data)
+            age = hwinfo_poll_age(data)
+            if age is not None and age > _STALE_AFTER_S:
+                self.last_error = f"HWiNFO data is stale (no update for {age:.0f} s)"
+                return None
             self.last_error = ""
             return result or None
         except Exception as exc:

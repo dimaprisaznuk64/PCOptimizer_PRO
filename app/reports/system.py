@@ -167,21 +167,21 @@ def _display(value: object) -> str:
 
 def _flatten(value: object, prefix: str = "") -> list[tuple[str, str]]:
     if isinstance(value, Mapping):
-        rows: list[tuple[str, str]] = []
+        map_rows: list[tuple[str, str]] = []
         for key, item in value.items():
             label = _label(_text(key))
             path = f"{prefix} {label}" if prefix else label
-            rows.extend(_flatten(item, path))
-        return rows
+            map_rows.extend(_flatten(item, path))
+        return map_rows
     if isinstance(value, (list, tuple)):
-        rows: list[tuple[str, str]] = []
+        list_rows: list[tuple[str, str]] = []
         for index, item in enumerate(value):
             path = f"{prefix}[{index}]" if prefix else f"[{index}]"
             if isinstance(item, (Mapping, list, tuple)):
-                rows.extend(_flatten(item, path))
+                list_rows.extend(_flatten(item, path))
             else:
-                rows.append((path, _display(item)))
-        return rows
+                list_rows.append((path, _display(item)))
+        return list_rows
     return [(prefix or "Value", _display(value))]
 
 

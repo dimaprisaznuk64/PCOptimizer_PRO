@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import getpass
 import time
+from collections.abc import Sequence
 
 from PySide6.QtCore import QDateTime, Qt, QTimer, Signal
 from PySide6.QtGui import QFont
@@ -431,6 +432,8 @@ class RecentActionsWidget(QFrame):
     def __init__(self, parent: QWidget | None = None) -> None:
         super().__init__(parent)
         self.setObjectName("card")
+        self.setSizePolicy(QSizePolicy.Policy.Preferred, QSizePolicy.Policy.Expanding)
+        self.setMinimumHeight(220)
         self.setStyleSheet(
             f"QFrame#card {{ background: {PANEL}; border: 1px solid {BORDER}; "
             f"border-radius: 12px; }} QFrame#card:hover {{ border-color: {BORDER_HI}; }}"
@@ -445,19 +448,28 @@ class RecentActionsWidget(QFrame):
         layout.addWidget(title)
         self.recent_title = title
 
-        self._rows = QVBoxLayout()
+        scroll = QScrollArea()
+        scroll.setWidgetResizable(True)
+        scroll.setFrameShape(QFrame.Shape.NoFrame)
+        scroll.setHorizontalScrollBarPolicy(Qt.ScrollBarPolicy.ScrollBarAlwaysOff)
+        scroll.setStyleSheet("QScrollArea { background: transparent; }")
+        host = QWidget()
+        host.setStyleSheet("background: transparent;")
+        self._rows = QVBoxLayout(host)
+        self._rows.setContentsMargins(0, 0, 0, 0)
         self._rows.setSpacing(8)
-        layout.addLayout(self._rows)
-        layout.addStretch(1)
+        self._rows.addStretch(1)
+        scroll.setWidget(host)
+        layout.addWidget(scroll, 1)
+        self._scroll = scroll
         self._log = ActivityLog.instance()
         self._log.changed.connect(self._render)
         self._render()
 
     def _render(self) -> None:
         _clear_layout(self._rows)
-        entries = self._log.entries(limit=4)
+        entries = self._log.entries(limit=20)
         if not entries:
-            # Center the hint so the card does not read as "big and empty".
             self._rows.addStretch(1)
             empty = QLabel(tr("act_empty"))
             empty.setWordWrap(True)
@@ -475,11 +487,13 @@ class RecentActionsWidget(QFrame):
             r.addWidget(chk)
             t_lbl = QLabel(e.title)
             t_lbl.setStyleSheet(f"font-size: {T_SMALL}px; color: {TEXT};")
+            t_lbl.setWordWrap(True)
             r.addWidget(t_lbl, 1)
             val_col = QVBoxLayout()
             val_col.setSpacing(1)
             v_lbl = QLabel(e.detail)
             v_lbl.setAlignment(Qt.AlignmentFlag.AlignRight)
+            v_lbl.setWordWrap(True)
             v_lbl.setStyleSheet(f"font-size: {T_SMALL}px; font-weight: 700; color: {color};")
             tm_lbl = QLabel(e.time_text)
             tm_lbl.setAlignment(Qt.AlignmentFlag.AlignRight)
@@ -488,6 +502,7 @@ class RecentActionsWidget(QFrame):
             val_col.addWidget(tm_lbl)
             r.addLayout(val_col)
             self._rows.addLayout(r)
+        self._rows.addStretch(1)
 
     def retranslate(self) -> None:
         self.recent_title.setText(tr("dash_recent_title"))
@@ -536,14 +551,21 @@ class ProcessLoadWidget(QFrame):
         """Show the top processes: (name, cpu %, memory in MB)."""
         while self._rows_box.count():
             item = self._rows_box.takeAt(0)
+            if item is None:
+                continue
             lay = item.layout()
             if lay is not None:
                 while lay.count():
-                    w = lay.takeAt(0).widget()
+                    child = lay.takeAt(0)
+                    if child is None:
+                        continue
+                    w = child.widget()
                     if w is not None:
                         w.deleteLater()
-            elif item.widget() is not None:
-                item.widget().deleteLater()
+            else:
+                widget = item.widget()
+                if widget is not None:
+                    widget.deleteLater()
         if not procs:
             empty = QLabel("…")
             empty.setStyleSheet(f"font-size: {T_SMALL}px; color: {TEXT_DIM};")
@@ -900,7 +922,11 @@ class DashboardPage(QWidget):
         self.recent_actions = RecentActionsWidget()
         self.recommendations = RecommendationsWidget()
         self.recommendations.action_triggered.connect(self.navigate.emit)
-        layout.addLayout(row5)
+        self.recommendations.setSizePolicy(QSizePolicy.Policy.Preferred, QSizePolicy.Policy.Expanding)
+        self.recommendations.setMinimumHeight(220)
+        row5.setRowStretch(0, 1)
+        row5.setRowStretch(1, 1)
+        layout.addLayout(row5, 1)
 
         # Responsive layout: (widget, row, col, colspan) per mode on a 12-column grid.
         r1 = [self.cpu, self.ram, self.gpu, self.disk, self.temp_tile, self.health_card]
@@ -908,7 +934,7 @@ class DashboardPage(QWidget):
         r3 = [self.disks, self.proc_load, self.quick_actions]
         r4 = [self.gaming_banner, self.net_widget, self.notif_widget]
         r5 = [self.recent_actions, self.recommendations]
-        self._grid_rows = {
+        self._grid_rows: dict[str, tuple[QGridLayout, Sequence[QWidget]]] = {
             "row1": (row1, r1),
             "row2": (row2, r2),
             "row3": (row3, r3),
@@ -1038,8 +1064,10 @@ class DashboardPage(QWidget):
 
     def _apply_processes(self, infos: object) -> None:
         self._proc_task = None
+        if not isinstance(infos, list):
+            return
         try:
-            top = [p for p in infos if p.name.lower() not in ("system idle process", "system")][:5]  # type: ignore[union-attr]
+            top = [p for p in infos if p.name.lower() not in ("system idle process", "system")][:5]
             self.proc_load.set_rows([(p.name, p.cpu_percent, p.memory_bytes / (1024 * 1024)) for p in top])
         except RuntimeError:
             pass
@@ -1050,7 +1078,7 @@ class DashboardPage(QWidget):
         if mode == self._mode:
             return
         self._mode = mode
-        spec = {
+        spec: dict[str, list[tuple[int, int, int]]] = {
             "wide": {
                 "row1": [(0, 0, 2), (0, 2, 2), (0, 4, 2), (0, 6, 2), (0, 8, 2), (0, 10, 2)],
                 "row2": [(0, 0, 5), (0, 5, 4), (0, 9, 3)],
@@ -1080,8 +1108,8 @@ class DashboardPage(QWidget):
                 if widget_key in self._hidden_widgets:
                     continue
                 grid.addWidget(self._widget_map[widget_key], r, c, 1, span)
-            for c in range(12):
-                grid.setColumnStretch(c, 1)
+            for col in range(12):
+                grid.setColumnStretch(col, 1)
 
     def resizeEvent(self, event) -> None:
         super().resizeEvent(event)
@@ -1244,7 +1272,7 @@ class DashboardPage(QWidget):
                 extra=tr("dash_free", size=_gb(main.free)),
                 extra_color=_level_color(main.percent),
             )
-            rows = [
+            rows: list[tuple[str, float | None, str]] = [
                 (d.mountpoint.rstrip("\\/") or d.device, d.percent, f"{_gb(d.used)} / {_gb(d.total)}")
                 for d in s.disks
             ]

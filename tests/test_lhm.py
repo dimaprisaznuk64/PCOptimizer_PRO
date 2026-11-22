@@ -161,3 +161,13 @@ def test_thermal_backend_closes_reader() -> None:
     backend = ThermalBackend(reader)
     backend.close()
     assert reader.closed is True
+
+
+def test_raw_system_sensor_is_a_board_sensor_not_the_system_kind() -> None:
+    # Regression: a real SuperIO sensor named "System" must not be swallowed by
+    # the canonical "system" shortcut that the merged snapshot relies on.
+    from app.sensors.temperature_names import raw_temperature_kind
+
+    assert raw_temperature_kind("System") == KIND_BOARD
+    assert temperature_kind("system") == "system"
+    assert pick_temperatures([("System", 44.0)])[KIND_BOARD] == (44.0, "System")

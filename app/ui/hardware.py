@@ -114,13 +114,25 @@ class HardwarePage(QWidget):
         grid.addWidget(self.board_card, 2, 0)
         grid.addWidget(self.bios_card, 2, 1)
 
+        mem_widths: dict[int, int | QHeaderView.ResizeMode] = {}
+        for k, v in _MEM_WIDTHS.items():
+            if v == "stretch":
+                mem_widths[k] = QHeaderView.ResizeMode.Stretch
+            else:
+                mem_widths[k] = int(v)  # type: ignore[call-overload]
+        disk_widths: dict[int, int | QHeaderView.ResizeMode] = {}
+        for k, v in _DISK_WIDTHS.items():
+            if v == "stretch":
+                disk_widths[k] = QHeaderView.ResizeMode.Stretch
+            else:
+                disk_widths[k] = int(v)  # type: ignore[call-overload]
         self.modules_card, self.modules_title, self.modules_table = self._make_table(
-            "hw_modules", MEM_COLUMN_KEYS, "hw_empty", _MEM_WIDTHS
+            "hw_modules", MEM_COLUMN_KEYS, "hw_empty", mem_widths
         )
         grid.addWidget(self.modules_card, 3, 0, 1, 2)
 
         self.disks_card, self.disks_title, self.disks_table = self._make_table(
-            "hw_disks", DISK_COLUMN_KEYS, "hw_empty", _DISK_WIDTHS
+            "hw_disks", DISK_COLUMN_KEYS, "hw_empty", disk_widths
         )
         grid.addWidget(self.disks_card, 4, 0, 1, 2)
 
@@ -137,8 +149,8 @@ class HardwarePage(QWidget):
         title_key: str,
         column_keys: tuple[str, ...],
         hint: str,
-        widths: dict[int, int | str],
-    ):
+        widths: dict[int, int | QHeaderView.ResizeMode],
+    ) -> tuple[QFrame, CardTitleLabel, QTableWidget]:
         card = QFrame()
         card.setObjectName("card")
         body = QVBoxLayout(card)
@@ -162,8 +174,10 @@ class HardwarePage(QWidget):
         header.setDefaultAlignment(Qt.AlignmentFlag.AlignLeft | Qt.AlignmentFlag.AlignVCenter)
         for col in range(len(column_keys)):
             width = widths.get(col, 110)
-            if width == "stretch":
+            if width == QHeaderView.ResizeMode.Stretch:
                 header.setSectionResizeMode(col, QHeaderView.ResizeMode.Stretch)
+            elif isinstance(width, QHeaderView.ResizeMode):
+                header.setSectionResizeMode(col, width)
             else:
                 header.setSectionResizeMode(col, QHeaderView.ResizeMode.Interactive)
                 table.setColumnWidth(col, int(width))

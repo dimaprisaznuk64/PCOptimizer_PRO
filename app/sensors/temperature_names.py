@@ -5,6 +5,7 @@ KIND_BOARD = "board"
 KIND_GPU = "gpu"
 KIND_HOTSPOT = "hotspot"
 KIND_SYSTEM = "system"
+KIND_DISK = "disk"
 
 _GPU_HINTS = ("gpu", "nvidia", "geforce", "quadro", "rtx", "gtx", "radeon", "відео", "відеокарт")
 _CPU_HINTS = (
@@ -85,17 +86,21 @@ def _is_disk_parent(lowered: str) -> bool:
     return any(hint in lowered for hint in _DISK_PARENTS)
 
 
-_CANONICAL = {KIND_CPU, KIND_BOARD, KIND_GPU, KIND_HOTSPOT, KIND_SYSTEM}
+_CANONICAL = {KIND_CPU, KIND_BOARD, KIND_GPU, KIND_HOTSPOT, KIND_SYSTEM, KIND_DISK}
 
 
-def temperature_kind(name: str, identifier: str = "") -> str:
+def raw_temperature_kind(name: str, identifier: str = "") -> str:
+    """Classify a *raw* sensor name coming straight from a backend.
+
+    Unlike :func:`temperature_kind` this never treats the name as an already
+    canonical key, so a real motherboard sensor literally called "System"
+    stays a board sensor instead of being mistaken for the ``system`` kind.
+    """
     lowered = f"{name} {identifier}".strip().lower()
     if not lowered:
         return KIND_SYSTEM
-    if lowered in _CANONICAL:
-        return lowered
     if _is_disk_parent(lowered):
-        return KIND_SYSTEM
+        return KIND_DISK
     parent_board = _is_board_parent(lowered)
     parent_gpu = _is_gpu_parent(lowered)
     if parent_gpu and any(hint in lowered for hint in _HOTSPOT_HINTS):
@@ -123,6 +128,20 @@ def temperature_kind(name: str, identifier: str = "") -> str:
     return KIND_SYSTEM
 
 
+def temperature_kind(name: str, identifier: str = "") -> str:
+    """Classify a name that is either a canonical kind key or a raw sensor name.
+
+    Canonical keys (``cpu``/``board``/``gpu``/``hotspot``/``system``/``disk``)
+    are what the merged thermal snapshot carries, so the UI and services pass
+    them through unchanged. Backends that read raw sensor names must call
+    :func:`raw_temperature_kind` instead.
+    """
+    lowered = f"{name} {identifier}".strip().lower()
+    if lowered in _CANONICAL:
+        return lowered
+    return raw_temperature_kind(name, identifier)
+
+
 def temperature_priority(raw: str, kind: str) -> int:
     lowered = raw.lower()
     options = _PREFER.get(kind, ())
@@ -133,7 +152,7 @@ def temperature_priority(raw: str, kind: str) -> int:
 
 
 def canonical_temperature_name(name: str) -> str:
-    kind = temperature_kind(name)
+    kind = raw_temperature_kind(name)
     if kind in (KIND_CPU, KIND_BOARD, KIND_GPU):
         return kind
     return name.strip()

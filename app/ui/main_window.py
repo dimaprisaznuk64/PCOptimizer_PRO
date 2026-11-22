@@ -49,6 +49,7 @@ from app.settings import SettingsService
 from .pages import build_pages
 from .sampler import SensorSampler
 from .sidebar import NAV_ITEMS, NAV_KEYS, Sidebar
+from .tasks import Task
 from .theme import set_application_fonts
 from .topbar import TopBar
 from .tray import AppTray
@@ -161,7 +162,7 @@ class MainWindow(QMainWindow):
         self.resize(1280, 800)
         self.sampler: SensorSampler | None = None
         self.tray: AppTray | None = None
-        self._update_task = None
+        self._update_task: Task | None = None
         self.settings = settings or SettingsService()
         self._monitor_profile = profile_for(self.settings.get("monitor_profile"))
         from . import theme as th
@@ -438,8 +439,12 @@ class MainWindow(QMainWindow):
         if widget.objectName() == "pageHost":
             scroll = widget.findChild(QScrollArea, "pageScroll")
             if scroll is not None:
-                return scroll.widget()
-        return widget
+                page = scroll.widget()
+                if isinstance(page, QWidget):
+                    return page
+        if isinstance(widget, QWidget):
+            return widget
+        raise TypeError(f"expected QWidget, got {type(widget)!r}")
 
     @staticmethod
     def _page_host(page: QWidget) -> QWidget:
@@ -550,8 +555,9 @@ class MainWindow(QMainWindow):
         self.topbar.deleteLater()
         while self.stack.count():
             widget = self.stack.widget(0)
-            self.stack.removeWidget(widget)
-            widget.deleteLater()
+            if widget is not None:
+                self.stack.removeWidget(widget)
+                widget.deleteLater()
         self._root_layout.removeWidget(self._content)
         self._content.deleteLater()
 
@@ -645,9 +651,7 @@ class MainWindow(QMainWindow):
     def start_game_watcher(self) -> None:
         if self._game_watcher is not None:
             return
-        watcher = _GamePresenceWatcher(
-            self._gaming, interval_s=self._monitor_profile.game_presence_s, parent=self
-        )
+        watcher = _GamePresenceWatcher(self._gaming, interval_s=self._monitor_profile.game_presence_s)
         watcher.presence.connect(self._set_game_running)
         self._game_watcher = watcher
         watcher.start()
@@ -768,7 +772,6 @@ class MainWindow(QMainWindow):
         from app.health import HealthService
 
         from .activity import ActivityLog
-        from .tasks import Task
 
         if ActivityLog.instance().health is not None:
             return
@@ -798,8 +801,6 @@ class MainWindow(QMainWindow):
 
     def _auto_update_check(self) -> None:
         from app.update import UpdateService
-
-        from .tasks import Task
 
         if self._update_task is not None:
             return

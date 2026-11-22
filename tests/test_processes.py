@@ -88,6 +88,26 @@ def test_terminate_real_subprocess() -> None:
             child.wait(timeout=5)
 
 
+def test_terminate_returns_false_when_process_does_not_exit_in_time(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    # Regression: the handler used the non-existent psutil.TimeoutOccurred, so a
+    # slow-to-exit process raised AttributeError instead of returning False.
+    child = subprocess.Popen([sys.executable, "-c", "import time; time.sleep(60)"])
+    try:
+
+        def _never_exits(self, timeout=None):
+            raise psutil.TimeoutExpired(timeout or 0, pid=self.pid)
+
+        monkeypatch.setattr(psutil.Process, "wait", _never_exits)
+        assert ProcessService().terminate(child.pid) is False
+    finally:
+        monkeypatch.undo()
+        if child.poll() is None:
+            child.kill()
+            child.wait(timeout=5)
+
+
 def _info(pid: int, name: str, protected: str | None = None, **overrides) -> ProcessInfo:
     values = dict(
         pid=pid,

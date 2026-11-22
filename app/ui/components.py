@@ -506,7 +506,7 @@ class PerfChart(QFrame):
         legend = QHBoxLayout()
         legend.setSpacing(SPACING_MD)
         self._legend_layout = legend
-        self._legend: dict[str, QLabel] = {}
+        self._legend: dict[str, QPushButton] = {}
         head.addLayout(legend)
         layout.addLayout(head)
 
@@ -618,6 +618,8 @@ class PerfChart(QFrame):
     def _rebuild_legend(self, key: str) -> None:
         while self._legend_layout.count():
             item = self._legend_layout.takeAt(0)
+            if item is None:
+                continue
             widget = item.widget()
             if widget is not None:
                 widget.deleteLater()
@@ -625,18 +627,18 @@ class PerfChart(QFrame):
         for series_key in self._legend_keys(key):
             label_key, token, _style = CHART_SERIES.get(series_key, (series_key, "ACCENT", Qt.PenStyle.SolidLine))
             color = chart_series_color(token)
-            pill = QPushButton(f"● {tr(label_key)}")
-            pill.setCheckable(True)
-            pill.setChecked(series_key not in self._hidden)
-            pill.setCursor(Qt.CursorShape.PointingHandCursor)
-            pill.setStyleSheet(
+            pill_btn = QPushButton(f"● {tr(label_key)}")
+            pill_btn.setCheckable(True)
+            pill_btn.setChecked(series_key not in self._hidden)
+            pill_btn.setCursor(Qt.CursorShape.PointingHandCursor)
+            pill_btn.setStyleSheet(
                 f"QPushButton {{ background: transparent; border: none; font-size: {T_CAPTION}px; "
                 f"font-weight: 600; color: {color if series_key not in self._hidden else TEXT_DIM}; padding: 0px; }}"
                 f"QPushButton:hover {{ color: {TEXT}; }}"
             )
-            pill.clicked.connect(lambda _=False, k=series_key: self._toggle_series(k))
-            self._legend_layout.addWidget(pill)
-            self._legend[series_key] = pill
+            pill_btn.clicked.connect(lambda _=False, k=series_key: self._toggle_series(k))
+            self._legend_layout.addWidget(pill_btn)
+            self._legend[series_key] = pill_btn
 
     def _toggle_series(self, key: str) -> None:
         """Legend pills toggle series visibility (never hide the last one)."""
@@ -650,12 +652,12 @@ class PerfChart(QFrame):
                 self._hidden.discard(key)
             else:
                 self._hidden.add(key)
-        pill = self._legend.get(key)
-        if pill is not None:
+        pill_btn = self._legend.get(key)
+        if pill_btn is not None:
             on = key not in self._hidden
-            pill.setChecked(on)
+            pill_btn.setChecked(on)
             label_key, token, _style = CHART_SERIES.get(key, (key, "ACCENT", Qt.PenStyle.SolidLine))
-            pill.setStyleSheet(
+            pill_btn.setStyleSheet(
                 f"QPushButton {{ background: transparent; border: none; font-size: {T_CAPTION}px; "
                 f"font-weight: 600; color: {chart_series_color(token) if on else TEXT_DIM}; padding: 0px; }}"
                 f"QPushButton:hover {{ color: {TEXT}; }}"
@@ -1249,9 +1251,9 @@ class LoadCard(QFrame):
         layout = QVBoxLayout(self)
         layout.setContentsMargins(CARD_PADDING, CARD_PADDING, CARD_PADDING, CARD_PADDING)
         layout.setSpacing(CARD_SPACING)
-        title = QLabel("LOAD")
-        title.setObjectName("cardTitle")
-        layout.addWidget(title)
+        title_lbl = QLabel("LOAD")
+        title_lbl.setObjectName("cardTitle")
+        layout.addWidget(title_lbl)
         self.value = QLabel("—")
         self.value.setObjectName("cardValue")
         layout.addWidget(self.value)
@@ -1533,10 +1535,10 @@ class CardPanel(QFrame):
         wanted = [key for key, _p, _t in items]
         for key in list(self._rows):
             if key not in wanted:
-                label, bar, text = self._rows.pop(key)
+                label, bar, text_w = self._rows.pop(key)
                 label.deleteLater()
                 bar.deleteLater()
-                text.deleteLater()
+                text_w.deleteLater()
         for key, percent, text in items:
             if key not in self._rows:
                 label = QLabel(key)

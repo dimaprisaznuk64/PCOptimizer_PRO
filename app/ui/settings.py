@@ -35,6 +35,7 @@ from .dashboard_custom import (
     DashboardCustomizerDialog,
     serialize_dashboard_hidden,
 )
+from .tasks import Task
 from .theme import CARD_PADDING, CURRENT_THEME, PAGE_MARGINS, PAGE_SPACING, T_SMALL, THEME_LABELS
 from .theme_picker import ThemeSwatchDelegate
 
@@ -68,8 +69,8 @@ class SettingsPage(QWidget):
         self._on_wizard_requested = on_wizard_requested
         self._on_dashboard_hidden_applied = on_dashboard_hidden_applied
         self._on_monitor_profile_applied = on_monitor_profile_applied
-        self._check_task = None
-        self._download_task = None
+        self._check_task: Task | None = None
+        self._download_task: Task | None = None
         self._dynamic_visibility: dict[int, bool] = {}
         self._release_url = RELEASES_PAGE
         self.last_update = None

@@ -74,3 +74,43 @@ def test_hwinfo_reader_reports_missing_memory() -> None:
     reader = HwinfoReader(read_bytes=lambda: None)
     assert reader.read() is None
     assert "shared memory not available" in reader.last_error
+
+
+def _payload_with_poll_time(poll_time: int) -> bytes:
+    data = bytearray(_payload())
+    struct.pack_into("<q", data, 12, poll_time)
+    return bytes(data)
+
+
+def test_hwinfo_reader_rejects_stale_data(monkeypatch: pytest.MonkeyPatch) -> None:
+    now = 1_800_000_000
+    monkeypatch.setattr("app.sensors.hwinfo.time.time", lambda: float(now))
+    stale = _payload_with_poll_time(now - 600)
+    reader = HwinfoReader(read_bytes=lambda: stale)
+    assert reader.read() is None
+    assert "stale" in reader.last_error
+
+
+def test_hwinfo_reader_accepts_fresh_data(monkeypatch: pytest.MonkeyPatch) -> None:
+    now = 1_800_000_000
+    monkeypatch.setattr("app.sensors.hwinfo.time.time", lambda: float(now))
+    reader = HwinfoReader(read_bytes=lambda: _payload_with_poll_time(now - 3))
+    assert reader.read() is not None
+
+
+def test_hwinfo_poll_age_unknown_for_unrealistic_stamp() -> None:
+    from app.sensors.hwinfo import hwinfo_poll_age
+
+    assert hwinfo_poll_age(_payload()) is None  # test payload stamps 250
+    assert hwinfo_poll_age(_payload_with_poll_time(0)) is None
+
+
+def test_hwinfo_disk_temperature_is_not_labelled_as_system() -> None:
+    data = bytearray(_payload())
+    name = b"S.M.A.R.T.: Samsung SSD 980"
+    data[_HEADER_SIZE + 8 : _HEADER_SIZE + 8 + 128] = bytes(128)
+    data[_HEADER_SIZE + 8 : _HEADER_SIZE + 8 + len(name)] = name
+    _reading(data, 0, kind=1, label="Drive Temperature", value=59.0)
+    result = parse_hwinfo_bytes(bytes(data))
+    assert result["disk"][0] == 59.0
+    assert "system" not in result

@@ -7,6 +7,7 @@ from collections.abc import Callable, Sequence
 from dataclasses import dataclass
 from pathlib import Path
 
+from app.sensors.temperature_names import KIND_CPU, raw_temperature_kind
 from app.settings import data_root
 
 log = logging.getLogger("pcoptimizer.history")
@@ -145,7 +146,8 @@ class PerformanceHistory:
             try:
                 rows = list(self._process_top() or [])[:8]
                 top_processes = tuple(
-                    (str(row.name), round(row.memory_bytes / 1048576.0, 1)) for row in rows
+                    (str(getattr(row, "name", "")), round(getattr(row, "memory_bytes", 0) / 1048576.0, 1))
+                    for row in rows
                 )
             except Exception as exc:
                 log.warning("history process scan failed: %s", exc)
@@ -193,7 +195,17 @@ class PerformanceHistory:
             gpu_throttling = bool(throttling) if throttling is not None else None
         temp_cpu = None
         if snapshot.thermal and snapshot.thermal.temperatures:
-            temp_cpu = max(v for _, v in snapshot.thermal.temperatures)
+            cpu_temps: list[float] = []
+            for name, value in snapshot.thermal.temperatures:
+                try:
+                    kind = raw_temperature_kind(str(name))
+                    temp = float(value)
+                except (TypeError, ValueError):
+                    continue
+                if kind == KIND_CPU and temp > 0:
+                    cpu_temps.append(temp)
+            if cpu_temps:
+                temp_cpu = max(cpu_temps)
         commit_percent = None
         if (
             snapshot.memory

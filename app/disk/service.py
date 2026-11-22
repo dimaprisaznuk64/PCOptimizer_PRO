@@ -5,6 +5,7 @@ import stat as stat_mod
 from collections.abc import Callable, Sequence
 from dataclasses import dataclass
 from pathlib import Path
+from typing import Any
 
 GB = 1024**3
 DEFAULT_MIN_SIZE = 500 * 1024**2
@@ -72,7 +73,7 @@ class DiskAnalyzer:
         self,
         *,
         partitions: Callable[[], Sequence] | None = None,
-        usage: Callable[[str], object] | None = None,
+        usage: Callable[[str], Any] | None = None,
     ) -> None:
         self._partitions = partitions or self._default_partitions
         self._usage = usage or self._default_usage
@@ -90,16 +91,18 @@ class DiskAnalyzer:
                 u = self._usage(mount)
             except OSError:
                 continue
-            total = int(u.total)
+            total = int(getattr(u, "total", 0))
             if total <= 0:
                 continue
+            used = int(getattr(u, "used", 0))
+            free = int(getattr(u, "free", 0))
             drives.append(
                 DriveUsage(
                     mount=mount,
                     total=total,
-                    used=int(u.used),
-                    free=int(u.free),
-                    percent=round(100.0 * int(u.used) / total, 1),
+                    used=used,
+                    free=free,
+                    percent=round(100.0 * used / total, 1),
                 )
             )
         return drives

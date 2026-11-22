@@ -1388,7 +1388,8 @@ TRANSLATIONS: dict[str, dict[str, str]] = {
         "temp_admin_cancelled": "Admin restart cancelled",
         "temp_note_cpu_zero": "CPU sensor reports 0°C — this CPU/driver does not expose CPU temperature to LibreHardwareMonitor",
         "temp_note_board_missing": "Motherboard temperature sensors are not exposed by LibreHardwareMonitor",
-        "temp_note_hwinfo": "HWiNFO sensors not found — enable Sensor Sharing in HWiNFO or keep it running",
+        "temp_note_hwinfo": "HWiNFO sensors not found — start HWiNFO with Sensors and enable Shared Memory Support (the free version turns it off after 12 h: restart HWiNFO)",
+        "temp_note_hwinfo_stale": "HWiNFO stopped updating — restart HWiNFO (the free version turns Shared Memory off after 12 h)",
         "temp_note_admin": "ACPI system zones need administrator rights; restart as admin to read them",
         "temp_note_lhm_wmi": "LibreHardwareMonitor WMI interface is unavailable",
         "temp_sources_label": "Sources: {sources}",
@@ -1412,6 +1413,9 @@ TRANSLATIONS: dict[str, dict[str, str]] = {
         "temp_target_cpu": "CPU",
         "temp_target_board": "Motherboard",
         "temp_target_gpu": "Video card",
+        "temp_target_hotspot": "Hotspot",
+        "temp_target_system": "System",
+        "temp_target_disk": "Disk",
     },
 
     "UA": {
@@ -2799,7 +2803,8 @@ TRANSLATIONS: dict[str, dict[str, str]] = {
         "temp_admin_cancelled": "Перезапуск як адмін скасовано",
         "temp_note_cpu_zero": "Сенсор CPU показує 0°C — цей процесор/драйвер не віддає температуру CPU через LibreHardwareMonitor",
         "temp_note_board_missing": "LibreHardwareMonitor не віддає сенсори температури материнської плати",
-        "temp_note_hwinfo": "Сенсори HWiNFO не знайдено — увімкніть Sensor Sharing у HWiNFO або залиште його запущеним",
+        "temp_note_hwinfo": "Сенсори HWiNFO не знайдено — запустіть HWiNFO із Sensors і увімкніть Shared Memory Support (безкоштовна версія вимикає його через 12 год: перезапустіть HWiNFO)",
+        "temp_note_hwinfo_stale": "HWiNFO перестав оновлювати дані — перезапустіть HWiNFO (безкоштовна версія вимикає Shared Memory через 12 год)",
         "temp_note_admin": "ACPI-зони системи потребують прав адміністратора; перезапустіть як адмін, щоб їх читати",
         "temp_note_lhm_wmi": "WMI-інтерфейс LibreHardwareMonitor недоступний",
         "temp_sources_label": "Джерела: {sources}",
@@ -2823,5 +2828,8 @@ TRANSLATIONS: dict[str, dict[str, str]] = {
         "temp_target_cpu": "Процесор",
         "temp_target_board": "Материнська плата",
         "temp_target_gpu": "Відеокарта",
+        "temp_target_hotspot": "Гаряча точка",
+        "temp_target_system": "Система",
+        "temp_target_disk": "Диск",
     },
 }

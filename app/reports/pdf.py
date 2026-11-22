@@ -28,13 +28,13 @@ def render_pdf(html: str, path: str | Path) -> Path:
     target = Path(path)
     try:
         target.parent.mkdir(parents=True, exist_ok=True)
-        printer = QPrinter(QPrinter.HighResolution)
-        printer.setOutputFormat(QPrinter.PdfFormat)
+        printer = QPrinter(QPrinter.PrinterMode.HighResolution)
+        printer.setOutputFormat(QPrinter.OutputFormat.PdfFormat)
         printer.setOutputFileName(str(target))
-        printer.setPageSize(QPageSize(QPageSize.A4))
+        printer.setPageSize(QPageSize(QPageSize.PageSizeId.A4))
         printer.setPageMargins(
             QMarginsF(_MARGIN_MM, _MARGIN_MM, _MARGIN_MM, _MARGIN_MM),
-            QPageLayout.Millimeter,
+            QPageLayout.Unit.Millimeter,
         )
         document = QTextDocument()
         document.setHtml(html)

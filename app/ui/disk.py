@@ -208,6 +208,8 @@ class DiskPage(QWidget):
     def _render_drives(self) -> None:
         while self.drives_row.count():
             item = self.drives_row.takeAt(0)
+            if item is None:
+                continue
             widget = item.widget()
             if widget is not None:
                 widget.deleteLater()

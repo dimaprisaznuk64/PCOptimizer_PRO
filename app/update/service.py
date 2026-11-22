@@ -136,7 +136,7 @@ class UpdateService:
             current=self._current,
             latest=".".join(str(part) for part in latest),
             available=latest > current,
-            url=url if _is_github_page(url) else RELEASES_PAGE,
+            url=str(url) if _is_github_page(url) else RELEASES_PAGE,
             notes=body[:NOTES_LIMIT] if isinstance(body, str) else "",
             download_url=download_url,
             asset_name=asset_name,

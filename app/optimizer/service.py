@@ -210,10 +210,11 @@ class OptimizerService:
                 errors.append(str(e))
 
         if "visual" in spec:
-            target = int(spec["visual"])
+            target_raw = spec["visual"]
+            visual_target = int(target_raw) if isinstance(target_raw, (int, str)) else 0
             try:
-                self._reg_set_dword("HKCU", VISUAL_KEY, VISUAL_VALUE, target)
-                applied.append(f"visual effects → {VISUAL_NAMES.get(target, target)}")
+                self._reg_set_dword("HKCU", VISUAL_KEY, VISUAL_VALUE, visual_target)
+                applied.append(f"visual effects → {VISUAL_NAMES.get(visual_target, visual_target)}")
             except OptimizerError as e:
                 errors.append(str(e))
 

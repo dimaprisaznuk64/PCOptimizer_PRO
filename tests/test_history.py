@@ -183,7 +183,7 @@ def test_record_extracts_fields(tmp_path):
     assert s.gpu == 50.0
     assert s.gpu_mem == pytest.approx(25.0)
     assert s.temp_gpu == 77.0
-    assert s.temp_cpu == 65.0
+    assert s.temp_cpu is None
 
 
 def test_record_extracts_advanced_telemetry(tmp_path):
@@ -233,6 +233,33 @@ def test_record_no_gpu_no_thermal(tmp_path):
     assert s.gpu is None
     assert s.temp_cpu is None
     assert s.temp_gpu is None
+
+
+def test_record_temp_cpu_ignores_non_cpu_thermal_sources(tmp_path):
+    h = PerformanceHistory(store=tmp_path / "h.jsonl")
+    snap = FakeSnapshot(gpu_util=None, thermal_max=None)
+    snap.thermal = type(
+        "T",
+        (),
+        {
+            "temperatures": (
+                ("GPU Hot Spot", 82.0),
+                ("Motherboard", 45.0),
+                ("CPU Package", 60.0),
+                ("System", 50.0),
+            )
+        },
+    )()
+    h.record(snap)
+    assert h.query(1.0)[0].temp_cpu == pytest.approx(60.0)
+
+
+def test_record_temp_cpu_none_when_only_non_cpu_thermal(tmp_path):
+    h = PerformanceHistory(store=tmp_path / "h.jsonl")
+    snap = FakeSnapshot(gpu_util=None, thermal_max=None)
+    snap.thermal = type("T", (), {"temperatures": (("GPU Hot Spot", 82.0), ("Board", 45.0))})()
+    h.record(snap)
+    assert h.query(1.0)[0].temp_cpu is None
 
 
 def test_skips_corrupt_lines(tmp_path):

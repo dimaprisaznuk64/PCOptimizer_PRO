@@ -3,7 +3,7 @@ from __future__ import annotations
 from collections.abc import Sequence
 from dataclasses import dataclass
 
-from PySide6.QtCore import QEvent, QPoint, QSize, Qt, Signal
+from PySide6.QtCore import QEvent, QObject, QPoint, QSize, Qt, Signal
 from PySide6.QtGui import QKeyEvent
 from PySide6.QtWidgets import (
     QFrame,
@@ -166,7 +166,7 @@ class CommandPalette(QFrame):
         self.selected.emit(key)
         self.hide()
 
-    def eventFilter(self, watched: QWidget, event: QEvent) -> bool:
+    def eventFilter(self, watched: QObject, event: QEvent) -> bool:
         if watched is self.search and isinstance(event, QKeyEvent):
             key = event.key()
             if key in (Qt.Key.Key_Up, Qt.Key.Key_Down):

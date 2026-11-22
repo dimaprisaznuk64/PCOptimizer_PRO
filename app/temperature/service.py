@@ -111,6 +111,7 @@ def target_temperatures(snapshot: Snapshot) -> dict[str, tuple[float | None, str
 _NOTE_KEYS: tuple[tuple[str, str], ...] = (
     ("temperature sensor reports 0", "temp_note_cpu_zero"),
     ("motherboard has no temperature sensors", "temp_note_board_missing"),
+    ("data is stale", "temp_note_hwinfo_stale"),
     ("hwinfo", "temp_note_hwinfo"),
     ("access denied", "temp_note_admin"),
     ("lhm wmi", "temp_note_lhm_wmi"),
@@ -332,19 +333,25 @@ class TemperatureService:
                     total + value,
                 )
         stats = self._live_stats.get(key)
+        peak: float | None
+        avg: float | None
+        min_v: float | None
+        max_v: float | None
         if stats is None:
-            peak = avg = low = high = None
+            peak = avg = min_v = max_v = None
         else:
-            count, low, high, total = stats
-            peak = high
+            count, low_v, high_v, total = stats
+            peak = high_v
             avg = total / count
+            min_v = low_v
+            max_v = high_v
         return TemperatureReading(
             source=source,
             current=value,
             peak=peak,
             avg=avg,
-            min=low,
-            max=high,
+            min=min_v,
+            max=max_v,
             status=classify(value, warn, danger),
             available=True,
             kind=kind,
@@ -355,11 +362,14 @@ class TemperatureService:
         if cached is not None and cached[0] == minutes:
             return cached[1], cached[2]
         if self._history is None:
-            samples, errors = (), ()
+            samples: tuple[HistorySample, ...] = ()
+            errors: tuple[str, ...] = ()
         else:
             try:
-                samples, errors = tuple(self._history.query(minutes)), ()
+                samples = tuple(self._history.query(minutes))
+                errors = ()
             except Exception as exc:
-                samples, errors = (), (f"history: {exc}",)
+                samples = ()
+                errors = (f"history: {exc}",)
         self._query_cache = (minutes, samples, errors)
         return samples, errors

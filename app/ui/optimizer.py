@@ -92,16 +92,18 @@ def preview_changes(profile: str, state: OptimizerState) -> list[tuple[str, str,
     )
 
     hags = spec.get("hags")
+    hags_bool = hags if isinstance(hags, bool) else None
     current = _bool_text(state.hags, "opt_not_set")
-    target = _bool_text(bool(hags) if hags is not None else state.hags, "opt_not_set")
-    hags_changed = hags is not None and state.hags != bool(hags)
+    target = _bool_text(hags_bool if hags_bool is not None else state.hags, "opt_not_set")
+    hags_changed = hags_bool is not None and state.hags != hags_bool
     rows.append(("hags", current, target, hags_changed, hags_changed and not state.is_admin))
 
     visual = spec.get("visual")
+    visual_int = int(visual) if isinstance(visual, (int, str)) else None
     current = _value(state.visual_name)
-    target = _value(VISUAL_NAMES.get(int(visual), str(visual))) if visual is not None else current
+    target = _value(VISUAL_NAMES.get(visual_int, str(visual))) if visual_int is not None else current
     rows.append(
-        ("visual", current, target, visual is not None and state.visual_fx != int(visual), False)
+        ("visual", current, target, visual_int is not None and state.visual_fx != visual_int, False)
     )
 
     return rows
@@ -470,7 +472,13 @@ class OptimizerPage(QWidget):
             return
         if not result.applied and result.restore_status not in (None, STATUS_CREATED):
             self.status_label.setText(
-                self._restore_message(RestoreResult(False, result.restore_status, result.errors[0] if result.errors else ""))
+                self._restore_message(
+                    RestoreResult(
+                        bool(result.applied),
+                        str(result.restore_status),
+                        result.errors[0] if result.errors else "",
+                    )
+                )
             )
             self.revert_button.setEnabled(self._service.backup_exists())
             log_action(tr("act_opt"), display, "error", source="optimizer")

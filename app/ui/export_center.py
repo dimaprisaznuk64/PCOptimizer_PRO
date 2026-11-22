@@ -40,7 +40,7 @@ def _pdf_pages(path: Path) -> int | None:
     try:
         if document.load(str(path)) != QPdfDocument.Status.Ready:
             return None
-        return document.pageCount()
+        return int(document.pageCount())
     except (OSError, RuntimeError):
         return None
     finally:

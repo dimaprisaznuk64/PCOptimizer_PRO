@@ -413,7 +413,7 @@ class ProcessPage(QWidget):
 
     def _start_details(self, pid: int) -> None:
         self._details_pid = pid
-        self._details_task = Task(lambda p=pid: self._service.details(p), parent=self)
+        self._details_task = Task(lambda: self._service.details(pid), parent=self)
         self._details_task.done.connect(self._apply_details)
         self._details_task.failed.connect(self._on_details_failed)
         self._details_task.start()
