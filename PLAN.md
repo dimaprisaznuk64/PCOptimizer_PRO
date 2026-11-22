@@ -9,7 +9,7 @@
 - Released **v2.0.0** — completion of Stage 2: 22 pages, Hardware Benchmark,
   Temperature Dashboard and Export Center, Cleaner/Diagnostics 2.0, Drivers,
   System Report, extended CPU/GPU/RAM telemetry, Gaming 2.0, 803 tests.
-- In progress **Stage 3 UI/UX 2.0**: grouped/collapsible navigation rail with
+- Completed **Stage 3 UI/UX 2.0**: grouped/collapsible navigation rail with
   persistent collapse state across theme rebuilds, compact mode and language
   switches, redesigned Dashboard with 4 sections/history/recommendations, and a
   live interface scale of 100–150%, scaled layout tokens and uniform page
@@ -21,15 +21,24 @@
   customization, full suite 904 passed / 1 skipped.
    The temporary dashboard status strip was removed at the user's request;
    installed `app_run` 2.0.0 was rebuilt and relaunched.
- - In progress **Stage 5 monitoring profiles** (`ECO`/`BALANCED`/`PERFORMANCE`)
+  - Completed **Stage 5 monitoring profiles** (`ECO`/`BALANCED`/`PERFORMANCE`)
    with live sampler/history/process-table/game-presence cadence switching, plus
    a pythonnet/LibreHardwareMonitor temperature backend (`app/sensors/lhm_backend.py`)
    with bundled DLLs in `assets/lib/lhm`; LHM hardware readings require admin and
    are honestly omitted when a board reports 0 °C or no sensor.
- - Verification: full suite split into chunks because a single 60-minute run
-   stalled near the end; chunks report **904 passed / 1 skipped** (243+252+232+177),
-   `ruff` and `compileall` clean. Native `access violation`/`IUnknown` messages
-   at shutdown remain environmental.
+  - Verification: full suite split into chunks because a single 60-minute run
+    stalled near the end; chunks report **904 passed / 1 skipped** (243+252+232+177),
+    `ruff` and `compileall` clean. Native `access violation`/`IUnknown` messages
+    at shutdown remain environmental.
+- Release v2.0.1: commit `2048699`, tag `v2.0.1`, GitHub Actions Release run
+  `45021250467` completed successfully; release has installer and portable zip.
+  Local artifacts: `dist\PCOptimizer_PRO\PCOptimizer_PRO.exe` (`2.0.1.0`),
+  `dist\PCOptimizer_PRO_2.0.1_portable.zip`,
+  `dist\installer\PCOptimizer_PRO_Setup_2.0.1.exe`,
+  `dist\PCOptimizer_PRO_src_v2.0.1.zip`. Smoke test passed; silent upgrade of
+  `app_run` to `2.0.1.0` passed and the installed GUI was relaunched.
+  Local build fix committed as `af12a48` (call operator for venv Python).
+
 
 - Released **v1.7.1** (`d9f83ab`) — reliability/stabilization batch: fixed safe
   alert limits and quiet CPU/GPU alerts during games, Settings reset applies
