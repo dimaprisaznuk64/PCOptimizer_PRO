@@ -22,9 +22,12 @@ from app.i18n import tr
 from app.network import NetworkService
 from app.processes import ProcessService
 from app.sensors import Snapshot
+from app.sensors.temperature_names import temperature_kind
+from app.temperature import target_temperatures
 
 from .activity import ActivityLog
 from .components import CardPanel, CardTitleLabel, MetricCard, PerfChart, RingCard
+from .dashboard_custom import DASH_WIDGET_KEYS, DASH_WIDGET_SECTION, parse_dashboard_hidden
 from .format import gb as _gb
 from .format import rate as _rate
 from .format import zone_label
@@ -752,9 +755,11 @@ class DashboardPage(QWidget):
         parent: QWidget | None = None,
         *,
         history: PerformanceHistory | None = None,
+        dashboard_hidden: str | set[str] | None = None,
     ) -> None:
         super().__init__(parent)
         self.setObjectName("page")
+        self._hidden_widgets = parse_dashboard_hidden(dashboard_hidden or "")
 
         outer = QVBoxLayout(self)
         outer.setContentsMargins(0, 0, 0, 0)
@@ -858,7 +863,7 @@ class DashboardPage(QWidget):
         layout.addWidget(self.sections[1])
         row2 = QGridLayout()
         row2.setSpacing(8)
-        self.chart = PerfChart()
+        self.chart = PerfChart(points=3600, enable_range=True)
         self.chart.setSizePolicy(QSizePolicy.Policy.Ignored, QSizePolicy.Policy.Preferred)
         self.history_widget = ResourceHistoryWidget(history)
         self.thermal = CardPanel(tr("dash_thermals_title"))
@@ -909,7 +914,34 @@ class DashboardPage(QWidget):
             "row4": (row4, r4),
             "row5": (row5, r5),
         }
+        self._row_widget_keys = {
+            "row1": ("cpu", "ram", "gpu", "disk", "temp", "health"),
+            "row2": ("chart", "history", "thermal"),
+            "row3": ("disks", "processes", "quick"),
+            "row4": ("gaming", "network", "notifications"),
+            "row5": ("recent", "recommendations"),
+        }
+        self._widget_map = {
+            "cpu": self.cpu,
+            "ram": self.ram,
+            "gpu": self.gpu,
+            "disk": self.disk,
+            "temp": self.temp_tile,
+            "health": self.health_card,
+            "chart": self.chart,
+            "history": self.history_widget,
+            "thermal": self.thermal,
+            "disks": self.disks,
+            "processes": self.proc_load,
+            "quick": self.quick_actions,
+            "gaming": self.gaming_banner,
+            "network": self.net_widget,
+            "notifications": self.notif_widget,
+            "recent": self.recent_actions,
+            "recommendations": self.recommendations,
+        }
         self._mode = ""
+        self._apply_hidden_visibility()
         self._relayout(1200)
 
         # Real top-process list (refreshed every 3 s on a worker thread).
@@ -950,8 +982,24 @@ class DashboardPage(QWidget):
             self._ping_task.wait(6000)
         super().closeEvent(event)
 
+    def _apply_hidden_visibility(self) -> None:
+        for key in DASH_WIDGET_KEYS:
+            self._widget_map[key].setVisible(key not in self._hidden_widgets)
+        for section in range(len(self.sections)):
+            visible = any(
+                DASH_WIDGET_SECTION[key] == section and key not in self._hidden_widgets
+                for key in DASH_WIDGET_KEYS
+            )
+            self.sections[section].setVisible(visible)
+
+    def set_hidden_widgets(self, hidden: object) -> None:
+        self._hidden_widgets = parse_dashboard_hidden(hidden)
+        self._apply_hidden_visibility()
+        self._mode = ""
+        self._relayout(self.width() or 1200)
+
     def _refresh_ping(self) -> None:
-        if self._ping_task is not None or not self.isVisible():
+        if self._ping_task is not None or not self.isVisible() or "network" in self._hidden_widgets:
             return
 
         def ping_once() -> object:
@@ -980,7 +1028,7 @@ class DashboardPage(QWidget):
             pass
 
     def _refresh_processes(self) -> None:
-        if self._proc_task is not None or not self.isVisible():
+        if self._proc_task is not None or not self.isVisible() or "processes" in self._hidden_widgets:
             return
         self._proc_task = Task(self._proc_service.list, parent=self)
         self._proc_task.done.connect(self._apply_processes)
@@ -1027,8 +1075,10 @@ class DashboardPage(QWidget):
         for key, (grid, widgets) in self._grid_rows.items():
             for w in widgets:
                 grid.removeWidget(w)
-            for w, (r, c, span) in zip(widgets, spec[key], strict=False):
-                grid.addWidget(w, r, c, 1, span)
+            for widget_key, (r, c, span) in zip(self._row_widget_keys[key], spec[key], strict=False):
+                if widget_key in self._hidden_widgets:
+                    continue
+                grid.addWidget(self._widget_map[widget_key], r, c, 1, span)
             for c in range(12):
                 grid.setColumnStretch(c, 1)
 
@@ -1073,25 +1123,12 @@ class DashboardPage(QWidget):
         self.date.setText(QLocale().toString(now, "ddd d MMM"))
 
         temps = list(s.thermal.temperatures) if s.thermal else []
-
-        def _is_cpu_zone(name: str) -> bool:
-            lowered = name.lower()
-            return "cpu" in lowered or "core" in lowered or "package" in lowered
-
-        named_cpu = [v for n, v in temps if _is_cpu_zone(n)]
-        anon_zones = [(n, v) for n, v in temps if not _is_cpu_zone(n)]
-        if named_cpu:
-            cpu_temp = named_cpu[0]
-        elif len(anon_zones) == 1:
-            # A single anonymous ACPI zone is almost always the CPU package.
-            cpu_temp = anon_zones[0][1]
-            anon_zones = []
-        else:
-            cpu_temp = None
-        gpu_temp = s.gpu.temperature if s.gpu is not None and s.gpu.temperature is not None else None
+        targets = target_temperatures(s)
+        cpu_temp = targets["cpu"][0]
+        gpu_temp = targets["gpu"][0]
         all_temps = list(temps)
         if gpu_temp is not None:
-            all_temps.append((tr("GPU"), gpu_temp))
+            all_temps.append((tr("temp_target_gpu"), gpu_temp))
         hottest = max(all_temps, key=lambda item: item[1], default=None)
         if hottest is not None:
             self.temp_tile.update_metric(f"{hottest[1]:.0f}°C", tr("dash_temp_sub"))
@@ -1198,14 +1235,24 @@ class DashboardPage(QWidget):
         self.verdict.setText(tr(self._verdict_key))
 
         thermal_rows: list[tuple[str, float | None, str]] = []
-        if cpu_temp is not None:
-            thermal_rows.append((tr("CPU"), min(cpu_temp, 100.0), f"{cpu_temp:.0f}°C"))
-        if gpu_temp is not None:
-            thermal_rows.append((tr("GPU"), min(gpu_temp, 100.0), f"{gpu_temp:.0f}°C"))
-        for name, value in anon_zones:
+        for kind, key in (
+            ("cpu", "temp_target_cpu"),
+            ("board", "temp_target_board"),
+            ("gpu", "temp_target_gpu"),
+        ):
+            value, _source = targets[kind]
+            thermal_rows.append(
+                (
+                    tr(key),
+                    None if value is None else min(value, 100.0),
+                    "—" if value is None else f"{value:.0f}°C",
+                )
+            )
+        for name, value in temps:
+            if temperature_kind(name) in ("cpu", "board", "gpu"):
+                continue
             thermal_rows.append((zone_label(name), min(value, 100.0), f"{value:.0f}°C"))
-        if thermal_rows:
-            self.thermal.set_rows(thermal_rows, marker=85.0)
+        self.thermal.set_rows(thermal_rows, marker=85.0)
 
         recs: list[tuple[str, dict[str, object], str | None]] = []
         if cpu_pct is not None and cpu_pct >= 90:

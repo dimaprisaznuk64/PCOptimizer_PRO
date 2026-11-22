@@ -2,12 +2,16 @@
 from pathlib import Path
 
 root = Path(SPECPATH)
+lhm_dlls = sorted((root / "assets" / "lib" / "lhm").glob("*.dll"))
 
 a = Analysis(
     [str(root / "main.py")],
     pathex=[str(root)],
-    binaries=[],
-    datas=[(str(root / "assets" / "fonts"), "assets/fonts")],
+    binaries=[(str(dll), "lib/lhm") for dll in lhm_dlls],
+    datas=[
+        (str(root / "assets" / "fonts"), "assets/fonts"),
+        (str(root / "assets" / "lib" / "lhm" / "LICENSE-LibreHardwareMonitor.txt"), "lib/lhm"),
+    ],
     hiddenimports=[
         "wmi",
         "win32com",
@@ -15,6 +19,9 @@ a = Analysis(
         "pythoncom",
         "pywintypes",
         "pynvml",
+        "clr",
+        "clr_loader",
+        "pythonnet",
         "PySide6.QtPrintSupport",
         "PySide6.QtPdf",
         "app.reports.pdf",

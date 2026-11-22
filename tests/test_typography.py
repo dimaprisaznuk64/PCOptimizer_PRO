@@ -73,7 +73,7 @@ def test_page_text_sizes_come_from_the_type_scale(qapp, page_key):
     window = MainWindow()
     window.show_page(page_key)
     qapp.processEvents()
-    page = window.stack.currentWidget()
+    page = window.page(page_key)
     allowed = _scale()
     offenders = [(c, s, t) for c, s, t in _visible_text_sizes(page) if s not in allowed]
     assert not offenders, (

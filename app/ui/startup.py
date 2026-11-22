@@ -21,6 +21,7 @@ from app.i18n import tr
 from app.startup import StartupItem, StartupService
 
 from .components import CardTitleLabel, attach_empty_hint
+from .context_menu import TableContextMenu, copy_text
 from .format import mb
 from .tasks import Task
 from .theme import CARD_PADDING, PAGE_MARGINS
@@ -144,6 +145,12 @@ class StartupPage(QWidget):
         header.setSectionResizeMode(4, QHeaderView.ResizeMode.ResizeToContents)
         self.table.setSortingEnabled(True)
         self.table.itemSelectionChanged.connect(self._on_selection_changed)
+        self._context_menu = TableContextMenu(self.table)
+        self._context_menu.add(lambda: tr("ctx_toggle"), self._context_toggle, enabled=self._can_modify)
+        self._context_menu.add(lambda: tr("ctx_remove"), self._context_remove, enabled=self._can_remove)
+        self._context_menu.separator()
+        self._context_menu.add(lambda: tr("ctx_copy_name"), self._copy_startup_name)
+        self._context_menu.add(lambda: tr("ctx_copy_command"), self._copy_startup_command)
         splitter.addWidget(self.table)
 
         details = QFrame()
@@ -332,6 +339,44 @@ class StartupPage(QWidget):
                 if item is not None and item.data(Qt.ItemDataRole.UserRole) == selected_id:
                     self.table.selectRow(row)
                     return
+
+    def _item_at(self, row: int) -> StartupItem | None:
+        cell = self.table.item(row, 0)
+        if cell is None:
+            return None
+        item_id = cell.data(Qt.ItemDataRole.UserRole)
+        for candidate in self._items:
+            if candidate.id == item_id:
+                return candidate
+        return None
+
+    def _can_modify(self, row: int) -> bool:
+        item = self._item_at(row)
+        return item is not None and item.kind in ("registry", "folder", "task")
+
+    def _can_remove(self, row: int) -> bool:
+        item = self._item_at(row)
+        return item is not None and item.kind in ("registry", "folder")
+
+    def _context_toggle(self, row: int) -> None:
+        if self._can_modify(row):
+            self.table.selectRow(row)
+            self.start_toggle()
+
+    def _context_remove(self, row: int) -> None:
+        if self._can_remove(row):
+            self.table.selectRow(row)
+            self.start_remove()
+
+    def _copy_startup_name(self, row: int) -> None:
+        item = self._item_at(row)
+        if item is not None:
+            copy_text(item.name)
+
+    def _copy_startup_command(self, row: int) -> None:
+        item = self._item_at(row)
+        if item is not None:
+            copy_text(item.command)
 
     def _selected_item(self) -> StartupItem | None:
         selected = self.table.selectedItems()

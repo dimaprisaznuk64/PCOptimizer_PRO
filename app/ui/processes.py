@@ -31,6 +31,7 @@ from app.processes import (
 )
 
 from .components import CardTitleLabel, align_numeric_headers
+from .context_menu import TableContextMenu, copy_text
 from .format import mb, uptime
 from .tasks import Task
 from .theme import CARD_PADDING, PAGE_MARGINS
@@ -157,6 +158,11 @@ class ProcessPage(QWidget):
         self.table.setSortingEnabled(True)
         self.table.sortByColumn(2, Qt.SortOrder.DescendingOrder)
         self.table.itemSelectionChanged.connect(self._on_selection_changed)
+        self._context_menu = TableContextMenu(self.table)
+        self._context_menu.add(lambda: tr("ctx_end"), self._context_end)
+        self._context_menu.add(lambda: tr("ctx_copy_name"), self._copy_process_name)
+        self._context_menu.add(lambda: tr("ctx_copy_pid"), self._copy_process_pid)
+        self._context_menu.add(lambda: tr("ctx_copy_command"), self._copy_process_command)
         splitter.addWidget(self.table)
 
         details = QFrame()
@@ -361,6 +367,36 @@ class ProcessPage(QWidget):
             if item is not None and item.data(Qt.ItemDataRole.UserRole) == pid:
                 self.table.selectRow(row)
                 return
+
+    def _context_end(self, row: int) -> None:
+        self.table.selectRow(row)
+        self.end_selected()
+
+    def _copy_process_name(self, row: int) -> None:
+        self.table.selectRow(row)
+        pid = self._selected_pid()
+        info = self._rows.get(pid) if pid is not None else None
+        if info is not None:
+            copy_text(info.name)
+
+    def _copy_process_pid(self, row: int) -> None:
+        self.table.selectRow(row)
+        pid = self._selected_pid()
+        if pid is not None:
+            copy_text(str(pid))
+
+    def _copy_process_command(self, row: int) -> None:
+        self.table.selectRow(row)
+        pid = self._selected_pid()
+        if pid is None:
+            return
+        info = self._detail_info if self._detail_info is not None and self._detail_info.pid == pid else None
+        if info is None:
+            try:
+                info = self._service.details(pid)
+            except (ProcessServiceError, ProcessNotFound):
+                return
+        copy_text(info.cmdline or info.exe or info.name)
 
     def _on_selection_changed(self) -> None:
         pid = self._selected_pid()

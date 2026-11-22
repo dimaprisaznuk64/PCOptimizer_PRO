@@ -271,12 +271,13 @@ def test_group_headers_collapse_and_expand(qapp) -> None:
     window = MainWindow()
     sb = window.sidebar
     assert len(sb._group_buttons) == 7
-    assert set(sb._group_keys["overview"]) == {"dashboard", "health"}
+    assert set(sb._group_keys["overview"]) == {"dashboard", "health", "operations"}
 
     sb.toggle_group("overview")
     assert sb.collapsed_groups() == ("overview",)
     assert sb._buttons["dashboard"].isHidden() is True
     assert sb._buttons["health"].isHidden() is True
+    assert sb._buttons["operations"].isHidden() is True
     assert sb._buttons["gpu"].isHidden() is False
 
     sb.toggle_group("overview")
@@ -363,9 +364,9 @@ def test_group_header_tooltip_includes_count(qapp) -> None:
 
     window = MainWindow()
     header = window.sidebar._group_buttons["overview"]
-    summary = tr("nav_group_count", group=tr("nav_group_overview"), count=2)
+    summary = tr("nav_group_count", group=tr("nav_group_overview"), count=3)
     assert summary in header.toolTip()
-    assert "· 2" in header.text()
+    assert "· 3" in header.text()
     window.close()
 
 

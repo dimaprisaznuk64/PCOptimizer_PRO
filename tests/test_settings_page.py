@@ -106,6 +106,7 @@ def test_collect_values_shape(qapp, tmp_path) -> None:
     page = _page(qapp, tmp_path)
     values = page.collect_values()
     assert set(values) == {
+        "monitor_profile",
         "sample_interval_ms",
         "minimize_to_tray",
         "start_minimized",
@@ -118,12 +119,49 @@ def test_collect_values_shape(qapp, tmp_path) -> None:
         "theme",
         "language",
         "ui_scale",
+        "dashboard_hidden",
     }
     assert isinstance(values["sample_interval_ms"], int)
     assert isinstance(values["minimize_to_tray"], bool)
     assert isinstance(values["temp_alerts_enabled"], bool)
     assert isinstance(values["alerts_quiet_during_games"], bool)
     assert isinstance(values["usage_alerts_enabled"], bool)
+
+
+def test_dashboard_hidden_is_persisted_and_applied_live(qapp, tmp_path) -> None:
+    applied: list[str] = []
+    page = _page(qapp, tmp_path, on_dashboard_hidden_applied=applied.append)
+    page._dashboard_hidden = "chart,cpu"
+    page.save()
+    assert applied == ["cpu,chart"]
+    assert SettingsService(tmp_path / "settings.json").get("dashboard_hidden") == "cpu,chart"
+
+    applied.clear()
+    page.reset()
+    assert applied == [""]
+    assert page._dashboard_hidden == ""
+
+
+def test_customize_dashboard_stages_choice(qapp, tmp_path, monkeypatch) -> None:
+    from PySide6.QtWidgets import QDialog
+
+    from app.ui import settings as settings_module
+
+    class _Dialog:
+        def __init__(self, hidden, parent=None) -> None:
+            self.hidden = hidden
+
+        def exec(self):
+            return QDialog.DialogCode.Accepted
+
+        def values(self):
+            return {"cpu"}
+
+    monkeypatch.setattr(settings_module, "DashboardCustomizerDialog", _Dialog)
+    page = _page(qapp, tmp_path)
+    page.customize_dashboard()
+    page.save()
+    assert SettingsService(tmp_path / "settings.json").get("dashboard_hidden") == "cpu"
 
 
 def test_alert_threshold_controls_are_removed(qapp, tmp_path) -> None:
@@ -283,3 +321,43 @@ def test_check_failure_is_shown(qapp, tmp_path) -> None:
     page._on_update_failed("no internet")
     assert page.update_status.text() == "Update check failed: no internet"
     assert page.check_updates_button.isEnabled()
+
+
+def test_search_filters_general_rows_and_clears(qapp, tmp_path) -> None:
+    page = _page(qapp, tmp_path)
+    assert page.interval_combo.isHidden() is False
+
+    page.search_edit.setText("theme")
+    assert page.theme_combo.isHidden() is False
+    assert page.interval_combo.isHidden() is True
+    assert page.logging_card.isHidden() is True
+    assert page.general_card.isHidden() is False
+
+    page.search_edit.clear()
+    assert page.interval_combo.isHidden() is False
+    assert page.logging_card.isHidden() is False
+    assert page.actions_bar.isHidden() is False
+    assert page.no_match_label.isHidden() is True
+
+
+def test_search_matches_logging_and_reports_no_match(qapp, tmp_path) -> None:
+    page = _page(qapp, tmp_path)
+    page.search_edit.setText("журнал")
+    assert page.logging_card.isHidden() is False
+    assert page.general_card.isHidden() is True
+
+    page.search_edit.setText("zzzz-no-such-setting")
+    assert page.logging_card.isHidden() is True
+    assert page.general_card.isHidden() is True
+    assert page.no_match_label.isHidden() is False
+
+
+def test_search_follows_live_language_switch(qapp, tmp_path) -> None:
+    from app.i18n import I18nService
+
+    page = _page(qapp, tmp_path)
+    I18nService.instance().set_language("UA", emit=False)
+    page.retranslate()
+    page.search_edit.setText("тема")
+    assert page.theme_combo.isHidden() is False
+    assert page.interval_combo.isHidden() is True

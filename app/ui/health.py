@@ -18,7 +18,7 @@ from PySide6.QtWidgets import (
     QWidget,
 )
 
-from app.health import Finding, FixReport, HealthReport, HealthService
+from app.health import SEVERITY_PENALTY, Finding, FixReport, HealthReport, HealthService
 from app.i18n import tr
 from app.reports import ReportError, export_health, timestamp_name
 
@@ -77,6 +77,21 @@ def grade_text(grade: str) -> str:
     key = f"grade_{grade.lower()}"
     text = tr(key)
     return grade if text == key else text
+
+
+def score_breakdown(report: HealthReport) -> tuple[tuple[str, int, int], ...]:
+    """Group non-OK findings by localized category as ``(category, points, count)``."""
+    grouped: dict[str, list[int]] = {}
+    for finding in report.findings:
+        points = SEVERITY_PENALTY.get(finding.severity, 0)
+        if points <= 0:
+            continue
+        category, _title, _detail = localize_finding(finding)
+        grouped.setdefault(category, []).append(points)
+    return tuple(
+        (category, sum(points), len(points))
+        for category, points in sorted(grouped.items())
+    )
 
 
 _CATEGORY_KEYS = {
@@ -176,6 +191,10 @@ class HealthPage(QWidget):
         self.detail_label.setObjectName("cardSub")
         self.detail_label.setWordWrap(True)
         text_box.addWidget(self.detail_label)
+        self.penalty_label = QLabel(tr("health_penalties_none"))
+        self.penalty_label.setObjectName("cardSub")
+        self.penalty_label.setWordWrap(True)
+        text_box.addWidget(self.penalty_label)
         score_layout.addLayout(text_box, 1)
 
         buttons = QVBoxLayout()
@@ -237,6 +256,8 @@ class HealthPage(QWidget):
             self._retranslate_finding_row(row)
         if getattr(self, "_report", None) is not None:
             self._render_report(self._report)
+        else:
+            self.penalty_label.setText(tr("health_penalties_none"))
 
     def _fit_action_column(self) -> None:
         """Size the action column so the row buttons are never clipped.
@@ -295,7 +316,7 @@ class HealthPage(QWidget):
         self._report = result
         self._render_report(result)
         ActivityLog.instance().health = (result.score, str(result.grade))
-        log_action(tr("act_health"), f"{result.score}/100")
+        log_action(tr("act_health"), f"{result.score}/100", source="health")
 
     def _render_report(self, report: HealthReport) -> None:
         self.score_label.setText(str(report.score))
@@ -305,6 +326,20 @@ class HealthPage(QWidget):
         self.detail_label.setText(
             tr("health_detail", issues=issues, size=f"{report.junk_bytes / 1024**3:.1f}")
         )
+        breakdown = score_breakdown(report)
+        if breakdown:
+            items = " · ".join(
+                tr(
+                    "health_penalty_item_many" if count > 1 else "health_penalty_item",
+                    category=category,
+                    points=points,
+                    count=count,
+                )
+                for category, points, count in breakdown
+            )
+            self.penalty_label.setText(tr("health_penalties", items=items))
+        else:
+            self.penalty_label.setText(tr("health_penalties_none"))
 
         self.findings_table.setSortingEnabled(False)
         self._clear_action_cells()

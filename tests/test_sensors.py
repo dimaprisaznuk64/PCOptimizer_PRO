@@ -374,3 +374,61 @@ def test_thermal_backend_initializes_wmi_on_collect_thread(monkeypatch) -> None:
     assert part["thermal"].temperatures == (("zone0", 70.0),)
     backend.close()
     assert backend._zones is None
+
+
+def test_thermal_backend_keeps_acpi_instance_name(monkeypatch) -> None:
+    import sys
+    import types
+
+    from app.sensors.thermal_backend import ThermalBackend
+
+    class _Zone:
+        InstanceName = "CPU Package"
+        CurrentTemperature = 3431.5
+
+    class _Wmi:
+        def MSAcpi_ThermalZoneTemperature(self):
+            return [_Zone()]
+
+    fake = types.ModuleType("wmi")
+    fake.WMI = lambda namespace: _Wmi()
+    monkeypatch.setitem(sys.modules, "wmi", fake)
+
+    backend = ThermalBackend()
+    part = backend.collect()
+    assert part["thermal"].source == "wmi_acpi"
+    assert part["thermal"].temperatures == (("CPU Package", 70.0),)
+
+
+def test_thermal_backend_falls_back_to_lhm_targets(monkeypatch) -> None:
+    import sys
+    import types
+
+    from app.sensors.thermal_backend import ThermalBackend
+
+    class _Sensor:
+        def __init__(self, name: str, value: float) -> None:
+            self.Name = name
+            self.Value = value
+            self.SensorType = "Temperature"
+
+    class _Wmi:
+        def MSAcpi_ThermalZoneTemperature(self):
+            raise RuntimeError("access denied")
+
+        def Sensor(self):
+            return [
+                _Sensor("CPU Package", 71.0),
+                _Sensor("Motherboard", 41.0),
+                _Sensor("GPU Core", 67.0),
+                _Sensor("CPU Core #0", 65.0),
+            ]
+
+    fake = types.ModuleType("wmi")
+    fake.WMI = lambda namespace: _Wmi()
+    monkeypatch.setitem(sys.modules, "wmi", fake)
+
+    backend = ThermalBackend()
+    part = backend.collect()
+    assert part["thermal"].source == "lhm"
+    assert part["thermal"].temperatures == (("board", 41.0), ("cpu", 71.0), ("gpu", 67.0))

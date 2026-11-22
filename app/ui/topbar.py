@@ -51,6 +51,7 @@ class TopBar(QWidget):
         self.setFixedHeight(TOPBAR_HEIGHT)
         self._last_title: str = tr("nav_dashboard")
         self._status_text: str = tr("status_healthy")
+        self._unread: int = 0
 
         layout = QHBoxLayout(self)
         layout.setContentsMargins(TOPBAR_PAD_X, 0, TOPBAR_PAD_X, 0)
@@ -157,7 +158,9 @@ class TopBar(QWidget):
         self.notify_button.setIconSize(QSize(ICON_SIZE, ICON_SIZE))
         self.notify_button.setToolTip(tr("topbar_notify_tip"))
         self.notify_button.setCursor(Qt.CursorShape.PointingHandCursor)
-        self.notify_button.setMenu(self._build_notify_menu())
+        self.notify_button.clicked.connect(self.notifications_requested.emit)
+        self.notify_button.setContextMenuPolicy(Qt.ContextMenuPolicy.CustomContextMenu)
+        self.notify_button.customContextMenuRequested.connect(self._show_notify_menu)
         layout.addWidget(self.notify_button)
 
         # Settings button
@@ -179,16 +182,24 @@ class TopBar(QWidget):
 
     def _build_notify_menu(self) -> QMenu:
         menu = QMenu(self)
-        menu.aboutToShow.connect(lambda m=menu: self._fill_notify_menu(m))
-        self._fill_notify_menu(menu)
+        menu.aboutToShow.connect(lambda m=menu: self._fill_notify_menu(m, self.notifications_requested.emit))
+        self._fill_notify_menu(menu, self.notifications_requested.emit)
         return menu
 
+    def _show_notify_menu(self, pos) -> None:
+        menu = self._build_notify_menu()
+        menu.exec(self.notify_button.mapToGlobal(pos))
+
     @staticmethod
-    def _fill_notify_menu(menu: QMenu) -> None:
-        """Latest notifications and activity events."""
+    def _fill_notify_menu(menu: QMenu, on_open=None) -> None:
+        """Latest notifications and activity events (right-click quick menu)."""
         from .activity import ActivityLog
 
         menu.clear()
+        if on_open is not None:
+            open_action = menu.addAction(tr("topbar_notify_open"))
+            open_action.triggered.connect(on_open)
+            menu.addSeparator()
         entries = ActivityLog.instance().entries(limit=10)
         if not entries:
             action = menu.addAction(tr("topbar_notify_empty"))
@@ -204,12 +215,19 @@ class TopBar(QWidget):
         clear_action = menu.addAction(tr("topbar_notify_clear"))
         clear_action.triggered.connect(ActivityLog.instance().clear)
 
+    def set_unread_count(self, count: int) -> None:
+        """Tint the bell and explain the unread count in its tooltip."""
+        self._unread = max(0, int(count))
+        self.notify_button.setIcon(glyph("bell", ACCENT if self._unread else TEXT_DIM))
+        self.notify_button.setToolTip(
+            tr("topbar_notify_tip") + (f" · {tr('notif_center_unread', count=self._unread)}" if self._unread else "")
+        )
+
     def retranslate(self) -> None:
-        self.notify_button.setToolTip(tr("topbar_notify_tip"))
+        self.set_unread_count(self._unread)
         self.settings_button.setToolTip(tr("topbar_settings_tip"))
         self.back_button.setToolTip(tr("topbar_back_tip"))
         self.search_button.setToolTip(tr("topbar_search_tip"))
-        self.notify_button.setMenu(self._build_notify_menu())
         self.status.setToolTip(tr("topbar_status_tip", text=self._status_text))
         self.set_title(self._last_title or tr("nav_dashboard"))
 

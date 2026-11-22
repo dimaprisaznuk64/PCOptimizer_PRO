@@ -121,6 +121,7 @@ class MonitorPage(QWidget):
         parent: QWidget | None = None,
         *,
         process_service: ProcessService | None = None,
+        process_refresh_ms: int = 5000,
     ) -> None:
         super().__init__(parent)
         self.setObjectName("page")
@@ -172,15 +173,19 @@ class MonitorPage(QWidget):
 
         self._proc_task: Task | None = None
         self._proc_error_msg = ""
-        self._proc_timer = QTimer(self)
-        self._proc_timer.setInterval(5000)
-        self._proc_timer.timeout.connect(self.refresh_memory_processes)
-
         self._cpu_peak = 0.0
         self._mem_peak = 0.0
         self._temp_peak: float | None = None
         self._commit_used: int | None = None
         self._commit_limit: int | None = None
+
+        self._proc_timer = QTimer(self)
+        self._proc_timer.setInterval(max(500, process_refresh_ms))
+        self._proc_timer.timeout.connect(self.refresh_memory_processes)
+
+    def set_process_refresh_ms(self, interval_ms: int) -> None:
+        """Change how often the top-RAM-process table is refreshed."""
+        self._proc_timer.setInterval(max(500, interval_ms))
 
     def _build_cpu_card(self) -> QFrame:
         card = _Card(tr("dash_cpu"))
@@ -194,6 +199,7 @@ class MonitorPage(QWidget):
         summary.addWidget(self.cpu_value)
         self.cpu_sub = QLabel("")
         self.cpu_sub.setObjectName("cardSub")
+        self.cpu_sub.setWordWrap(True)
         summary.addWidget(self.cpu_sub)
         summary.addStretch(1)
         box = QWidget()
@@ -220,6 +226,7 @@ class MonitorPage(QWidget):
         card.body.addWidget(self.mem_value)
         self.mem_sub = QLabel("")
         self.mem_sub.setObjectName("cardSub")
+        self.mem_sub.setWordWrap(True)
         card.body.addWidget(self.mem_sub)
         self.mem_bar = Bar(ACCENT, height=10)
         card.body.addWidget(self.mem_bar)
@@ -227,11 +234,13 @@ class MonitorPage(QWidget):
         card.body.addWidget(self.mem_spark)
         self.swap_sub = QLabel("")
         self.swap_sub.setObjectName("cardSub")
+        self.swap_sub.setWordWrap(True)
         card.body.addWidget(self.swap_sub)
         self.swap_bar = Bar(ACCENT_HOVER, height=8)
         card.body.addWidget(self.swap_bar)
         self.commit_sub = QLabel("")
         self.commit_sub.setObjectName("cardSub")
+        self.commit_sub.setWordWrap(True)
         self.commit_sub.setVisible(False)
         card.body.addWidget(self.commit_sub)
         self._mem_card = card

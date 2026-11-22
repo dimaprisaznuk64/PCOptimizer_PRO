@@ -473,7 +473,7 @@ class OptimizerPage(QWidget):
                 self._restore_message(RestoreResult(False, result.restore_status, result.errors[0] if result.errors else ""))
             )
             self.revert_button.setEnabled(self._service.backup_exists())
-            log_action(tr("act_opt"), display, "error")
+            log_action(tr("act_opt"), display, "error", source="optimizer")
             return
         if result.errors and not result.applied:
             self.status_label.setText(tr("opt_failed_line", name=display, msg=result.errors[0]))
@@ -481,7 +481,12 @@ class OptimizerPage(QWidget):
             self.status_label.setText(tr("opt_partial", name=display, msg=result.errors[0]))
         else:
             self.status_label.setText(tr("opt_applied", name=display, count=len(result.applied)))
-        log_action(tr("act_opt"), display, outcome_level(has_errors=bool(result.errors), achieved=bool(result.applied)))
+        log_action(
+            tr("act_opt"),
+            display,
+            outcome_level(has_errors=bool(result.errors), achieved=bool(result.applied)),
+            source="optimizer",
+        )
         if result.restore_status == STATUS_CREATED:
             self._notify(True, tr("opt_restore_apply_created"))
         self.start_refresh()
@@ -509,7 +514,9 @@ class OptimizerPage(QWidget):
         message = self._restore_message(result)
         self.status_label.setText(message)
         if result.status == STATUS_CREATED:
-            log_action(tr("act_opt"), result.label or tr("opt_restore_btn"), "ok")
+            log_action(
+                tr("act_opt"), result.label or tr("opt_restore_btn"), "ok", source="optimizer"
+            )
             self._notify(True, message)
         elif result.status == STATUS_DISABLED:
             self._offer_enable_protection()

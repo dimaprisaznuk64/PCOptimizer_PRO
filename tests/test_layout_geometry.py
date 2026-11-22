@@ -4,7 +4,8 @@ import os
 
 os.environ["QT_QPA_PLATFORM"] = "offscreen"
 
-from PySide6.QtWidgets import QApplication
+from PySide6.QtCore import Qt
+from PySide6.QtWidgets import QApplication, QPushButton, QScrollArea
 
 from app.settings import SettingsService
 from app.ui import pages
@@ -56,3 +57,21 @@ def test_all_pages_build_and_switch(qapp) -> None:
     for key, _ in pages.build_pages(SettingsService()):
         mw.show_page(key)
         qapp.processEvents()
+
+
+def test_page_hosts_scroll_instead_of_squashing_controls(qapp) -> None:
+    mw = MainWindow(SettingsService())
+    mw.resize(1024, 640)
+    mw.show()
+    for key, _ in pages.build_pages(SettingsService()):
+        host = mw.stack.widget(mw._index_by_key[key])
+        scroll = host.findChild(QScrollArea, "pageScroll")
+        assert scroll is not None
+        assert scroll.widget() is mw.page(key)
+        assert scroll.widgetResizable()
+        assert scroll.verticalScrollBarPolicy() == Qt.ScrollBarPolicy.ScrollBarAsNeeded
+    mw.show_page("gaming")
+    qapp.processEvents()
+    for button in mw.page("gaming").findChildren(QPushButton):
+        if button.isVisible():
+            assert button.height() >= button.sizeHint().height() - 2

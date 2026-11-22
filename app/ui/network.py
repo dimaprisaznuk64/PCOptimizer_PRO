@@ -291,7 +291,7 @@ class NetworkPage(QWidget):
         self._task = None
         self._set_busy(False)
         self.status_label.setText(str(result))
-        log_action(tr("act_dns"), tr("act_done"))
+        log_action(tr("act_dns"), tr("act_done"), source="network")
 
     # ---------- misc ----------
 

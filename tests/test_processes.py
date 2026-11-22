@@ -7,7 +7,9 @@ import time
 
 import psutil
 import pytest
+from PySide6.QtGui import QGuiApplication
 
+from app.i18n import tr
 from app.processes import (
     ProcessNotFound,
     ProcessService,
@@ -164,6 +166,17 @@ def test_page_filter_narrows_rows(qapp) -> None:
     assert page.table.rowCount() == 0
     page.filter.setText("")
     assert page.table.rowCount() == 3
+
+
+def test_page_context_menu_copies_process_name(qapp) -> None:
+    page, _service = _stub_page(qapp)
+    page.refresh()
+    actions = page._context_menu.build_menu(0).actions()
+    assert [action.text() for action in actions] == [
+        tr("ctx_end"), tr("ctx_copy_name"), tr("ctx_copy_pid"), tr("ctx_copy_command")
+    ]
+    next(action for action in actions if action.text() == tr("ctx_copy_name")).trigger()
+    assert QGuiApplication.clipboard().text() == "app.exe"
 
 
 def test_page_selection_shows_details(qapp) -> None:

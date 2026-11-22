@@ -5,6 +5,7 @@ import time
 
 import pytest
 from PySide6.QtCore import Qt
+from PySide6.QtGui import QGuiApplication
 from PySide6.QtWidgets import QDialog
 
 from app.cleaner import (
@@ -19,6 +20,7 @@ from app.cleaner import (
     scan_large_files,
 )
 from app.cleaner.service import RECYCLE_BIN_ID, _summarize, is_safe_root
+from app.i18n import tr
 from app.ui.cleaner import CleanerPage
 
 
@@ -320,6 +322,21 @@ def test_page_checkbox_updates_summary(qapp, tmp_path) -> None:
     page.table.item(0, 0).setCheckState(Qt.CheckState.Unchecked)
     assert "1 of 2" in page.summary.text()
     assert "1.0KB" in page.summary.text() or "2.0KB" in page.summary.text()
+
+
+def test_page_context_menu_selects_all_and_copies_path(qapp, tmp_path) -> None:
+    service = _two_target_service(tmp_path)
+    page = InteractiveCleaner(service)
+    page._apply_scan(service.scan_all())
+
+    actions = page._context_menu.build_menu(0).actions()
+    by_text = {action.text(): action for action in actions}
+    by_text[tr("ctx_deselect_all")].trigger()
+    assert "0 of 2" in page.summary.text()
+    by_text[tr("ctx_select_all")].trigger()
+    assert "2 of 2" in page.summary.text()
+    by_text[tr("ctx_copy_path")].trigger()
+    assert QGuiApplication.clipboard().text() == str(tmp_path / "a")
 
 
 def test_page_clean_flow_deletes_and_reports(qapp, tmp_path) -> None:

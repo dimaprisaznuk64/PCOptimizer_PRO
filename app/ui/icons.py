@@ -264,6 +264,13 @@ def _search(p: QPainter) -> None:
     p.drawLine(QPointF(12, 12), QPointF(17, 17))
 
 
+def _operations(p: QPainter) -> None:
+    p.drawEllipse(QRectF(3, 3, 14, 14))
+    p.drawLine(QPointF(10, 6.5), QPointF(10, 10))
+    p.drawLine(QPointF(10, 10), QPointF(12.5, 12))
+    p.drawLine(QPointF(1.8, 10), QPointF(3.4, 10))
+
+
 _DRAWERS = {
     "cpu": _cpu,
     "ram": _ram,
@@ -284,6 +291,7 @@ _DRAWERS = {
     "network": _network,
     "disk": _disk,
     "health": _health,
+    "operations": _operations,
     "bell": _bell,
     "settings": _settings,
     "fan": _fan,
@@ -348,7 +356,7 @@ def app_icon(color: str = "") -> QIcon:
         p.setBrush(grad)
         p.drawRoundedRect(rect, size * 0.24, size * 0.24)
         font = QFont()
-        font.setFamilies(["Segoe UI Variable Display", "Segoe UI", "Inter", "DejaVu Sans"])
+        font.setFamilies(["Geist", "Segoe UI Variable Display", "Segoe UI", "DejaVu Sans"])
         font.setWeight(QFont.Weight.ExtraBold)
         font.setPixelSize(max(8, int(size * 0.42)))
         p.setFont(font)

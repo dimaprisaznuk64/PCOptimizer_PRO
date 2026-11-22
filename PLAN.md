@@ -8,11 +8,23 @@
   persistent collapse state across theme rebuilds, compact mode and language
   switches, redesigned Dashboard with 4 sections/history/recommendations, and a
   live interface scale of 100–150%, scaled layout tokens and uniform page
-  margins, WCAG-readable status/accent tokens in all 29 themes; 22 pages
-  preserved, localized nav tooltips/group counts and shared motion tokens;
-   global search palette (Ctrl+K) with recent pages; 25 new tests, full suite
-   839 passed / 1 skipped. The temporary dashboard status strip was removed at
-   the user's request; installed `app_run` 2.0.0 was rebuilt and relaunched.
+  margins, WCAG-readable status/accent tokens in all 29 themes; 23 pages now,
+  localized nav tooltips/group counts and shared motion tokens; global search
+  palette (Ctrl+K) with recent pages, a Notification Center with persistent read
+  state and a Recent Operations Center with filters, export and page jumps;
+  new tests, context menus/quick actions on four table pages, dashboard widget
+  customization, full suite 904 passed / 1 skipped.
+   The temporary dashboard status strip was removed at the user's request;
+   installed `app_run` 2.0.0 was rebuilt and relaunched.
+ - In progress **Stage 5 monitoring profiles** (`ECO`/`BALANCED`/`PERFORMANCE`)
+   with live sampler/history/process-table/game-presence cadence switching, plus
+   a pythonnet/LibreHardwareMonitor temperature backend (`app/sensors/lhm_backend.py`)
+   with bundled DLLs in `assets/lib/lhm`; LHM hardware readings require admin and
+   are honestly omitted when a board reports 0 °C or no sensor.
+ - Verification: full suite split into chunks because a single 60-minute run
+   stalled near the end; chunks report **904 passed / 1 skipped** (243+252+232+177),
+   `ruff` and `compileall` clean. Native `access violation`/`IUnknown` messages
+   at shutdown remain environmental.
 
 - Released **v1.7.1** (`d9f83ab`) — reliability/stabilization batch: fixed safe
   alert limits and quiet CPU/GPU alerts during games, Settings reset applies
@@ -33,11 +45,11 @@
   Windows commit-charge / virtual-memory detail, top RAM-consuming processes,
   7-day history with advanced telemetry and per-process RAM history, and Gaming
   Mode 2.0 telemetry/profiles/session comparison charts.
-- 22 pages, 29 themes, default theme **TITANIUM**.
+- 23 pages, 29 themes, default theme **TITANIUM**.
 - Newest v2 tools work (Cleaner 2.0, Diagnostics 2.0, Drivers, System Report,
   Hardware Benchmark, Temperature Dashboard, Export Center) is committed in
   `3dc29ce` and `d1b930d`; version/exe/installer are bumped to **v2.0.0**.
-- Pytest suite is passing (**839 tests, 1 skipped**). Ruff linter is clean. A pre-existing
+- Pytest suite is passing (**888 tests, 1 skipped**). Ruff linter is clean. A pre-existing
   faulthandler artifact still prints native access-violation/0x80040155 traces
   during a full run; all tests pass. Two signal/thread timing flakes in task and
   dashboard tests were made deterministic.
@@ -297,12 +309,170 @@
   ruff and compileall clean. A pre-existing `IUnknown` release message remains
   environmental.
 
+## v2.0.0 Stage 4 — notification center
+- `ActivityLog` now tracks read timestamps in `activity_read.json` (portable
+  data dir): `mark_read`, `mark_all_read`, `is_read`, `unread_count`, pruned on
+  compaction and cleared together with the activity history.
+- New `app/ui/notifications.py` popup: title/unread counter, All / Unread /
+  Warnings & errors filters, click-to-read and Clear; entries use level icons
+  and bold unread rows. The bell opens it on left click (right click keeps the
+  old quick menu), tints accent while unread and explains the count in the
+  tooltip. The popup follows live language switching and theme rebuilds.
+- 7 new tests (`tests/test_notifications.py`); full suite 846 passed, 1 skipped.
+
+## v2.0.0 Stage 4 — recent operations center
+- New 23rd page (`app/ui/operations.py`) in the Overview group: summary cards
+  (all/successful/partial/failed), full history table, text search, level and
+  time filters, detail pane, CSV/JSON export and confirmable clear.
+- `ActivityLog.Entry` now carries an optional `source` page key (back-compatible
+  with old JSONL lines); cleaner, optimizer, gaming, launcher, health, network,
+  monitor alerts and update notices record where they came from. Selecting an
+  entry with a source offers an «Open page» jump and marks it read.
+- In-memory/read-state/compact limits grew from 30 to 200 entries so the center
+  has a useful history span; notifications and the dashboard still show 4–30.
+- 9 new tests (`tests/test_operations.py`) cover filtering, export helpers,
+  persistence, navigation, clear confirmation, retranslation and registration.
+- Verification: full suite `.venv/Scripts/python.exe -m pytest tests --no-header
+  -p no:faulthandler` → **857 passed, 1 skipped in 1960.55s (0:32:40)**;
+  `ruff check .`, `compileall -q app` and `git diff --check` clean. Offscreen
+  1280×800 render preview: `%TEMP%\opencode\operations_preview.png` (5 rows,
+  333 sampled colours). The pre-existing `IUnknown` release message at shutdown
+  remains environmental.
+
+## v2.0.0 Stage 4 — first-run wizard
+- New 3-step modal `app/ui/first_run.py`: welcome/safety explanation, starter
+  preferences (language, one of three curated themes, interface scale, update
+  checks, temperature/usage alerts, quiet-hours and tray behaviour), and a
+  finish summary with an option to jump into Settings. Skip marks the flow done
+  without touching other preferences.
+- Settings state: `first_run_completed` defaults to True so existing installs are
+  not interrupted; `run()` flips it to False only when `settings.json` is new.
+  SettingsPage gained a «Run setup wizard» button that can replay it.
+- MainWindow applies the chosen language/theme/scale live immediately after the
+  dialog closes and preserves the current page through the theme rebuild.
+- 8 new tests (`tests/test_first_run.py`) cover defaults, legacy settings,
+  applying values, skip, invalid choice, step navigation/retranslation, the
+  Settings replay button and MainWindow integration.
+- Verification: full suite `.venv/Scripts/python.exe -m pytest tests --no-header
+  -p no:faulthandler` → **865 passed, 1 skipped in 1922.45s (0:32:02)**;
+  `ruff check .`, `compileall -q app` and `git diff --check` clean. Offscreen
+  720×620 render preview: `%TEMP%\opencode\first_run_wizard_preview.png`. The
+  intermittent `IUnknown` release message at shutdown remains environmental.
+
+## v2.0.0 Stage 4 — context menus / quick actions
+- New reusable `app/ui/context_menu.py`: `TableContextMenu` with dynamic labels,
+  separators, row-aware callbacks/enable flags and safe clipboard copy. Labels
+  are resolved when the menu opens, so live EN/UA switching is respected.
+- Wired into four table pages: Processes (end, copy name/PID/command),
+  Startup (toggle, remove, copy name/command), Cleaner (select/deselect all,
+  toggle target, copy path) and Operations (open source page, mark read, copy
+  detail).
+- Added 12 EN/UA `ctx_*` translation keys and 6 tests covering the helper plus
+  one integration test per page (`tests/test_context_menu.py`,
+  `tests/test_processes.py`, `tests/test_startup.py`, `tests/test_cleaner.py`,
+  `tests/test_operations.py`).
+- Test hygiene: `tests/conftest.py` now calls `gc.collect()` after joining
+  background tasks, which removes a non-deterministic native crash in the full
+  suite caused by deferred Qt/COM wrapper cleanup.
+- Verification: `.venv/Scripts/python.exe -m pytest tests --no-header` →
+  **871 passed, 1 skipped in 2360.92s (0:39:20)**; `ruff check .`,
+  `compileall -q app` and `git diff --check` clean. The intermittent `IUnknown`
+  release message at shutdown remains environmental.
+
+## v2.0.0 Stage 4 — dashboard customization
+- New `app/ui/dashboard_custom.py` with canonical widget keys, `parse_dashboard_hidden()`
+  and `DashboardCustomizerDialog`. Settings gets a «Customize dashboard» button;
+  choices are validated/canonicalized and saved to portable `data_root()` as the
+  `dashboard_hidden` setting (comma-separated string).
+- `DashboardPage(dashboard_hidden=...)` hides selected widgets, skips empty section
+  headers and rebuilds the responsive grid so remaining widgets occupy freed cells.
+  Hidden network/process widgets also skip their background pollers.
+- Live apply is wired through `SettingsPage(on_dashboard_hidden_applied=...)` →
+  `MainWindow.apply_dashboard_hidden()` → `DashboardPage.set_hidden_widgets()`;
+  theme rebuilds preserve the saved layout.
+- Added 21 EN/UA `dash_custom_*` keys, 5 tests for dialog/parse/serialize, hide
+  behavior, live apply and settings persistence. Verification: targeted
+  `tests/test_dashboard.py tests/test_settings_page.py tests/test_i18n.py
+  tests/test_settings.py` → **77 passed**; full suite → **876 passed, 1 skipped in
+  2250.78s (0:37:30)**; `ruff check .`, `compileall -q app`, `git diff --check` clean.
+  The intermittent `IUnknown`/access-violation shutdown artifact remains environmental.
+
+## v2.0.0 Stage 4 — screenshots + live verification
+- Generated a fresh offscreen screenshot set for all 23 pages in both languages
+  (`UA/` and `EN/`) plus Dashboard Customizer and First-Run Wizard previews.
+  Script: `%TEMP%\opencode\shoot_stage4.py`; staging:
+  `%TEMP%\opencode\screenshots_stage4` (48 PNG, 0 blank).
+- Desktop archive: `PCOptimizer_PRO_screenshots_v2.0.0_stage4.zip` (6.52 MB,
+  51 entries) on the real Desktop folder via `[Environment]::GetFolderPath('Desktop')`.
+- Launched the current source build from the project venv; GUI process 22228 has
+  the visible `PCOptimizer PRO` window. Log confirms
+  `starting PCOptimizer PRO 2.0.0`. No version bump, build or commit.
+
+## Design baseline (approved 2026-11-21)
+- Keep the current dashboard/brand style as the final corporate look: dark
+  graphite background, blue outlines, cyan accents and compact cards. No
+  redesign of the core concept.
+- Score from the live-PC review: 9/10 overall; structure/colors/layout 9/10,
+  readability 8/10, informativeness 9/10.
+
+## Stage 3/4 audit fixes (2026-11-21)
+- Offscreen audit of all 23 pages at 100/125/150% and 1440x860 / 1280x800 /
+  1120x680 found real vertical squashing: controls were 13px high instead of
+  38px on Gaming and other dense pages. `MainWindow` now wraps every page in a
+  transparent `QScrollArea#pageScroll` (horizontal scroll off, vertical as
+  needed); all stack consumers unwrap through `_page_widget()`.
+- `PerfChart` header split into title/legend and segmented tabs rows, so the
+  title, legend pills and tab buttons keep their size hints. `CardTitleLabel`,
+  Monitor summaries and Launcher tile text wrap instead of clipping.
+  `QSpinBox` internal line-edit padding was removed, compact danger buttons use
+  the shared compact QSS, and `GaugeCard` is wide enough for 150% VRAM values.
+- Re-audit: clipped labels 0 at all scales; clipped controls 14 / 26 / 46 at
+  100 / 125 / 150% (remaining cases are fixed-width combos/line-edits with
+  elided text and 3px spinbox hint deltas); small charts 0; table horizontal
+  scroll is expected on dense tables at narrow widths.
+- Verification: full `PYTHONFAULTHANDLER=0 .venv/Scripts/python.exe -m pytest
+  tests --no-header -p no:faulthandler` = **888 passed, 1 skipped in
+  2960.55s (0:49:20)**; `ruff`, `compileall` and `git diff --check` clean.
+
+## Readability pass (2026-11-21)
+- `PerfChart` now has a segmented range switch (60s / 5m / 15m / 1h) and an
+  expand toggle. `_ChartCanvas` filters history by the selected window for the
+  curves, Y axis, time-axis labels and hover readout; the dashboard chart keeps
+  3600 samples so all ranges are available. EN/UA keys and tests added.
+- Secondary text (`cardSub`, `cardRow`, nav/group labels) uses the bundled Geist
+  font explicitly with slightly heavier weight and letter spacing for
+  readability at 100–150% scale.
+- Health Score now shows an explicit per-category deduction breakdown grouped
+  from non-OK findings using `SEVERITY_PENALTY`, localized through
+  `localize_finding()`, with an honest "no deductions" state.
+- Verification: targeted `tests/test_health.py tests/test_theme.py
+  tests/test_components.py tests/test_i18n.py` = 100 passed; full
+  `PYTHONFAULTHANDLER=0 .venv/Scripts/python.exe -m pytest tests --no-header
+  -p no:faulthandler` = **888 passed, 1 skipped in 2699.28s (0:44:59)**;
+  `ruff check .`, `compileall -q app`, `git diff --check` clean. Pre-existing
+   native `access violation`/`IUnknown` shutdown artifacts remain environmental.
+
+### CPU / motherboard / GPU temperatures (2026-11-21)
+- New `app/sensors/temperature_names.py` classifies temperature sources as CPU,
+  motherboard, GPU, hotspot or generic system; LHM-style names are canonicalized
+  without claiming a motherboard/CPU value from an anonymous ACPI zone.
+- `ThermalBackend` now keeps ACPI `InstanceName` labels and falls back to the
+  optional LibreHardwareMonitor WMI namespace (`root\OpenHardwareMonitor`) when
+  ACPI is unavailable to a non-elevated process.
+- Dashboard thermals and the Temperature page show explicit CPU / Motherboard /
+  GPU rows with honest `—` when no sensor exists; GPU comes from NVML.
+- i18n: `temp_target_cpu`, `temp_target_board`, `temp_target_gpu` in EN/UA.
+- Verification: targeted sensors/temperature/dashboard/i18n = 74 passed; full
+  `PYTHONFAULTHANDLER=0 .venv/Scripts/python.exe -m pytest tests --no-header
+  -p no:faulthandler` = **888 passed, 1 skipped in 3063.58s (0:51:03)**;
+  `ruff`, `compileall -q app` clean. Pre-existing native shutdown artifacts remain.
+
 ## Next
-- Stage 4 usability (remaining): notification center, recent operations center,
-  first-run wizard, dashboard customization and context menus / quick actions.
-- Stage 3 UI/UX 2.0: grouped navigation, tooltips, motion tokens and global
-  search are done; a structured review of panels/tables and final
-  visual consistency across the 22 pages is still open.
+
+- The baseline design is frozen and the 23-module / 100-150% scaling audit is
+  complete; no further structural UI changes without a new request.
+- Readability follow-ups from the approved baseline are now done; user review of
+  the live charts / Health Score breakdown is the next gate before any commit.
 - v2.0.x reliability: trustworthy CPU package power / thermal-throttling source
   only if a reliable Windows API appears.
 - Optional: wire `mypy` into the verification routine and fix the first batch

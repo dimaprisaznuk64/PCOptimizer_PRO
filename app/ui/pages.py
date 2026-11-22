@@ -32,8 +32,16 @@ class PlaceholderPage(QWidget):
 
 
 def build_pages(
-    settings=None, on_theme_applied=None, history=None, on_scale_applied=None
+    settings=None,
+    on_theme_applied=None,
+    history=None,
+    on_scale_applied=None,
+    on_wizard_requested=None,
+    on_dashboard_hidden_applied=None,
+    on_monitor_profile_applied=None,
+    monitor_profile: str = "BALANCED",
 ) -> list[tuple[str, QWidget]]:
+    from app.monitor.profiles import profile_for
     from app.settings import SettingsService
 
     from .benchmarks import BenchmarksPage
@@ -52,6 +60,7 @@ def build_pages(
     from .launcher import LauncherPage
     from .monitor import MonitorPage
     from .network import NetworkPage
+    from .operations import OperationsPage
     from .optimizer import OptimizerPage
     from .processes import ProcessPage
     from .settings import SettingsPage
@@ -63,8 +72,17 @@ def build_pages(
         settings = SettingsService()
 
     return [
-        ("dashboard", DashboardPage(history=history)),
-        ("monitor", MonitorPage()),
+        (
+            "dashboard",
+            DashboardPage(
+                history=history,
+                dashboard_hidden=str(settings.get("dashboard_hidden")),
+            ),
+        ),
+        (
+            "monitor",
+            MonitorPage(process_refresh_ms=profile_for(monitor_profile).process_refresh_ms),
+        ),
         ("temperature", TemperaturePage()),
         ("gpu", GpuPage()),
         ("hardware", HardwarePage()),
@@ -84,10 +102,16 @@ def build_pages(
         ("system_report", SystemReportPage()),
         ("export_center", ExportCenterPage()),
         ("health", HealthPage()),
+        ("operations", OperationsPage()),
         (
             "settings",
             SettingsPage(
-                settings, on_theme_applied=on_theme_applied, on_scale_applied=on_scale_applied
+                settings,
+                on_theme_applied=on_theme_applied,
+                on_scale_applied=on_scale_applied,
+                on_wizard_requested=on_wizard_requested,
+                on_dashboard_hidden_applied=on_dashboard_hidden_applied,
+                on_monitor_profile_applied=on_monitor_profile_applied,
             ),
         ),
     ]

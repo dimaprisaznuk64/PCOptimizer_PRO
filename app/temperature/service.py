@@ -7,6 +7,14 @@ from typing import Protocol
 
 from app.alerts.service import TEMP_CPU_C, TEMP_GPU_C, max_cpu_thermal, max_gpu_thermal
 from app.history.service import HistorySample
+from app.sensors.temperature_names import (
+    KIND_BOARD,
+    KIND_CPU,
+    KIND_GPU,
+    KIND_HOTSPOT,
+    KIND_SYSTEM,
+    temperature_kind,
+)
 from app.sensors.types import Snapshot
 
 SYSTEM_WARN_C = 85.0
@@ -14,6 +22,7 @@ GPU_WARN_C = 80.0
 STATUS_OK = "OK"
 STATUS_WARN = "WARN"
 STATUS_DANGER = "DANGER"
+TARGET_KINDS = (KIND_CPU, KIND_BOARD, KIND_GPU)
 
 _LiveStats = tuple[int, float, float, float]
 
@@ -48,7 +57,10 @@ class TemperatureReport:
 def thresholds() -> dict[str, tuple[float, float]]:
     return {
         "system": (SYSTEM_WARN_C, float(TEMP_CPU_C)),
+        "cpu": (SYSTEM_WARN_C, float(TEMP_CPU_C)),
+        "board": (SYSTEM_WARN_C, float(TEMP_CPU_C)),
         "gpu": (GPU_WARN_C, float(TEMP_GPU_C)),
+        "hotspot": (GPU_WARN_C, float(TEMP_GPU_C)),
     }
 
 
@@ -66,6 +78,33 @@ def _zone_text(name: str) -> str:
     from app.ui.format import zone_label
 
     return zone_label(name)
+
+
+def target_temperatures(snapshot: Snapshot) -> dict[str, tuple[float | None, str]]:
+    targets: dict[str, tuple[float | None, str]] = {kind: (None, "") for kind in TARGET_KINDS}
+    thermal = getattr(snapshot, "thermal", None)
+    if thermal is not None:
+        for name, value in getattr(thermal, "temperatures", ()):
+            kind = temperature_kind(str(name))
+            if kind not in targets:
+                continue
+            current, source = targets[kind]
+            value = float(value)
+            if current is None or value > current:
+                targets[kind] = (value, _zone_text(str(name)))
+    for gpu in getattr(snapshot, "gpus", ()) or ():
+        if getattr(gpu, "stale", False):
+            continue
+        value = getattr(gpu, "temperature", None)
+        if value is None:
+            continue
+        index = getattr(gpu, "index", 0)
+        base = getattr(gpu, "name", None) or f"GPU {index}"
+        current, source = targets[KIND_GPU]
+        value = float(value)
+        if current is None or value > current:
+            targets[KIND_GPU] = (value, f"{base} core")
+    return targets
 
 
 def _history_source(field: str) -> str:
@@ -115,15 +154,17 @@ class TemperatureService:
             backend = getattr(thermal, "source", None) or "wmi_acpi"
             for name, value in getattr(thermal, "temperatures", ()):
                 raw_name = str(name)
+                kind = temperature_kind(raw_name)
+                warn, danger = limits.get(kind, limits["system"])
                 source = f"{backend} · {_zone_text(raw_name)}"
                 readings.append(
                     self._live_reading(
                         source,
                         float(value),
-                        system_warn,
-                        system_danger,
-                        "system",
-                        ("system", f"zone:{raw_name}"),
+                        warn,
+                        danger,
+                        kind,
+                        (kind, f"zone:{raw_name}"),
                         record,
                     )
                 )
@@ -139,8 +180,8 @@ class TemperatureService:
                         float(value),
                         system_warn,
                         system_danger,
-                        "system",
-                        ("system", f"selector:{raw_name}"),
+                        KIND_SYSTEM,
+                        (KIND_SYSTEM, f"selector:{raw_name}"),
                         record,
                     )
                 )
@@ -159,8 +200,8 @@ class TemperatureService:
                         float(core),
                         gpu_warn,
                         gpu_danger,
-                        "gpu",
-                        ("gpu", f"{index}:{base}:core"),
+                        KIND_GPU,
+                        (KIND_GPU, f"{index}:{base}:core"),
                         record,
                     )
                 )
@@ -172,8 +213,8 @@ class TemperatureService:
                         float(hotspot),
                         gpu_warn,
                         gpu_danger,
-                        "hotspot",
-                        ("hotspot", f"{index}:{base}:hotspot"),
+                        KIND_HOTSPOT,
+                        (KIND_HOTSPOT, f"{index}:{base}:hotspot"),
                         record,
                     )
                 )
@@ -187,8 +228,8 @@ class TemperatureService:
                         float(value),
                         gpu_warn,
                         gpu_danger,
-                        "gpu",
-                        ("gpu", f"selector:{name}"),
+                        KIND_GPU,
+                        (KIND_GPU, f"selector:{name}"),
                         record,
                     )
                 )

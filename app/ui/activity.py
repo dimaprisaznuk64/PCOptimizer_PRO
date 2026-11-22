@@ -11,9 +11,10 @@ from pathlib import Path
 
 from PySide6.QtCore import QObject, Signal
 
-_HISTORY_LIMIT = 30  # entries kept in memory (and reloaded at startup)
+_HISTORY_LIMIT = 200  # entries kept in memory (and reloaded at startup)
 _COMPACT_AT = 500  # rewrite the file when it grows beyond this many lines
-_KEEP_ON_COMPACT = 100  # newest lines kept when compacting
+_KEEP_ON_COMPACT = 200  # newest lines kept when compacting
+_READ_KEEP = 200  # read timestamps persisted for the notification center
 
 
 @dataclass(frozen=True, slots=True)
@@ -22,6 +23,7 @@ class Entry:
     level: str  # "ok" | "warn" (partial) | "error" (nothing worked)
     title: str
     detail: str
+    source: str = ""  # navigation key of the page that recorded the action
 
     @property
     def time_text(self) -> str:
@@ -31,13 +33,27 @@ class Entry:
         return dt.strftime("%d.%m %H:%M")
 
     def to_json(self) -> str:
-        return json.dumps({"ts": self.ts, "level": self.level, "title": self.title, "detail": self.detail})
+        return json.dumps(
+            {
+                "ts": self.ts,
+                "level": self.level,
+                "title": self.title,
+                "detail": self.detail,
+                "source": self.source,
+            }
+        )
 
     @classmethod
     def from_json(cls, line: str) -> Entry | None:
         try:
             data = json.loads(line)
-            return cls(float(data["ts"]), str(data["level"]), str(data["title"]), str(data.get("detail", "")))
+            return cls(
+                float(data["ts"]),
+                str(data["level"]),
+                str(data["title"]),
+                str(data.get("detail", "")),
+                str(data.get("source", "")),
+            )
         except (ValueError, KeyError, TypeError):
             return None
 
@@ -51,6 +67,7 @@ class ActivityLog(QObject):
         self._items: deque[Entry] = deque(maxlen=_HISTORY_LIMIT)
         self._health: tuple[int, str] | None = self._load_health()  # (score, grade) of the last health scan
         self.gaming_active = False  # last known Gaming Mode state (set by the Gaming page)
+        self._read: set[float] = self._load_read()
         self._load_history()
 
     @staticmethod
@@ -87,6 +104,51 @@ class ActivityLog(QObject):
                 pass
         except OSError:
             pass
+
+    @staticmethod
+    def _read_path() -> Path:
+        from app.settings.service import data_root
+
+        return data_root() / "activity_read.json"
+
+    def _load_read(self) -> set[float]:
+        try:
+            values = json.loads(self._read_path().read_text(encoding="utf-8"))
+            return {float(v) for v in values} if isinstance(values, list) else set()
+        except (OSError, ValueError, TypeError):
+            return set()
+
+    def _write_read(self) -> None:
+        oldest = self._items[0].ts if self._items else 0.0
+        values = sorted(ts for ts in self._read if ts >= oldest)[-_READ_KEEP:]
+        try:
+            path = self._read_path()
+            path.parent.mkdir(parents=True, exist_ok=True)
+            tmp = path.with_suffix(".tmp")
+            tmp.write_text(json.dumps(values), encoding="utf-8")
+            tmp.replace(path)
+        except OSError:
+            pass
+
+    def is_read(self, ts: float) -> bool:
+        return ts in self._read
+
+    def unread_count(self) -> int:
+        return sum(1 for entry in self._items if entry.ts not in self._read)
+
+    def mark_read(self, ts: float) -> None:
+        if ts in self._read:
+            return
+        self._read.add(ts)
+        self._write_read()
+        self.changed.emit()
+
+    def mark_all_read(self) -> None:
+        if not self._items or all(entry.ts in self._read for entry in self._items):
+            return
+        self._read.update(entry.ts for entry in self._items)
+        self._write_read()
+        self.changed.emit()
 
     @staticmethod
     def _health_path():
@@ -134,8 +196,10 @@ class ActivityLog(QObject):
             cls._instance = ActivityLog()
         return cls._instance
 
-    def record(self, title: str, detail: str = "", level: str = "ok") -> None:
-        entry = Entry(time.time(), level, title, detail)
+    def record(
+        self, title: str, detail: str = "", level: str = "ok", source: str = ""
+    ) -> None:
+        entry = Entry(time.time(), level, title, detail, source)
         self._items.append(entry)
         self._append_history(entry)
         self.changed.emit()
@@ -144,21 +208,23 @@ class ActivityLog(QObject):
         """Update the cached health score (persists across restarts)."""
         self.health = (score, grade)
 
-    def entries(self, level: str | None = None, limit: int = 4) -> list[Entry]:
+    def entries(self, level: str | None = None, limit: int | None = 4) -> list[Entry]:
         items = [e for e in reversed(self._items) if level is None or e.level == level]
-        return items[:limit]
+        return items if limit is None else items[:limit]
 
     def clear(self) -> None:
         self._items.clear()
-        try:
-            self._history_path().unlink(missing_ok=True)
-        except OSError:
-            pass
+        self._read.clear()
+        for path in (self._history_path(), self._read_path()):
+            try:
+                path.unlink(missing_ok=True)
+            except OSError:
+                pass
         self.changed.emit()
 
 
-def record(title: str, detail: str = "", level: str = "ok") -> None:
-    ActivityLog.instance().record(title, detail, level)
+def record(title: str, detail: str = "", level: str = "ok", source: str = "") -> None:
+    ActivityLog.instance().record(title, detail, level, source)
 
 
 def outcome_level(*, has_errors: bool, achieved: bool) -> str:

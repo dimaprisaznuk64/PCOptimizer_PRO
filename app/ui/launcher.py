@@ -113,10 +113,12 @@ class GameTile(QFrame):
 
         self.name = QLabel()
         self.name.setObjectName("tileTitle")
+        self.name.setWordWrap(True)
         layout.addWidget(self.name)
 
         self.meta = QLabel()
         self.meta.setObjectName("cardSub")
+        self.meta.setWordWrap(True)
         layout.addWidget(self.meta)
 
         actions = QHBoxLayout()
@@ -293,6 +295,7 @@ class LauncherPage(QWidget):
             details_layout.addWidget(row)
         self.remove_button = QPushButton(tr("launch_remove"))
         self.remove_button.setProperty("danger", True)
+        self.remove_button.setProperty("compact", True)
         self.remove_button.setEnabled(False)
         self.remove_button.clicked.connect(self.start_remove_custom)
         details_layout.addWidget(self.remove_button)
@@ -507,7 +510,7 @@ class LauncherPage(QWidget):
             tr("launch_started", name=game.name, pid=pid) if pid else tr("launch_started_nopid", name=game.name)
         )
         ActivityLog.instance().gaming_active = self._service.gaming.active
-        log_action(tr("act_launch"), game.name)
+        log_action(tr("act_launch"), game.name, source="launcher")
         self._render_history()
         self._on_selection_changed()
 

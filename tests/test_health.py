@@ -24,7 +24,7 @@ from app.optimizer.service import ApplyReport, OptimizerState
 from app.sensors import Snapshot
 from app.sensors.types import CpuStat, GpuStat, MemoryStat, ThermalStat
 from app.startup.service import StartupItem
-from app.ui.health import HealthPage, action_for, localize_finding
+from app.ui.health import HealthPage, action_for, localize_finding, score_breakdown
 
 
 def _wait_until(qapp, cond, timeout: float = 8.0) -> bool:
@@ -147,6 +147,23 @@ def test_score_from_penalties() -> None:
     assert score_from(findings) == 100 - 30 - 10
     assert score_from([]) == 100
     assert score_from([Finding("a", "X", "critical", "t", "d")] * 4) == 0
+
+
+def test_score_breakdown_groups_penalties_by_category() -> None:
+    report = HealthReport(
+        score=57,
+        grade="Fair",
+        findings=(
+            Finding("a", "Memory", "critical", "t", "d"),
+            Finding("b", "Memory", "info", "t", "d"),
+            Finding("c", "Cleanup", "warning", "t", "d"),
+            Finding("d", "Memory", "ok", "t", "d"),
+        ),
+    )
+    assert set(score_breakdown(report)) == {
+        (tr("fc_memory"), 33, 2),
+        (tr("fc_cleanup"), 10, 1),
+    }
 
 
 @pytest.mark.parametrize(
@@ -408,6 +425,17 @@ def test_health_page_scan_renders(qapp) -> None:
     assert page.grade_label.text()
     assert page.scan_button.isEnabled()
     assert page.findings_table.rowCount() == len(page._report.findings)
+
+
+def test_health_page_shows_score_deductions(qapp) -> None:
+    page = HealthPage(service=UiFakeHealth())
+    page.start_scan()
+    assert _wait_until(qapp, lambda: page._report is not None)
+    text = page.penalty_label.text()
+    assert tr("health_penalties").split("{")[0] in text
+    assert tr("fc_memory") in text
+    assert "−" in text
+    assert page.penalty_label.wordWrap()
 
 
 def test_health_page_fix_disabled_when_nothing_fixable(qapp) -> None:

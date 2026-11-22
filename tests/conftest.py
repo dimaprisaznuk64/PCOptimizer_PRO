@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import gc
 import os
 
 import pytest
@@ -34,6 +35,7 @@ def i18n_english():
 def isolated_data_root(tmp_path, monkeypatch):
     """Keep runtime data (health result etc.) out of the project tree and reset the log singleton."""
     monkeypatch.setenv("PCOPTIMIZER_DATA", str(tmp_path / "data"))
+    monkeypatch.setenv("PCOPTIMIZER_LHM_DISABLED", "1")
     from app.ui.activity import ActivityLog
 
     ActivityLog._instance = None
@@ -53,6 +55,7 @@ def finish_background_tasks(qapp):
     yield
     stop_all(timeout_ms=5000)
     qapp.processEvents()
+    gc.collect()
 
 
 @pytest.fixture(autouse=True)

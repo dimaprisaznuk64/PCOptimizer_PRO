@@ -14,6 +14,7 @@ from app.temperature import (
     SYSTEM_WARN_C,
     TemperatureService,
     classify,
+    target_temperatures,
     thresholds,
 )
 from app.ui.temperature import TemperaturePage
@@ -166,8 +167,42 @@ def test_injected_selectors_are_used_for_missing_raw_data() -> None:
 
 
 def test_thresholds_match_alerts_and_health() -> None:
-    assert thresholds() == {"system": (85.0, TEMP_CPU_C), "gpu": (80.0, TEMP_GPU_C)}
+    assert thresholds() == {
+        "system": (85.0, TEMP_CPU_C),
+        "cpu": (85.0, TEMP_CPU_C),
+        "board": (85.0, TEMP_CPU_C),
+        "gpu": (80.0, TEMP_GPU_C),
+        "hotspot": (80.0, TEMP_GPU_C),
+    }
     assert TemperatureService().thresholds() == thresholds()
+
+
+def test_target_temperatures_uses_explicit_sources_only() -> None:
+    snapshot = _snapshot(
+        thermal=(("zone0", 62.0), ("cpu", 78.0), ("board", 44.0)),
+        gpus=(_gpu(temperature=68.0),),
+    )
+    targets = target_temperatures(snapshot)
+    assert targets["cpu"] == (78.0, "CPU")
+    assert targets["board"] == (44.0, "Motherboard")
+    assert targets["gpu"] == (68.0, "RTX 3050 Ti core")
+
+
+def test_target_temperatures_never_invents_missing_sources() -> None:
+    targets = target_temperatures(_snapshot(thermal=(("zone0", 62.0),), gpus=()))
+    assert targets == {"cpu": (None, ""), "board": (None, ""), "gpu": (None, "")}
+
+
+def test_temperature_page_shows_cpu_board_gpu_summary(qapp) -> None:
+    page = TemperaturePage(service=TemperatureService(now=lambda: 1.0))
+    page.apply_snapshot(
+        _snapshot(
+            thermal=(("cpu", 78.0), ("board", 44.0)),
+            gpus=(_gpu(temperature=68.0),),
+        )
+    )
+    values = [label.text() for _title, label in page._target_labels.values()]
+    assert values == ["78°C", "44°C", "68°C"]
 
 
 def test_page_renders_live_snapshot(qapp) -> None:

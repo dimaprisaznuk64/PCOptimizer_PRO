@@ -62,6 +62,7 @@ NAV_KEYS: tuple[tuple[str, str], ...] = (
     ("system_report", "nav_system_report"),
     ("export_center", "nav_export_center"),
     ("health", "nav_health"),
+    ("operations", "nav_operations"),
     ("settings", "nav_settings"),
 )
 
@@ -70,7 +71,7 @@ NAV_ITEMS: tuple[tuple[str, str], ...] = tuple((k, tr(kk)) for k, kk in NAV_KEYS
 # One source of truth for the grouped rail. Every navigation key appears exactly
 # once; NAV_KEYS stays unchanged so TopBar page numbers and tests keep working.
 NAV_GROUPS: tuple[tuple[str, str, tuple[str, ...]], ...] = (
-    ("overview", "nav_group_overview", ("dashboard", "health")),
+    ("overview", "nav_group_overview", ("dashboard", "health", "operations")),
     ("monitoring", "nav_group_monitoring", ("monitor", "temperature", "gpu", "history")),
     ("hardware", "nav_group_hardware", ("hardware", "processes", "drivers")),
     ("optimization", "nav_group_optimization", ("cleaner", "startup", "optimizer", "disk")),

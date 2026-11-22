@@ -22,6 +22,14 @@ class SensorSampler(QThread):
         self._stop = Event()
         self._last_error_log = 0.0
 
+    @property
+    def interval_ms(self) -> int:
+        return round(self._interval_s * 1000)
+
+    def set_interval_ms(self, interval_ms: int) -> None:
+        """Change the sampling cadence; the running loop picks it up on its next tick."""
+        self._interval_s = max(interval_ms, 50) / 1000.0
+
     def _log_error(self, exc: Exception) -> None:
         now = time.monotonic()
         if now - self._last_error_log >= _LOG_THROTTLE_S:

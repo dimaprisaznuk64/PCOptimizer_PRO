@@ -146,6 +146,6 @@ def test_main_window_broadcast_reaches_monitor(qapp) -> None:
     window = MainWindow()
     window.show_page("monitor")
     window.handle_snapshot(SensorManager([MockBackend(cpu_percent=33.0)]).snapshot())
-    monitor = window.stack.widget(window._index_by_key["monitor"])
+    monitor = window.page("monitor")
     assert monitor.cpu_value.text() == "33%"
     window.close()

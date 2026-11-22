@@ -15,6 +15,7 @@ log = logging.getLogger("pcoptimizer.settings")
 APP_NAME = "PCOptimizer_PRO"
 
 DEFAULTS: dict[str, Any] = {
+    "monitor_profile": "BALANCED",
     "sample_interval_ms": 1000,
     "minimize_to_tray": True,
     "start_minimized": False,
@@ -27,10 +28,13 @@ DEFAULTS: dict[str, Any] = {
     "temp_alerts_enabled": True,
     "alerts_quiet_during_games": True,
     "usage_alerts_enabled": True,
+    "first_run_completed": True,
+    "dashboard_hidden": "",
 }
 
 CHOICES: dict[str, tuple[str, ...]] = {
     "log_level": ("DEBUG", "INFO", "WARNING", "ERROR"),
+    "monitor_profile": ("ECO", "BALANCED", "PERFORMANCE"),
     "theme": ("GRAPHITE", "TRUE_BLACK", "SLATE", "TITANIUM", "FOREST", "BURGUNDY", "MIDNIGHT",
               "AUBERGINE", "DEEP_TEAL", "ESPRESSO", "ARCTIC", "IVORY", "MONO", "SAGE",
               "PERFORMANCE_RED", "CYBER", "INDUSTRIAL", "TACTICAL", "COBALT", "COPPER",

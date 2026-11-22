@@ -58,7 +58,7 @@ def test_dashboard_history_grows(qapp) -> None:
 def test_main_window_dispatches_snapshot(qapp) -> None:
     window = MainWindow()
     window.handle_snapshot(SensorManager([MockBackend(cpu_percent=7.0)]).snapshot())
-    page = window.stack.widget(window._index_by_key["dashboard"])
+    page = window.page("dashboard")
     assert page.cpu.value.text() == "7%"
     window.close()
 
@@ -146,9 +146,10 @@ def test_dashboard_thermal_rows_show_cpu_and_gpu(qapp) -> None:
     )
     page.apply_snapshot(s)
     keys = list(page.thermal._rows)
-    # The lone ACPI zone is promoted to a CPU row; GPU comes from NVML.
-    assert keys[0].startswith("CPU")
-    assert any(k.startswith("GPU") for k in keys)
+    assert keys[:3] == ["CPU", "Motherboard", "GPU"]
+    assert any("System zone 0 (ACPI)" in key for key in keys)
+    assert page.thermal._rows["CPU"][2].text() == "—"
+    assert page.thermal._rows["GPU"][2].text() == "79°C"
 
 
 def test_dashboard_has_no_status_strip(qapp) -> None:
@@ -364,6 +365,46 @@ def test_dashboard_recommendations_from_snapshot(qapp) -> None:
     spy = QSignalSpy(page.navigate)
     QTest.mouseClick(buttons[0], Qt.MouseButton.LeftButton)
     assert [spy.at(i)[0] for i in range(spy.count())] == ["processes"]
+
+
+def test_dashboard_customizer_dialog_values(qapp) -> None:
+    from app.ui.dashboard_custom import (
+        DashboardCustomizerDialog,
+        parse_dashboard_hidden,
+        serialize_dashboard_hidden,
+    )
+
+    dialog = DashboardCustomizerDialog("cpu,chart", None)
+    assert dialog.values() == {"cpu", "chart"}
+    dialog._checks["ram"].setChecked(False)
+    assert dialog.values() == {"cpu", "chart", "ram"}
+    assert parse_dashboard_hidden("cpu,unknown,ram") == {"cpu", "ram"}
+    assert serialize_dashboard_hidden({"ram", "cpu"}) == "cpu,ram"
+
+
+def test_dashboard_hides_selected_widgets_and_sections(qapp) -> None:
+    page = DashboardPage(dashboard_hidden="cpu,history,recent")
+    assert page.cpu.isHidden()
+    assert not page.ram.isHidden()
+    assert page.history_widget.isHidden()
+    assert page.recent_actions.isHidden()
+    assert not page.sections[0].isHidden()
+    assert not page.sections[3].isHidden()
+
+    page.set_hidden_widgets("cpu,ram,gpu,disk,temp,health")
+    assert page.sections[0].isHidden()
+    assert page.sections[1].isHidden() is False
+    assert not page.chart.isHidden()
+
+
+def test_main_window_applies_dashboard_hidden(qapp) -> None:
+    window = MainWindow()
+    window.apply_dashboard_hidden("cpu,chart")
+    dashboard = window.page("dashboard")
+    assert dashboard.cpu.isHidden()
+    assert dashboard.chart.isHidden()
+    assert not dashboard.ram.isHidden()
+    window.close()
 
 
 def test_main_window_shares_history_with_dashboard(qapp, tmp_path) -> None:

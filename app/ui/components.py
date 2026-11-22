@@ -89,6 +89,14 @@ ALL_SERIES = ("ram", "gpu", "cpu")
 NET_DOWN_KEY = "net_down"
 NET_UP_KEY = "net_up"
 
+# Optional time-window selector values (seconds -> i18n key).
+CHART_RANGES = (
+    (60, "chart_range_60s"),
+    (300, "chart_range_5m"),
+    (900, "chart_range_15m"),
+    (3600, "chart_range_1h"),
+)
+
 
 def chart_series_color(token: str) -> str:
     from . import theme
@@ -173,6 +181,7 @@ class CardTitleLabel(QLabel):
         super().__init__(text.upper(), parent)
         self.setObjectName("cardTitle")
         self._accent = accent
+        self.setWordWrap(True)
         self.setContentsMargins(0, 0, 0, 0)
         set_mono(self, spacing_pct=14.0)
 
@@ -466,7 +475,13 @@ class PerfChart(QFrame):
         ("net", "dash_legend_net", False),
     )
 
-    def __init__(self, title: str | None = None, points: int = 120, parent: QWidget | None = None) -> None:
+    def __init__(
+        self,
+        title: str | None = None,
+        points: int = 120,
+        parent: QWidget | None = None,
+        enable_range: bool = False,
+    ) -> None:
         super().__init__(parent)
         self.setObjectName("card")
         card_shadow(self)
@@ -488,14 +503,15 @@ class PerfChart(QFrame):
         head.addStretch(1)
         self._title_label = label
 
-        # Legend pills (rebuilt for every selected tab)
         legend = QHBoxLayout()
         legend.setSpacing(SPACING_MD)
         self._legend_layout = legend
         self._legend: dict[str, QLabel] = {}
         head.addLayout(legend)
-        head.addSpacing(SPACING_LG)
+        layout.addLayout(head)
 
+        tabs = QHBoxLayout()
+        tabs.setSpacing(SPACING_MD)
         self._group = QButtonGroup(self)
         self._group.setExclusive(True)
         self._buttons: dict[str, QPushButton] = {}
@@ -506,13 +522,45 @@ class PerfChart(QFrame):
             button.setCursor(Qt.CursorShape.PointingHandCursor)
             button.clicked.connect(lambda _=False, k=key: self.select(k))
             self._group.addButton(button)
-            head.addWidget(button)
+            tabs.addWidget(button)
             self._buttons[key] = button
-        layout.addLayout(head)
+        tabs.addStretch(1)
+        layout.addLayout(tabs)
+
+        self._range_seconds = 0
+        self._range_buttons: dict[int, QPushButton] = {}
+        self._expanded = False
+        self.expand_button: QPushButton | None = None
+        if enable_range:
+            range_row = QHBoxLayout()
+            range_row.setSpacing(SPACING_SM)
+            range_row.addStretch(1)
+            self._range_group = QButtonGroup(self)
+            self._range_group.setExclusive(True)
+            for seconds, key in CHART_RANGES:
+                button = QPushButton(tr(key))
+                button.setProperty("seg", True)
+                button.setProperty("compact", True)
+                button.setCheckable(True)
+                button.setCursor(Qt.CursorShape.PointingHandCursor)
+                button.clicked.connect(lambda _=False, s=seconds: self.set_range(s))
+                self._range_group.addButton(button)
+                range_row.addWidget(button)
+                self._range_buttons[seconds] = button
+            self.expand_button = QPushButton(tr("chart_expand"))
+            self.expand_button.setProperty("seg", True)
+            self.expand_button.setProperty("compact", True)
+            self.expand_button.setCheckable(True)
+            self.expand_button.setCursor(Qt.CursorShape.PointingHandCursor)
+            self.expand_button.toggled.connect(self.set_expanded)
+            range_row.addWidget(self.expand_button)
+            layout.addLayout(range_row)
 
         self._canvas = _ChartCanvas(points)
         self._hidden: set[str] = set()
         layout.addWidget(self._canvas, 1)
+        if enable_range:
+            self.set_range(CHART_RANGES[0][0])
         self.select("all")
 
     def set_title(self, text: str) -> None:
@@ -524,7 +572,36 @@ class PerfChart(QFrame):
         for key, button in self._buttons.items():
             text_key = next(t for k, t, _p in self.SERIES if k == key)
             button.setText(tr(text_key))
+        for seconds, button in self._range_buttons.items():
+            text_key = next(key for value, key in CHART_RANGES if value == seconds)
+            button.setText(tr(text_key))
+        if self.expand_button is not None:
+            self.expand_button.setText(tr("chart_collapse" if self._expanded else "chart_expand"))
         self._rebuild_legend(self._canvas.key)
+
+    def set_range(self, seconds: int) -> None:
+        """Limit the plotted window to the selected number of seconds."""
+        if seconds != 0 and seconds not in self._range_buttons:
+            return
+        self._range_seconds = seconds
+        button = self._range_buttons.get(seconds)
+        if button is not None and not button.isChecked():
+            button.setChecked(True)
+        self._canvas.set_range(seconds)
+
+    def set_expanded(self, expanded: bool) -> None:
+        """Grow the canvas inside the scrollable page for a closer look."""
+        if self._expanded == expanded:
+            return
+        self._expanded = expanded
+        self.setProperty("expanded", expanded)
+        self.style().unpolish(self)
+        self.style().polish(self)
+        self._canvas.setMinimumHeight(ls(360) if expanded else ls(130))
+        self._canvas.updateGeometry()
+        self.updateGeometry()
+        if self.expand_button is not None:
+            self.expand_button.setText(tr("chart_collapse" if expanded else "chart_expand"))
 
     @property
     def current(self) -> str:
@@ -634,6 +711,7 @@ class _ChartCanvas(QWidget):
         self._history: dict[str, deque[float]] = {}
         self._times: deque[float] = deque(maxlen=points)
         self._points = points
+        self._range_seconds = 0
         self._hover_x: float | None = None
 
     def set_key(self, key: str, percent: bool) -> None:
@@ -644,6 +722,27 @@ class _ChartCanvas(QWidget):
     def set_hidden(self, keys: set[str]) -> None:
         self._hidden = set(keys)
         self.update()
+
+    def set_range(self, seconds: int) -> None:
+        self._range_seconds = max(0, int(seconds))
+        self.update()
+
+    def _visible_indices(self) -> list[int]:
+        count = len(self._times)
+        if count == 0:
+            return []
+        if self._range_seconds <= 0:
+            return list(range(count))
+        cutoff = self._times[-1] - self._range_seconds
+        return [i for i, ts in enumerate(self._times) if ts >= cutoff]
+
+    def _series_values(self, key: str, indices: list[int] | None = None) -> list[float]:
+        hist = self._history.get(key)
+        if not hist:
+            return []
+        if indices is None:
+            indices = self._visible_indices()
+        return [hist[i] for i in indices if i < len(hist)]
 
     def push(self, ts: float, values: dict[str, float | None]) -> None:
         self._times.append(ts)
@@ -721,7 +820,7 @@ class _ChartCanvas(QWidget):
             return 100.0
         peak = 0.0
         for key, _color, _style in series:
-            vals = self._history.get(key)
+            vals = self._series_values(key)
             if vals:
                 peak = max(peak, max(vals))
         # Floor keeps tiny idle traffic a flat line instead of a spike.
@@ -760,7 +859,8 @@ class _ChartCanvas(QWidget):
         """Accent crosshair, per-series dots and a drawn value box under the cursor."""
         from datetime import datetime
 
-        count = max((len(self._history.get(k, ())) for k, _c, _s in series), default=0)
+        indices = self._visible_indices()
+        count = len(indices)
         if self._hover_x is None or count < 2 or not plot.left() <= self._hover_x <= plot.right():
             return
         idx = round((self._hover_x - plot.left()) / plot.width() * (count - 1))
@@ -770,16 +870,17 @@ class _ChartCanvas(QWidget):
         painter.setPen(QPen(cross, 1, Qt.PenStyle.DotLine))
         painter.drawLine(QPointF(x, plot.top()), QPointF(x, plot.bottom()))
         rows: list[tuple[str, QColor]] = []
+        visible_times = [self._times[i] for i in indices]
         time_text = (
-            datetime.fromtimestamp(self._times[idx]).strftime("%H:%M:%S")
-            if len(self._times) == count and 0 <= idx < len(self._times)
+            datetime.fromtimestamp(visible_times[idx]).strftime("%H:%M:%S")
+            if 0 <= idx < len(visible_times)
             else ""
         )
         if time_text:
             rows.append((time_text, QColor(TEXT_DIM)))
         hi = 100.0 if self._percent else self._axis_hi(series)
         for key, color, _style in series:
-            vals = self._history.get(key)
+            vals = self._series_values(key, indices)
             if not vals or idx >= len(vals):
                 continue
             label_key = CHART_SERIES.get(key, (key, "ACCENT", Qt.PenStyle.SolidLine))[0]
@@ -846,12 +947,9 @@ class _ChartCanvas(QWidget):
         # Stretch the time axis to what we actually have, so the curve fills the
         # plot honestly right after startup instead of hugging the right edge.
         # Ticks sit on fixed second steps (-10s / -20s ... or -m:ss for long spans).
-        count = len(self._times)
-        if count > 1:
-            dt = (self._times[-1] - self._times[0]) / (count - 1)
-            span = dt * (count - 1)
-        else:
-            span = 0.0
+        indices = self._visible_indices()
+        visible_times = [self._times[i] for i in indices]
+        span = visible_times[-1] - visible_times[0] if len(visible_times) > 1 else 0.0
         painter.setPen(text)
         for x, label in self._time_ticks(span, plot.width()):
             painter.drawText(
@@ -867,12 +965,12 @@ class _ChartCanvas(QWidget):
 
         multi = len(series) > 1
         for key, color, style in series:
-            raw = self._history.get(key)
-            if not raw or len(raw) < 2:
+            raw = self._series_values(key, indices)
+            if len(raw) < 2:
                 continue
-            values = self._smooth(list(raw))
-            step = plot.width() / max(1, len(values) - 1)
-            x0 = plot.right() - (len(values) - 1) * step
+            values = self._smooth(raw)
+            step = plot.width() / max(1, len(indices) - 1)
+            x0 = plot.right() - (len(indices) - 1) * step
 
             path = QPainterPath()
             prev = None
@@ -989,7 +1087,7 @@ class ArcGauge(QWidget):
 
     def __init__(self, caption: str = "Utilization", base: str = ACCENT, parent: QWidget | None = None) -> None:
         super().__init__(parent)
-        self.setFixedSize(ls(150), ls(132))
+        self.setFixedSize(ls(170), ls(132))
         self._base = base
         self._percent = 0.0
         self._has_value = False

@@ -14,8 +14,10 @@ from PySide6.QtGui import (
 )
 from PySide6.QtWidgets import (
     QApplication,
+    QFrame,
     QHBoxLayout,
     QMainWindow,
+    QScrollArea,
     QStackedWidget,
     QVBoxLayout,
     QWidget,
@@ -40,6 +42,7 @@ from app.gaming import GamingService
 from app.history import PerformanceHistory
 from app.i18n import I18nService, tr
 from app.logs import get_logger
+from app.monitor.profiles import profile_for
 from app.processes.service import ProcessService
 from app.settings import SettingsService
 
@@ -72,6 +75,10 @@ class _GamePresenceWatcher(QThread):
         self._gaming = gaming
         self._interval_s = max(0.05, interval_s)
         self._stop = Event()
+
+    def set_interval_s(self, interval_s: float) -> None:
+        """Change the polling cadence; the running loop picks it up on its next tick."""
+        self._interval_s = max(0.05, interval_s)
 
     def run(self) -> None:
         while not self._stop.is_set():
@@ -156,6 +163,7 @@ class MainWindow(QMainWindow):
         self.tray: AppTray | None = None
         self._update_task = None
         self.settings = settings or SettingsService()
+        self._monitor_profile = profile_for(self.settings.get("monitor_profile"))
         from . import theme as th
 
         th.set_ui_scale(int(self.settings.get("ui_scale")))
@@ -173,7 +181,10 @@ class MainWindow(QMainWindow):
         self._search_shortcut = QShortcut(QKeySequence("Ctrl+K"), self)
         self._search_shortcut.setContext(Qt.ShortcutContext.WindowShortcut)
         self._search_shortcut.activated.connect(self.open_search)
-        self._history = history or PerformanceHistory(process_top=self._processes.top_by_memory)
+        self._history = history or PerformanceHistory(
+            process_top=self._processes.top_by_memory,
+            interval_s=self._monitor_profile.history_interval_s,
+        )
         cooldown = COOLDOWN_S
         self._cpu_monitor = TemperatureAlertMonitor(
             reading=max_cpu_thermal, cooldown_s=cooldown
@@ -204,8 +215,10 @@ class MainWindow(QMainWindow):
         self.topbar.settings_requested.connect(lambda: self.show_page("settings"))
         self.topbar.back_requested.connect(self.go_back)
         self.topbar.search_requested.connect(self.open_search)
+        self.topbar.notifications_requested.connect(self.open_notifications)
         self.topbar.set_can_go_back(bool(self._nav_history))
         self._connect_palette()
+        self._connect_notifications()
         self.stack = QStackedWidget()
 
         self._index_by_key: dict[str, int] = {}
@@ -214,11 +227,15 @@ class MainWindow(QMainWindow):
                 self.settings,
                 on_theme_applied=self.apply_theme,
                 on_scale_applied=self.apply_ui_scale,
+                on_wizard_requested=lambda: self.open_first_run(force=True),
+                on_dashboard_hidden_applied=self.apply_dashboard_hidden,
+                on_monitor_profile_applied=self.apply_monitor_profile,
+                monitor_profile=str(self.settings.get("monitor_profile")),
                 history=self._history,
             )
         ):
             self._index_by_key[key] = i
-            self.stack.addWidget(page)
+            self.stack.addWidget(self._page_host(page))
 
         self.sidebar.navigated.connect(self.show_page)
         self._connect_page_navigation()
@@ -291,6 +308,71 @@ class MainWindow(QMainWindow):
             palette = self._palette
         palette.open(list(reversed(self._nav_history[-5:])))
 
+    def _connect_notifications(self) -> None:
+        from .activity import ActivityLog
+        from .notifications import NotificationCenter
+
+        old = getattr(self, "_notifications", None)
+        if old is not None:
+            old.deleteLater()
+        self._notifications = NotificationCenter(self)
+        log = ActivityLog.instance()
+        if getattr(self, "_unread_connected", False):
+            try:
+                log.changed.disconnect(self._update_unread)
+            except (RuntimeError, TypeError):
+                pass
+        log.changed.connect(self._update_unread)
+        self._unread_connected = True
+        self._update_unread()
+
+    def _update_unread(self) -> None:
+        from .activity import ActivityLog
+
+        topbar = getattr(self, "topbar", None)
+        if topbar is not None:
+            topbar.set_unread_count(ActivityLog.instance().unread_count())
+
+    def open_notifications(self) -> None:
+        """Open the notification center from the bell button."""
+        center = getattr(self, "_notifications", None)
+        if center is None:
+            self._connect_notifications()
+            center = self._notifications
+        center.open(getattr(self.topbar, "notify_button", None))
+
+    def open_first_run(self, *, force: bool = False) -> None:
+        """Show the setup wizard, optionally again from Settings."""
+        from PySide6.QtWidgets import QDialog
+
+        from .first_run import FirstRunWizard
+
+        if force:
+            self.settings.set("first_run_completed", False)
+        before = {
+            key: self.settings.get(key) for key in ("language", "theme", "ui_scale")
+        }
+        wizard = FirstRunWizard(self.settings, self)
+        wizard.open_settings_requested.connect(lambda: self.show_page("settings"))
+        result = wizard.exec()
+        if result == QDialog.DialogCode.Accepted:
+            self._apply_wizard_settings(before, wizard.changes)
+
+    def _apply_wizard_settings(self, before: dict, changes: dict) -> None:
+        from . import theme as th
+
+        language = changes.get("language")
+        theme_name = changes.get("theme")
+        scale = changes.get("ui_scale")
+        if scale is not None and int(scale) != int(before.get("ui_scale", 100)):
+            th.set_ui_scale(int(scale))
+        if language is not None and language != before.get("language"):
+            I18nService.instance().set_language(str(language))
+        if theme_name is not None and theme_name != before.get("theme"):
+            self.apply_theme(str(theme_name))
+        elif scale is not None and int(scale) != int(before.get("ui_scale", 100)):
+            self.apply_ui_scale(int(scale))
+
     def _select_page(self, key: str) -> None:
         index = self._index_by_key[key]
         changed = self.stack.currentIndex() != index
@@ -333,10 +415,13 @@ class MainWindow(QMainWindow):
         palette = getattr(self, "_palette", None)
         if palette is not None:
             palette.retranslate()
+        notifications = getattr(self, "_notifications", None)
+        if notifications is not None:
+            notifications.retranslate()
         if self.tray is not None:
             self.tray.retranslate()
         for i in range(self.stack.count()):
-            page = self.stack.widget(i)
+            page = self._page_widget(self.stack.widget(i))
             retranslate = getattr(page, "retranslate", None)
             if retranslate is None:
                 continue
@@ -348,14 +433,39 @@ class MainWindow(QMainWindow):
             self._update_sidebar_health(self._last_snapshot)
         self.show_page(self.current_key)
 
+    @staticmethod
+    def _page_widget(widget) -> QWidget:
+        if widget.objectName() == "pageHost":
+            scroll = widget.findChild(QScrollArea, "pageScroll")
+            if scroll is not None:
+                return scroll.widget()
+        return widget
+
+    @staticmethod
+    def _page_host(page: QWidget) -> QWidget:
+        host = QWidget()
+        host.setObjectName("pageHost")
+        layout = QVBoxLayout(host)
+        layout.setContentsMargins(0, 0, 0, 0)
+        layout.setSpacing(0)
+        scroll = QScrollArea(host)
+        scroll.setObjectName("pageScroll")
+        scroll.setFrameShape(QFrame.Shape.NoFrame)
+        scroll.setWidgetResizable(True)
+        scroll.setHorizontalScrollBarPolicy(Qt.ScrollBarPolicy.ScrollBarAlwaysOff)
+        scroll.setVerticalScrollBarPolicy(Qt.ScrollBarPolicy.ScrollBarAsNeeded)
+        scroll.setWidget(page)
+        layout.addWidget(scroll)
+        return host
+
     def page(self, key: str):
         index = self._index_by_key.get(key)
-        return None if index is None else self.stack.widget(index)
+        return None if index is None else self._page_widget(self.stack.widget(index))
 
     def _connect_page_navigation(self) -> None:
         """Let any page that exposes a `navigate` signal jump to another page."""
         for i in range(self.stack.count()):
-            signal = getattr(self.stack.widget(i), "navigate", None)
+            signal = getattr(self._page_widget(self.stack.widget(i)), "navigate", None)
             if signal is not None:
                 signal.connect(self.show_page)
 
@@ -370,7 +480,8 @@ class MainWindow(QMainWindow):
         import importlib
 
         for name in (
-            "theme", "icons", "components", "command_palette", "monitor", "temperature", "dashboard", "gpu",
+            "theme", "icons", "components", "command_palette", "notifications",
+            "operations", "first_run", "monitor", "temperature", "dashboard", "gpu",
             "hardware", "hardware_benchmark", "processes", "cleaner", "startup",
             "optimizer", "gaming", "launcher", "benchmarks", "history", "network",
             "disk", "diagnostics", "drivers", "system_report", "export_center",
@@ -379,6 +490,27 @@ class MainWindow(QMainWindow):
             module = sys.modules.get(f"app.ui.{name}")
             if module is not None:
                 importlib.reload(module)
+
+    def apply_dashboard_hidden(self, hidden: str) -> None:
+        index = self._index_by_key.get("dashboard")
+        if index is None:
+            return
+        page = self._page_widget(self.stack.widget(index))
+        if page is not None and hasattr(page, "set_hidden_widgets"):
+            page.set_hidden_widgets(hidden)
+
+    def apply_monitor_profile(self, key: str, sample_interval_ms: int) -> None:
+        """Apply saved monitoring cadences without restarting the application."""
+        profile = profile_for(key)
+        self._monitor_profile = profile
+        if self.sampler is not None:
+            self.sampler.set_interval_ms(sample_interval_ms)
+        self._history.set_interval_s(profile.history_interval_s)
+        if self._game_watcher is not None:
+            self._game_watcher.set_interval_s(profile.game_presence_s)
+        page = self.page("monitor")
+        if page is not None and hasattr(page, "set_process_refresh_ms"):
+            page.set_process_refresh_ms(profile.process_refresh_ms)
 
     def apply_ui_scale(self, percent: int) -> None:
         """Apply a new interface scale instantly (reuses the theme rebuild path)."""
@@ -429,8 +561,10 @@ class MainWindow(QMainWindow):
         self.topbar.settings_requested.connect(lambda: self.show_page("settings"))
         self.topbar.back_requested.connect(self.go_back)
         self.topbar.search_requested.connect(self.open_search)
+        self.topbar.notifications_requested.connect(self.open_notifications)
         self.topbar.set_can_go_back(bool(self._nav_history))
         self._connect_palette()
+        self._connect_notifications()
         self.stack = QStackedWidget()
         self._index_by_key = {}
         for i, (page_key, page) in enumerate(
@@ -438,11 +572,15 @@ class MainWindow(QMainWindow):
                 self.settings,
                 on_theme_applied=self.apply_theme,
                 on_scale_applied=self.apply_ui_scale,
+                on_wizard_requested=lambda: self.open_first_run(force=True),
+                on_dashboard_hidden_applied=self.apply_dashboard_hidden,
+                on_monitor_profile_applied=self.apply_monitor_profile,
+                monitor_profile=str(self.settings.get("monitor_profile")),
                 history=self._history,
             )
         ):
             self._index_by_key[page_key] = i
-            self.stack.addWidget(page)
+            self.stack.addWidget(self._page_host(page))
         self.sidebar.navigated.connect(self.show_page)
         self._connect_page_navigation()
         self._root_layout.addWidget(self.sidebar)
@@ -495,7 +633,7 @@ class MainWindow(QMainWindow):
         self._last_snapshot = snapshot
         self._history.record(snapshot)
         for i in range(self.stack.count()):
-            handler = getattr(self.stack.widget(i), "apply_snapshot", None)
+            handler = getattr(self._page_widget(self.stack.widget(i)), "apply_snapshot", None)
             if handler is not None:
                 handler(snapshot)
         self._update_sidebar_health(snapshot)
@@ -507,7 +645,9 @@ class MainWindow(QMainWindow):
     def start_game_watcher(self) -> None:
         if self._game_watcher is not None:
             return
-        watcher = _GamePresenceWatcher(self._gaming, parent=self)
+        watcher = _GamePresenceWatcher(
+            self._gaming, interval_s=self._monitor_profile.game_presence_s, parent=self
+        )
         watcher.presence.connect(self._set_game_running)
         self._game_watcher = watcher
         watcher.start()
@@ -551,7 +691,7 @@ class MainWindow(QMainWindow):
         body = tr("alert_temp_body", source=source, temp=alert.temperature, limit=alert.limit)
         if self.tray is not None:
             self.tray.show_message(title, body)
-        record(title, body, level="warn")
+        record(title, body, level="warn", source="monitor")
         get_logger("alerts").warning(
             "temperature alert: %s at %.0f°C (limit %.0f°C)", source, alert.temperature, alert.limit
         )
@@ -581,7 +721,7 @@ class MainWindow(QMainWindow):
         body = tr("alert_usage_body", source=alert.source, value=alert.value, limit=alert.limit)
         if self.tray is not None:
             self.tray.show_message(title, body)
-        record(title, body, level="warn")
+        record(title, body, level="warn", source="monitor")
         get_logger("alerts").warning(
             "usage alert: %s at %.0f%% (limit %.0f%%)", alert.source, alert.value, alert.limit
         )
@@ -684,7 +824,7 @@ class MainWindow(QMainWindow):
         body = tr("upd_available_msg", version=info.latest)
         if self.tray is not None:
             self.tray.show_message(title, body)
-        record(title, body, level="warn")
+        record(title, body, level="warn", source="settings")
         get_logger("update").info("update available: %s (%s)", info.latest, info.url)
 
     # ---------- lifecycle ----------
@@ -723,6 +863,14 @@ class MainWindow(QMainWindow):
             I18nService.instance().language_changed.disconnect(self._on_language_changed)
         except (RuntimeError, TypeError):
             pass
+        if getattr(self, "_unread_connected", False):
+            from .activity import ActivityLog
+
+            try:
+                ActivityLog.instance().changed.disconnect(self._update_unread)
+            except (RuntimeError, TypeError):
+                pass
+            self._unread_connected = False
         self._force_quit = True
         self.close()
         self.deleteLater()
@@ -739,7 +887,9 @@ def run(argv: list[str] | None = None) -> int:
     )
     app = QApplication(argv if argv is not None else sys.argv)
     settings = SettingsService()
-    if not settings.path.exists():
+    fresh_install = not settings.path.exists()
+    if fresh_install:
+        settings.set("first_run_completed", False)
         settings.save()
     from . import theme as th
 
@@ -779,6 +929,8 @@ def run(argv: list[str] | None = None) -> int:
         window.showMinimized()
     else:
         window.show()
+    if not settings.get("first_run_completed"):
+        window.open_first_run()
     window.schedule_health_scan()
     window.schedule_update_check()
     window.start_game_watcher()

@@ -1,5 +1,7 @@
 from __future__ import annotations
 
+from PySide6.QtWidgets import QPushButton
+
 from app.ui import components as ui_components
 from app.ui import theme
 from app.ui.components import MetricCard, PerfChart, RingCard, Sparkline
@@ -37,6 +39,21 @@ def test_metric_card_bar_color_follows_level(qapp) -> None:
     assert card.bar._color == ui_components.DANGER
     card.update_metric("50%", percent=50)
     assert card.bar._color == ui_components.ACCENT
+
+
+def test_set_mono_uses_readable_percentage_spacing(qapp) -> None:
+    from PySide6.QtGui import QFont, QFontMetrics
+    from PySide6.QtWidgets import QLabel
+
+    label = QLabel("CPU 73%")
+    label.setFont(QFont("Geist"))
+    base_width = QFontMetrics(label.font()).horizontalAdvance(label.text())
+
+    theme.set_mono(label, size=13, spacing_pct=14.0)
+
+    font = label.font()
+    assert font.letterSpacing() == 114.0
+    assert QFontMetrics(font).horizontalAdvance(label.text()) > base_width
 
 
 def test_ring_card_displays_value(qapp) -> None:
@@ -118,6 +135,59 @@ def test_perf_chart_legend_follows_selected_tab(qapp) -> None:
     assert tr("dash_net_upload") in labels["net_up"]
     chart.select("cpu")
     assert set(chart._legend) == {"cpu"}
+
+
+def test_perf_chart_header_keeps_legend_and_tabs_readable(qapp) -> None:
+    chart = PerfChart(title="Історія ресурсів")
+    chart.resize(520, 300)
+    chart.show()
+    qapp.processEvents()
+    pills = [chart._legend_layout.itemAt(i).widget() for i in range(chart._legend_layout.count())]
+    tabs = [b for b in chart.findChildren(QPushButton) if b.property("seg")]
+    assert pills and tabs
+    assert all(p.width() >= p.sizeHint().width() - 2 for p in pills)
+    assert all(b.width() >= b.sizeHint().width() - 2 for b in tabs)
+    assert ui_components.CardTitleLabel("ОСТАННІ ЗАПУСКИ").wordWrap()
+
+
+def test_perf_chart_range_filters_history(qapp) -> None:
+    chart = PerfChart(points=120, enable_range=True)
+    for i in range(120):
+        chart.push(float(i * 10), cpu=float(i))
+    assert chart._range_seconds == 60
+    indices = chart._canvas._visible_indices()
+    assert len(indices) == 7
+    assert chart._canvas._series_values("cpu", indices)[-1] == 119.0
+    chart.set_range(300)
+    assert chart._range_buttons[300].isChecked()
+    assert len(chart._canvas._visible_indices()) == 31
+    chart.set_range(0)
+    assert len(chart._canvas._visible_indices()) == 120
+
+
+def test_perf_chart_range_controls_retranslate_and_expand(qapp) -> None:
+    from app.i18n import tr
+
+    chart = PerfChart(enable_range=True)
+    chart.resize(700, 320)
+    chart.show()
+    qapp.processEvents()
+    assert set(chart._range_buttons) == {60, 300, 900, 3600}
+    assert chart._range_buttons[60].text() == tr("chart_range_60s")
+    assert chart.expand_button is not None
+    buttons = [*chart._range_buttons.values(), chart.expand_button]
+    assert all(b.width() >= b.sizeHint().width() - 2 for b in buttons)
+    before = chart._canvas.minimumHeight()
+    chart.expand_button.click()
+    qapp.processEvents()
+    assert chart._expanded
+    assert chart._canvas.minimumHeight() > before
+    assert chart.expand_button.text() == tr("chart_collapse")
+    chart.expand_button.click()
+    qapp.processEvents()
+    assert not chart._expanded
+    assert chart._canvas.minimumHeight() == before
+    assert chart.expand_button.text() == tr("chart_expand")
 
 
 def test_chart_net_tab_draws_two_series(qapp) -> None:

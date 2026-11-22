@@ -4,6 +4,7 @@ from collections.abc import Iterable
 from time import time
 
 from .base import Backend, SensorUnavailable
+from .lhm_backend import LhmReader
 from .nvml_backend import NvmlBackend
 from .psutil_backend import PsutilBackend
 from .thermal_backend import ThermalBackend
@@ -23,7 +24,10 @@ class SensorManager:
         unavailable: dict[str, str] = {}
         for factory in AUTO_BACKENDS:
             try:
-                backends.append(factory())
+                if factory is ThermalBackend:
+                    backends.append(factory(LhmReader()))
+                else:
+                    backends.append(factory())
             except SensorUnavailable as e:
                 # Thermal (ACPI) sensors are optional on many boards; their
                 # unavailability is expected and surfaced as missing data, not

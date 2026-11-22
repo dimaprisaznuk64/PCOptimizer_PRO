@@ -568,8 +568,10 @@ def set_theme(name: str) -> str:
     globals().update(PALETTES[CURRENT_THEME])
     return CURRENT_THEME
 
-UI_FONTS = '"Inter", "Segoe UI Variable Text", "Segoe UI", sans-serif'
-MONO_FONTS = '"JetBrains Mono", "Cascadia Mono", "Consolas", monospace'
+UI_FONTS = '"Geist", "Segoe UI Variable Text", "Segoe UI", sans-serif'
+MONO_FONTS = '"Geist Mono", "Cascadia Mono", "Consolas", monospace'
+UI_FONT_FAMILIES = ["Geist", "Segoe UI Variable Text", "Segoe UI", "Arial", "Helvetica", "sans-serif"]
+MONO_FONT_FAMILIES = ["Geist Mono", "Cascadia Mono", "Consolas", "monospace"]
 
 FONT_UI = UI_FONTS
 FONT_DISPLAY = UI_FONTS
@@ -714,7 +716,7 @@ def _fonts_dir():
 
 
 def load_fonts() -> list[str]:
-    """Register the bundled Inter / JetBrains Mono files (OFL) so the UI looks the same on every PC."""
+    """Register the bundled Geist / Geist Mono files (OFL) so the UI looks the same on every PC."""
     from PySide6.QtGui import QFontDatabase
 
     loaded: list[str] = []
@@ -736,15 +738,7 @@ def _set_global_fonts() -> None:
         return
 
     font = QFont()
-    # Primary UI font - Inter as preferred, with system fallbacks
-    font.setFamilies([
-        "Inter",                    # First choice - custom font
-        "Segoe UI Variable Text",   # Windows 10/11 variable font
-        "Segoe UI",                 # Windows classic
-        "Arial",                    # System fallback
-        "Helvetica",                # macOS fallback
-        "Sans-serif"                # Universal fallback
-    ])
+    font.setFamilies(UI_FONT_FAMILIES)
     font.setPixelSize(BASE_FONT_PX)
     font.setWeight(QFont.Weight.Medium)
     font.setStyleStrategy(QFont.StyleStrategy.PreferAntialias)
@@ -758,14 +752,7 @@ def _set_global_fonts() -> None:
 
     # Set monospace font for numeric values
     mono_font = QFont()
-    mono_font.setFamilies([
-        "JetBrains Mono",           # First choice - custom monospace
-        "Cascadia Mono",            # Windows Terminal font
-        "Consolas",                 # Windows classic monospace
-        "Courier New",             # System fallback
-        "Monaco",                   # macOS monospace
-        "Monospace"                # Universal fallback
-    ])
+    mono_font.setFamilies(MONO_FONT_FAMILIES)
     mono_font.setPixelSize(BASE_FONT_PX)
     mono_font.setWeight(QFont.Weight.Medium)
     mono_font.setStyleStrategy(QFont.StyleStrategy.PreferAntialias)
@@ -881,13 +868,16 @@ def set_mono(widget, size: int | None = None, weight=None, spacing_pct: float = 
     """Apply the bundled monospace with letter-spacing (numbers, tags, indices)."""
     from PySide6.QtGui import QFont
 
-    font = QFont()
-    font.setFamilies(["JetBrains Mono", "Cascadia Mono", "Consolas", "monospace"])
+    base = widget.font()
+    font = QFont(base)
+    font.setFamilies(MONO_FONT_FAMILIES)
     if size is not None:
         font.setPixelSize(size)
+    elif base.pixelSize() > 0:
+        font.setPixelSize(base.pixelSize())
     if weight is not None:
         font.setWeight(weight)
-    font.setLetterSpacing(QFont.SpacingType.PercentageSpacing, spacing_pct)
+    font.setLetterSpacing(QFont.SpacingType.PercentageSpacing, 100.0 + spacing_pct)
     widget.setFont(font)
 
 
@@ -973,6 +963,7 @@ QPushButton[nav="true"] {{
     background: transparent;
     border: none;
     border-radius: 9px;
+    font-family: {FONT_UI};
     color: {TEXT_DIM};
     text-align: left;
     padding: 7px 14px 7px 14px;
@@ -1014,6 +1005,7 @@ QPushButton[navGroup="true"] {{
     border: none;
     border-top: 1px solid {BORDER};
     border-radius: 0;
+    font-family: {FONT_MONO};
     color: {TEXT_DIM};
     text-align: left;
     padding: {SPACING_MD}px 14px {SPACING_XS}px 14px;
@@ -1065,6 +1057,10 @@ QWidget#page {{
 }}
 QWidget#page QScrollArea, QWidget#page QScrollArea > QWidget > QWidget {{
     background: transparent;
+}}
+QScrollArea#pageScroll, QScrollArea#pageScroll > QWidget {{
+    background: transparent;
+    border: none;
 }}
 QFrame#card {{
     background: qlineargradient(x1:0, y1:0, x2:0, y2:1, stop:0 {_mix(PANEL, TEXT, 0.06)}, stop:1 {PANEL});
@@ -1251,6 +1247,46 @@ QLabel#commandHint {{
     color: {TEXT_DIM};
     font-size: {T_CAPTION}px;
 }}
+QFrame#notificationCenter {{
+    background: {PANEL_ALT};
+    border: 1px solid {BORDER_HI};
+    border-radius: {RADIUS_MD}px;
+}}
+QLabel#notifCenterTitle {{
+    color: {TEXT};
+    font-size: {T_H2}px;
+    font-weight: 700;
+}}
+QLabel#notifCenterCount {{
+    color: {ACCENT};
+    font-size: {T_SMALL}px;
+    font-weight: 600;
+}}
+QComboBox#notifCenterFilter {{
+    background: {PANEL};
+    border: 1px solid {BORDER_HI};
+    border-radius: {RADIUS_SM}px;
+    padding: {PADDING_SM}px {PADDING_MD}px;
+    color: {TEXT};
+}}
+QListWidget#notifCenterList {{
+    background: transparent;
+    border: none;
+    outline: none;
+}}
+QListWidget#notifCenterList::item {{
+    color: {TEXT};
+    padding: {PADDING_SM}px {PADDING_MD}px;
+    border-radius: {RADIUS_SM}px;
+}}
+QListWidget#notifCenterList::item:selected {{
+    background: {ACCENT_TINT};
+    color: {TEXT};
+}}
+QLabel#notifCenterHint {{
+    color: {TEXT_DIM};
+    font-size: {T_CAPTION}px;
+}}
 QFrame#hero {{
     background: qlineargradient(x1:0, y1:0, x2:1, y2:1, stop:0 {HERO_TOP}, stop:0.6 {PANEL}, stop:1 {PANEL_ALT});
     border: 1px solid {_mix(BORDER_HI, ACCENT, 0.4)};
@@ -1332,12 +1368,18 @@ QLabel#livePill {{
     font-weight: 600;
 }}
 QLabel#cardSub {{
+    font-family: {FONT_UI};
     font-size: {T_SMALL}px;
+    font-weight: 500;
     color: {TEXT_DIM};
+    letter-spacing: 0.01em;
 }}
 QLabel#cardRow {{
+    font-family: {FONT_UI};
     font-size: {T_SMALL}px;
+    font-weight: 500;
     color: {TEXT};
+    letter-spacing: 0.005em;
 }}
 QLabel#errorLine {{
     color: {WARN};
@@ -1446,9 +1488,14 @@ QLineEdit {{
     background: {PANEL_ALT};
     border: 1px solid {BORDER};
     border-radius: {RADIUS_SM}px;
-    padding: {SPACING_SM}px {SPACING_MD}px;
+    padding: 5px {SPACING_MD}px;
     selection-background-color: {ACCENT};
     selection-color: #ffffff;
+}}
+QLineEdit#qt_spinbox_lineedit {{
+    background: transparent;
+    border: none;
+    padding: 0px;
 }}
 QLineEdit:focus {{
     border-color: {ACCENT};
@@ -1474,6 +1521,10 @@ QPushButton[danger="true"] {{
     border-radius: {RADIUS_MD}px;
     padding: {SPACING_SM}px {SPACING_LG}px;
     font-weight: 600;
+}}
+QPushButton[danger="true"][compact="true"] {{
+    padding: 4px {SPACING_MD}px;
+    border-radius: {RADIUS_SM}px;
 }}
 QPushButton[danger="true"]:hover {{
     background: {DANGER_BG_HOVER};

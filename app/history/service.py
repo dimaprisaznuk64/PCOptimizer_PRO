@@ -107,11 +107,13 @@ class PerformanceHistory:
         max_age_hours: float = _DEFAULT_MAX_AGE_HOURS,
         now: Callable[[], float] | None = None,
         process_top: Callable[[], Sequence[object]] | None = None,
+        interval_s: float = _SAMPLE_INTERVAL_S,
     ) -> None:
         self._store = Path(store) if store else data_root() / _DEFAULT_STORE
         self._max_age_s = max_age_hours * 3600.0
         self._now = now or time.time
         self._process_top = process_top
+        self._interval_s = max(0.0, float(interval_s))
         self._last_record = 0.0
         self._append_count = 0
 
@@ -119,15 +121,23 @@ class PerformanceHistory:
     def store(self) -> Path:
         return self._store
 
+    @property
+    def interval_s(self) -> float:
+        return self._interval_s
+
+    def set_interval_s(self, interval_s: float) -> None:
+        """Change the record throttle at runtime (used by monitoring profiles)."""
+        self._interval_s = max(0.0, float(interval_s))
+
     # ---------- recording ----------
 
     def record(self, snapshot) -> bool:
         """Extract a HistorySample from a Snapshot and append it.
 
-        Throttled: returns False when called more often than SAMPLE_INTERVAL_S.
+        Throttled: returns False when called more often than ``interval_s``.
         """
         now = self._now()
-        if now - self._last_record < self.SAMPLE_INTERVAL_S:
+        if now - self._last_record < self._interval_s:
             return False
         self._last_record = now
         top_processes: tuple[tuple[str, float], ...] = ()

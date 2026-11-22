@@ -114,6 +114,6 @@ def test_main_window_broadcast_reaches_gpu_page(qapp) -> None:
     window = MainWindow()
     window.show_page("gpu")
     window.handle_snapshot(SensorManager([MockBackend(gpu_percent=77.0)]).snapshot())
-    gpu_page = window.stack.widget(window._index_by_key["gpu"])
+    gpu_page = window.page("gpu")
     assert gpu_page._panels[0].util.value.text() == "77%"
     window.close()

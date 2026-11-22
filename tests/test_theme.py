@@ -25,6 +25,19 @@ EXPECTED = {
 }
 
 
+def test_bundled_geist_fonts_register(qapp) -> None:
+    from PySide6.QtGui import QFontDatabase
+
+    from app.ui import theme as tract
+
+    loaded = tract.load_fonts()
+    assert "Geist-Regular.ttf" in loaded
+    assert "GeistMono-Regular.ttf" in loaded
+    families = QFontDatabase.families()
+    assert "Geist" in families
+    assert "Geist Mono" in families
+
+
 def test_curated_themes_include_legacy():
     from app.ui import theme as tract
 
@@ -175,9 +188,22 @@ def test_ui_scale_reads_startup_environment(monkeypatch):
         assert tract.T_BODY == tract.fs(13)
         assert tract.SIDEBAR_WIDTH == tract.ls(238)
     finally:
-        monkeypatch.delenv("PCOPTIMIZER_UI_SCALE", raising=False)
         tract.set_ui_scale(original)
-        importlib.reload(tract)
+
+
+def test_secondary_text_uses_readable_ui_font():
+    import re
+
+    from app.ui import theme as tract
+
+    stylesheet = tract.build_stylesheet()
+    for selector in ("QLabel#cardSub", "QLabel#cardRow"):
+        match = re.search(re.escape(selector) + r"\s*\{([^}]+)\}", stylesheet)
+        assert match is not None, f"{selector} missing from stylesheet"
+        block = match.group(1)
+        assert tract.FONT_UI in block
+        assert "font-weight: 500" in block
+        assert "letter-spacing" in block
 
 
 def test_all_palettes_have_readable_text_and_status_colors():

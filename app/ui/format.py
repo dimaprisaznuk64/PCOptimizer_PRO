@@ -53,5 +53,13 @@ def zone_label(name: str) -> str:
 
     from app.i18n import tr
 
-    m = re.fullmatch(r"zone(\d+)", name.strip(), re.IGNORECASE)
+    raw = name.strip()
+    canonical = {
+        "cpu": "temp_target_cpu",
+        "board": "temp_target_board",
+        "gpu": "temp_target_gpu",
+    }.get(raw.lower())
+    if canonical:
+        return tr(canonical)
+    m = re.fullmatch(r"zone(\d+)", raw, re.IGNORECASE)
     return tr("therm_zone", n=m.group(1)) if m else name

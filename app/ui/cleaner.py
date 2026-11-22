@@ -39,6 +39,7 @@ from app.i18n import tr
 from .activity import outcome_level
 from .activity import record as log_action
 from .components import CardTitleLabel, align_numeric_headers
+from .context_menu import TableContextMenu, copy_text
 from .format import size
 from .tasks import Task
 from .theme import CARD_PADDING, PAGE_MARGINS
@@ -186,6 +187,12 @@ class CleanerPage(QWidget):
         for col in range(1, len(COLUMNS)):
             header.setSectionResizeMode(col, QHeaderView.ResizeMode.ResizeToContents)
         self.table.itemChanged.connect(self._on_item_changed)
+        self._context_menu = TableContextMenu(self.table)
+        self._context_menu.add(lambda: tr("ctx_select_all"), self._select_all_targets)
+        self._context_menu.add(lambda: tr("ctx_deselect_all"), self._deselect_all_targets)
+        self._context_menu.separator()
+        self._context_menu.add(lambda: tr("ctx_toggle"), self._toggle_target)
+        self._context_menu.add(lambda: tr("ctx_copy_path"), self._copy_target_path)
         layout.addWidget(self.table, 1)
 
         self.summary = QLabel(tr("clean_summary_init"))
@@ -300,7 +307,12 @@ class CleanerPage(QWidget):
         if errors:
             message += f" · {errors}"
         self.status_label.setText(message)
-        log_action(tr("act_clean"), size(freed), outcome_level(has_errors=bool(errors), achieved=bool(freed)))
+        log_action(
+            tr("act_clean"),
+            size(freed),
+            outcome_level(has_errors=bool(errors), achieved=bool(freed)),
+            source="cleaner",
+        )
 
     def _selected_targets(self) -> list[CleanTarget]:
         selected: list[CleanTarget] = []
@@ -309,6 +321,39 @@ class CleanerPage(QWidget):
             if item is not None and item.checkState() == Qt.CheckState.Checked:
                 selected.append(target)
         return selected
+
+    def _target_at(self, row: int) -> CleanTarget | None:
+        if 0 <= row < len(self._targets):
+            return self._targets[row]
+        return None
+
+    def _set_all_targets(self, checked: Qt.CheckState) -> None:
+        self.table.blockSignals(True)
+        for row in range(len(self._targets)):
+            item = self.table.item(row, 0)
+            if item is not None:
+                item.setCheckState(checked)
+        self.table.blockSignals(False)
+        self._update_summary()
+
+    def _select_all_targets(self, _row: int) -> None:
+        self._set_all_targets(Qt.CheckState.Checked)
+
+    def _deselect_all_targets(self, _row: int) -> None:
+        self._set_all_targets(Qt.CheckState.Unchecked)
+
+    def _toggle_target(self, row: int) -> None:
+        item = self.table.item(row, 0)
+        if item is None:
+            return
+        checked = Qt.CheckState.Checked if item.checkState() != Qt.CheckState.Checked else Qt.CheckState.Unchecked
+        item.setCheckState(checked)
+        self._update_summary()
+
+    def _copy_target_path(self, row: int) -> None:
+        target = self._target_at(row)
+        if target is not None and target.paths:
+            copy_text("\n".join(target.paths))
 
     def _on_item_changed(self, item: QTableWidgetItem) -> None:
         if item.column() == 0:

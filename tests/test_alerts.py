@@ -180,7 +180,8 @@ def test_main_window_alerts_on_hot_snapshot(qapp) -> None:
     # MockBackend reports both a hot CPU zone and a hot GPU → two independent alerts.
     assert len(tray.messages) == 2
     bodies = " ".join(body for _, body in tray.messages)
-    assert "cpu" in bodies.lower()
+    assert "90°c" in bodies.lower()
+    assert "87°c" in bodies.lower()
     assert "gpu" in bodies.lower()
     assert all("99" in body for _, body in tray.messages)
 
@@ -203,7 +204,7 @@ def test_main_window_uses_fixed_temp_limits(qapp, monkeypatch) -> None:
     snap = SensorManager([MockBackend(temperature_c=99.0)]).snapshot()
     window.handle_snapshot(snap)
     assert len(tray.messages) == 1
-    assert "cpu" in tray.messages[0][1].lower()
+    assert "90°c" in tray.messages[0][1].lower()
 
 
 def test_main_window_respects_disabled_alerts(qapp) -> None:

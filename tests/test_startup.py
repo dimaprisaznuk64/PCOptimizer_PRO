@@ -6,7 +6,9 @@ import sys
 import time
 
 import pytest
+from PySide6.QtGui import QGuiApplication
 
+from app.i18n import tr
 from app.startup import StartupError, StartupItem, StartupService
 from app.startup.service import (
     DISABLED_FLAG,
@@ -454,6 +456,18 @@ def test_startup_page_loads_and_shows_details(qapp) -> None:
     _select_by_name(page, "Discord")
     assert page.detail_name.text() == "Discord"
     assert "High" in page.detail_rows["impact"].text()
+
+
+def test_startup_page_context_menu_copies_command(qapp) -> None:
+    service = CannedService([_item()])
+    page = InteractivePage(service)
+    page.start_refresh()
+    assert _wait_until(qapp, lambda: page.table.rowCount() == 1)
+
+    actions = page._context_menu.build_menu(0).actions()
+    assert tr("ctx_toggle") in [action.text() for action in actions]
+    next(action for action in actions if action.text() == tr("ctx_copy_command")).trigger()
+    assert QGuiApplication.clipboard().text() == r"C:\bin\app.exe"
 
 
 def test_startup_page_toggle_calls_service(qapp) -> None:

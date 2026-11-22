@@ -22,6 +22,7 @@ from app.temperature.service import (
     STATUS_WARN,
     TemperatureReport,
     TemperatureService,
+    target_temperatures,
 )
 
 from .combos import CompactCombo, tune_combo
@@ -109,6 +110,31 @@ class TemperaturePage(QWidget):
         toolbar.addStretch(1)
         layout.addLayout(toolbar)
 
+        targets = QFrame()
+        targets.setObjectName("card")
+        targets_layout = QHBoxLayout(targets)
+        targets_layout.setContentsMargins(CARD_PADDING, CARD_PADDING, CARD_PADDING, CARD_PADDING)
+        targets_layout.setSpacing(12)
+        self._target_labels: dict[str, tuple[QLabel, QLabel]] = {}
+        for kind, key in (
+            ("cpu", "temp_target_cpu"),
+            ("board", "temp_target_board"),
+            ("gpu", "temp_target_gpu"),
+        ):
+            column = QVBoxLayout()
+            column.setSpacing(2)
+            title = QLabel(tr(key))
+            title.setObjectName("cardRow")
+            value = QLabel("—")
+            value.setObjectName("cardValue")
+            value.setMinimumWidth(0)
+            value.setWordWrap(True)
+            column.addWidget(title)
+            column.addWidget(value, 1)
+            targets_layout.addLayout(column, 1)
+            self._target_labels[kind] = (title, value)
+        layout.addWidget(targets)
+
         cards = QHBoxLayout()
         cards.setSpacing(12)
         self.system_card = MetricCard(
@@ -164,6 +190,7 @@ class TemperaturePage(QWidget):
 
         self._update_legend()
         self._render_cards(None)
+        self._render_targets(None)
 
     def apply_snapshot(self, snapshot: Snapshot) -> None:
         self._snapshot = snapshot
@@ -176,11 +203,18 @@ class TemperaturePage(QWidget):
                 self._peaks[key] = max(previous, reading.current)
         self._render_report(report, self._peaks)
         self._render_cards(report)
+        self._render_targets(snapshot)
         self._show_errors(report.errors)
 
     def retranslate(self) -> None:
         self.pageTitle.setText(tr("temp_title"))
         self.pageDesc.setText(tr("temp_desc"))
+        for kind, key in (
+            ("cpu", "temp_target_cpu"),
+            ("board", "temp_target_board"),
+            ("gpu", "temp_target_gpu"),
+        ):
+            self._target_labels[kind][0].setText(tr(key))
         self._range_label.setText(tr("temp_range_label"))
         index = self.range_combo.currentIndex()
         self.range_combo.blockSignals(True)
@@ -208,6 +242,7 @@ class TemperaturePage(QWidget):
         self._update_legend()
         self._render_report(report, peaks)
         self._render_cards(report)
+        self._render_targets(self._snapshot)
         self._show_errors(report.errors if report else ())
 
     def showEvent(self, event) -> None:
@@ -319,6 +354,13 @@ class TemperaturePage(QWidget):
                 limited = any(bool(getattr(g, "throttling", False)) for g in gpus)
                 clock = tr("gpu_throttling") if limited else tr("gpu_throttle_none")
         self._set_card_text(self.clock_card, clock, "")
+
+    def _render_targets(self, snapshot: Snapshot | None) -> None:
+        targets = target_temperatures(snapshot) if snapshot is not None else {}
+        for kind, (title, value) in self._target_labels.items():
+            current, source = targets.get(kind, (None, ""))
+            value.setText(temp_text(current))
+            title.setToolTip(source)
 
     def _set_card(self, card: MetricCard, reading) -> None:
         if reading is None or not reading.available or reading.current is None:

@@ -642,6 +642,7 @@ class GamingPage(QWidget):
             tr("act_game"),
             tr("game_mode_on") if self._service.active else tr("game_mode_off"),
             outcome_level(has_errors=bool(errors), achieved=bool(applied)),
+            source="gaming",
         )
         self._update_mode_label()
 
