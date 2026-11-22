@@ -3,7 +3,8 @@ $ErrorActionPreference = "Stop"
 $root = Split-Path -Parent $PSScriptRoot
 Set-Location $root
 
-$pyCmd = if (Get-Command py -ErrorAction SilentlyContinue) { "py -3.13" } else { "python" }
+$venvPy = Join-Path $root ".venv\Scripts\python.exe"
+$pyCmd = if (Test-Path $venvPy) { "`"$venvPy`"" } elseif (Get-Command py -ErrorAction SilentlyContinue) { "py -3.13" } else { "python" }
 if (-not (Test-Path (Join-Path $root "assets\app.ico"))) {
     Invoke-Expression "$pyCmd scripts/make_icon.py"
 }
