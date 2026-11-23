@@ -228,8 +228,8 @@ def test_page_renders_report(qapp) -> None:
     page.start_load()
     assert _wait_until(qapp, lambda: page.modules_table.rowCount() == 2)
     assert service.calls == 1
-    assert page.cpu_card._rows["Cores"].text().endswith("14")
-    assert page.system_card._rows["Model"].text().endswith("82RF")
+    assert ">14<" in page.cpu_card._rows["Cores"].text()
+    assert ">82RF<" in page.system_card._rows["Model"].text()
     assert page.modules_table.item(0, 3).text() == "DDR4"
     assert page.disks_table.rowCount() == 1
     assert page.disks_table.item(0, 3).text() == "SSD"

@@ -11,7 +11,7 @@ from .format import gb, temp_text
 from .theme import C2 as VRAM_COLOR
 from .theme import C3 as TEMP_COLOR
 from .theme import C4 as POWER_COLOR
-from .theme import CARD_PADDING, PAGE_MARGINS, PAGE_SPACING
+from .theme import CARD_PADDING, PAGE_MARGINS, PAGE_SPACING, SPACING_LG, SPACING_MD
 
 
 class GpuPanel(QFrame):
@@ -21,7 +21,7 @@ class GpuPanel(QFrame):
 
         layout = QVBoxLayout(self)
         layout.setContentsMargins(CARD_PADDING, CARD_PADDING, CARD_PADDING, CARD_PADDING)
-        layout.setSpacing(10)
+        layout.setSpacing(SPACING_MD)
 
         header = QVBoxLayout()
         header.setSpacing(2)
@@ -37,7 +37,7 @@ class GpuPanel(QFrame):
         layout.addWidget(head_widget)
 
         grid = QGridLayout()
-        grid.setSpacing(12)
+        grid.setSpacing(SPACING_MD)
         self.util = GaugeCard(tr("gpu_util"), "gpu", caption=tr("gpu_caption_core"))
         self.vram = GaugeCard(tr("gpu_vram"), "ram", caption=tr("gpu_caption_mem"), color=VRAM_COLOR)
         self.temp = GaugeCard(tr("gpu_temp"), "monitor", caption=tr("gpu_caption_temp"), color=TEMP_COLOR)
@@ -172,8 +172,8 @@ class GpuPage(QWidget):
         self._desc = desc
 
         self._panels_layout = QVBoxLayout()
-        self._panels_layout.setSpacing(12)
-        self._panels_layout.setContentsMargins(0, 18, 0, 0)
+        self._panels_layout.setSpacing(SPACING_MD)
+        self._panels_layout.setContentsMargins(0, SPACING_LG, 0, 0)
         layout.addLayout(self._panels_layout, 1)
 
         self.empty = QLabel(tr("gpu_waiting"))

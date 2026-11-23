@@ -36,7 +36,18 @@ from .dashboard_custom import (
     serialize_dashboard_hidden,
 )
 from .tasks import Task
-from .theme import CARD_PADDING, CURRENT_THEME, PAGE_MARGINS, PAGE_SPACING, T_SMALL, THEME_LABELS
+from .theme import (
+    CARD_PADDING,
+    CURRENT_THEME,
+    PAGE_MARGINS,
+    PAGE_SPACING,
+    SPACING_LG,
+    SPACING_MD,
+    SPACING_SM,
+    SPACING_XL,
+    T_SMALL,
+    THEME_LABELS,
+)
 from .theme_picker import ThemeSwatchDelegate
 
 INTERVAL_OPTIONS = (250, 500, 1000, 2000, 5000)
@@ -130,7 +141,7 @@ class SettingsPage(QWidget):
         actions_bar.setObjectName("card")
         actions_outer = QHBoxLayout(actions_bar)
         actions_outer.setContentsMargins(CARD_PADDING, PAGE_SPACING, CARD_PADDING, PAGE_SPACING)
-        actions_outer.setSpacing(8)
+        actions_outer.setSpacing(SPACING_SM)
         self.save_button = QPushButton(tr("set_save_btn"))
         self.save_button.setProperty("primary", True)
         self.save_button.clicked.connect(self.save)
@@ -345,9 +356,9 @@ class SettingsPage(QWidget):
         card.setObjectName("card")
         grid = QGridLayout(card)
         self._general_grid = grid
-        grid.setContentsMargins(20, 18, 20, 18)
-        grid.setHorizontalSpacing(20)
-        grid.setVerticalSpacing(12)
+        grid.setContentsMargins(SPACING_XL, SPACING_LG, SPACING_XL, SPACING_LG)
+        grid.setHorizontalSpacing(SPACING_XL)
+        grid.setVerticalSpacing(SPACING_MD)
 
         heading = CardTitleLabel(tr("set_general"))
         grid.addWidget(heading, 0, 0, 1, 2)
@@ -422,7 +433,7 @@ class SettingsPage(QWidget):
         self._version_label = QLabel(tr("set_version"))
         grid.addWidget(self._version_label, 12, 0)
         version_row = QHBoxLayout()
-        version_row.setSpacing(8)
+        version_row.setSpacing(SPACING_SM)
         self.version_value = QLabel(f"v{__version__}")
         self.version_value.setObjectName("cardSub")
         version_row.addWidget(self.version_value)
@@ -487,8 +498,8 @@ class SettingsPage(QWidget):
         card = QFrame()
         card.setObjectName("card")
         outer = QVBoxLayout(card)
-        outer.setContentsMargins(18, 16, 18, 16)
-        outer.setSpacing(10)
+        outer.setContentsMargins(SPACING_LG, SPACING_LG, SPACING_LG, SPACING_LG)
+        outer.setSpacing(SPACING_MD)
 
         head = QHBoxLayout()
         heading = CardTitleLabel(tr("set_logging"))

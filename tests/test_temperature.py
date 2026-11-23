@@ -447,6 +447,34 @@ def test_temperature_page_admin_restart_cancel_is_reported(qapp, monkeypatch: py
     assert page.diagnostics.text() == tr("temp_admin_cancelled")
 
 
+def test_hardware_device_names_are_queried_once(qapp, monkeypatch: pytest.MonkeyPatch) -> None:
+    from types import SimpleNamespace
+
+    from app.ui import temperature
+
+    calls: list[str] = []
+
+    class FakeHardwareService:
+        def _cpu(self, _errors):
+            calls.append("cpu")
+            return SimpleNamespace(name="Test CPU")
+
+        def _board(self, _errors):
+            calls.append("board")
+            return SimpleNamespace(manufacturer="Test", product="Board")
+
+    monkeypatch.setattr("app.hardware.service.HardwareService", FakeHardwareService)
+    temperature._HARDWARE_NAMES.clear()
+    try:
+        assert temperature._hardware_name("cpu") == "Test CPU"
+        assert temperature._hardware_name("cpu") == "Test CPU"
+        assert temperature._hardware_name("board") == "Test Board"
+        assert temperature._hardware_name("board") == "Test Board"
+        assert calls == ["cpu", "board"]
+    finally:
+        temperature._HARDWARE_NAMES.clear()
+
+
 def test_zone_label_translates_hotspot_system_and_disk() -> None:
     from app.i18n import I18nService, tr
     from app.ui.format import zone_label

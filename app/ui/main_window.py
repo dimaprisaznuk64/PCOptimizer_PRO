@@ -861,14 +861,22 @@ class MainWindow(QMainWindow):
         and can crash natively (access violation on the offscreen platform).
         """
         try:
-            I18nService.instance().language_changed.disconnect(self._on_language_changed)
+            import warnings
+
+            with warnings.catch_warnings():
+                warnings.simplefilter("ignore", RuntimeWarning)
+                I18nService.instance().language_changed.disconnect(self._on_language_changed)
         except (RuntimeError, TypeError):
             pass
         if getattr(self, "_unread_connected", False):
             from .activity import ActivityLog
 
             try:
-                ActivityLog.instance().changed.disconnect(self._update_unread)
+                import warnings
+
+                with warnings.catch_warnings():
+                    warnings.simplefilter("ignore", RuntimeWarning)
+                    ActivityLog.instance().changed.disconnect(self._update_unread)
             except (RuntimeError, TypeError):
                 pass
             self._unread_connected = False

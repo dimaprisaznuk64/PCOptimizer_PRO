@@ -35,7 +35,7 @@ from .activity import record as log_action
 from .combos import CompactCombo, tune_combo
 from .components import CardTitleLabel, attach_empty_hint
 from .tasks import Task
-from .theme import CARD_PADDING, PAGE_MARGINS
+from .theme import CARD_PADDING, PAGE_MARGINS, SPACING_LG, SPACING_MD, SPACING_SM
 
 _COVER_W = 168
 _COVER_H = 94
@@ -102,8 +102,8 @@ class GameTile(QFrame):
         self._game: DetectedGame | None = None
 
         layout = QVBoxLayout(self)
-        layout.setContentsMargins(10, 10, 10, 10)
-        layout.setSpacing(8)
+        layout.setContentsMargins(SPACING_MD, SPACING_MD, SPACING_MD, SPACING_MD)
+        layout.setSpacing(SPACING_SM)
 
         self.cover = QLabel()
         self.cover.setObjectName("tileCover")
@@ -122,7 +122,7 @@ class GameTile(QFrame):
         layout.addWidget(self.meta)
 
         actions = QHBoxLayout()
-        actions.setSpacing(6)
+        actions.setSpacing(SPACING_SM)
         self.play_button = QPushButton(tr("launch_play"))
         self.play_button.setProperty("primary", True)
         self.play_button.clicked.connect(self._on_play)
@@ -194,7 +194,7 @@ class LauncherPage(QWidget):
 
         layout = QVBoxLayout(self)
         layout.setContentsMargins(*PAGE_MARGINS)
-        layout.setSpacing(10)
+        layout.setSpacing(SPACING_MD)
 
         title = QLabel(tr("launch_title"))
         title.setObjectName("pageTitle")
@@ -207,7 +207,7 @@ class LauncherPage(QWidget):
         self._desc = desc
 
         toolbar = QHBoxLayout()
-        toolbar.setSpacing(8)
+        toolbar.setSpacing(SPACING_SM)
         self.refresh_button = QPushButton(tr("launch_refresh"))
         self.refresh_button.setProperty("secondary", True)
         self.refresh_button.clicked.connect(self.start_refresh)
@@ -222,7 +222,7 @@ class LauncherPage(QWidget):
         layout.addLayout(toolbar)
 
         filters = QHBoxLayout()
-        filters.setSpacing(8)
+        filters.setSpacing(SPACING_SM)
         self.search_edit = QLineEdit()
         self.search_edit.setPlaceholderText(tr("launch_search"))
         self.search_edit.setClearButtonEnabled(True)
@@ -258,7 +258,7 @@ class LauncherPage(QWidget):
         self._grid_host = QWidget()
         self._grid = QGridLayout(self._grid_host)
         self._grid.setContentsMargins(2, 2, 2, 2)
-        self._grid.setSpacing(14)
+        self._grid.setSpacing(SPACING_LG)
         self._grid.setAlignment(Qt.AlignmentFlag.AlignTop | Qt.AlignmentFlag.AlignLeft)
         self._scroll.setWidget(self._grid_host)
         splitter.addWidget(self._scroll)
@@ -268,13 +268,13 @@ class LauncherPage(QWidget):
         side.setMaximumWidth(_SIDE_MAX)
         side_layout = QVBoxLayout(side)
         side_layout.setContentsMargins(0, 0, 0, 0)
-        side_layout.setSpacing(10)
+        side_layout.setSpacing(SPACING_MD)
 
         details = QFrame()
         details.setObjectName("card")
         details_layout = QVBoxLayout(details)
         details_layout.setContentsMargins(CARD_PADDING, CARD_PADDING, CARD_PADDING, CARD_PADDING)
-        details_layout.setSpacing(8)
+        details_layout.setSpacing(SPACING_SM)
         self._details_title = CardTitleLabel(tr("launch_details"))
         details_layout.addWidget(self._details_title)
         self.detail_name = QLabel(tr("launch_selected_hint"))
@@ -305,7 +305,7 @@ class LauncherPage(QWidget):
         history_card.setObjectName("card")
         history_layout = QVBoxLayout(history_card)
         history_layout.setContentsMargins(CARD_PADDING, CARD_PADDING, CARD_PADDING, CARD_PADDING)
-        history_layout.setSpacing(8)
+        history_layout.setSpacing(SPACING_SM)
         header = QHBoxLayout()
         self._history_title = CardTitleLabel(tr("launch_history"))
         header.addWidget(self._history_title)

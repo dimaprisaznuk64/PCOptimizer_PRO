@@ -28,7 +28,7 @@ from .combos import CompactCombo, tune_combo
 from .components import Bar, CardTitleLabel, attach_empty_hint
 from .format import size as fmt_size
 from .tasks import Task
-from .theme import CARD_PADDING, PAGE_MARGINS
+from .theme import CARD_PADDING, PAGE_MARGINS, SPACING_LG, SPACING_MD, SPACING_SM, SPACING_XS
 
 SCAN_COLUMN_KEYS = ("disk_col_name", "disk_col_type", "disk_col_size")
 LARGE_COLUMN_KEYS = ("disk_col_size", "disk_col_modified", "disk_col_path")
@@ -50,7 +50,7 @@ class DiskPage(QWidget):
 
         layout = QVBoxLayout(self)
         layout.setContentsMargins(*PAGE_MARGINS)
-        layout.setSpacing(10)
+        layout.setSpacing(SPACING_MD)
 
         title = QLabel(tr("disk_title"))
         title.setObjectName("pageTitle")
@@ -64,7 +64,7 @@ class DiskPage(QWidget):
         self._desc = desc
 
         path_row = QHBoxLayout()
-        path_row.setSpacing(8)
+        path_row.setSpacing(SPACING_SM)
         default_root = os.path.expanduser("~")
         self.path_input = QLineEdit(default_root)
         self.path_input.setPlaceholderText(tr("disk_folder_placeholder"))
@@ -80,7 +80,7 @@ class DiskPage(QWidget):
         layout.addLayout(path_row)
 
         self.drives_row = QHBoxLayout()
-        self.drives_row.setSpacing(8)
+        self.drives_row.setSpacing(SPACING_SM)
         layout.addLayout(self.drives_row)
 
         splitter = QSplitter(Qt.Orientation.Horizontal)
@@ -89,7 +89,7 @@ class DiskPage(QWidget):
         scan_card.setObjectName("card")
         scan_layout = QVBoxLayout(scan_card)
         scan_layout.setContentsMargins(CARD_PADDING, CARD_PADDING, CARD_PADDING, CARD_PADDING)
-        scan_layout.setSpacing(8)
+        scan_layout.setSpacing(SPACING_SM)
 
         scan_head = QHBoxLayout()
         scan_title = CardTitleLabel(tr("disk_folder_scan"))
@@ -134,7 +134,7 @@ class DiskPage(QWidget):
         large_card.setObjectName("card")
         large_layout = QVBoxLayout(large_card)
         large_layout.setContentsMargins(CARD_PADDING, CARD_PADDING, CARD_PADDING, CARD_PADDING)
-        large_layout.setSpacing(8)
+        large_layout.setSpacing(SPACING_SM)
 
         large_head = QHBoxLayout()
         large_title = CardTitleLabel(tr("disk_large_files"))
@@ -228,8 +228,8 @@ class DiskPage(QWidget):
         frame.setMinimumWidth(0)
         frame.setSizePolicy(QSizePolicy.Policy.Expanding, QSizePolicy.Policy.Preferred)
         body = QVBoxLayout(frame)
-        body.setContentsMargins(14, 10, 14, 10)
-        body.setSpacing(4)
+        body.setContentsMargins(SPACING_LG, SPACING_MD, SPACING_LG, SPACING_MD)
+        body.setSpacing(SPACING_XS)
 
         head = QHBoxLayout()
         name = QLabel(drive.mount)

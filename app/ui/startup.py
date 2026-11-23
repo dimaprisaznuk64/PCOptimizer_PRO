@@ -24,7 +24,7 @@ from .components import CardTitleLabel, attach_empty_hint
 from .context_menu import TableContextMenu, copy_text
 from .format import mb
 from .tasks import Task
-from .theme import CARD_PADDING, PAGE_MARGINS
+from .theme import CARD_PADDING, PAGE_MARGINS, SPACING_MD, SPACING_SM
 
 COLUMN_KEYS = ("start_col_name", "start_col_source", "start_col_command", "start_col_impact", "start_col_state")
 COLUMNS = tuple(tr(k) for k in COLUMN_KEYS)
@@ -82,7 +82,7 @@ class StartupPage(QWidget):
 
         layout = QVBoxLayout(self)
         layout.setContentsMargins(*PAGE_MARGINS)
-        layout.setSpacing(10)
+        layout.setSpacing(SPACING_MD)
 
         title = QLabel(tr("start_title"))
         title.setObjectName("pageTitle")
@@ -95,7 +95,7 @@ class StartupPage(QWidget):
         self._desc = desc
 
         toolbar = QHBoxLayout()
-        toolbar.setSpacing(8)
+        toolbar.setSpacing(SPACING_SM)
 
         self.refresh_button = QPushButton(tr("start_refresh"))
         self.refresh_button.setProperty("secondary", True)
@@ -159,7 +159,7 @@ class StartupPage(QWidget):
         details.setSizePolicy(QSizePolicy.Policy.Expanding, QSizePolicy.Policy.Preferred)
         details_layout = QVBoxLayout(details)
         details_layout.setContentsMargins(CARD_PADDING, CARD_PADDING, CARD_PADDING, CARD_PADDING)
-        details_layout.setSpacing(8)
+        details_layout.setSpacing(SPACING_SM)
 
         details_title = CardTitleLabel(tr("start_details"))
         details_layout.addWidget(details_title)

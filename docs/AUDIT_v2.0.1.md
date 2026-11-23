@@ -25,8 +25,8 @@
 | B-06 | P2 | **fixed** | `pythonnet` був у `requirements.txt`, але не в `pyproject.toml`; `requires-python` обмежено `<3.15`. |
 | B-07 | P3 | **fixed** | 10 помилок mypy (атрибути, присвоєння, lambda, `list` як тип, Sequence у dashboard). |
 | B-08 | P3 | **fixed** | README: бейдж тестів без жорсткого числа, опис HWiNFO; PLAN: запис v2.0.2. |
-| B-09 | P3 | open | Повний `pytest` одним запуском зависає (за PLAN) і дає native access violation при завершенні — потребує окремого розслідування. |
-| B-10 | P3 | open | Перевірка `poll_time` HWiNFO написана за документацією структури; підтвердити на живому HWiNFO (див. нижче). |
+| B-09 | P3 | **fixed** | Причина зависання — накопичення live `MainWindow` у тестах і повторний restyle (`setStyle`/`setStyleSheet`) + WMI-запит назви CPU на кожну `TemperaturePage`. Додано примусовий teardown у `finish_background_tasks`, guard у `theme.apply()` та кеш WMI-назв. Повний `pytest` одним запуском: 927 passed / 1 skipped, 184 s, RC=0. |
+| B-10 | P3 | skipped | Перевірка `poll_time` HWiNFO написана за документацією структури; живий smoke-тест пропущено за рішенням власника (HWiNFO не встановлено). |
 
 ## Перевірка на Windows перед релізом
 

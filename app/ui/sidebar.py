@@ -28,9 +28,12 @@ from .theme import (
     PANEL,
     RADIUS_LG,
     RADIUS_MD,
+    RADIUS_SM,
     SIDEBAR_COMPACT_WIDTH,
     SIDEBAR_WIDTH,
+    SPACING_LG,
     SPACING_MD,
+    SPACING_SM,
     T_BRAND,
     T_CAPTION,
     T_MICRO,
@@ -125,14 +128,14 @@ class Sidebar(QWidget):
         self._status_text = tr("status_healthy")
 
         layout = QVBoxLayout(self)
-        layout.setContentsMargins(0, 12, 0, 14)
+        layout.setContentsMargins(0, SPACING_MD, 0, SPACING_LG)
         layout.setSpacing(2)
 
         brand_box = QWidget()
         brand_box.setObjectName("brandBox")
         brand_row = QHBoxLayout(brand_box)
-        brand_row.setContentsMargins(16, 10, 16, 10)
-        brand_row.setSpacing(10)
+        brand_row.setContentsMargins(SPACING_LG, SPACING_MD, SPACING_LG, SPACING_MD)
+        brand_row.setSpacing(SPACING_MD)
         self._brand_row = brand_row
 
         mark = _LogoMark()
@@ -144,7 +147,7 @@ class Sidebar(QWidget):
         titles.setSpacing(1)
         self._brand_titles = titles_box
         title_row = QHBoxLayout()
-        title_row.setSpacing(6)
+        title_row.setSpacing(SPACING_SM)
         brand = QLabel("PCOptimizer")
         brand.setObjectName("brand")
         brand.setMinimumWidth(0)
@@ -153,7 +156,7 @@ class Sidebar(QWidget):
         pro_badge = QLabel("PRO")
         pro_badge.setStyleSheet(
             f"background: qlineargradient(x1:0, y1:0, x2:1, y2:0, stop:0 {BRAND_A}, stop:1 {BRAND_B}); "
-            f"color: #FFFFFF; font-size: {T_MICRO}px; font-weight: 800; border-radius: 4px; padding: 1px 5px;"
+            f"color: #FFFFFF; font-size: {T_MICRO}px; font-weight: 800; border-radius: {RADIUS_SM}px; padding: 1px 5px;"
         )
         title_row.addWidget(pro_badge)
         title_row.addStretch(1)
@@ -293,7 +296,7 @@ class Sidebar(QWidget):
 
         self._brand_titles.setVisible(not compact)
         self._brand_row.setContentsMargins(
-            (14 if compact else 16), 10, (14 if compact else 16), 10
+            (14 if compact else 16), SPACING_MD, (14 if compact else 16), SPACING_MD
         )
 
         for key, button in self._buttons.items():

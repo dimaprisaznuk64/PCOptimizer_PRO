@@ -38,6 +38,14 @@
   `dist\PCOptimizer_PRO_src_v2.0.1.zip`. Smoke test passed; silent upgrade of
   `app_run` to `2.0.1.0` passed and the installed GUI was relaunched.
   Local build fix committed as `af12a48` (call operator for venv Python).
+- Current working tree (uncommitted): design-system token merge from the
+  Desktop patch (`SPACING_*`/`RADIUS_*` scale, `normalize_spacing.py`, design
+  docs) plus B-09 fixes (cooperative teardown in tests, cached stylesheet,
+  cached WMI hardware names). Full suite now completes in one run:
+  **927 passed / 1 skipped** in 184 s; `ruff`, `mypy`, `compileall` clean.
+  Both Desktop archives were reviewed: the patch zip was merged, the visual-system
+  artifact (`Main.dc.html`) was checked for token parity. Owner decision: keep all
+  **29 themes**, do not apply the 18-theme consolidation from `docs/THEMES_REVIEW.md`.
 
 
 - Released **v1.7.1** (`d9f83ab`) — reliability/stabilization batch: fixed safe
@@ -542,6 +550,6 @@
 - Release v2.0.2 is published: tag `v2.0.2` points to `3bec6fd`, GitHub Actions
   Release run `45137185698` completed successfully, and the GitHub release has
   `PCOptimizer_PRO_Setup_2.0.2.exe` + `PCOptimizer_PRO_2.0.2_portable.zip`.
-- Open audit follow-ups (low priority, from `docs/AUDIT_v2.0.1.md`): B-09 full
-  pytest single-run hang/native shutdown artifacts need a separate investigation;
-  B-10 confirm HWiNFO `poll_time` behavior on live hardware.
+- Audit follow-ups (from `docs/AUDIT_v2.0.1.md`): B-09 is fixed — full pytest
+  single run now passes (927 / 1 skipped); B-10 is skipped by owner decision
+  (HWiNFO is not installed, live `poll_time` check is not required).

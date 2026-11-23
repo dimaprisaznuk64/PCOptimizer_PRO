@@ -43,7 +43,7 @@ from .components import CardTitleLabel, align_numeric_headers
 from .context_menu import TableContextMenu, copy_text
 from .format import size
 from .tasks import Task
-from .theme import CARD_PADDING, PAGE_MARGINS
+from .theme import CARD_PADDING, PAGE_MARGINS, SPACING_LG, SPACING_MD, SPACING_SM
 
 COLUMN_KEYS = ("clean_col_target", "clean_col_category", "clean_col_files", "clean_col_size", "clean_col_status")
 COLUMNS = tuple(tr(k) for k in COLUMN_KEYS)
@@ -109,7 +109,7 @@ class CleanerPage(QWidget):
 
         layout = QVBoxLayout(self)
         layout.setContentsMargins(*PAGE_MARGINS)
-        layout.setSpacing(10)
+        layout.setSpacing(SPACING_MD)
 
         title = QLabel(tr("clean_title"))
         title.setObjectName("pageTitle")
@@ -122,7 +122,7 @@ class CleanerPage(QWidget):
         self._desc = desc
 
         tools = QHBoxLayout()
-        tools.setSpacing(8)
+        tools.setSpacing(SPACING_SM)
         self.whitelist_button = QPushButton(tr("clean_whitelist_btn"))
         self.whitelist_button.setProperty("secondary", True)
         self.whitelist_button.clicked.connect(self.open_whitelist)
@@ -149,7 +149,7 @@ class CleanerPage(QWidget):
         hero.setObjectName("hero")
         hero_row = QHBoxLayout(hero)
         hero_row.setContentsMargins(CARD_PADDING, CARD_PADDING, CARD_PADDING, CARD_PADDING)
-        hero_row.setSpacing(12)
+        hero_row.setSpacing(SPACING_MD)
         hero_text = QVBoxLayout()
         hero_text.setSpacing(2)
         self._hero_caption = CardTitleLabel(tr("clean_hero"))
@@ -560,8 +560,8 @@ class _WhitelistDialog(QDialog):
         self.setWindowTitle(tr("clean_whitelist_title"))
         self.patterns = list(whitelist.patterns)
         layout = QVBoxLayout(self)
-        layout.setContentsMargins(18, 18, 18, 18)
-        layout.setSpacing(8)
+        layout.setContentsMargins(SPACING_LG, SPACING_LG, SPACING_LG, SPACING_LG)
+        layout.setSpacing(SPACING_SM)
         hint = QLabel(tr("clean_whitelist_hint"))
         hint.setWordWrap(True)
         hint.setObjectName("cardSub")
@@ -622,8 +622,8 @@ class _ScheduleDialog(QDialog):
         super().__init__(parent)
         self.setWindowTitle(tr("clean_schedule_title"))
         layout = QVBoxLayout(self)
-        layout.setContentsMargins(18, 18, 18, 18)
-        layout.setSpacing(8)
+        layout.setContentsMargins(SPACING_LG, SPACING_LG, SPACING_LG, SPACING_LG)
+        layout.setSpacing(SPACING_SM)
         self.enabled = QCheckBox(tr("clean_schedule_enabled"))
         self.enabled.setChecked(schedule.enabled)
         layout.addWidget(self.enabled)

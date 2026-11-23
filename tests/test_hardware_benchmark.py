@@ -363,7 +363,7 @@ def test_page_set_baseline(qapp, tmp_path) -> None:
     page.set_baseline()
     assert set(history.baselines) == {"cpu_single", "ram_copy", "disk_write"}
     assert page.status_label.text() == tr("hwb_baseline_set", count=3)
-    assert page.baseline_table.item(0, 4).text() == "+0.0%"
+    assert page.baseline_table.item(0, 5).text() == "+0.0%"
 
 
 def test_page_export_writes_file(qapp, tmp_path) -> None:

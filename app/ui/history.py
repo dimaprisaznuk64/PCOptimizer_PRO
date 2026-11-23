@@ -24,7 +24,7 @@ from .components import (
     align_numeric_headers,
     attach_empty_hint,
 )
-from .theme import CARD_PADDING, PAGE_MARGINS
+from .theme import CARD_PADDING, PAGE_MARGINS, SPACING_MD, SPACING_SM
 
 _RANGES: tuple[tuple[str, float], ...] = (
     ("hist_range_1h", 60.0),
@@ -57,7 +57,7 @@ class HistoryPage(QWidget):
 
         layout = QVBoxLayout(self)
         layout.setContentsMargins(*PAGE_MARGINS)
-        layout.setSpacing(10)
+        layout.setSpacing(SPACING_MD)
 
         title = QLabel(tr("hist_title"))
         title.setObjectName("pageTitle")
@@ -71,7 +71,7 @@ class HistoryPage(QWidget):
 
         # Toolbar: range buttons + sample info
         toolbar = QHBoxLayout()
-        toolbar.setSpacing(8)
+        toolbar.setSpacing(SPACING_SM)
         self._group = QButtonGroup(self)
         self._group.setExclusive(True)
         self._range_buttons: dict[str, QPushButton] = {}
@@ -93,7 +93,7 @@ class HistoryPage(QWidget):
 
         # Stats row
         stats_row = QHBoxLayout()
-        stats_row.setSpacing(10)
+        stats_row.setSpacing(SPACING_MD)
         self._cpu_card = MetricCard(tr("hist_cpu"), sparkline=False, bar=False)
         self._ram_card = MetricCard(tr("hist_ram"), sparkline=False, bar=False)
         self._gpu_card = MetricCard(tr("hist_gpu"), sparkline=False, bar=False)
@@ -119,7 +119,7 @@ class HistoryPage(QWidget):
         proc_card.setObjectName("card")
         proc_layout = QVBoxLayout(proc_card)
         proc_layout.setContentsMargins(CARD_PADDING, CARD_PADDING, CARD_PADDING, CARD_PADDING)
-        proc_layout.setSpacing(8)
+        proc_layout.setSpacing(SPACING_SM)
         self._proc_title = CardTitleLabel(tr("hist_proc_title"))
         proc_layout.addWidget(self._proc_title)
         self.proc_table = QTableWidget(0, len(_PROC_COLUMN_KEYS))

@@ -638,7 +638,7 @@ def set_ui_scale(percent: int) -> int:
     global TOPBAR_ICON_PAD, TOPBAR_PAD_X
     global PAGE_MARGINS, PAGE_SPACING, CARD_PADDING
     global RADIUS_SM, RADIUS_MD, RADIUS_LG, RADIUS_XL
-    global SPACING_XS, SPACING_SM, SPACING_MD, SPACING_LG, SPACING_XL
+    global SPACING_XS, SPACING_SM, SPACING_MD, SPACING_LG, SPACING_XL, SPACING_XXL
     global PADDING_SM, PADDING_MD, PADDING_LG, PADDING_XL
     global CARD_SPACING, CARD_GAP
     UI_SCALE = max(100, min(150, int(percent)))
@@ -662,13 +662,14 @@ def set_ui_scale(percent: int) -> int:
     TOPBAR_ICON_PAD = ls(6)
     TOPBAR_PAD_X = ls(28)
     TOPBAR_HEIGHT = max(ls(68), T_H2 + T_SMALL + ls(16))
-    PAGE_MARGINS = tuple(ls(v) for v in (40, 32, 40, 28))
+    PAGE_MARGINS = tuple(ls(v) for v in (40, 32, 40, 32))
     PAGE_SPACING = ls(12)
     CARD_PADDING = ls(16)
     RADIUS_SM, RADIUS_MD = ls(6), ls(10)
     RADIUS_LG, RADIUS_XL = ls(12), ls(16)
     SPACING_XS, SPACING_SM = ls(4), ls(8)
     SPACING_MD, SPACING_LG, SPACING_XL = ls(12), ls(16), ls(24)
+    SPACING_XXL = ls(32)
     PADDING_SM, PADDING_MD = ls(8), ls(12)
     PADDING_LG, PADDING_XL = ls(16), ls(24)
     CARD_SPACING, CARD_GAP = ls(8), ls(16)
@@ -692,7 +693,7 @@ TOPBAR_ICON_PAD = ls(6)
 TOPBAR_PAD_X = ls(28)
 TOPBAR_HEIGHT = max(ls(68), T_H2 + T_SMALL + ls(16))
 
-PAGE_MARGINS = tuple(ls(v) for v in (40, 32, 40, 28))
+PAGE_MARGINS = tuple(ls(v) for v in (40, 32, 40, 32))
 PAGE_SPACING = ls(12)
 CARD_PADDING = ls(16)
 
@@ -701,6 +702,7 @@ RADIUS_LG, RADIUS_XL = ls(12), ls(16)
 
 SPACING_XS, SPACING_SM = ls(4), ls(8)
 SPACING_MD, SPACING_LG, SPACING_XL = ls(12), ls(16), ls(24)
+SPACING_XXL = ls(32)  # page-level gaps and large empty-state margins
 
 PADDING_SM, PADDING_MD = ls(8), ls(12)
 PADDING_LG, PADDING_XL = ls(16), ls(24)
@@ -1762,11 +1764,14 @@ QFrame#card {{
 def apply(app) -> None:
     from PySide6.QtGui import QColor, QPalette
 
-    app.setStyle("Fusion")
+    if app.style() is None or app.style().objectName() != "Fusion":
+        app.setStyle("Fusion")
     load_fonts()
     # Apply global font settings
     _set_global_fonts()
-    app.setStyleSheet(build_stylesheet())
+    qss = build_stylesheet()
+    if app.styleSheet() != qss:
+        app.setStyleSheet(qss)
     palette = QPalette()
     palette.setColor(QPalette.ColorRole.Window, QColor(BG))
     palette.setColor(QPalette.ColorRole.WindowText, QColor(TEXT))

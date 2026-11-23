@@ -26,7 +26,18 @@ from .activity import ActivityLog
 from .activity import record as log_action
 from .components import ScoreRing, attach_empty_hint
 from .tasks import Task
-from .theme import ACCENT, CARD_PADDING, DANGER, OK, PAGE_MARGINS, TEXT_DIM, WARN
+from .theme import (
+    ACCENT,
+    CARD_PADDING,
+    DANGER,
+    OK,
+    PAGE_MARGINS,
+    SPACING_MD,
+    SPACING_SM,
+    SPACING_XL,
+    TEXT_DIM,
+    WARN,
+)
 
 HEALTH_COLUMN_KEYS = (
     "health_col_category", "health_col_severity", "health_col_issue",
@@ -158,7 +169,7 @@ class HealthPage(QWidget):
 
         layout = QVBoxLayout(self)
         layout.setContentsMargins(*PAGE_MARGINS)
-        layout.setSpacing(10)
+        layout.setSpacing(SPACING_MD)
 
         title = QLabel(tr("health_title"))
         title.setObjectName("pageTitle")
@@ -175,7 +186,7 @@ class HealthPage(QWidget):
         score_card.setObjectName("hero")
         score_layout = QHBoxLayout(score_card)
         score_layout.setContentsMargins(CARD_PADDING, CARD_PADDING, CARD_PADDING, CARD_PADDING)
-        score_layout.setSpacing(20)
+        score_layout.setSpacing(SPACING_XL)
 
         self.score_label = QLabel("—")
         self.score_label.setObjectName("scoreValue")
@@ -198,7 +209,7 @@ class HealthPage(QWidget):
         score_layout.addLayout(text_box, 1)
 
         buttons = QVBoxLayout()
-        buttons.setSpacing(6)
+        buttons.setSpacing(SPACING_SM)
         self.scan_button = QPushButton(tr("health_scan_btn"))
         self.scan_button.setProperty("primary", True)
         self.scan_button.clicked.connect(self.start_scan)

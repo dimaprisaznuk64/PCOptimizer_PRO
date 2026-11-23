@@ -21,7 +21,7 @@ from app.i18n import tr
 from app.reports.system import SystemReportConfig, build_system_report
 
 from .tasks import Task
-from .theme import CARD_PADDING, PAGE_MARGINS
+from .theme import CARD_PADDING, PAGE_MARGINS, SPACING_MD, SPACING_SM
 
 SECTION_KEYS = (
     "system",
@@ -111,7 +111,7 @@ class SystemReportPage(QWidget):
 
         layout = QVBoxLayout(self)
         layout.setContentsMargins(*PAGE_MARGINS)
-        layout.setSpacing(10)
+        layout.setSpacing(SPACING_MD)
 
         title = QLabel(tr("sys_title"))
         title.setObjectName("pageTitle")
@@ -124,7 +124,7 @@ class SystemReportPage(QWidget):
         self._desc = desc
 
         toolbar = QHBoxLayout()
-        toolbar.setSpacing(8)
+        toolbar.setSpacing(SPACING_SM)
         self.ids_check = QCheckBox(tr("sys_include_ids"))
         toolbar.addWidget(self.ids_check)
         toolbar.addWidget(QLabel(tr("sys_format")))
@@ -149,7 +149,7 @@ class SystemReportPage(QWidget):
         card.setObjectName("card")
         body = QVBoxLayout(card)
         body.setContentsMargins(CARD_PADDING, CARD_PADDING, CARD_PADDING, CARD_PADDING)
-        body.setSpacing(8)
+        body.setSpacing(SPACING_SM)
         self.preview = QTextEdit()
         self.preview.setReadOnly(True)
         self.preview.setPlainText(tr("sys_empty"))

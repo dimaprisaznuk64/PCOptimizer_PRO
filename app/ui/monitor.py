@@ -26,7 +26,20 @@ from .components import (
 )
 from .format import gb, rate, temp_text, zone_label
 from .tasks import Task
-from .theme import ACCENT, ACCENT_HOVER, CARD_PADDING, DANGER, OK, PAGE_MARGINS, PAGE_SPACING
+from .theme import (
+    ACCENT,
+    ACCENT_HOVER,
+    CARD_PADDING,
+    DANGER,
+    OK,
+    PAGE_MARGINS,
+    PAGE_SPACING,
+    SPACING_LG,
+    SPACING_MD,
+    SPACING_SM,
+    SPACING_XL,
+    SPACING_XS,
+)
 
 
 def _level_color(percent: float | None) -> str:
@@ -45,12 +58,12 @@ class _Card(QFrame):
         self.setObjectName("card")
         self._layout = QVBoxLayout(self)
         self._layout.setContentsMargins(CARD_PADDING, CARD_PADDING, CARD_PADDING, CARD_PADDING)
-        self._layout.setSpacing(8)
+        self._layout.setSpacing(SPACING_SM)
         label = CardTitleLabel(title)
         self._layout.addWidget(label)
         self.title_label = label
         self.body = QVBoxLayout()
-        self.body.setSpacing(6)
+        self.body.setSpacing(SPACING_SM)
         self._layout.addLayout(self.body)
         self._layout.addStretch(1)
 
@@ -63,8 +76,8 @@ class CoreBars(QWidget):
         super().__init__(parent)
         self._layout = QGridLayout(self)
         self._layout.setContentsMargins(0, 0, 0, 0)
-        self._layout.setHorizontalSpacing(10)
-        self._layout.setVerticalSpacing(8)
+        self._layout.setHorizontalSpacing(SPACING_MD)
+        self._layout.setVerticalSpacing(SPACING_SM)
         self._cells: list[tuple[QLabel, Bar, QLabel]] = []
         self._count = 0
 
@@ -102,7 +115,7 @@ class CoreBars(QWidget):
                 label.setFixedWidth(18)
             else:  # gap between column groups so "16%" never touches the next index
                 label.setFixedWidth(42)
-                label.setContentsMargins(24, 0, 0, 0)
+                label.setContentsMargins(SPACING_XL, 0, 0, 0)
             bar = Bar(ACCENT)
             text = QLabel("")
             text.setObjectName("cardSub")
@@ -142,8 +155,8 @@ class MonitorPage(QWidget):
         self._desc = desc
 
         grid = QGridLayout()
-        grid.setContentsMargins(0, 18, 0, 0)
-        grid.setSpacing(12)
+        grid.setContentsMargins(0, SPACING_LG, 0, 0)
+        grid.setSpacing(SPACING_MD)
 
         cpu_card = self._build_cpu_card()
         mem_card = self._build_memory_card()
@@ -190,10 +203,10 @@ class MonitorPage(QWidget):
     def _build_cpu_card(self) -> QFrame:
         card = _Card(tr("dash_cpu"))
         row = QGridLayout()
-        row.setSpacing(16)
+        row.setSpacing(SPACING_LG)
 
         summary = QVBoxLayout()
-        summary.setSpacing(4)
+        summary.setSpacing(SPACING_XS)
         self.cpu_value = QLabel("—")
         self.cpu_value.setObjectName("cardValue")
         summary.addWidget(self.cpu_value)

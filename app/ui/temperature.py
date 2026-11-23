@@ -37,7 +37,19 @@ from .components import (
 )
 from .format import temp_text, zone_label
 from .tasks import Task
-from .theme import ACCENT, C2, C3, CARD_PADDING, DANGER, OK, PAGE_MARGINS, PAGE_SPACING, WARN
+from .theme import (
+    ACCENT,
+    C2,
+    C3,
+    CARD_PADDING,
+    DANGER,
+    OK,
+    PAGE_MARGINS,
+    PAGE_SPACING,
+    SPACING_MD,
+    SPACING_SM,
+    WARN,
+)
 
 COLUMN_KEYS: tuple[str, ...] = (
     "temp_col_source",
@@ -87,6 +99,30 @@ def restart_app_as_admin() -> int:
     return int(ctypes.windll.shell32.ShellExecuteW(None, "runas", exe, args, None, 1))
 
 
+_HARDWARE_NAMES: dict[str, str] = {}
+
+
+def _hardware_name(kind: str) -> str:
+    """WMI-backed hardware names are static for a boot session; query them once."""
+    cached = _HARDWARE_NAMES.get(kind)
+    if cached:
+        return cached
+    try:
+        from app.hardware.service import HardwareService
+
+        service = HardwareService()
+        if kind == "cpu":
+            name = str(getattr(service._cpu([]), "name", "") or "").strip()
+        else:
+            board = service._board([])
+            name = " ".join(p for p in (board.manufacturer, board.product) if p).strip()
+    except Exception:
+        return ""
+    if name:
+        _HARDWARE_NAMES[kind] = name
+    return name
+
+
 class TemperaturePage(QWidget):
     def __init__(
         self,
@@ -120,7 +156,7 @@ class TemperaturePage(QWidget):
         layout.addWidget(self.pageDesc)
 
         toolbar = QHBoxLayout()
-        toolbar.setSpacing(10)
+        toolbar.setSpacing(SPACING_MD)
         self._range_label = QLabel(tr("temp_range_label"))
         toolbar.addWidget(self._range_label)
         self.range_combo = CompactCombo()
@@ -147,7 +183,7 @@ class TemperaturePage(QWidget):
         targets.setObjectName("card")
         targets_layout = QHBoxLayout(targets)
         targets_layout.setContentsMargins(CARD_PADDING, CARD_PADDING, CARD_PADDING, CARD_PADDING)
-        targets_layout.setSpacing(12)
+        targets_layout.setSpacing(SPACING_MD)
         self._target_labels: dict[str, tuple[QLabel, QLabel, QLabel]] = {}
         self._device_name_cache: dict[str, str] | None = None
         for kind, key in (
@@ -175,7 +211,7 @@ class TemperaturePage(QWidget):
         layout.addWidget(targets)
 
         cards = QHBoxLayout()
-        cards.setSpacing(12)
+        cards.setSpacing(SPACING_MD)
         self.system_card = MetricCard(
             tr("temp_metric_system"), sparkline=True, bar=False, color=WARN
         )
@@ -197,7 +233,7 @@ class TemperaturePage(QWidget):
         results.setObjectName("card")
         results_layout = QVBoxLayout(results)
         results_layout.setContentsMargins(CARD_PADDING, CARD_PADDING, CARD_PADDING, CARD_PADDING)
-        results_layout.setSpacing(8)
+        results_layout.setSpacing(SPACING_SM)
         self._results_title = CardTitleLabel(tr("temp_results_title"))
         results_layout.addWidget(self._results_title)
 
@@ -413,15 +449,9 @@ class TemperaturePage(QWidget):
         name = str(getattr(cpu, "name", "") or "").strip()
         if name:
             return name
-        try:
-            from app.hardware.service import HardwareService
-
-            info = HardwareService()._cpu([])
-            name = str(getattr(info, "name", "") or "").strip()
-            if name:
-                return name
-        except Exception:
-            pass
+        name = _hardware_name("cpu")
+        if name:
+            return name
         try:
             import platform
 
@@ -445,14 +475,7 @@ class TemperaturePage(QWidget):
                 "материнська плата",
             }:
                 return label
-        try:
-            from app.hardware.service import HardwareService
-
-            info = HardwareService()._board([])
-            parts = [p for p in (info.manufacturer, info.product) if p]
-            return " ".join(parts).strip()
-        except Exception:
-            return ""
+        return _hardware_name("board")
 
     def _render_cards(self, report: TemperatureReport | None) -> None:
         system = self._pick(report, "system")

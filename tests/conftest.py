@@ -50,10 +50,23 @@ def finish_background_tasks(qapp):
     Leftover psutil/WMI/COM tasks can otherwise be garbage-collected during a
     later test and abort the interpreter with an access violation.
     """
+    from PySide6.QtCore import QCoreApplication, QEvent
+    from shiboken6 import isValid
+
+    from app.ui.main_window import MainWindow
     from app.ui.tasks import stop_all
 
     yield
     stopped = stop_all(timeout_ms=5000)
+    for widget in list(qapp.topLevelWidgets()):
+        if not isValid(widget):
+            continue
+        if isinstance(widget, MainWindow):
+            widget.shutdown()
+        else:
+            widget.close()
+            widget.deleteLater()
+        QCoreApplication.sendPostedEvents(widget, QEvent.Type.DeferredDelete)
     qapp.processEvents()
     gc.collect()
     if not stopped:

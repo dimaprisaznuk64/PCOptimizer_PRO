@@ -8,6 +8,7 @@ from collections.abc import Callable, Iterable
 from dataclasses import asdict, dataclass
 from datetime import datetime
 from pathlib import Path
+from typing import Any
 
 from app.hardware import HardwareReport, HardwareService
 from app.reports.system import redact_identifier
@@ -43,6 +44,24 @@ class BaselineRow:
     unit: str
     previous: float | None
     delta_pct: float | None
+    baseline: float | None = None
+
+
+def _baseline_value(entry: object) -> float | None:
+    """Value of a history baseline entry (a HistoryEntry, or a bare number)."""
+    value: Any = getattr(entry, "value", entry)
+    return None if value is None else float(value)
+
+
+_OS_VENDOR_PREFIXES = ("Microsoft ", "Майкрософт ")
+
+
+def _clean_os_name(name: str) -> str:
+    """Drop the vendor prefix Windows adds in every locale ("Microsoft Windows 11 Pro")."""
+    for prefix in _OS_VENDOR_PREFIXES:
+        if name.startswith(prefix):
+            return name[len(prefix):]
+    return name
 
 
 def _size(value: int) -> str:
@@ -131,8 +150,14 @@ class HardwareBenchmarkService:
 
     def summary_rows(self, report: HardwareBenchmarkReport) -> list[tuple[str, str]]:
         hardware = report.hardware
-        system = " ".join(
-            part for part in (hardware.system.manufacturer, hardware.system.model, hardware.system.os_name) if part
+        system = " · ".join(
+            part
+            for part in (
+                hardware.system.manufacturer,
+                hardware.system.model,
+                _clean_os_name(hardware.system.os_name),
+            )
+            if part
         ) or _MISSING
         cpu = hardware.cpu
         cpu_text = (
@@ -164,6 +189,7 @@ class HardwareBenchmarkService:
         previous = {item.metric: item.value for item in report.previous}
         rows: list[BaselineRow] = []
         for result in report.results:
+            baseline = _baseline_value(self._history.baseline_of(result.metric))
             rows.append(
                 BaselineRow(
                     metric=result.metric,
@@ -171,6 +197,7 @@ class HardwareBenchmarkService:
                     unit=result.unit,
                     previous=previous.get(result.metric),
                     delta_pct=self._history.delta_pct(result.metric, result.value),
+                    baseline=baseline,
                 )
             )
         return tuple(rows)

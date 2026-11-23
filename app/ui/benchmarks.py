@@ -26,7 +26,7 @@ from app.settings import data_root
 
 from .components import CardTitleLabel, attach_empty_hint
 from .tasks import Task
-from .theme import CARD_PADDING, DANGER, OK, PAGE_MARGINS
+from .theme import CARD_PADDING, DANGER, OK, PAGE_MARGINS, SPACING_MD, SPACING_SM
 
 _COLUMNS = (
     "bench_col_metric",
@@ -80,7 +80,7 @@ class BenchmarksPage(QWidget):
 
         layout = QVBoxLayout(self)
         layout.setContentsMargins(*PAGE_MARGINS)
-        layout.setSpacing(10)
+        layout.setSpacing(SPACING_MD)
 
         title = QLabel(tr("bench_title"))
         title.setObjectName("pageTitle")
@@ -93,7 +93,7 @@ class BenchmarksPage(QWidget):
         self._desc = desc
 
         toolbar = QHBoxLayout()
-        toolbar.setSpacing(8)
+        toolbar.setSpacing(SPACING_SM)
         self.cpu_btn = QPushButton(tr("bench_cpu"))
         self.cpu_btn.setProperty("secondary", True)
         self.cpu_btn.clicked.connect(lambda: self.start_run(BenchmarkType.CPU))
@@ -133,10 +133,10 @@ class BenchmarksPage(QWidget):
         history_card.setObjectName("card")
         history_layout = QVBoxLayout(history_card)
         history_layout.setContentsMargins(CARD_PADDING, CARD_PADDING, CARD_PADDING, CARD_PADDING)
-        history_layout.setSpacing(8)
+        history_layout.setSpacing(SPACING_SM)
 
         history_head = QHBoxLayout()
-        history_head.setSpacing(8)
+        history_head.setSpacing(SPACING_SM)
         self.history_title = CardTitleLabel(tr("bench_history_title"))
         history_head.addWidget(self.history_title)
         history_head.addStretch(1)
@@ -194,7 +194,7 @@ class BenchmarksPage(QWidget):
         card.setObjectName("card")
         body = QVBoxLayout(card)
         body.setContentsMargins(CARD_PADDING, CARD_PADDING, CARD_PADDING, CARD_PADDING)
-        body.setSpacing(8)
+        body.setSpacing(SPACING_SM)
         title = CardTitleLabel(tr(title_key))
         body.addWidget(title)
         table = self._build_table(column_keys, hint)

@@ -38,7 +38,18 @@ from .activity import ActivityLog, outcome_level
 from .activity import record as log_action
 from .components import CardTitleLabel, attach_empty_hint
 from .tasks import Task
-from .theme import ACCENT, BORDER, CARD_PADDING, DANGER, OK, PAGE_MARGINS, TEXT, TEXT_DIM
+from .theme import (
+    ACCENT,
+    BORDER,
+    CARD_PADDING,
+    DANGER,
+    OK,
+    PAGE_MARGINS,
+    SPACING_MD,
+    SPACING_SM,
+    TEXT,
+    TEXT_DIM,
+)
 
 COLUMN_KEYS = ("game_col_game", "game_col_source", "game_col_status", "game_col_location")
 SESSION_COLUMN_KEYS = (
@@ -142,7 +153,7 @@ class GamingPage(QWidget):
 
         layout = QVBoxLayout(self)
         layout.setContentsMargins(*PAGE_MARGINS)
-        layout.setSpacing(10)
+        layout.setSpacing(SPACING_MD)
 
         title = QLabel(tr("game_title"))
         title.setObjectName("pageTitle")
@@ -156,7 +167,7 @@ class GamingPage(QWidget):
         self._desc = desc
 
         toolbar = QHBoxLayout()
-        toolbar.setSpacing(8)
+        toolbar.setSpacing(SPACING_SM)
 
         self.mode_button = QPushButton(tr("game_enable_btn"))
         self.mode_button.setProperty("primary", True)
@@ -209,7 +220,7 @@ class GamingPage(QWidget):
         details.setSizePolicy(QSizePolicy.Policy.Expanding, QSizePolicy.Policy.Preferred)
         details_layout = QVBoxLayout(details)
         details_layout.setContentsMargins(CARD_PADDING, CARD_PADDING, CARD_PADDING, CARD_PADDING)
-        details_layout.setSpacing(8)
+        details_layout.setSpacing(SPACING_SM)
 
         details_title = CardTitleLabel(tr("game_details"))
         details_layout.addWidget(details_title)
@@ -267,7 +278,7 @@ class GamingPage(QWidget):
         telemetry_card.setObjectName("card")
         telemetry_layout = QVBoxLayout(telemetry_card)
         telemetry_layout.setContentsMargins(CARD_PADDING, CARD_PADDING, CARD_PADDING, CARD_PADDING)
-        telemetry_layout.setSpacing(8)
+        telemetry_layout.setSpacing(SPACING_SM)
         telemetry_title = CardTitleLabel(tr("game_telemetry_title"))
         telemetry_layout.addWidget(telemetry_title)
         self._telemetry_title = telemetry_title
@@ -325,7 +336,7 @@ class GamingPage(QWidget):
         compare_card.setObjectName("card")
         compare_layout = QVBoxLayout(compare_card)
         compare_layout.setContentsMargins(CARD_PADDING, CARD_PADDING, CARD_PADDING, CARD_PADDING)
-        compare_layout.setSpacing(8)
+        compare_layout.setSpacing(SPACING_SM)
         compare_title = CardTitleLabel(tr("game_chart_title"))
         compare_layout.addWidget(compare_title)
         self._compare_title = compare_title

@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import html
 import math
 from collections import deque
 
@@ -55,6 +56,7 @@ from .theme import (
     SPACING_LG,
     SPACING_MD,
     SPACING_SM,
+    SPACING_XL,
     SPACING_XS,
     T_BODY,
     T_CAPTION,
@@ -210,8 +212,7 @@ def card_heading(text: str, accent: str = ACCENT) -> QWidget:
     hl.setContentsMargins(0, 0, 0, 0)
     hl.setSpacing(0)
     label = CardTitleLabel(text, accent)
-    hl.addWidget(label)
-    hl.addStretch(1)
+    hl.addWidget(label, 1)  # full width: the title wraps only when the card is truly narrow
     row._label = label  # type: ignore[attr-defined]
     return row
 
@@ -1068,7 +1069,16 @@ def align_numeric_headers(table, columns: tuple[int, ...]) -> None:
 
 
 def attach_empty_hint(table, key: str) -> _EmptyHint:
-    """Show translated text `key` over `table` whenever it has no rows."""
+    """Show translated text `key` over `table` whenever it has no rows.
+
+    Also left-aligns the column headers: cells are left-aligned, so centred
+    headers drift away from the data they describe.
+    """
+    header = getattr(table, "horizontalHeader", None)
+    if header is not None:
+        header().setDefaultAlignment(
+            Qt.AlignmentFlag.AlignLeft | Qt.AlignmentFlag.AlignVCenter
+        )
     return _EmptyHint(table, key)
 
 
@@ -1095,7 +1105,7 @@ class ArcGauge(QWidget):
         self._has_value = False
 
         layout = QVBoxLayout(self)
-        layout.setContentsMargins(0, 8, 0, 14)
+        layout.setContentsMargins(0, SPACING_SM, 0, SPACING_LG)
         layout.setSpacing(0)
         layout.addStretch(1)
         self.value_label = QLabel("—")
@@ -1591,13 +1601,22 @@ class ValueListCard(QFrame):
                 row.setParent(None)
                 row.deleteLater()
         self._empty.setVisible(not items)
-        for key, text in items:
+        for key, _text in items:
             if key not in self._rows:
                 row = QLabel()
                 row.setObjectName("cardRow")
+                row.setTextFormat(Qt.TextFormat.RichText)
                 self._rows[key] = row
                 self._layout.insertWidget(len(self._rows), row)
-            self._rows[key].setText(f"{key}   {text}")
+        # One aligned key column for the whole card (labels left, values on a common edge).
+        metrics = self.fontMetrics()
+        key_width = max((metrics.horizontalAdvance(key) for key in wanted), default=0) + SPACING_XL
+        for key, text in items:
+            self._rows[key].setText(
+                f'<table cellspacing="0" cellpadding="0"><tr>'
+                f'<td width="{key_width}" style="color: {TEXT_DIM};">{html.escape(key)}</td>'
+                f"<td>{html.escape(text)}</td></tr></table>"
+            )
 
 
 __all__ = ["ActionTile", "ArcGauge", "Bar", "CardPanel", "GaugeCard", "LoadCard", "MetricCard", "PerfChart", "QuickButton", "RingCard", "ScoreRing", "Sparkline", "ValueListCard", "glyph_tile", "level_color"]

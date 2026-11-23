@@ -51,6 +51,14 @@ from .theme import (
     OK,
     PANEL,
     PANEL_ALT,
+    RADIUS_LG,
+    RADIUS_MD,
+    RADIUS_SM,
+    RADIUS_XL,
+    SPACING_LG,
+    SPACING_MD,
+    SPACING_SM,
+    SPACING_XS,
     T_BODY,
     T_CAPTION,
     T_H1,
@@ -117,7 +125,7 @@ class ResourceHistoryWidget(QWidget):
 
         layout = QVBoxLayout(self)
         layout.setContentsMargins(0, 0, 0, 0)
-        layout.setSpacing(4)
+        layout.setSpacing(SPACING_XS)
         self.chart = PerfChart(title=tr("dash_hist_title"), points=120)
         layout.addWidget(self.chart, 1)
         self.info = QLabel("")
@@ -157,17 +165,17 @@ class RecommendationsWidget(QFrame):
         self.setObjectName("card")
         self.setStyleSheet(
             f"QFrame#card {{ background: {PANEL}; border: 1px solid {BORDER}; "
-            f"border-radius: 12px; }} QFrame#card:hover {{ border-color: {BORDER_HI}; }}"
+            f"border-radius: {RADIUS_LG}px; }} QFrame#card:hover {{ border-color: {BORDER_HI}; }}"
         )
         hud_brackets(self)
         layout = QVBoxLayout(self)
-        layout.setContentsMargins(16, 12, 16, 12)
-        layout.setSpacing(8)
+        layout.setContentsMargins(SPACING_LG, SPACING_MD, SPACING_LG, SPACING_MD)
+        layout.setSpacing(SPACING_SM)
 
         self.title = CardTitleLabel(tr("dash_rec_title"), C1)
         layout.addWidget(self.title)
         self._rows = QVBoxLayout()
-        self._rows.setSpacing(8)
+        self._rows.setSpacing(SPACING_SM)
         layout.addLayout(self._rows)
         layout.addStretch(1)
         self._specs: list[tuple[str, dict[str, object], str | None]] = []
@@ -188,7 +196,7 @@ class RecommendationsWidget(QFrame):
             return
         for key, fmt, target in self._specs:
             row = QHBoxLayout()
-            row.setSpacing(8)
+            row.setSpacing(SPACING_SM)
             dot = QLabel("●")
             dot.setStyleSheet(f"font-size: {T_CAPTION}px; color: {WARN if target else OK};")
             row.addWidget(dot)
@@ -222,12 +230,12 @@ class HealthWidget(QFrame):
         self.setObjectName("card")
         self.setStyleSheet(
             f"QFrame#card {{ background: {PANEL}; border: 1px solid {BORDER}; "
-            f"border-radius: 12px; }} QFrame#card:hover {{ border-color: {BORDER_HI}; }}"
+            f"border-radius: {RADIUS_LG}px; }} QFrame#card:hover {{ border-color: {BORDER_HI}; }}"
         )
         hud_brackets(self)
         layout = QVBoxLayout(self)
-        layout.setContentsMargins(14, 12, 14, 12)
-        layout.setSpacing(6)
+        layout.setContentsMargins(SPACING_LG, SPACING_MD, SPACING_LG, SPACING_MD)
+        layout.setSpacing(SPACING_SM)
 
         # Graphic box
         graphic = QLabel()
@@ -243,7 +251,7 @@ class HealthWidget(QFrame):
         self.health_title = title
 
         score_row = QHBoxLayout()
-        score_row.setSpacing(6)
+        score_row.setSpacing(SPACING_SM)
         score_row.setAlignment(Qt.AlignmentFlag.AlignCenter)
 
         self.score_label = QLabel("—")
@@ -265,7 +273,7 @@ class HealthWidget(QFrame):
         self.button.setCursor(Qt.CursorShape.PointingHandCursor)
         self.button.setStyleSheet(
             f"background: qlineargradient(x1:0, y1:0, x2:1, y2:0, stop:0 {BRAND_A}, stop:1 {BRAND_B}); "
-            f"color: #FFFFFF; font-weight: 700; font-size: {T_BODY}px; border: none; border-radius: 8px; padding: 7px 12px;"
+            f"color: #FFFFFF; font-weight: 700; font-size: {T_BODY}px; border: none; border-radius: {RADIUS_MD}px; padding: 7px 12px;"
         )
         self.button.clicked.connect(self.full_check_clicked.emit)
         layout.addWidget(self.button)
@@ -304,12 +312,12 @@ class QuickActionsWidget(QFrame):
         self.setObjectName("card")
         self.setStyleSheet(
             f"QFrame#card {{ background: {PANEL}; border: 1px solid {BORDER}; "
-            f"border-radius: 12px; }} QFrame#card:hover {{ border-color: {BORDER_HI}; }}"
+            f"border-radius: {RADIUS_LG}px; }} QFrame#card:hover {{ border-color: {BORDER_HI}; }}"
         )
         hud_brackets(self)
         layout = QVBoxLayout(self)
-        layout.setContentsMargins(14, 12, 14, 12)
-        layout.setSpacing(6)
+        layout.setContentsMargins(SPACING_LG, SPACING_MD, SPACING_LG, SPACING_MD)
+        layout.setSpacing(SPACING_SM)
 
         title = QLabel(tr("dash_qa_title"))
         title.setStyleSheet(f"font-size: {T_SMALL}px; font-weight: 700; color: {TEXT};")
@@ -330,7 +338,7 @@ class QuickActionsWidget(QFrame):
             btn.setCursor(Qt.CursorShape.PointingHandCursor)
             btn.setStyleSheet(
                 f"QPushButton {{ background: {PANEL_ALT}; border: 1px solid {BORDER}; "
-                f"border-radius: 7px; color: {TEXT}; font-size: {T_SMALL}px; font-weight: 600; text-align: left; padding: 6px 10px; }} "
+                f"border-radius: {RADIUS_SM}px; color: {TEXT}; font-size: {T_SMALL}px; font-weight: 600; text-align: left; padding: 6px 10px; }} "
                 f"QPushButton:hover {{ background: rgba(30, 107, 255, 0.2); border-color: {ACCENT}; color: {TEXT}; }}"
             )
             btn.clicked.connect(lambda _=False, t=target: self.action_triggered.emit(t))
@@ -364,21 +372,21 @@ class GamingBannerWidget(QFrame):
         self.setObjectName("card")
         self.setStyleSheet(
             f"QFrame#card {{ background: qlineargradient(x1:0, y1:0, x2:1, y2:0, stop:0 {PANEL}, stop:1 {HERO_TOP}); "
-            "border: 1px solid rgba(30, 107, 255, 0.4); border-radius: 14px; }"
+            f"border: 1px solid rgba(30, 107, 255, 0.4); border-radius: {RADIUS_XL}px; }}"
         )
         hud_brackets(self)
         row = QHBoxLayout(self)
         row.setContentsMargins(CARD_PADDING, CARD_PADDING, CARD_PADDING, CARD_PADDING)
-        row.setSpacing(14)
+        row.setSpacing(SPACING_LG)
 
         icon_label = QLabel()
         icon_label.setPixmap(glyph("gaming", C1).scaled(32, 32, Qt.AspectRatioMode.KeepAspectRatio, Qt.TransformationMode.SmoothTransformation))
         row.addWidget(icon_label)
 
         info_box = QVBoxLayout()
-        info_box.setSpacing(3)
+        info_box.setSpacing(SPACING_XS)
         h_row = QHBoxLayout()
-        h_row.setSpacing(8)
+        h_row.setSpacing(SPACING_SM)
         title = QLabel(tr("dash_gaming_banner"))
         title.setStyleSheet(f"font-size: {T_H2}px; font-weight: 800; color: {TEXT};")
         h_row.addWidget(title)
@@ -386,7 +394,7 @@ class GamingBannerWidget(QFrame):
         self.status_badge = QLabel("")
         self.status_badge.setStyleSheet(
             f"background: rgba(0, 229, 153, 0.15); color: {OK}; font-size: {T_CAPTION}px; font-weight: 700; "
-            "border: 1px solid rgba(0, 229, 153, 0.3); border-radius: 6px; padding: 2px 7px;"
+            f"border: 1px solid rgba(0, 229, 153, 0.3); border-radius: {RADIUS_SM}px; padding: 2px 7px;"
         )
         self.status_badge.setSizePolicy(QSizePolicy.Policy.Maximum, QSizePolicy.Policy.Fixed)
         h_row.addWidget(self.status_badge, 0, Qt.AlignmentFlag.AlignVCenter)
@@ -402,7 +410,7 @@ class GamingBannerWidget(QFrame):
         self.configure_button.setCursor(Qt.CursorShape.PointingHandCursor)
         self.configure_button.setStyleSheet(
             f"QPushButton {{ background: rgba(30, 107, 255, 0.2); border: 1px solid {ACCENT}; "
-            f"color: {TEXT}; font-size: {T_BODY}px; font-weight: 700; border-radius: 8px; padding: 6px 14px; }} "
+            f"color: {TEXT}; font-size: {T_BODY}px; font-weight: 700; border-radius: {RADIUS_MD}px; padding: 6px 14px; }} "
             f"QPushButton:hover {{ background: {ACCENT}; }}"
         )
         self.configure_button.clicked.connect(self.configure_clicked.emit)
@@ -416,7 +424,7 @@ class GamingBannerWidget(QFrame):
         color, bg = (OK, "rgba(0, 229, 153, 0.15)") if on else (TEXT_DIM, "rgba(130, 146, 170, 0.15)")
         self.status_badge.setStyleSheet(
             f"background: {bg}; color: {color}; font-size: {T_CAPTION}px; font-weight: 700; "
-            "border-radius: 6px; padding: 2px 7px;"
+            f"border-radius: {RADIUS_SM}px; padding: 2px 7px;"
         )
 
     def retranslate(self) -> None:
@@ -436,12 +444,12 @@ class RecentActionsWidget(QFrame):
         self.setMinimumHeight(220)
         self.setStyleSheet(
             f"QFrame#card {{ background: {PANEL}; border: 1px solid {BORDER}; "
-            f"border-radius: 12px; }} QFrame#card:hover {{ border-color: {BORDER_HI}; }}"
+            f"border-radius: {RADIUS_LG}px; }} QFrame#card:hover {{ border-color: {BORDER_HI}; }}"
         )
         hud_brackets(self)
         layout = QVBoxLayout(self)
-        layout.setContentsMargins(16, 12, 16, 12)
-        layout.setSpacing(8)
+        layout.setContentsMargins(SPACING_LG, SPACING_MD, SPACING_LG, SPACING_MD)
+        layout.setSpacing(SPACING_SM)
 
         title = QLabel(tr("dash_recent_title"))
         title.setStyleSheet(f"font-size: {T_SMALL}px; font-weight: 700; color: {TEXT};")
@@ -457,7 +465,7 @@ class RecentActionsWidget(QFrame):
         host.setStyleSheet("background: transparent;")
         self._rows = QVBoxLayout(host)
         self._rows.setContentsMargins(0, 0, 0, 0)
-        self._rows.setSpacing(8)
+        self._rows.setSpacing(SPACING_SM)
         self._rows.addStretch(1)
         scroll.setWidget(host)
         layout.addWidget(scroll, 1)
@@ -481,7 +489,7 @@ class RecentActionsWidget(QFrame):
         for e in entries:
             color, icon = _activity_style(e.level)
             r = QHBoxLayout()
-            r.setSpacing(8)
+            r.setSpacing(SPACING_SM)
             chk = QLabel()
             chk.setPixmap(glyph(icon, color).scaled(14, 14, Qt.AspectRatioMode.KeepAspectRatio, Qt.TransformationMode.SmoothTransformation))
             r.addWidget(chk)
@@ -519,12 +527,12 @@ class ProcessLoadWidget(QFrame):
         self.setObjectName("card")
         self.setStyleSheet(
             f"QFrame#card {{ background: {PANEL}; border: 1px solid {BORDER}; "
-            f"border-radius: 12px; }} QFrame#card:hover {{ border-color: {BORDER_HI}; }}"
+            f"border-radius: {RADIUS_LG}px; }} QFrame#card:hover {{ border-color: {BORDER_HI}; }}"
         )
         hud_brackets(self)
         layout = QVBoxLayout(self)
-        layout.setContentsMargins(16, 12, 16, 12)
-        layout.setSpacing(8)
+        layout.setContentsMargins(SPACING_LG, SPACING_MD, SPACING_LG, SPACING_MD)
+        layout.setSpacing(SPACING_SM)
 
         head = QHBoxLayout()
         title = QLabel(tr("dash_proc_title"))
@@ -542,7 +550,7 @@ class ProcessLoadWidget(QFrame):
         layout.addLayout(head)
 
         self._rows_box = QVBoxLayout()
-        self._rows_box.setSpacing(8)
+        self._rows_box.setSpacing(SPACING_SM)
         layout.addLayout(self._rows_box)
         layout.addStretch(1)
         self.set_rows([])
@@ -573,7 +581,7 @@ class ProcessLoadWidget(QFrame):
             return
         for name, cpu, mem_mb in procs:
             row = QHBoxLayout()
-            row.setSpacing(8)
+            row.setSpacing(SPACING_SM)
             dot = QLabel("●")
             dot.setStyleSheet(f"color: {ACCENT}; font-size: {T_CAPTION}px;")
             row.addWidget(dot)
@@ -612,12 +620,12 @@ class NetworkWidget(QFrame):
         self.setObjectName("card")
         self.setStyleSheet(
             f"QFrame#card {{ background: {PANEL}; border: 1px solid {BORDER}; "
-            f"border-radius: 12px; }} QFrame#card:hover {{ border-color: {BORDER_HI}; }}"
+            f"border-radius: {RADIUS_LG}px; }} QFrame#card:hover {{ border-color: {BORDER_HI}; }}"
         )
         hud_brackets(self)
         layout = QVBoxLayout(self)
-        layout.setContentsMargins(16, 12, 16, 12)
-        layout.setSpacing(6)
+        layout.setContentsMargins(SPACING_LG, SPACING_MD, SPACING_LG, SPACING_MD)
+        layout.setSpacing(SPACING_SM)
 
         title = QLabel(tr("dash_net_title"))
         title.setStyleSheet(f"font-size: {T_SMALL}px; font-weight: 700; color: {TEXT};")
@@ -625,7 +633,7 @@ class NetworkWidget(QFrame):
         self.net_title = title
 
         top_row = QHBoxLayout()
-        top_row.setSpacing(8)
+        top_row.setSpacing(SPACING_SM)
         net_icon = QLabel()
         net_icon.setPixmap(glyph("network", C1).scaled(18, 18, Qt.AspectRatioMode.KeepAspectRatio, Qt.TransformationMode.SmoothTransformation))
         top_row.addWidget(net_icon)
@@ -641,7 +649,7 @@ class NetworkWidget(QFrame):
         top_row.addLayout(conn_info, 1)
 
         speed_box = QHBoxLayout()
-        speed_box.setSpacing(12)
+        speed_box.setSpacing(SPACING_MD)
         
         down_col = QVBoxLayout()
         down_col.setSpacing(1)
@@ -670,11 +678,11 @@ class NetworkWidget(QFrame):
 
         # Diagnostics pills
         diag_row = QHBoxLayout()
-        diag_row.setSpacing(8)
+        diag_row.setSpacing(SPACING_SM)
         self.diag_pills: list[QLabel] = []
         for item_key in ("dash_net_internet", "dash_net_dns", "dash_net_gateway", "dash_net_loss", "dash_net_latency"):
             p = QLabel(f"✓ {tr(item_key, pct=0)}")
-            p.setStyleSheet(f"font-size: {T_CAPTION}px; font-weight: 600; color: {OK}; background: rgba(0, 229, 153, 0.1); border-radius: 4px; padding: 2px 5px;")
+            p.setStyleSheet(f"font-size: {T_CAPTION}px; font-weight: 600; color: {OK}; background: rgba(0, 229, 153, 0.1); border-radius: {RADIUS_SM}px; padding: 2px 5px;")
             diag_row.addWidget(p)
             p.hide()  # no live diagnostics on the dashboard (run them on the Network page)
             self.diag_pills.append(p)
@@ -698,12 +706,12 @@ class NotificationsWidget(QFrame):
         self.setObjectName("card")
         self.setStyleSheet(
             f"QFrame#card {{ background: {PANEL}; border: 1px solid {BORDER}; "
-            f"border-radius: 12px; }} QFrame#card:hover {{ border-color: {BORDER_HI}; }}"
+            f"border-radius: {RADIUS_LG}px; }} QFrame#card:hover {{ border-color: {BORDER_HI}; }}"
         )
         hud_brackets(self)
         layout = QVBoxLayout(self)
-        layout.setContentsMargins(16, 12, 16, 12)
-        layout.setSpacing(8)
+        layout.setContentsMargins(SPACING_LG, SPACING_MD, SPACING_LG, SPACING_MD)
+        layout.setSpacing(SPACING_SM)
 
         title = QLabel(tr("dash_notif_title"))
         title.setStyleSheet(f"font-size: {T_SMALL}px; font-weight: 700; color: {TEXT};")
@@ -711,7 +719,7 @@ class NotificationsWidget(QFrame):
         self.notif_title = title
 
         self._rows = QVBoxLayout()
-        self._rows.setSpacing(8)
+        self._rows.setSpacing(SPACING_SM)
         layout.addLayout(self._rows)
         layout.addStretch(1)
         self._live: str = ""
@@ -743,7 +751,7 @@ class NotificationsWidget(QFrame):
             return
         for ic, col, head_txt, sub_txt, time_str in items[:4]:
             r = QHBoxLayout()
-            r.setSpacing(8)
+            r.setSpacing(SPACING_SM)
             i_lbl = QLabel()
             i_lbl.setPixmap(glyph(ic, col).scaled(14, 14, Qt.AspectRatioMode.KeepAspectRatio, Qt.TransformationMode.SmoothTransformation))
             r.addWidget(i_lbl)
@@ -799,8 +807,8 @@ class DashboardPage(QWidget):
         scroll.setWidget(inner)
 
         layout = QVBoxLayout(inner)
-        layout.setContentsMargins(16, 12, 16, 12)
-        layout.setSpacing(12)
+        layout.setContentsMargins(SPACING_LG, SPACING_MD, SPACING_LG, SPACING_MD)
+        layout.setSpacing(SPACING_MD)
 
         # Header titles (greeting + status + clock)
         head = QHBoxLayout()
@@ -808,7 +816,7 @@ class DashboardPage(QWidget):
         titles.setSpacing(2)
         self._user_display = _user_name()
         hud_row = QHBoxLayout()
-        hud_row.setSpacing(8)
+        hud_row.setSpacing(SPACING_SM)
         hud_row.setAlignment(Qt.AlignmentFlag.AlignVCenter)
         hud_tag = QLabel(tr("dash_hud_status"))
         hud_tag.setObjectName("hudTag")
@@ -858,7 +866,7 @@ class DashboardPage(QWidget):
         # ZONE 1 — live overview: rings, hottest sensor and health score.
         layout.addWidget(self.sections[0])
         row1 = QGridLayout()
-        row1.setSpacing(8)
+        row1.setSpacing(SPACING_SM)
 
         self.cpu = RingCard(tr("dash_cpu"), C2, icon_name="cpu")
         self.cpu.set_center_sub(tr("dash_ring_load"))
@@ -885,7 +893,7 @@ class DashboardPage(QWidget):
         # ZONE 2 — live chart, persistent 60-minute history and temperatures.
         layout.addWidget(self.sections[1])
         row2 = QGridLayout()
-        row2.setSpacing(8)
+        row2.setSpacing(SPACING_SM)
         self.chart = PerfChart(points=3600, enable_range=True)
         self.chart.setSizePolicy(QSizePolicy.Policy.Ignored, QSizePolicy.Policy.Preferred)
         self.history_widget = ResourceHistoryWidget(history)
@@ -898,7 +906,7 @@ class DashboardPage(QWidget):
         # ZONE 3 — storage, top processes and shortcuts.
         layout.addWidget(self.sections[2])
         row3 = QGridLayout()
-        row3.setSpacing(8)
+        row3.setSpacing(SPACING_SM)
         self.disks = CardPanel(tr("dash_disks_title"))
         self.disks.set_rows([])
         self.proc_load = ProcessLoadWidget()
@@ -908,7 +916,7 @@ class DashboardPage(QWidget):
         layout.addLayout(row3)
 
         row4 = QGridLayout()
-        row4.setSpacing(8)
+        row4.setSpacing(SPACING_SM)
         self.gaming_banner = GamingBannerWidget()
         self.gaming_banner.configure_clicked.connect(lambda: self.navigate.emit("gaming"))
         self.net_widget = NetworkWidget()
@@ -918,7 +926,7 @@ class DashboardPage(QWidget):
         # ZONE 4 — recent actions and actionable recommendations.
         layout.addWidget(self.sections[3])
         row5 = QGridLayout()
-        row5.setSpacing(8)
+        row5.setSpacing(SPACING_SM)
         self.recent_actions = RecentActionsWidget()
         self.recommendations = RecommendationsWidget()
         self.recommendations.action_triggered.connect(self.navigate.emit)

@@ -14,6 +14,8 @@ from PySide6.QtWidgets import (
 
 from app.i18n import tr
 
+from .theme import SPACING_LG, SPACING_MD, SPACING_XS
+
 TOAST_TIMEOUT_MS = 9000
 
 
@@ -45,8 +47,8 @@ class _Toast(QWidget):
         layout.addWidget(self._card)
 
         inner = QVBoxLayout(self._card)
-        inner.setContentsMargins(16, 12, 16, 12)
-        inner.setSpacing(4)
+        inner.setContentsMargins(SPACING_LG, SPACING_MD, SPACING_LG, SPACING_MD)
+        inner.setSpacing(SPACING_XS)
         self._title = QLabel(self._card)
         self._title.setObjectName("toastTitle")
         self._body = QLabel(self._card)

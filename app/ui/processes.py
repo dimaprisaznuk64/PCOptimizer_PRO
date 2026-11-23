@@ -34,7 +34,7 @@ from .components import CardTitleLabel, align_numeric_headers
 from .context_menu import TableContextMenu, copy_text
 from .format import mb, uptime
 from .tasks import Task
-from .theme import CARD_PADDING, PAGE_MARGINS
+from .theme import CARD_PADDING, PAGE_MARGINS, SPACING_MD, SPACING_SM
 
 COLUMN_KEYS = ("proc_col_name", "proc_col_pid", "proc_col_cpu", "proc_col_mem", "proc_col_user")
 COLUMNS = tuple(tr(k) for k in COLUMN_KEYS)
@@ -100,7 +100,7 @@ class ProcessPage(QWidget):
 
         layout = QVBoxLayout(self)
         layout.setContentsMargins(*PAGE_MARGINS)
-        layout.setSpacing(10)
+        layout.setSpacing(SPACING_MD)
 
         title = QLabel(tr("proc_title"))
         title.setObjectName("pageTitle")
@@ -113,7 +113,7 @@ class ProcessPage(QWidget):
         self._desc = desc
 
         toolbar = QHBoxLayout()
-        toolbar.setSpacing(8)
+        toolbar.setSpacing(SPACING_SM)
         self.filter = QLineEdit()
         self.filter.setPlaceholderText(tr("proc_filter_placeholder"))
         self.filter.setClearButtonEnabled(True)
@@ -171,7 +171,7 @@ class ProcessPage(QWidget):
         details.setSizePolicy(QSizePolicy.Policy.Expanding, QSizePolicy.Policy.Preferred)
         details_layout = QVBoxLayout(details)
         details_layout.setContentsMargins(CARD_PADDING, CARD_PADDING, CARD_PADDING, CARD_PADDING)
-        details_layout.setSpacing(8)
+        details_layout.setSpacing(SPACING_SM)
 
         details_title = CardTitleLabel(tr("proc_details"))
         details_layout.addWidget(details_title)

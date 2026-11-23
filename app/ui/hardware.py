@@ -22,7 +22,7 @@ from app.i18n import tr
 from .components import CardTitleLabel, ValueListCard, attach_empty_hint
 from .format import size as fmt_size
 from .tasks import Task
-from .theme import CARD_PADDING, PAGE_MARGINS
+from .theme import CARD_PADDING, PAGE_MARGINS, SPACING_MD, SPACING_SM
 
 MEM_COLUMN_KEYS = (
     "hw_col_slot",
@@ -68,7 +68,7 @@ class HardwarePage(QWidget):
 
         layout = QVBoxLayout(self)
         layout.setContentsMargins(*PAGE_MARGINS)
-        layout.setSpacing(10)
+        layout.setSpacing(SPACING_MD)
 
         title = QLabel(tr("hw_title"))
         title.setObjectName("pageTitle")
@@ -81,7 +81,7 @@ class HardwarePage(QWidget):
         self._desc = desc
 
         toolbar = QHBoxLayout()
-        toolbar.setSpacing(8)
+        toolbar.setSpacing(SPACING_SM)
         self.refresh_button = QPushButton(tr("hw_refresh"))
         self.refresh_button.setProperty("primary", True)
         self.refresh_button.clicked.connect(self.start_load)
@@ -99,7 +99,7 @@ class HardwarePage(QWidget):
         container.setObjectName("page")
         grid = QGridLayout(container)
         grid.setContentsMargins(0, 0, 0, 0)
-        grid.setSpacing(12)
+        grid.setSpacing(SPACING_MD)
 
         self.system_card = ValueListCard(tr("hw_system"))
         self.cpu_card = ValueListCard(tr("hw_cpu"))
@@ -155,7 +155,7 @@ class HardwarePage(QWidget):
         card.setObjectName("card")
         body = QVBoxLayout(card)
         body.setContentsMargins(CARD_PADDING, CARD_PADDING, CARD_PADDING, CARD_PADDING)
-        body.setSpacing(8)
+        body.setSpacing(SPACING_SM)
 
         title = CardTitleLabel(tr(title_key))
         body.addWidget(title)

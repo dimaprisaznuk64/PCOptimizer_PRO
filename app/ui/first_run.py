@@ -18,7 +18,7 @@ from app.settings import SettingsService
 
 from .combos import COMBO_WIDTH, tune_combo
 from .components import CardTitleLabel
-from .theme import CARD_PADDING, PAGE_SPACING
+from .theme import CARD_PADDING, PAGE_SPACING, SPACING_LG, SPACING_MD, SPACING_SM, SPACING_XL
 
 
 class FirstRunWizard(QDialog):
@@ -60,7 +60,7 @@ class FirstRunWizard(QDialog):
         outer.addWidget(self._stack, 1)
 
         buttons = QHBoxLayout()
-        buttons.setSpacing(8)
+        buttons.setSpacing(SPACING_SM)
         self.skip_button = QPushButton(tr("wiz_skip"))
         self.skip_button.setObjectName("wizSkip")
         self.skip_button.setProperty("secondary", True)
@@ -90,8 +90,8 @@ class FirstRunWizard(QDialog):
         page = QFrame()
         page.setObjectName("card")
         layout = QVBoxLayout(page)
-        layout.setContentsMargins(20, 18, 20, 18)
-        layout.setSpacing(10)
+        layout.setContentsMargins(SPACING_XL, SPACING_LG, SPACING_XL, SPACING_LG)
+        layout.setSpacing(SPACING_MD)
         heading = CardTitleLabel(tr("wiz_welcome_heading"))
         layout.addWidget(heading)
         body = QLabel(tr("wiz_welcome_body"))
@@ -114,8 +114,8 @@ class FirstRunWizard(QDialog):
         page = QFrame()
         page.setObjectName("card")
         layout = QVBoxLayout(page)
-        layout.setContentsMargins(20, 18, 20, 18)
-        layout.setSpacing(10)
+        layout.setContentsMargins(SPACING_XL, SPACING_LG, SPACING_XL, SPACING_LG)
+        layout.setSpacing(SPACING_MD)
         heading = CardTitleLabel(tr("wiz_pref_heading"))
         layout.addWidget(heading)
         self._pref_heading = heading
@@ -162,8 +162,8 @@ class FirstRunWizard(QDialog):
         page = QFrame()
         page.setObjectName("card")
         layout = QVBoxLayout(page)
-        layout.setContentsMargins(20, 18, 20, 18)
-        layout.setSpacing(10)
+        layout.setContentsMargins(SPACING_XL, SPACING_LG, SPACING_XL, SPACING_LG)
+        layout.setSpacing(SPACING_MD)
         self._finish_heading = CardTitleLabel(tr("wiz_finish_heading"))
         layout.addWidget(self._finish_heading)
         self._finish_body = QLabel(tr("wiz_finish_body"))

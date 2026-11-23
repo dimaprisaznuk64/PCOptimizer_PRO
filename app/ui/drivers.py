@@ -19,7 +19,7 @@ from app.i18n import tr
 
 from .components import attach_empty_hint
 from .tasks import Task
-from .theme import CARD_PADDING, PAGE_MARGINS
+from .theme import CARD_PADDING, PAGE_MARGINS, SPACING_MD, SPACING_SM
 
 COLUMN_KEYS = (
     "drv_col_device",
@@ -43,7 +43,7 @@ class DriversPage(QWidget):
 
         layout = QVBoxLayout(self)
         layout.setContentsMargins(*PAGE_MARGINS)
-        layout.setSpacing(10)
+        layout.setSpacing(SPACING_MD)
 
         title = QLabel(tr("drv_title"))
         title.setObjectName("pageTitle")
@@ -56,7 +56,7 @@ class DriversPage(QWidget):
         self._desc = desc
 
         toolbar = QHBoxLayout()
-        toolbar.setSpacing(8)
+        toolbar.setSpacing(SPACING_SM)
         self.refresh_button = QPushButton(tr("drv_refresh"))
         self.refresh_button.setProperty("primary", True)
         self.refresh_button.clicked.connect(self.start_load)
@@ -70,7 +70,7 @@ class DriversPage(QWidget):
         card.setObjectName("card")
         body = QVBoxLayout(card)
         body.setContentsMargins(CARD_PADDING, CARD_PADDING, CARD_PADDING, CARD_PADDING)
-        body.setSpacing(8)
+        body.setSpacing(SPACING_SM)
         self.table = QTableWidget(0, len(COLUMN_KEYS))
         attach_empty_hint(self.table, "drv_empty")
         self.table.setHorizontalHeaderLabels([tr(key) for key in COLUMN_KEYS])

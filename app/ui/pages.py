@@ -3,6 +3,8 @@ from __future__ import annotations
 from PySide6.QtCore import Qt
 from PySide6.QtWidgets import QLabel, QVBoxLayout, QWidget
 
+from .theme import SPACING_MD, SPACING_XXL
+
 
 class PlaceholderPage(QWidget):
     def __init__(self, title: str, description: str, milestone: str, parent: QWidget | None = None) -> None:
@@ -10,8 +12,8 @@ class PlaceholderPage(QWidget):
         self.setObjectName("page")
 
         layout = QVBoxLayout(self)
-        layout.setContentsMargins(48, 44, 48, 44)
-        layout.setSpacing(10)
+        layout.setContentsMargins(SPACING_XXL, SPACING_XXL, SPACING_XXL, SPACING_XXL)
+        layout.setSpacing(SPACING_MD)
 
         badge = QLabel(milestone)
         badge.setObjectName("pageBadge")

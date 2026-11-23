@@ -23,7 +23,7 @@ from app.network import DEFAULT_PING_HOST, CheckResult, NetworkService, PingResu
 from .activity import record as log_action
 from .components import CardTitleLabel, attach_empty_hint
 from .tasks import Task
-from .theme import CARD_PADDING, PAGE_MARGINS
+from .theme import CARD_PADDING, PAGE_MARGINS, SPACING_MD, SPACING_SM
 
 PING_COLUMN_KEYS = ("net_col_time", "net_col_host", "net_col_avg", "net_col_loss", "net_col_result")
 DIAG_COLUMN_KEYS = ("net_col_check", "net_col_status", "net_col_detail")
@@ -66,7 +66,7 @@ class NetworkPage(QWidget):
 
         layout = QVBoxLayout(self)
         layout.setContentsMargins(*PAGE_MARGINS)
-        layout.setSpacing(10)
+        layout.setSpacing(SPACING_MD)
 
         title = QLabel(tr("net_title"))
         title.setObjectName("pageTitle")
@@ -85,7 +85,7 @@ class NetworkPage(QWidget):
         ping_card.setObjectName("card")
         ping_layout = QVBoxLayout(ping_card)
         ping_layout.setContentsMargins(CARD_PADDING, CARD_PADDING, CARD_PADDING, CARD_PADDING)
-        ping_layout.setSpacing(8)
+        ping_layout.setSpacing(SPACING_SM)
 
         ping_title = CardTitleLabel(tr("net_ping_title"))
         ping_layout.addWidget(ping_title)
@@ -133,7 +133,7 @@ class NetworkPage(QWidget):
         diag_card.setObjectName("card")
         diag_layout = QVBoxLayout(diag_card)
         diag_layout.setContentsMargins(CARD_PADDING, CARD_PADDING, CARD_PADDING, CARD_PADDING)
-        diag_layout.setSpacing(8)
+        diag_layout.setSpacing(SPACING_SM)
 
         diag_head = QHBoxLayout()
         diag_title = CardTitleLabel(tr("net_diag_title"))

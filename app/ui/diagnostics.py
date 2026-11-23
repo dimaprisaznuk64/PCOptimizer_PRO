@@ -23,7 +23,7 @@ from .combos import CompactCombo, tune_combo
 from .components import CardTitleLabel, attach_empty_hint
 from .format import size as fmt_size
 from .tasks import Task
-from .theme import ACCENT, CARD_PADDING, DANGER, OK, PAGE_MARGINS, WARN
+from .theme import ACCENT, CARD_PADDING, DANGER, OK, PAGE_MARGINS, SPACING_MD, SPACING_SM, WARN
 
 DISK_COLUMN_KEYS = (
     "diag_col_name",
@@ -201,7 +201,7 @@ class DiagnosticsPage(QWidget):
 
         layout = QVBoxLayout(self)
         layout.setContentsMargins(*PAGE_MARGINS)
-        layout.setSpacing(10)
+        layout.setSpacing(SPACING_MD)
 
         title = QLabel(tr("diag_title"))
         title.setObjectName("pageTitle")
@@ -214,7 +214,7 @@ class DiagnosticsPage(QWidget):
         self._desc = desc
 
         toolbar = QHBoxLayout()
-        toolbar.setSpacing(8)
+        toolbar.setSpacing(SPACING_SM)
         self.refresh_button = QPushButton(tr("diag_refresh"))
         self.refresh_button.setProperty("primary", True)
         self.refresh_button.clicked.connect(self.start_load)
@@ -245,10 +245,10 @@ class DiagnosticsPage(QWidget):
         evt_card.setObjectName("card")
         evt_layout = QVBoxLayout(evt_card)
         evt_layout.setContentsMargins(CARD_PADDING, CARD_PADDING, CARD_PADDING, CARD_PADDING)
-        evt_layout.setSpacing(8)
+        evt_layout.setSpacing(SPACING_SM)
 
         evt_head = QHBoxLayout()
-        evt_head.setSpacing(8)
+        evt_head.setSpacing(SPACING_SM)
         evt_title = CardTitleLabel(tr("diag_evt_title"))
         evt_head.addWidget(evt_title)
         evt_head.addStretch(1)
@@ -281,10 +281,10 @@ class DiagnosticsPage(QWidget):
         up_card.setObjectName("card")
         up_layout = QVBoxLayout(up_card)
         up_layout.setContentsMargins(CARD_PADDING, CARD_PADDING, CARD_PADDING, CARD_PADDING)
-        up_layout.setSpacing(8)
+        up_layout.setSpacing(SPACING_SM)
 
         up_head = QHBoxLayout()
-        up_head.setSpacing(8)
+        up_head.setSpacing(SPACING_SM)
         up_title = CardTitleLabel(tr("diag_up_title"))
         up_head.addWidget(up_title)
         up_head.addStretch(1)
@@ -332,7 +332,7 @@ class DiagnosticsPage(QWidget):
         card.setObjectName("card")
         body = QVBoxLayout(card)
         body.setContentsMargins(CARD_PADDING, CARD_PADDING, CARD_PADDING, CARD_PADDING)
-        body.setSpacing(8)
+        body.setSpacing(SPACING_SM)
 
         title = CardTitleLabel(tr(title_key))
         body.addWidget(title)

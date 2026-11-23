@@ -13,6 +13,8 @@ from PySide6.QtWidgets import (
 
 from app.i18n import tr
 
+from .theme import SPACING_SM, SPACING_XS
+
 DASH_WIDGET_KEYS = (
     "cpu",
     "ram",
@@ -93,8 +95,8 @@ class DashboardCustomizerDialog(QDialog):
         scroll.viewport().setAutoFillBackground(False)
         host = QWidget()
         form = QVBoxLayout(host)
-        form.setContentsMargins(4, 4, 4, 4)
-        form.setSpacing(8)
+        form.setContentsMargins(SPACING_XS, SPACING_XS, SPACING_XS, SPACING_XS)
+        form.setSpacing(SPACING_SM)
 
         self._checks: dict[str, QCheckBox] = {}
         for section, section_key in enumerate(_SECTION_KEYS):

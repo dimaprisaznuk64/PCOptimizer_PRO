@@ -28,7 +28,7 @@ from .activity import outcome_level
 from .activity import record as log_action
 from .components import CardTitleLabel, glyph_tile
 from .tasks import Task
-from .theme import CARD_PADDING, PAGE_MARGINS
+from .theme import CARD_PADDING, PAGE_MARGINS, SPACING_MD, SPACING_SM, SPACING_XS
 
 _PROFILE_ICONS = {"balanced": "health", "gaming": "gaming", "performance": "cpu"}
 
@@ -120,7 +120,7 @@ class OptimizerPage(QWidget):
 
         layout = QVBoxLayout(self)
         layout.setContentsMargins(*PAGE_MARGINS)
-        layout.setSpacing(10)
+        layout.setSpacing(SPACING_MD)
 
         title = QLabel(tr("opt_title"))
         title.setObjectName("pageTitle")
@@ -158,17 +158,17 @@ class OptimizerPage(QWidget):
         splitter = QSplitter(Qt.Orientation.Horizontal)
 
         profiles_column = QVBoxLayout()
-        profiles_column.setSpacing(8)
+        profiles_column.setSpacing(SPACING_SM)
         self.profile_cards: dict[str, tuple[QFrame, QLabel]] = {}
         for name in PROFILES:
             card = QFrame()
             card.setObjectName("card")
             card_layout = QVBoxLayout(card)
             card_layout.setContentsMargins(CARD_PADDING, CARD_PADDING, CARD_PADDING, CARD_PADDING)
-            card_layout.setSpacing(4)
+            card_layout.setSpacing(SPACING_XS)
 
             head = QHBoxLayout()
-            head.setSpacing(12)
+            head.setSpacing(SPACING_MD)
             head.addWidget(glyph_tile(_PROFILE_ICONS.get(name.lower(), "optimizer")))
             name_label = QLabel(tr(_PROFILE_TR.get(name.lower(), "opt_title")))
             name_label.setObjectName("gpuName")
@@ -203,7 +203,7 @@ class OptimizerPage(QWidget):
         state_card.setSizePolicy(QSizePolicy.Policy.Expanding, QSizePolicy.Policy.Preferred)
         state_layout = QVBoxLayout(state_card)
         state_layout.setContentsMargins(CARD_PADDING, CARD_PADDING, CARD_PADDING, CARD_PADDING)
-        state_layout.setSpacing(8)
+        state_layout.setSpacing(SPACING_SM)
 
         state_title = CardTitleLabel(tr("opt_current_state"))
         state_layout.addWidget(state_title)
@@ -234,7 +234,7 @@ class OptimizerPage(QWidget):
         preview_card.setObjectName("card")
         preview_layout = QVBoxLayout(preview_card)
         preview_layout.setContentsMargins(CARD_PADDING, CARD_PADDING, CARD_PADDING, CARD_PADDING)
-        preview_layout.setSpacing(6)
+        preview_layout.setSpacing(SPACING_SM)
 
         self._preview_title = CardTitleLabel(tr("opt_preview_title"))
         preview_layout.addWidget(self._preview_title)
@@ -263,7 +263,7 @@ class OptimizerPage(QWidget):
         right = QWidget()
         right_layout = QVBoxLayout(right)
         right_layout.setContentsMargins(0, 0, 0, 0)
-        right_layout.setSpacing(10)
+        right_layout.setSpacing(SPACING_MD)
         right_layout.addWidget(state_card)
         right_layout.addWidget(preview_card)
         splitter.addWidget(right)

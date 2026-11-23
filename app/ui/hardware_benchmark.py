@@ -11,7 +11,7 @@ from PySide6.QtWidgets import (
     QHeaderView,
     QLabel,
     QPushButton,
-    QSplitter,
+    QScrollArea,
     QTableWidget,
     QTableWidgetItem,
     QVBoxLayout,
@@ -24,7 +24,7 @@ from app.reports import ReportError, format_for_path, timestamp_name, write_repo
 
 from .components import CardTitleLabel, ValueListCard, attach_empty_hint
 from .tasks import Task
-from .theme import CARD_PADDING, DANGER, OK, PAGE_MARGINS
+from .theme import CARD_PADDING, DANGER, OK, PAGE_MARGINS, SPACING_MD, SPACING_SM, SPACING_XXL
 
 COLUMN_KEYS = (
     "hwb_col_metric",
@@ -39,6 +39,7 @@ BASELINE_COLUMN_KEYS = (
     "hwb_col_value",
     "hwb_col_unit",
     "hwb_col_previous",
+    "hwb_col_baseline",
     "hwb_col_delta",
 )
 _MISSING = "—"
@@ -74,7 +75,7 @@ class HardwareBenchmarkPage(QWidget):
 
         layout = QVBoxLayout(self)
         layout.setContentsMargins(*PAGE_MARGINS)
-        layout.setSpacing(10)
+        layout.setSpacing(SPACING_MD)
 
         title = QLabel(tr("hwb_title"))
         title.setObjectName("pageTitle")
@@ -87,7 +88,7 @@ class HardwareBenchmarkPage(QWidget):
         self._desc = desc
 
         toolbar = QHBoxLayout()
-        toolbar.setSpacing(8)
+        toolbar.setSpacing(SPACING_SM)
         self.run_button = QPushButton(tr("hwb_run"))
         self.run_button.setProperty("primary", True)
         self.run_button.clicked.connect(self.start_run)
@@ -105,9 +106,22 @@ class HardwareBenchmarkPage(QWidget):
         toolbar.addWidget(self.status_label, 1)
         layout.addLayout(toolbar)
 
-        splitter = QSplitter(Qt.Orientation.Vertical)
+        # The page scrolls instead of squeezing three cards into a splitter:
+        # every card keeps its natural height (no clipped headings, no void).
+        scroll = QScrollArea()
+        scroll.setWidgetResizable(True)
+        scroll.setFrameShape(QFrame.Shape.NoFrame)
+        scroll.setHorizontalScrollBarPolicy(Qt.ScrollBarPolicy.ScrollBarAlwaysOff)
+        scroll.setStyleSheet("QScrollArea { background: transparent; border: none; }")
+        content = QWidget()
+        content.setObjectName("page")
+        body = QVBoxLayout(content)
+        body.setContentsMargins(0, 0, 0, 0)
+        body.setSpacing(SPACING_MD)
+        scroll.setWidget(content)
+
         self.summary_card = ValueListCard(tr("hwb_summary"))
-        splitter.addWidget(self.summary_card)
+        body.addWidget(self.summary_card)
 
         results_card, self.results_title, self.results_table = self._make_table(
             "hwb_results", COLUMN_KEYS, "hwb_empty"
@@ -115,12 +129,10 @@ class HardwareBenchmarkPage(QWidget):
         baseline_card, self.baseline_title, self.baseline_table = self._make_table(
             "hwb_baseline", BASELINE_COLUMN_KEYS, "hwb_baseline_empty"
         )
-        splitter.addWidget(results_card)
-        splitter.addWidget(baseline_card)
-        splitter.setStretchFactor(0, 1)
-        splitter.setStretchFactor(1, 2)
-        splitter.setStretchFactor(2, 2)
-        layout.addWidget(splitter, 1)
+        body.addWidget(results_card)
+        body.addWidget(baseline_card)
+        body.addStretch(1)
+        layout.addWidget(scroll, 1)
 
     @property
     def service(self) -> HardwareBenchmarkService:
@@ -135,7 +147,7 @@ class HardwareBenchmarkPage(QWidget):
         card.setObjectName("card")
         body = QVBoxLayout(card)
         body.setContentsMargins(CARD_PADDING, CARD_PADDING, CARD_PADDING, CARD_PADDING)
-        body.setSpacing(8)
+        body.setSpacing(SPACING_SM)
         title = CardTitleLabel(tr(title_key))
         body.addWidget(title)
         table = QTableWidget(0, len(column_keys))
@@ -150,8 +162,18 @@ class HardwareBenchmarkPage(QWidget):
         for col in range(len(column_keys) - 1):
             header.setSectionResizeMode(col, QHeaderView.ResizeMode.ResizeToContents)
         header.setSectionResizeMode(len(column_keys) - 1, QHeaderView.ResizeMode.Stretch)
-        body.addWidget(table, 1)
+        body.addWidget(table)
+        self._fit_table(table)
         return card, title, table
+
+    @staticmethod
+    def _fit_table(table: QTableWidget, min_rows: int = 3) -> None:
+        """Size the table to its rows so cards hug their content."""
+        rows = max(table.rowCount(), min_rows)
+        height = table.horizontalHeader().height() + 2 * table.frameWidth()
+        height += sum(table.rowHeight(r) for r in range(table.rowCount()))
+        height += (rows - table.rowCount()) * table.verticalHeader().defaultSectionSize()
+        table.setFixedHeight(max(height, table.horizontalHeader().height() + SPACING_XXL * 2))
 
     def start_run(self) -> None:
         if self._task is not None:
@@ -206,6 +228,7 @@ class HardwareBenchmarkPage(QWidget):
             )
             for col, text in enumerate(cells):
                 self.results_table.setItem(row, col, QTableWidgetItem(text))
+        self._fit_table(self.results_table)
         self._render_baseline(report)
 
     def _render_baseline(self, report: HardwareBenchmarkReport) -> None:
@@ -216,23 +239,30 @@ class HardwareBenchmarkPage(QWidget):
             previous = _MISSING if item.previous is None else (
                 f"{item.previous:.2f}" if item.unit == "GB/s" else f"{item.previous:.1f}"
             )
+            base = _MISSING if item.baseline is None else (
+                f"{item.baseline:.2f}" if item.unit == "GB/s" else f"{item.baseline:.1f}"
+            )
             cells = (
                 QTableWidgetItem(_metric_text(item.metric)),
                 QTableWidgetItem(text),
                 QTableWidgetItem(item.unit),
                 QTableWidgetItem(previous),
+                QTableWidgetItem(base),
                 QTableWidgetItem(_delta_text(item.delta_pct)),
             )
             color = _delta_color(item.delta_pct)
             if color is not None:
-                cells[4].setForeground(QColor(color))
+                cells[5].setForeground(QColor(color))
             for col, cell in enumerate(cells):
                 self.baseline_table.setItem(row, col, cell)
+        self._fit_table(self.baseline_table)
 
     def _clear(self) -> None:
         self.summary_card.set_values([])
         self.results_table.setRowCount(0)
         self.baseline_table.setRowCount(0)
+        self._fit_table(self.results_table)
+        self._fit_table(self.baseline_table)
 
     def set_baseline(self) -> None:
         if self._task is not None:
