@@ -187,12 +187,12 @@ def test_migrate_does_not_overwrite_existing(tmp_path, monkeypatch) -> None:
 
     root = tmp_path / "new_data"
     root.mkdir(parents=True)
-    (root / "settings.json").write_text(json.dumps({"theme": "COBALT"}), encoding="utf-8")
+    (root / "settings.json").write_text(json.dumps({"theme": "AUBERGINE"}), encoding="utf-8")
     monkeypatch.setenv("PCOPTIMIZER_DATA", str(root))
 
     data_root()
     svc = SettingsService()
-    assert svc.get("theme") == "COBALT"
+    assert svc.get("theme") == "AUBERGINE"
 
 
 def test_corrupt_settings_reports_load_error(tmp_path) -> None:

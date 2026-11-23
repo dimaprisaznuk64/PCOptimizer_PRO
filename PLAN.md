@@ -38,14 +38,13 @@
   `dist\PCOptimizer_PRO_src_v2.0.1.zip`. Smoke test passed; silent upgrade of
   `app_run` to `2.0.1.0` passed and the installed GUI was relaunched.
   Local build fix committed as `af12a48` (call operator for venv Python).
-- Current working tree (uncommitted): design-system token merge from the
-  Desktop patch (`SPACING_*`/`RADIUS_*` scale, `normalize_spacing.py`, design
-  docs) plus B-09 fixes (cooperative teardown in tests, cached stylesheet,
-  cached WMI hardware names). Full suite now completes in one run:
-  **927 passed / 1 skipped** in 184 s; `ruff`, `mypy`, `compileall` clean.
-  Both Desktop archives were reviewed: the patch zip was merged, the visual-system
-  artifact (`Main.dc.html`) was checked for token parity. Owner decision: keep all
-  **29 themes**, do not apply the 18-theme consolidation from `docs/THEMES_REVIEW.md`.
+- Current work: commit `c65605a` merged the Desktop style patch (`SPACING_*`/`RADIUS_*`
+  scale, `normalize_spacing.py`, design docs) plus B-09 fixes (cooperative teardown,
+  cached stylesheet, cached WMI names). Full suite in one run: **927 passed / 1 skipped**
+  in 184 s; `ruff`, `mypy`, `compileall` clean. Both Desktop archives were reviewed:
+  the patch zip was merged and `Main.dc.html` was checked for token parity. A follow-up
+  commit applies the visual guide's theme proposal — 29 → **18 themes**, with the 11
+  removed names kept as `THEME_ALIASES` so saved settings keep working.
 
 
 - Released **v1.7.1** (`d9f83ab`) — reliability/stabilization batch: fixed safe

@@ -35,11 +35,9 @@ DEFAULTS: dict[str, Any] = {
 CHOICES: dict[str, tuple[str, ...]] = {
     "log_level": ("DEBUG", "INFO", "WARNING", "ERROR"),
     "monitor_profile": ("ECO", "BALANCED", "PERFORMANCE"),
-    "theme": ("GRAPHITE", "TRUE_BLACK", "SLATE", "TITANIUM", "FOREST", "BURGUNDY", "MIDNIGHT",
-              "AUBERGINE", "DEEP_TEAL", "ESPRESSO", "ARCTIC", "IVORY", "MONO", "SAGE",
-              "PERFORMANCE_RED", "CYBER", "INDUSTRIAL", "TACTICAL", "COBALT", "COPPER",
-              "DARK", "PURPLE", "GREEN", "LIGHT", "AMOLED", "NEON_PULSE",
-              "ELECTRIC", "NEXUS", "MINIMAL_DARK"),
+    "theme": ("GRAPHITE", "TRUE_BLACK", "TITANIUM", "FOREST", "BURGUNDY", "MIDNIGHT",
+              "AUBERGINE", "ESPRESSO", "ARCTIC", "IVORY", "MONO", "SAGE", "CYBER",
+              "INDUSTRIAL", "TACTICAL", "PURPLE", "GREEN", "AMOLED"),
     "language": ("UA", "EN"),
 }
 

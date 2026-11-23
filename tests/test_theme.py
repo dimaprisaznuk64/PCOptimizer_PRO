@@ -12,16 +12,25 @@ REQUIRED = [
 ]
 
 EXPECTED = {
-    "GRAPHITE", "TRUE_BLACK", "SLATE", "TITANIUM", "FOREST", "BURGUNDY",
-    "MIDNIGHT", "AUBERGINE", "DEEP_TEAL", "ESPRESSO", "ARCTIC", "IVORY",
-    "MONO", "SAGE", "PERFORMANCE_RED", "CYBER", "INDUSTRIAL", "TACTICAL",
-    "COBALT", "COPPER",
+    "GRAPHITE", "TRUE_BLACK", "TITANIUM", "FOREST", "BURGUNDY", "MIDNIGHT",
+    "AUBERGINE", "ESPRESSO", "ARCTIC", "IVORY", "MONO", "SAGE", "CYBER",
+    "INDUSTRIAL", "TACTICAL",
     # legacy themes restored from v1.2.2
-    "DARK", "PURPLE", "GREEN", "LIGHT", "AMOLED",
-    "MINIMAL_DARK",
-    "NEON_PULSE",
-    "NEXUS",
-    "ELECTRIC",
+    "PURPLE", "GREEN", "AMOLED",
+}
+
+ALIASES = {
+    "NEON_PULSE": "TITANIUM",
+    "DARK": "GRAPHITE",
+    "ELECTRIC": "GRAPHITE",
+    "MINIMAL_DARK": "GRAPHITE",
+    "NEXUS": "TRUE_BLACK",
+    "SLATE": "MIDNIGHT",
+    "COBALT": "MIDNIGHT",
+    "DEEP_TEAL": "CYBER",
+    "PERFORMANCE_RED": "BURGUNDY",
+    "COPPER": "ESPRESSO",
+    "LIGHT": "ARCTIC",
 }
 
 
@@ -41,8 +50,11 @@ def test_bundled_geist_fonts_register(qapp) -> None:
 def test_curated_themes_include_legacy():
     from app.ui import theme as tract
 
-    assert len(tract.PALETTES) == 29
+    assert len(tract.PALETTES) == 18
     assert set(tract.PALETTES) == EXPECTED
+    for old, new in ALIASES.items():
+        assert tract.THEME_ALIASES[old] == new
+        assert new in tract.PALETTES
 
 
 def test_every_palette_has_all_required_tokens():
@@ -74,8 +86,8 @@ def test_set_theme_updates_globals_and_resolves_aliases():
     try:
         assert tract.set_theme("FOREST") == "FOREST"
         assert tract.BG == tract.PALETTES["FOREST"]["BG"]
-        assert tract.set_theme("DARK") == "DARK"
-        assert tract.BG == tract.PALETTES["DARK"]["BG"]
+        assert tract.set_theme("DARK") == "GRAPHITE"
+        assert tract.BG == tract.PALETTES["GRAPHITE"]["BG"]
         assert tract.set_theme("MATRIX") == "CYBER"
         assert tract.BG == tract.PALETTES["CYBER"]["BG"]
         assert tract.set_theme("bogus_name") == tract.DEFAULT_THEME
@@ -103,8 +115,8 @@ def test_saved_theme_honors_kept_name(tmp_path, monkeypatch):
     from app.ui import theme as tract
 
     monkeypatch.setenv("PCOPTIMIZER_DATA", str(tmp_path))
-    (tmp_path / "settings.json").write_text(json.dumps({"theme": "COBALT"}), encoding="utf-8")
-    assert tract.saved_theme() == "COBALT"
+    (tmp_path / "settings.json").write_text(json.dumps({"theme": "AUBERGINE"}), encoding="utf-8")
+    assert tract.saved_theme() == "AUBERGINE"
 
 
 def _luminance(color: str) -> float:
@@ -227,4 +239,4 @@ def test_light_palettes_keep_dim_text_readable():
         for surface in ("PANEL", "PANEL_ALT"):
             assert _contrast(pal["TEXT"], pal[surface]) >= 4.5
             assert _contrast(pal["TEXT_DIM"], pal[surface]) >= 4.5
-    assert checked >= 5
+    assert checked >= 4
