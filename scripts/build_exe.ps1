@@ -4,8 +4,21 @@ $root = Split-Path -Parent $PSScriptRoot
 Set-Location $root
 
 $venvPy = Join-Path $root ".venv\Scripts\python.exe"
-$pyExe = if (Test-Path $venvPy) { $venvPy } elseif (Get-Command py -ErrorAction SilentlyContinue) { "py" } else { "python" }
-$pyArgs = if ($pyExe -eq "py") { @("-3.13") } else { @() }
+if (Test-Path $venvPy) {
+    $pyExe = $venvPy
+    $pyArgs = @()
+} elseif (Get-Command python -ErrorAction SilentlyContinue) {
+    $pyExe = "python"
+    $pyArgs = @()
+} else {
+    $pyExe = "py"
+    $pyArgs = @("-3.13")
+}
+
+& $pyExe @pyArgs -c "import PyInstaller" 2>$null
+if ($LASTEXITCODE -ne 0) {
+    throw "PyInstaller is not installed for $pyExe. Install requirements-dev.txt first."
+}
 if (-not (Test-Path (Join-Path $root "assets\app.ico"))) {
     & $pyExe @pyArgs scripts/make_icon.py
 }

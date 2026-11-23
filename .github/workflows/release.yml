@@ -53,12 +53,24 @@ jobs:
         shell: pwsh
         run: ./scripts/build_exe.ps1
 
+      - name: Verify built exe
+        shell: pwsh
+        run: |
+          $exe = "dist\PCOptimizer_PRO\PCOptimizer_PRO.exe"
+          if (-not (Test-Path $exe)) { throw "Built app not found at $exe" }
+          $tag = "${{ github.ref_name }}".TrimStart("v")
+          $version = (Get-Item $exe).VersionInfo.ProductVersion
+          Write-Host "Built exe version: $version (tag $tag)"
+          if ($version -ne "$tag.0") { throw "Exe version $version does not match tag $tag" }
+
       - name: Install Inno Setup
         run: choco install innosetup -y --no-progress
 
       - name: Build installer
         shell: pwsh
-        run: ./scripts/build_installer.ps1
+        run: |
+          $env:Path = [Environment]::GetEnvironmentVariable("Path", "Machine") + ";" + [Environment]::GetEnvironmentVariable("Path", "User")
+          ./scripts/build_installer.ps1
 
       - name: Portable zip
         shell: pwsh

@@ -535,9 +535,15 @@
   v2.0.1; user review of the live charts / Health Score breakdown is complete.
 - v2.0.x reliability: trustworthy CPU package power / thermal-throttling source
   only if a reliable Windows API appears.
-- `mypy` is wired into CI as non-blocking. Dev dependency is pinned to
-  `>=1.11,<2` after mypy 2.4.1 crashed internally on this tree. First batch
-  fixed: all 28 PySide6 `QSizePolicy` enum errors (`Policy.Expanding`,
-  `Policy.Preferred`, `Policy.Fixed`, `Policy.MinimumExpanding`); mypy count
-  dropped from 135 to 107 errors in 35 files. Remaining findings are mostly
-  `attr-defined`/`arg-type`/`union-attr` in reports/UI code.
+- `mypy` is wired into CI as non-blocking. Dev dependency stays pinned to
+  `>=1.11,<2` because mypy 2.4.1 crashed internally on this tree. All remaining
+  typing errors were fixed in `e0d244f`; `python -m mypy app` now reports
+  **Success: no issues found in 120 source files**.
+- Release v2.0.2 is committed/tagged locally and the artifacts are built
+  (exe `2.0.2.0`, portable, installer, source zip). The GitHub Actions release
+  run `45090002120` passed tag verification, ruff and a 34-minute pytest run,
+  then failed at **Build installer**. Hardening applied in this tree:
+  `scripts/build_exe.ps1` prefers the project venv, then `python`, then
+  `py -3.13`, and fails early when PyInstaller is not importable; the workflow
+  now verifies the built exe version before Inno Setup and refreshes `PATH`
+  after installing Inno Setup. Re-push the `v2.0.2` tag to re-run the release.
