@@ -539,11 +539,9 @@
   `>=1.11,<2` because mypy 2.4.1 crashed internally on this tree. All remaining
   typing errors were fixed in `e0d244f`; `python -m mypy app` now reports
   **Success: no issues found in 120 source files**.
-- Release v2.0.2 is committed/tagged locally and the artifacts are built
-  (exe `2.0.2.0`, portable, installer, source zip). The GitHub Actions release
-  run `45090002120` passed tag verification, ruff and a 34-minute pytest run,
-  then failed at **Build installer**. Hardening applied in this tree:
-  `scripts/build_exe.ps1` prefers the project venv, then `python`, then
-  `py -3.13`, and fails early when PyInstaller is not importable; the workflow
-  now verifies the built exe version before Inno Setup and refreshes `PATH`
-  after installing Inno Setup. Re-push the `v2.0.2` tag to re-run the release.
+- Release v2.0.2 is published: tag `v2.0.2` points to `3bec6fd`, GitHub Actions
+  Release run `45137185698` completed successfully, and the GitHub release has
+  `PCOptimizer_PRO_Setup_2.0.2.exe` + `PCOptimizer_PRO_2.0.2_portable.zip`.
+- Open audit follow-ups (low priority, from `docs/AUDIT_v2.0.1.md`): B-09 full
+  pytest single-run hang/native shutdown artifacts need a separate investigation;
+  B-10 confirm HWiNFO `poll_time` behavior on live hardware.
