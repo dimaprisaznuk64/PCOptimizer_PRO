@@ -1,6 +1,11 @@
 # Development Plan
 
 ## Status
+- Released **v2.1.0** — design-system patch (unified spacing/radius tokens),
+  18 curated themes with aliases for the 11 retired names, and review-hardening
+  fixes (cooperative teardown, cached stylesheet/WMI names, warning filtering).
+  23 pages, 18 themes, 930 passed / 1 skipped, TITANIUM baseline, Geist fonts,
+  EN/UA. Installer, portable zip and source zip published on GitHub.
 - Released **v2.0.1** — Stage 3/4 UX polish plus Stage 5 monitoring profiles
   (`ECO`/`BALANCED`/`PERFORMANCE`) and an optional pythonnet/LibreHardwareMonitor
   temperature backend. 23 pages, 904 passed / 1 skipped, TITANIUM baseline,
@@ -49,23 +54,26 @@
   commit applies the visual guide's theme proposal — 29 → **18 themes**, with the 11
   removed names kept as `THEME_ALIASES` so saved settings keep working.
 
-### Pause point (2026-11-24)
-- `main` head: `6ba2cb2` (`fix(ui): harden review findings`), pushed; Windows CI run
-  `45295313687` = success. Tree is clean, version is still **2.0.2**, and no
-  build/installer/release was made for the style/theme work.
-- Full suite: **930 passed / 1 skipped** in one run (~177 s); `ruff`, `mypy`,
-  `compileall`, `git diff --check` clean.
-- Review checklist is done: UI scale 100/125/150% has no real clipping, all 18
-  themes apply, `COBALT` starts as `MIDNIGHT`, table headers match data alignment,
-  and a 210 s HWiNFO shared-memory smoke returned 21/21 fresh samples with
-  changing CPU/board/GPU/hotspot temperatures.
-- Next session starts with **v2.1.0**: bump version in `app/__init__.py`,
-  `assets/version_info.txt`, `installer/PCOptimizer_PRO.iss`,
-  `app/i18n/translations.py` (`sidebar_user_sub`) and README; regenerate 23
-  `docs/screenshots/v2.1.0_*.png`; close the running source GUI before building;
-  rebuild exe/portable/installer/source zip; tag `v2.1.0`, verify GitHub Actions
-  and Release assets, then check that an installed v2.0.2 sees the update.
-  Release notes draft is in the session log; no bump/build was requested yet.
+### Release v2.1.0 (2026-11-24)
+- `main` head: `739123b` (`chore(release): bump version to 2.1.0 and refresh
+  screenshots`), pushed after the earlier handoff `45e31e8`. Tag `v2.1.0` pushed.
+- Version bumped in `app/__init__.py`, `assets/version_info.txt` (2.1.0.0),
+  `installer/PCOptimizer_PRO.iss`, both EN/UA `sidebar_user_sub` keys and README.
+- Regenerated 23 offscreen screenshots `docs/screenshots/v2.1.0_*.png` (1440×860,
+  live sensor snapshot, EN); the v2.0.2 set was removed.
+- Verification: **930 passed / 1 skipped** (~191 s); `ruff`, `mypy` (120 files),
+  `compileall` and `git diff --check` clean. Frozen exe smoke: alive, log
+  `starting PCOptimizer PRO 2.1.0`.
+- Local artifacts: exe **2.1.0.0**, portable zip 54.1 MB, installer 39.3 MB,
+  source zip 9 MB. GitHub Actions Release run `45369199779` = success;
+  [Release v2.1.0](https://github.com/dimaprisaznuk64/PCOptimizer_PRO/releases/tag/v2.1.0)
+  published with installer + portable. `UpdateService(current='2.0.1').check()`
+  reports latest 2.1.0 and the correct installer URL.
+- Installed `app_run` silently upgraded 2.0.1.0 → **2.1.0.0**; Desktop shortcut
+  points at `app_run\PCOptimizer_PRO.exe`.
+- Review checklist remains done: UI scale 100/125/150% has no real clipping, all
+  18 themes apply, `COBALT` starts as `MIDNIGHT`, table headers match data
+  alignment, and HWiNFO shared-memory smoke returned 21/21 fresh samples.
 
 
 - Released **v1.7.1** (`d9f83ab`) — reliability/stabilization batch: fixed safe
@@ -567,9 +575,9 @@
   `>=1.11,<2` because mypy 2.4.1 crashed internally on this tree. All remaining
   typing errors were fixed in `e0d244f`; `python -m mypy app` now reports
   **Success: no issues found in 120 source files**.
-- Release v2.0.2 is published: tag `v2.0.2` points to `3bec6fd`, GitHub Actions
-  Release run `45137185698` completed successfully, and the GitHub release has
-  `PCOptimizer_PRO_Setup_2.0.2.exe` + `PCOptimizer_PRO_2.0.2_portable.zip`.
+- Release v2.1.0 is published: tag `v2.1.0` points to `739123b`, GitHub Actions
+  Release run `45369199779` completed successfully, and the GitHub release has
+  `PCOptimizer_PRO_Setup_2.1.0.exe` + `PCOptimizer_PRO_2.1.0_portable.zip`.
 - Audit follow-ups (from `docs/AUDIT_v2.0.1.md`): B-09 is fixed — full pytest
   single run now passes (930 / 1 skipped); B-10 is skipped by owner decision
   (HWiNFO is not installed, live `poll_time` check is not required).
