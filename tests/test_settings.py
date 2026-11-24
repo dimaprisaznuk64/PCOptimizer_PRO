@@ -5,6 +5,7 @@ from pathlib import Path
 
 import pytest
 
+import app.settings.service as settings_service
 from app.settings import DEFAULTS, SettingsError, SettingsService, data_root
 
 
@@ -211,3 +212,41 @@ def test_load_error_is_none_for_good_file(tmp_path) -> None:
     svc = SettingsService(path)
     assert svc.get("theme") == "ARCTIC"
     assert svc.load_error is None
+
+
+def test_migration_retries_after_failed_copy(tmp_path, monkeypatch) -> None:
+    legacy = tmp_path / "legacy" / "PCOptimizer_PRO"
+    legacy.mkdir(parents=True)
+    (legacy / "settings.json").write_text(json.dumps({"theme": "CYBER"}), encoding="utf-8")
+    monkeypatch.setenv("LOCALAPPDATA", str(tmp_path / "legacy"))
+    root = tmp_path / "new_data"
+    monkeypatch.setenv("PCOPTIMIZER_DATA", str(root))
+
+    real_copy = settings_service._atomic_copy_file
+
+    def fail_copy(src, dst):
+        raise OSError("disk full")
+
+    monkeypatch.setattr(settings_service, "_atomic_copy_file", fail_copy)
+    data_root()
+    assert not (root / "settings.json").exists()
+
+    monkeypatch.setattr(settings_service, "_atomic_copy_file", real_copy)
+    data_root()
+    assert json.loads((root / "settings.json").read_text(encoding="utf-8"))["theme"] == "CYBER"
+
+
+def test_migration_replaces_corrupt_destination(tmp_path, monkeypatch) -> None:
+    legacy = tmp_path / "legacy" / "PCOptimizer_PRO"
+    legacy.mkdir(parents=True)
+    (legacy / "optimizer_backup.json").write_text('{"profile":"GAMING"}', encoding="utf-8")
+    monkeypatch.setenv("LOCALAPPDATA", str(tmp_path / "legacy"))
+    root = tmp_path / "new_data"
+    root.mkdir()
+    (root / "optimizer_backup.json").write_text("{ broken", encoding="utf-8")
+    monkeypatch.setenv("PCOPTIMIZER_DATA", str(root))
+
+    data_root()
+    restored = json.loads((root / "optimizer_backup.json").read_text(encoding="utf-8"))
+    assert restored["profile"] == "GAMING"
+    assert list(root.glob("optimizer_backup.json.corrupt-*"))

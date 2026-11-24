@@ -763,3 +763,31 @@ def test_hags_non_admin_times_out_if_write_never_appears(fake, tmp_path, monkeyp
     report = service.apply_profile("GAMING", with_restore_point=False)
     assert any("HAGS" in e for e in report.errors)
     assert not any("GPU scheduling" in a for a in report.applied)
+
+
+def test_corrupt_backup_is_quarantined_and_revert_refuses(fake, tmp_path) -> None:
+    service = fake.make_service(tmp_path)
+    service.backup_path.write_text("{ broken", encoding="utf-8")
+
+    with pytest.raises(OptimizerError, match="corrupt"):
+        service.revert()
+
+    quarantined = list(service.backup_path.parent.glob("backup.json.corrupt-*"))
+    assert quarantined
+    assert service.backup_exists() is False
+
+
+def test_backup_write_failure_aborts_before_changes(fake, tmp_path, monkeypatch) -> None:
+    service = fake.make_service(tmp_path)
+
+    def fail_write(path, text):
+        raise OSError("disk full")
+
+    monkeypatch.setattr("app.optimizer.service._atomic_write_text", fail_write)
+    with pytest.raises(OSError, match="disk full"):
+        service.apply_profile("GAMING", with_restore_point=False)
+
+    assert fake.power_guid == GUID_BALANCED
+    assert fake.reg[("HKCU", GAMEMODE_KEY, GAMEMODE_VALUE)] == 1
+    assert ("HKLM", HAGS_KEY, HAGS_VALUE) not in fake.reg
+    assert not service.backup_path.exists()

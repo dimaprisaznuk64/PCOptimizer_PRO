@@ -139,6 +139,38 @@ def test_registry_remove_and_undo(tmp_path) -> None:
         service.undo_last()
 
 
+def test_registry_remove_and_undo_restores_disabled_state(tmp_path) -> None:
+    service = FakeRegistryService(tmp_path, {("HKCU", RUN_KEY, "Doomed"): (r"C:\bin\doomed.exe", 1)})
+    items, _ = service.list_items()
+    item = next(i for i in items if i.name == "Doomed")
+
+    service.set_enabled(item, False)
+    assert service.reg[("HKCU", APPROVED_RUN, "Doomed")][0] == DISABLED_FLAG
+
+    service.remove(item)
+    service.undo_last()
+
+    assert service.reg[("HKCU", RUN_KEY, "Doomed")] == (r"C:\bin\doomed.exe", 1)
+    assert service.reg[("HKCU", APPROVED_RUN, "Doomed")][0] == DISABLED_FLAG
+
+
+def test_corrupt_last_journal_line_keeps_older_entries_undoable(tmp_path) -> None:
+    service = FakeRegistryService(tmp_path, {("HKCU", RUN_KEY, "Doomed"): (r"C:\bin\doomed.exe", 1)})
+    items, _ = service.list_items()
+    item = next(i for i in items if i.name == "Doomed")
+    service.remove(item)
+
+    history = service.backup_dir / "history.jsonl"
+    with history.open("a", encoding="utf-8") as f:
+        f.write("{ broken\n")
+
+    with pytest.raises(StartupError, match="corrupt"):
+        service.undo_last()
+
+    service.undo_last()
+    assert service.reg[("HKCU", RUN_KEY, "Doomed")] == (r"C:\bin\doomed.exe", 1)
+
+
 def test_registry_remove_rollback_when_delete_fails(tmp_path) -> None:
     service = FakeRegistryService(tmp_path, {("HKCU", RUN_KEY, "Doomed"): (r"C:\bin\doomed.exe", 1)})
 

@@ -3,6 +3,7 @@ from __future__ import annotations
 import json
 import os
 import time
+import uuid
 import winreg
 from collections.abc import Sequence
 from dataclasses import dataclass
@@ -367,32 +368,62 @@ class StartupService:
         raise StartupError("scheduled tasks can only be disabled, not removed")
 
     def undo_last(self) -> str:
-        history = self._history_path()
-        if not history.exists():
-            raise StartupError("no backup history yet")
-        lines = [line for line in history.read_text(encoding="utf-8").splitlines() if line.strip()]
+        lines = self._history_lines()
         if not lines:
             raise StartupError("no backup history yet")
-        entry = json.loads(lines[-1])
-        if entry["action"] == "registry":
-            data: object = str(entry["data"]) if entry["data"] is not None else ""
-            if entry["data_hex"] is not None:
-                data = bytes.fromhex(entry["data_hex"])
+        try:
+            entry = json.loads(lines[-1])
+            if not isinstance(entry, dict):
+                raise ValueError("journal entry is not an object")
+        except ValueError as e:
+            # A crash mid-append can leave a partial last line. Drop only that
+            # line so every earlier, valid undo entry stays available.
+            self._write_history_lines(lines[:-1])
+            raise StartupError(f"last undo entry is corrupt: {e}; older entries remain available") from e
+
+        action = entry.get("action")
+        if action == "registry":
+            data: object = str(entry.get("data")) if entry.get("data") is not None else ""
+            if entry.get("data_hex") is not None:
+                data = bytes.fromhex(str(entry["data_hex"]))
             try:
-                self._reg_set(entry["hive"], entry["key_path"], entry["name"], int(entry["type"]), data)
-            except OSError as e:
-                raise StartupError(f"cannot restore {entry['name']}: {e}") from e
-        elif entry["action"] == "folder":
-            source = Path(entry["stored"])
-            target = Path(entry["original"])
-            if not source.exists():
+                self._reg_set(
+                    str(entry["hive"]), str(entry["key_path"]), str(entry["name"]),
+                    int(entry["type"]), data,
+                )
+            except (OSError, KeyError, TypeError, ValueError) as e:
+                raise StartupError(f"cannot restore {entry.get('name', 'item')}: {e}") from e
+        elif action == "folder":
+            source = Path(str(entry["stored"]))
+            target = Path(str(entry["original"]))
+            if source.exists():
+                target.parent.mkdir(parents=True, exist_ok=True)
+                source.replace(target)
+            elif not target.exists():
                 raise StartupError(f"backup file missing: {source}")
-            target.parent.mkdir(parents=True, exist_ok=True)
-            source.replace(target)
         else:
-            raise StartupError(f"unknown backup action {entry['action']}")
-        history.write_text("\n".join(lines[:-1]) + ("\n" if len(lines) > 1 else ""), encoding="utf-8")
+            self._write_history_lines(lines[:-1])
+            raise StartupError(f"unknown backup action {action}")
+
+        # Restore the previous enabled/disabled marker as part of the same undo.
+        self._restore_approved(entry)
+        self._write_history_lines(lines[:-1])
         return str(entry.get("description", "restored"))
+
+    def _restore_approved(self, entry: dict) -> None:
+        hive = entry.get("approved_hive")
+        key_path = entry.get("approved_key")
+        name = entry.get("approved_name")
+        if not hive or not key_path or not name:
+            return
+        data_hex = entry.get("approved_data")
+        try:
+            if data_hex is None:
+                self._approved_delete(str(hive), str(key_path), str(name))
+            else:
+                self._approved_set(str(hive), str(key_path), str(name), bytes.fromhex(str(data_hex)))
+        except (OSError, ValueError) as e:
+            raise StartupError(f"cannot restore enabled state for {name}: {e}") from e
 
     def _remove_registry(self, item: StartupItem) -> str:
         if item.hive is None or item.key_path is None or item.approved_name is None:
@@ -402,6 +433,18 @@ class StartupService:
         except OSError as e:
             raise StartupError(f"cannot read {item.name}: {e}") from e
         data_hex = data.hex() if isinstance(data, (bytes, bytearray)) else None
+        try:
+            approved_data, _approved_type = self._reg_query(
+                item.hive, APPROVED_RUN, item.approved_name
+            )
+        except FileNotFoundError:
+            approved_hex = None
+        except OSError as e:
+            raise StartupError(f"cannot read disabled state of {item.name}: {e}") from e
+        else:
+            approved_hex = (
+                bytes(approved_data).hex() if isinstance(approved_data, (bytes, bytearray)) else None
+            )
         entry = {
             "action": "registry",
             "ts": time.time(),
@@ -411,6 +454,10 @@ class StartupService:
             "type": value_type,
             "data": None if data_hex is not None else str(data),
             "data_hex": data_hex,
+            "approved_hive": item.hive,
+            "approved_key": APPROVED_RUN,
+            "approved_name": item.approved_name,
+            "approved_data": approved_hex,
             "description": f"registry value {item.name}",
         }
         # Record the undo data BEFORE the destructive step, so a crash between
@@ -432,12 +479,30 @@ class StartupService:
         removed_dir = self.backup_dir / "removed"
         removed_dir.mkdir(parents=True, exist_ok=True)
         stamp = time.strftime("%Y%m%d_%H%M%S")
-        stored = removed_dir / f"{stamp}_{source.name}"
+        stored = removed_dir / f"{stamp}_{uuid.uuid4().hex[:8]}_{source.name}"
+        try:
+            approved_data, _approved_type = (
+                self._reg_query("HKCU", APPROVED_FOLDER, item.approved_name)
+                if item.approved_name is not None
+                else (None, None)
+            )
+        except FileNotFoundError:
+            approved_hex = None
+        except OSError as e:
+            raise StartupError(f"cannot read disabled state of {item.name}: {e}") from e
+        else:
+            approved_hex = (
+                bytes(approved_data).hex() if isinstance(approved_data, (bytes, bytearray)) else None
+            )
         entry = {
             "action": "folder",
             "ts": time.time(),
             "original": str(source),
             "stored": str(stored),
+            "approved_hive": "HKCU",
+            "approved_key": APPROVED_FOLDER,
+            "approved_name": item.approved_name,
+            "approved_data": approved_hex,
             "description": f"startup shortcut {item.name}",
         }
         # Journal before moving the file so the undo data exists even if the
@@ -453,21 +518,40 @@ class StartupService:
     def _history_path(self) -> Path:
         return self.backup_dir / "history.jsonl"
 
-    def _append_history(self, entry: dict) -> None:
+    def _history_lines(self) -> list[str]:
+        history = self._history_path()
+        if not history.exists():
+            return []
+        try:
+            return [line for line in history.read_text(encoding="utf-8").splitlines() if line.strip()]
+        except OSError as e:
+            raise StartupError(f"cannot read undo history: {e}") from e
+
+    def _write_history_lines(self, lines: list[str]) -> None:
         self.backup_dir.mkdir(parents=True, exist_ok=True)
         history = self._history_path()
-        with history.open("a", encoding="utf-8") as f:
-            f.write(json.dumps(entry, ensure_ascii=False) + "\n")
+        tmp = history.with_name(f".{history.name}.{os.getpid()}.tmp")
+        try:
+            with tmp.open("w", encoding="utf-8") as f:
+                if lines:
+                    f.write("\n".join(lines) + "\n")
+                f.flush()
+                os.fsync(f.fileno())
+            tmp.replace(history)
+        except OSError as e:
+            tmp.unlink(missing_ok=True)
+            raise StartupError(f"cannot write undo history: {e}") from e
+
+    def _append_history(self, entry: dict) -> None:
+        lines = self._history_lines()
+        lines.append(json.dumps(entry, ensure_ascii=False))
+        self._write_history_lines(lines)
 
     def _drop_last_history(self) -> None:
         """Roll back the most recent journal entry (the change it describes failed)."""
-        history = self._history_path()
-        if not history.exists():
-            return
-        lines = [line for line in history.read_text(encoding="utf-8").splitlines() if line.strip()]
-        if not lines:
-            return
-        history.write_text("\n".join(lines[:-1]) + ("\n" if len(lines) > 1 else ""), encoding="utf-8")
+        lines = self._history_lines()
+        if lines:
+            self._write_history_lines(lines[:-1])
 
     def _approved_get(self, hive: str, key_path: str, name: str) -> bytes | None:
         try:

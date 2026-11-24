@@ -5,6 +5,7 @@ import logging
 import os
 import shutil
 import sys
+import time
 from pathlib import Path
 from typing import Any
 
@@ -74,7 +75,7 @@ def data_root() -> Path:
         root = Path(os.environ.get("LOCALAPPDATA") or Path.home()) / APP_NAME
         return _migrate_legacy(root)
     root = Path(__file__).resolve().parents[2] / "data"
-    return root
+    return _migrate_legacy(root)
 
 
 def _is_writable(directory: Path) -> bool:
@@ -89,27 +90,84 @@ def _is_writable(directory: Path) -> bool:
         return False
 
 
+def _atomic_copy_file(src: Path, dst: Path) -> None:
+    """Copy a file through a temp name so a crash cannot leave a partial dst."""
+    dst.parent.mkdir(parents=True, exist_ok=True)
+    tmp = dst.with_name(f".{dst.name}.{os.getpid()}.tmp")
+    try:
+        shutil.copy2(src, tmp)
+        with tmp.open("r+b") as f:
+            os.fsync(f.fileno())
+        tmp.replace(dst)
+    except OSError:
+        tmp.unlink(missing_ok=True)
+        raise
+
+
+def _atomic_copytree(src: Path, dst: Path) -> None:
+    """Stage a directory copy, then swap it in atomically."""
+    dst.parent.mkdir(parents=True, exist_ok=True)
+    tmp = dst.with_name(f".{dst.name}.{os.getpid()}.tmp")
+    if tmp.exists():
+        shutil.rmtree(tmp)
+    try:
+        shutil.copytree(src, tmp, dirs_exist_ok=True)
+        if dst.exists():
+            shutil.rmtree(dst)
+        tmp.replace(dst)
+    except OSError:
+        shutil.rmtree(tmp, ignore_errors=True)
+        raise
+
+
+def _valid_json_file(path: Path) -> bool:
+    if not path.exists():
+        return False
+    try:
+        json.loads(path.read_text(encoding="utf-8"))
+        return True
+    except (OSError, json.JSONDecodeError):
+        return False
+
+
+def _quarantine_file(path: Path) -> Path | None:
+    stamp = time.strftime("%Y%m%d_%H%M%S")
+    target = path.with_name(f"{path.name}.corrupt-{stamp}")
+    try:
+        path.replace(target)
+        return target
+    except OSError:
+        return None
+
+
 _migrated_roots: set[str] = set()
 
 
 def _migrate_legacy(root: Path) -> Path:
-    """One-time copy of runtime data from the old %LOCALAPPDATA% location into `root`."""
+    """One-time copy of runtime data from the old %LOCALAPPDATA% location into `root`.
+
+    Copies are staged through temp names: a crash or disk-full must never leave
+    a partial destination that later runs would skip because it "exists".
+    """
     key = str(root)
     if key in _migrated_roots:
         return root
-    _migrated_roots.add(key)
     legacy_base = Path(os.environ.get("LOCALAPPDATA") or Path.home()) / APP_NAME
     if not legacy_base.exists():
         return root
     try:
-        if not (root / "settings.json").exists():
+        settings_dst = root / "settings.json"
+        if not _valid_json_file(settings_dst):
+            if settings_dst.exists():
+                _quarantine_file(settings_dst)
             legacy_settings = legacy_base / "settings.json"
-            if legacy_settings.exists():
-                root.mkdir(parents=True, exist_ok=True)
-                shutil.copy2(legacy_settings, root / "settings.json")
+            if _valid_json_file(legacy_settings):
+                _atomic_copy_file(legacy_settings, settings_dst)
+
         legacy_logs = legacy_base / "logs"
         if legacy_logs.exists() and not (root / "logs").exists():
-            shutil.copytree(legacy_logs, root / "logs", dirs_exist_ok=True)
+            _atomic_copytree(legacy_logs, root / "logs")
+
         for name in (
             "optimizer_backup.json",
             "gaming_custom.json",
@@ -118,14 +176,21 @@ def _migrate_legacy(root: Path) -> Path:
         ):
             src = legacy_base / name
             dst = root / name
-            if src.exists() and not dst.exists():
-                root.mkdir(parents=True, exist_ok=True)
-                shutil.copy2(src, dst)
+            if _valid_json_file(dst):
+                continue
+            if dst.exists():
+                _quarantine_file(dst)
+            if _valid_json_file(src):
+                _atomic_copy_file(src, dst)
+
         legacy_startup = legacy_base / "startup_backup"
         if legacy_startup.exists() and not (root / "startup_backup").exists():
-            shutil.copytree(legacy_startup, root / "startup_backup", dirs_exist_ok=True)
-    except OSError:
-        pass
+            _atomic_copytree(legacy_startup, root / "startup_backup")
+    except OSError as e:
+        # Do not mark the root migrated: the next launch should retry.
+        log.warning("legacy data migration failed for %s: %s", root, e)
+        return root
+    _migrated_roots.add(key)
     return root
 
 

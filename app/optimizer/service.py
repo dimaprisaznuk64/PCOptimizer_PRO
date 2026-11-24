@@ -70,6 +70,21 @@ _GUID_RE = re.compile(
 )
 
 
+def _atomic_write_text(path: Path, text: str) -> None:
+    """Write JSON state atomically so a crash can never leave a half file."""
+    path.parent.mkdir(parents=True, exist_ok=True)
+    tmp = path.with_name(f".{path.name}.{os.getpid()}.tmp")
+    try:
+        with tmp.open("w", encoding="utf-8") as f:
+            f.write(text)
+            f.flush()
+            os.fsync(f.fileno())
+        tmp.replace(path)
+    except OSError:
+        tmp.unlink(missing_ok=True)
+        raise
+
+
 class OptimizerError(Exception):
     pass
 
@@ -302,11 +317,18 @@ class OptimizerService:
         return self._restore.enable_protection()
 
     def backup_exists(self) -> bool:
-        return self.backup_path.exists()
+        """True only when a readable backup exists — never advertise a corrupt one."""
+        try:
+            return self._load_backup() is not None
+        except OptimizerError:
+            return False
 
     def backup_profile(self) -> str | None:
         """Profile applied most recently while a backup exists (e.g. 'GAMING')."""
-        backup = self._load_backup()
+        try:
+            backup = self._load_backup()
+        except OptimizerError:
+            return None
         if not backup:
             return None
         profile = backup.get("last_profile") or backup.get("profile")
@@ -314,7 +336,10 @@ class OptimizerService:
 
     def original_profile(self) -> str | None:
         """Profile under whose first apply the original Windows state was captured."""
-        backup = self._load_backup()
+        try:
+            backup = self._load_backup()
+        except OptimizerError:
+            return None
         if not backup:
             return None
         profile = backup.get("profile")
@@ -337,11 +362,10 @@ class OptimizerService:
                 updated = dict(existing)
                 updated["last_profile"] = profile
                 try:
-                    self.backup_path.parent.mkdir(parents=True, exist_ok=True)
-                    self.backup_path.write_text(
-                        json.dumps(updated, indent=2), encoding="utf-8"
-                    )
+                    _atomic_write_text(self.backup_path, json.dumps(updated, indent=2))
                 except OSError:
+                    # The original snapshot is still intact; a missing
+                    # "last_profile" hint is cosmetic, not an undo failure.
                     pass
             return
         state = self.state()
@@ -379,17 +403,31 @@ class OptimizerService:
             "visual_fx": state.visual_fx,
             "visual_fx_read_ok": vis_err is None,
         }
-        self.backup_path.parent.mkdir(parents=True, exist_ok=True)
-        self.backup_path.write_text(json.dumps(data, indent=2), encoding="utf-8")
+        _atomic_write_text(self.backup_path, json.dumps(data, indent=2))
 
     def _load_backup(self) -> dict | None:
         if not self.backup_path.exists():
             return None
         try:
             data = json.loads(self.backup_path.read_text(encoding="utf-8"))
-        except (OSError, json.JSONDecodeError):
+        except (OSError, json.JSONDecodeError) as e:
+            quarantine = self._quarantine_backup()
+            hint = f" (saved as {quarantine})" if quarantine else ""
+            raise OptimizerError(f"backup file is corrupt: {e}{hint}") from e
+        if not isinstance(data, dict):
+            quarantine = self._quarantine_backup()
+            hint = f" (saved as {quarantine})" if quarantine else ""
+            raise OptimizerError(f"backup file is corrupt: unexpected content{hint}")
+        return data
+
+    def _quarantine_backup(self) -> str | None:
+        stamp = time.strftime("%Y%m%d_%H%M%S")
+        target = self.backup_path.with_name(f"{self.backup_path.name}.corrupt-{stamp}")
+        try:
+            self.backup_path.replace(target)
+            return str(target)
+        except OSError:
             return None
-        return data if isinstance(data, dict) else None
 
     def _clear_backup(self) -> None:
         try:

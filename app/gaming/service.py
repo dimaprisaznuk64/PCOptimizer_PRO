@@ -17,6 +17,41 @@ class GamingError(Exception):
     pass
 
 
+def _atomic_write_json(path: Path, payload: object, *, indent: int | None = None) -> None:
+    """Write a JSON store atomically so a crash cannot truncate saved data."""
+    text = json.dumps(payload, ensure_ascii=False, indent=indent)
+    path.parent.mkdir(parents=True, exist_ok=True)
+    tmp = path.with_name(f".{path.name}.{os.getpid()}.tmp")
+    try:
+        with tmp.open("w", encoding="utf-8") as f:
+            f.write(text)
+            f.flush()
+            os.fsync(f.fileno())
+        tmp.replace(path)
+    except OSError:
+        tmp.unlink(missing_ok=True)
+        raise
+
+
+def _quarantine_store(path: Path) -> str | None:
+    stamp = time.strftime("%Y%m%d_%H%M%S")
+    target = path.with_name(f"{path.name}.corrupt-{stamp}")
+    try:
+        path.replace(target)
+        return str(target)
+    except OSError:
+        return None
+
+
+def _report_with_error(report: ApplyReport, error: str) -> ApplyReport:
+    return ApplyReport(
+        applied=report.applied,
+        errors=report.errors + (error,),
+        restore_point=report.restore_point,
+        restore_status=report.restore_status,
+    )
+
+
 GAMING_PROFILES = ("BALANCED", "GAMING", "PERFORMANCE")
 
 
@@ -272,10 +307,12 @@ class GamingService:
             return {}
         try:
             data = json.loads(self.profile_store.read_text(encoding="utf-8"))
-        except (OSError, json.JSONDecodeError) as e:
-            raise GamingError(f"cannot read game profiles: {e}") from e
+        except (OSError, json.JSONDecodeError):
+            _quarantine_store(self.profile_store)
+            return {}
         if not isinstance(data, dict):
-            raise GamingError("game profiles file is corrupt")
+            _quarantine_store(self.profile_store)
+            return {}
         return {
             str(key): str(value)
             for key, value in data.items()
@@ -292,10 +329,7 @@ class GamingService:
         entries = self.profiles()
         entries[game_id] = profile
         try:
-            self.profile_store.parent.mkdir(parents=True, exist_ok=True)
-            self.profile_store.write_text(
-                json.dumps(entries, ensure_ascii=False, indent=2), encoding="utf-8"
-            )
+            _atomic_write_json(self.profile_store, entries, indent=2)
         except OSError as e:
             raise GamingError(f"cannot save game profiles: {e}") from e
         return profile
@@ -307,22 +341,20 @@ class GamingService:
             try:
                 data = json.loads(self.mode_store.read_text(encoding="utf-8"))
             except (OSError, json.JSONDecodeError):
+                _quarantine_store(self.mode_store)
                 data = None
             if isinstance(data, dict):
                 profile = str(data.get("profile", "GAMING"))
                 if profile in GAMING_PROFILES:
                     return bool(data.get("active")), profile
+                _quarantine_store(self.mode_store)
         return fallback, "GAMING"
 
     def _save_mode_state(self, active: bool, profile: str) -> None:
         try:
-            self.mode_store.parent.mkdir(parents=True, exist_ok=True)
-            self.mode_store.write_text(
-                json.dumps({"active": active, "profile": profile}, ensure_ascii=False),
-                encoding="utf-8",
-            )
-        except OSError:
-            pass
+            _atomic_write_json(self.mode_store, {"active": active, "profile": profile})
+        except OSError as e:
+            raise GamingError(f"cannot save gaming mode state: {e}") from e
 
     # ---------- custom games ----------
 
@@ -385,20 +417,26 @@ class GamingService:
         if profile not in GAMING_PROFILES:
             raise GamingError(f"unknown gaming profile: {profile}")
         report = self._optimizer.apply_profile(profile, with_restore_point=with_restore_point)
-        self.last_report = report
         self._active = bool(report.applied)
         if self._active:
             self._active_profile = profile
-        self._save_mode_state(self._active, self._active_profile)
+        try:
+            self._save_mode_state(self._active, self._active_profile)
+        except GamingError as e:
+            report = _report_with_error(report, f"mode state: {e}")
+        self.last_report = report
         return report
 
     def deactivate(self) -> ApplyReport:
         report = self._optimizer.revert()
-        self.last_report = report
         # A failed revert leaves the GAMING backup in place, so the mode is
         # still on. Only a clean revert (backup removed) turns it off.
         self._active = bool(report.errors)
-        self._save_mode_state(self._active, self._active_profile)
+        try:
+            self._save_mode_state(self._active, self._active_profile)
+        except GamingError as e:
+            report = _report_with_error(report, f"mode state: {e}")
+        self.last_report = report
         return report
 
     # ---------- internals ----------
@@ -422,17 +460,16 @@ class GamingService:
             return []
         try:
             data = json.loads(self.custom_store.read_text(encoding="utf-8"))
-        except (OSError, json.JSONDecodeError) as e:
-            raise GamingError(f"cannot read custom games: {e}") from e
+        except (OSError, json.JSONDecodeError):
+            _quarantine_store(self.custom_store)
+            return []
         if not isinstance(data, list):
-            raise GamingError("custom games file is corrupt")
+            _quarantine_store(self.custom_store)
+            return []
         return [e for e in data if isinstance(e, dict) and {"id", "name", "exe"} <= set(e)]
 
     def _save_custom(self, entries: list[dict]) -> None:
         try:
-            self.custom_store.parent.mkdir(parents=True, exist_ok=True)
-            self.custom_store.write_text(
-                json.dumps(entries, ensure_ascii=False, indent=2), encoding="utf-8"
-            )
+            _atomic_write_json(self.custom_store, entries, indent=2)
         except OSError as e:
             raise GamingError(f"cannot save custom games: {e}") from e

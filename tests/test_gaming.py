@@ -127,6 +127,7 @@ def test_is_game_running_survives_corrupt_custom_store(tmp_path) -> None:
     (tmp_path / "custom.json").write_text("{bad json", encoding="utf-8")
     service = _service(tmp_path, running=["dota2.exe"])
     assert service.is_game_running() is True
+    assert list(tmp_path.glob("custom.json.corrupt-*"))
 
 
 def test_find_exe_nested(tmp_path) -> None:
@@ -293,6 +294,18 @@ def test_activate_failure_keeps_mode_off(tmp_path) -> None:
     report = service.activate()
     assert service.active is False
     assert report.errors
+
+
+def test_mode_state_write_failure_is_surfaced(tmp_path, monkeypatch) -> None:
+    service = _service(tmp_path)
+
+    def fail_save(active, profile):
+        raise GamingError("disk full")
+
+    monkeypatch.setattr(service, "_save_mode_state", fail_save)
+    report = service.activate(with_restore_point=False)
+    assert any("mode state" in e for e in report.errors)
+    assert service.active is True
 
 
 def test_deactivate_reverts(tmp_path) -> None:
@@ -472,3 +485,10 @@ def test_activate_uses_selected_profile(tmp_path) -> None:
     service.activate(profile="PERFORMANCE", with_restore_point=False)
     assert optimizer.apply_calls == [("PERFORMANCE", False)]
     assert service.active_profile == "PERFORMANCE"
+
+
+def test_corrupt_profile_store_is_quarantined(tmp_path) -> None:
+    (tmp_path / "profiles.json").write_text("{bad json", encoding="utf-8")
+    service = _service(tmp_path)
+    assert service.profile_for("pubg") == "GAMING"
+    assert list(tmp_path.glob("profiles.json.corrupt-*"))
