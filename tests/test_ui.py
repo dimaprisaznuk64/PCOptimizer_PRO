@@ -454,3 +454,23 @@ def test_apply_ui_scale_updates_theme_and_rebuilds_pages(qapp, monkeypatch) -> N
         tract.apply(qapp)
         window.close()
 
+
+
+def test_shutdown_only_suppresses_pyside_disconnect_warning(qapp, monkeypatch) -> None:
+    import warnings as warnings_mod
+
+    calls: list[tuple[tuple[object, ...], dict[str, object]]] = []
+    real_filterwarnings = warnings_mod.filterwarnings
+
+    def spy(*args: object, **kwargs: object) -> None:
+        calls.append((args, kwargs))
+        real_filterwarnings(*args, **kwargs)
+
+    monkeypatch.setattr(warnings_mod, "filterwarnings", spy)
+    window = MainWindow()
+    window.shutdown()
+
+    assert calls
+    for _args, kwargs in calls:
+        assert kwargs.get("category") is RuntimeWarning
+        assert "Failed to disconnect" in str(kwargs.get("message", ""))

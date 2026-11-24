@@ -240,3 +240,20 @@ def test_light_palettes_keep_dim_text_readable():
             assert _contrast(pal["TEXT"], pal[surface]) >= 4.5
             assert _contrast(pal["TEXT_DIM"], pal[surface]) >= 4.5
     assert checked >= 4
+
+
+def test_startup_theme_resolves_saved_alias(tmp_path, monkeypatch):
+    import importlib
+
+    from app.ui import theme as tract
+
+    original = tract.CURRENT_THEME
+    monkeypatch.setenv("PCOPTIMIZER_DATA", str(tmp_path))
+    (tmp_path / "settings.json").write_text(json.dumps({"theme": "COBALT"}), encoding="utf-8")
+    try:
+        monkeypatch.delattr(tract, "CURRENT_THEME", raising=False)
+        importlib.reload(tract)
+        assert tract.CURRENT_THEME == "MIDNIGHT"
+    finally:
+        importlib.reload(tract)
+        tract.set_theme(original)

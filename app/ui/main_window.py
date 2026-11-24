@@ -864,7 +864,11 @@ class MainWindow(QMainWindow):
             import warnings
 
             with warnings.catch_warnings():
-                warnings.simplefilter("ignore", RuntimeWarning)
+                warnings.filterwarnings(
+                    "ignore",
+                    message=r"^libpyside: Failed to disconnect ",
+                    category=RuntimeWarning,
+                )
                 I18nService.instance().language_changed.disconnect(self._on_language_changed)
         except (RuntimeError, TypeError):
             pass
@@ -875,7 +879,11 @@ class MainWindow(QMainWindow):
                 import warnings
 
                 with warnings.catch_warnings():
-                    warnings.simplefilter("ignore", RuntimeWarning)
+                    warnings.filterwarnings(
+                    "ignore",
+                    message=r"^libpyside: Failed to disconnect ",
+                    category=RuntimeWarning,
+                )
                     ActivityLog.instance().changed.disconnect(self._update_unread)
             except (RuntimeError, TypeError):
                 pass

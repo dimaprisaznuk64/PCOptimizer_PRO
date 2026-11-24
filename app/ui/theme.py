@@ -406,7 +406,7 @@ def saved_theme() -> str:
     return name if name in PALETTES else DEFAULT_THEME
 
 
-CURRENT_THEME: str = globals().get("CURRENT_THEME", DEFAULT_THEME)
+CURRENT_THEME: str = globals().get("CURRENT_THEME") or saved_theme()
 if CURRENT_THEME not in PALETTES:
     CURRENT_THEME = saved_theme()
 globals().update(PALETTES[CURRENT_THEME])

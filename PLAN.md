@@ -41,7 +41,10 @@
 - Current work: commit `c65605a` merged the Desktop style patch (`SPACING_*`/`RADIUS_*`
   scale, `normalize_spacing.py`, design docs) plus B-09 fixes (cooperative teardown,
   cached stylesheet, cached WMI names). Full suite in one run: **927 passed / 1 skipped**
-  in 184 s; `ruff`, `mypy`, `compileall` clean. Both Desktop archives were reviewed:
+  in 184 s; `ruff`, `mypy`, `compileall` clean. A follow-up fix commit adds narrow
+  PySide warning filtering, a high-scale empty-hint fit, saved-theme alias startup
+  resolution and a longer teardown budget for slow WMI/PowerShell tasks (930 tests).
+  Both Desktop archives were reviewed:
   the patch zip was merged and `Main.dc.html` was checked for token parity. A follow-up
   commit applies the visual guide's theme proposal — 29 → **18 themes**, with the 11
   removed names kept as `THEME_ALIASES` so saved settings keep working.
@@ -550,5 +553,5 @@
   Release run `45137185698` completed successfully, and the GitHub release has
   `PCOptimizer_PRO_Setup_2.0.2.exe` + `PCOptimizer_PRO_2.0.2_portable.zip`.
 - Audit follow-ups (from `docs/AUDIT_v2.0.1.md`): B-09 is fixed — full pytest
-  single run now passes (927 / 1 skipped); B-10 is skipped by owner decision
+  single run now passes (930 / 1 skipped); B-10 is skipped by owner decision
   (HWiNFO is not installed, live `poll_time` check is not required).

@@ -431,3 +431,19 @@ def test_chart_hover_mouse_move_sets_hover_x(qapp) -> None:
     pixmap = QPixmap(canvas.size())
     canvas.render(pixmap)
     assert not pixmap.isNull()
+
+def test_empty_hint_fits_short_table_at_high_scale(qapp) -> None:
+    from PySide6.QtWidgets import QTableWidget
+
+    from app.ui.components import attach_empty_hint
+
+    original = theme.UI_SCALE
+    try:
+        theme.set_ui_scale(150)
+        table = QTableWidget(0, 2)
+        table.resize(600, 90)
+        hint = attach_empty_hint(table, "bench_history_empty")
+        hint.refresh()
+        assert hint.heightForWidth(hint.width()) <= hint.height() + 3
+    finally:
+        theme.set_ui_scale(original)

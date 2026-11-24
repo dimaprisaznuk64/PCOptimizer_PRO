@@ -1029,7 +1029,8 @@ class _EmptyHint(QLabel):
         self.setWordWrap(True)
         self.setAlignment(Qt.AlignmentFlag.AlignCenter)
         self.setStyleSheet(
-            f"color: {TEXT_DIM}; font-size: {T_BODY}px; background: transparent; padding: {PADDING_XL}px;"
+            f"color: {TEXT_DIM}; font-size: {T_BODY}px; background: transparent; "
+            f"padding: {SPACING_SM}px {PADDING_XL}px;"
         )
         # Subtle HUD glyph above the copy so an empty table still looks designed.
         self.setPixmap(
