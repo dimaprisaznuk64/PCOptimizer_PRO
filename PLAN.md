@@ -1,6 +1,11 @@
 # Development Plan
 
 ## Status
+- Released **v2.1.1** — SHA-256 verification for downloaded GitHub installer
+  assets (`UpdateInfo.sha256`, `hmac.compare_digest` after MZ/size checks,
+  atomic `.part` cleanup on mismatch). No UI/layout changes; 23 pages,
+  18 themes, 935 passed / 1 skipped, TITANIUM baseline, Geist fonts, EN/UA.
+  Installer, portable zip and source zip published on GitHub.
 - Released **v2.1.0** — design-system patch (unified spacing/radius tokens),
   18 curated themes with aliases for the 11 retired names, and review-hardening
   fixes (cooperative teardown, cached stylesheet/WMI names, warning filtering).
@@ -572,6 +577,24 @@
 - mypy: 10 existing errors fixed (0 errors on `mypy app` with the project config).
 - Repo hygiene: `.venv*/` ignored, `pythonnet` added to `pyproject.toml`,
   `requires-python` capped at `<3.15`, README badge no longer hard-codes a test count.
+
+## v2.1.1 (released) — update download integrity
+
+- `app/update/service.py`: `_asset_sha256()` validates the 64-hex `digest` from
+  the GitHub release API and `_find_asset()` now returns `(url, name, sha256)`.
+- `app/update/download.py`: the stream is hashed with `hashlib.sha256`; after the
+  MZ/size checks the digest is compared with `hmac.compare_digest`. Invalid or
+  mismatched metadata raises `UpdateDownloadError`, removes `.part`, and never
+  saves the file. `SettingsPage` reports verified downloads via a new EN/UA key.
+- Tests: `tests/test_update.py` +5 (digest extraction, md5/ malformed digest
+  ignored, verified download, mismatch, invalid metadata). Full suite
+  `935 passed, 1 skipped in 175.86s`; `ruff`, `mypy` (120 files), `compileall`
+  and `git diff --check` clean.
+- Release: version bumped in `app/__init__.py`, `assets/version_info.txt`,
+  `installer/PCOptimizer_PRO.iss` and EN/UA sidebar label. 23 screenshots
+  regenerated as `docs/screenshots/v2.1.1_*.png` (EN, live snapshot, seeded
+  history/activity). Frozen exe `2.1.1.0` built and smoke-tested; portable zip
+  and installer built locally; tag/release published on GitHub.
 
 ## Next
 

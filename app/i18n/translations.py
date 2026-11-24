@@ -95,7 +95,7 @@ TRANSLATIONS: dict[str, dict[str, str]] = {
         "tip_nav_health": "Health score with per-finding actions",
         "tip_nav_settings": "Language, theme, scale, alerts and updates",
         "sidebar_user_title": "Your PC is in safe hands",
-        "sidebar_user_sub": "PCOptimizer PRO v2.1.0",
+        "sidebar_user_sub": "PCOptimizer PRO v2.1.1",
         "sidebar_status_ok": "System healthy",
 
         # Top bar
@@ -1512,7 +1512,7 @@ TRANSLATIONS: dict[str, dict[str, str]] = {
         "tip_nav_health": "Оцінка здоров'я з діями для кожної проблеми",
         "tip_nav_settings": "Мова, тема, масштаб, алерти та оновлення",
         "sidebar_user_title": "Твій ПК у надійних руках",
-        "sidebar_user_sub": "PCOptimizer PRO v2.1.0",
+        "sidebar_user_sub": "PCOptimizer PRO v2.1.1",
         "sidebar_status_ok": "Система в нормі",
 
         # Top bar
