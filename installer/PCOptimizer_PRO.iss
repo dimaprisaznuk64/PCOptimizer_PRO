@@ -1,8 +1,8 @@
-; Inno Setup script for PCOptimizer PRO
+﻿; Inno Setup script for PCOptimizer PRO
 ; Build with: scripts\build_installer.ps1
 
 #define MyAppName "PCOptimizer PRO"
-#define MyAppVersion "2.1.1"
+#define MyAppVersion "2.1.2"
 #define MyAppPublisher "dimaprisaznuk64"
 #define MyAppURL "https://github.com/dimaprisaznuk64/PCOptimizer_PRO"
 #define MyAppExeName "PCOptimizer_PRO.exe"

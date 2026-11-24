@@ -1,4 +1,4 @@
-VSVersionInfo(
+﻿VSVersionInfo(
   ffi=FixedFileInfo(
     filevers=(2, 1, 1, 0),
     prodvers=(2, 1, 1, 0),
@@ -17,12 +17,12 @@ VSVersionInfo(
           [
             StringStruct('CompanyName', 'dimaprisaznuk64'),
             StringStruct('FileDescription', 'PCOptimizer PRO - Windows system monitor & optimizer'),
-            StringStruct('FileVersion', '2.1.1.0'),
+            StringStruct('FileVersion', '2.1.2.0'),
             StringStruct('InternalName', 'PCOptimizer_PRO'),
             StringStruct('LegalCopyright', 'Copyright (C) 2026 Dmytro Prysiazhniuk'),
             StringStruct('OriginalFilename', 'PCOptimizer_PRO.exe'),
             StringStruct('ProductName', 'PCOptimizer PRO'),
-            StringStruct('ProductVersion', '2.1.1.0')
+            StringStruct('ProductVersion', '2.1.2.0')
           ]
         )
       ]
