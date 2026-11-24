@@ -1,5 +1,7 @@
 from __future__ import annotations
 
+import hashlib
+
 from app.update import (
     NOTES_LIMIT,
     RELEASES_PAGE,
@@ -111,6 +113,36 @@ def test_installer_asset_is_taken_from_release_payload() -> None:
     assert info.available is True
     assert info.asset_name == "PCOptimizer_PRO_Setup_1.6.6.exe"
     assert info.download_url.startswith("https://github.com/")
+    assert info.sha256 == ""
+
+
+def test_installer_asset_sha256_is_taken_from_release_payload() -> None:
+    payload = _release()
+    payload["assets"] = [
+        {
+            "name": "PCOptimizer_PRO_Setup_1.6.6.exe",
+            "browser_download_url": "https://github.com/release/setup.exe",
+            "digest": "sha256:" + "a" * 64,
+        }
+    ]
+    info = UpdateService("1.6.5", fetcher=lambda _u, _t: payload).check()
+    assert info.sha256 == "a" * 64
+
+
+def test_unsupported_or_malformed_digests_are_ignored() -> None:
+    for digest in ("md5:" + "a" * 32, "sha256:xyz", "sha256:" + "g" * 64):
+        payload = _release()
+        payload["assets"] = [
+            {
+                "name": "PCOptimizer_PRO_Setup_1.6.6.exe",
+                "browser_download_url": "https://github.com/release/setup.exe",
+                "digest": digest,
+            }
+        ]
+        info = UpdateService(
+            "1.6.5", fetcher=lambda _u, _t, payload=payload: payload
+        ).check()
+        assert info.sha256 == ""
 
 
 class _Response:
@@ -131,13 +163,16 @@ class _Response:
         return chunk
 
 
-def _info(url: str = "https://github.com/release/setup.exe") -> UpdateInfo:
+def _info(
+    url: str = "https://github.com/release/setup.exe", sha256: str = ""
+) -> UpdateInfo:
     return UpdateInfo(
         current="1.6.5",
         latest="1.6.6",
         available=True,
         download_url=url,
         asset_name="PCOptimizer PRO Setup 1.6.6.exe",
+        sha256=sha256,
     )
 
 
@@ -163,6 +198,47 @@ def test_download_installer_rejects_bad_payload(tmp_path) -> None:
         assert "not a valid" in str(e)
     else:
         raise AssertionError("invalid installer was accepted")
+    assert not list(tmp_path.glob("*.part"))
+
+
+def test_download_installer_verifies_sha256(tmp_path) -> None:
+    payload = b"MZ" + b"x" * (1024 * 1024)
+    digest = hashlib.sha256(payload).hexdigest()
+    target = download_installer(
+        _info(sha256=digest), tmp_path, opener=lambda _url, timeout: _Response(payload)
+    )
+    assert target.read_bytes() == payload
+    assert not list(tmp_path.glob("*.part"))
+
+
+def test_download_installer_rejects_checksum_mismatch(tmp_path) -> None:
+    payload = b"MZ" + b"x" * (1024 * 1024)
+    try:
+        download_installer(
+            _info(sha256="0" * 64),
+            tmp_path,
+            opener=lambda _url, timeout: _Response(payload),
+        )
+    except UpdateDownloadError as e:
+        assert "checksum" in str(e)
+    else:
+        raise AssertionError("checksum mismatch was accepted")
+    assert not list(tmp_path.glob("*.part"))
+    assert not list(tmp_path.glob("*.exe"))
+
+
+def test_download_installer_rejects_invalid_checksum_metadata(tmp_path) -> None:
+    payload = b"MZ" + b"x" * (1024 * 1024)
+    try:
+        download_installer(
+            _info(sha256="not-a-digest"),
+            tmp_path,
+            opener=lambda _url, timeout: _Response(payload),
+        )
+    except UpdateDownloadError as e:
+        assert "checksum metadata" in str(e)
+    else:
+        raise AssertionError("invalid checksum metadata was accepted")
     assert not list(tmp_path.glob("*.part"))
 
 

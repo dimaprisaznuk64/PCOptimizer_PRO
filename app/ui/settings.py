@@ -789,7 +789,9 @@ class SettingsPage(QWidget):
 
     def _on_download_done(self, path) -> None:
         self._finish_download()
-        self.update_status.setText(tr("set_upd_downloaded", path=str(path)))
+        info = getattr(self, "last_update", None)
+        key = "set_upd_downloaded_verified" if getattr(info, "sha256", "") else "set_upd_downloaded"
+        self.update_status.setText(tr(key, path=str(path)))
 
     def _on_download_failed(self, message: str) -> None:
         self._finish_download()

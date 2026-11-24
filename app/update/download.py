@@ -1,5 +1,7 @@
 from __future__ import annotations
 
+import hashlib
+import hmac
 import re
 import urllib.parse
 import urllib.request
@@ -23,6 +25,15 @@ class UpdateDownloadError(RuntimeError):
 def _is_trusted_url(url: str) -> bool:
     parsed = urllib.parse.urlparse(url)
     return parsed.scheme == "https" and parsed.netloc.lower() in _ALLOWED_HOSTS
+
+
+def _expected_digest(value: object) -> str:
+    text = str(value or "").strip().lower()
+    if not text:
+        return ""
+    if len(text) != 64 or any(c not in "0123456789abcdef" for c in text):
+        raise UpdateDownloadError("invalid checksum metadata for this release")
+    return text
 
 
 class _SafeRedirectHandler(urllib.request.HTTPRedirectHandler):
@@ -59,6 +70,7 @@ def download_installer(
     target.parent.mkdir(parents=True, exist_ok=True)
     open_url = opener or urllib.request.build_opener(_SafeRedirectHandler()).open
     written = 0
+    digest = hashlib.sha256()
     try:
         with open_url(info.download_url, timeout=timeout) as response:
             headers = getattr(response, "headers", None)
@@ -70,11 +82,15 @@ def download_installer(
                     written += len(chunk)
                     if written > MAX_INSTALLER_BYTES:
                         raise UpdateDownloadError("installer download exceeded the size limit")
+                    digest.update(chunk)
                     out.write(chunk)
         with temp.open("rb") as downloaded:
             magic = downloaded.read(2)
         if written < MIN_INSTALLER_BYTES or magic != b"MZ":
             raise UpdateDownloadError("downloaded file is not a valid Windows installer")
+        expected = _expected_digest(getattr(info, "sha256", ""))
+        if expected and not hmac.compare_digest(digest.hexdigest(), expected):
+            raise UpdateDownloadError("checksum mismatch: installer was not saved")
         temp.replace(target)
     except (OSError, ValueError, UpdateDownloadError) as e:
         temp.unlink(missing_ok=True)

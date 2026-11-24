@@ -57,6 +57,7 @@ class UpdateInfo:
     error: str | None = None
     download_url: str = ""
     asset_name: str = ""
+    sha256: str = ""
 
 
 def _fetch_json(url: str, timeout: float) -> dict[str, object]:
@@ -74,11 +75,22 @@ def _fetch_json(url: str, timeout: float) -> dict[str, object]:
     return payload
 
 
-def _find_asset(payload: dict[str, object]) -> tuple[str, str]:
-    """Return ``(download_url, name)`` for the first Windows installer asset."""
+def _asset_sha256(asset: dict[str, object]) -> str:
+    """Return the lowercase hex digest when GitHub published a valid SHA-256."""
+    value = str(asset.get("digest") or "").strip().lower()
+    if not value.startswith("sha256:"):
+        return ""
+    digest = value.split(":", 1)[1]
+    if len(digest) != 64 or any(c not in "0123456789abcdef" for c in digest):
+        return ""
+    return digest
+
+
+def _find_asset(payload: dict[str, object]) -> tuple[str, str, str]:
+    """Return ``(download_url, name, sha256)`` for the first Windows installer."""
     assets = payload.get("assets")
     if not isinstance(assets, list):
-        return "", ""
+        return "", "", ""
     for asset in assets:
         if not isinstance(asset, dict):
             continue
@@ -90,8 +102,8 @@ def _find_asset(payload: dict[str, object]) -> tuple[str, str]:
         if parsed.scheme == "https" and parsed.netloc.lower() in {
             "github.com", "www.github.com", "objects.githubusercontent.com"
         }:
-            return url, name
-    return "", ""
+            return url, name, _asset_sha256(asset)
+    return "", "", ""
 
 
 class UpdateService:
@@ -131,7 +143,7 @@ class UpdateService:
         current = parse_version(self._current) or ()
         url = payload.get("html_url")
         body = payload.get("body")
-        download_url, asset_name = _find_asset(payload)
+        download_url, asset_name, sha256 = _find_asset(payload)
         info = UpdateInfo(
             current=self._current,
             latest=".".join(str(part) for part in latest),
@@ -140,6 +152,7 @@ class UpdateService:
             notes=body[:NOTES_LIMIT] if isinstance(body, str) else "",
             download_url=download_url,
             asset_name=asset_name,
+            sha256=sha256,
         )
         log.info(
             "update check: current=%s latest=%s available=%s",

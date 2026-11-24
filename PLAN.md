@@ -4,7 +4,7 @@
 - Released **v2.1.0** — design-system patch (unified spacing/radius tokens),
   18 curated themes with aliases for the 11 retired names, and review-hardening
   fixes (cooperative teardown, cached stylesheet/WMI names, warning filtering).
-  23 pages, 18 themes, 930 passed / 1 skipped, TITANIUM baseline, Geist fonts,
+  23 pages, 18 themes, 935 passed / 1 skipped, TITANIUM baseline, Geist fonts,
   EN/UA. Installer, portable zip and source zip published on GitHub.
 - Released **v2.0.1** — Stage 3/4 UX polish plus Stage 5 monitoring profiles
   (`ECO`/`BALANCED`/`PERFORMANCE`) and an optional pythonnet/LibreHardwareMonitor
@@ -48,7 +48,7 @@
   cached stylesheet, cached WMI names). Full suite in one run: **927 passed / 1 skipped**
   in 184 s; `ruff`, `mypy`, `compileall` clean. A follow-up fix commit adds narrow
   PySide warning filtering, a high-scale empty-hint fit, saved-theme alias startup
-  resolution and a longer teardown budget for slow WMI/PowerShell tasks (930 tests).
+  resolution and a longer teardown budget for slow WMI/PowerShell tasks (935 tests).
   Both Desktop archives were reviewed:
   the patch zip was merged and `Main.dc.html` was checked for token parity. A follow-up
   commit applies the visual guide's theme proposal — 29 → **18 themes**, with the 11
@@ -74,6 +74,16 @@
 - Review checklist remains done: UI scale 100/125/150% has no real clipping, all
   18 themes apply, `COBALT` starts as `MIDNIGHT`, table headers match data
   alignment, and HWiNFO shared-memory smoke returned 21/21 fresh samples.
+
+### Stage 5 follow-up — update integrity (source-only, 2026-11-24)
+- GitHub release assets publish a `digest` (`sha256:...`). `UpdateInfo` now carries
+  it, and `download_installer()` hashes the stream and refuses to save a file when
+  the digest mismatches (fail-closed on malformed metadata too). The UI reports
+  `(SHA-256 verified)` via new EN/UA `set_upd_downloaded_verified` key.
+- Fixed drift in `docs/landing.html` (29 → 18 themes) and README (test count).
+- Verification: **935 passed / 1 skipped** (~231 s); `ruff`, `mypy` (120 files),
+  `compileall` clean. Source-only: committed and pushed, version/exe/installer
+  unchanged (the check ships in the next release build).
 
 
 - Released **v1.7.1** (`d9f83ab`) — reliability/stabilization batch: fixed safe
@@ -579,5 +589,5 @@
   Release run `45369199779` completed successfully, and the GitHub release has
   `PCOptimizer_PRO_Setup_2.1.0.exe` + `PCOptimizer_PRO_2.1.0_portable.zip`.
 - Audit follow-ups (from `docs/AUDIT_v2.0.1.md`): B-09 is fixed — full pytest
-  single run now passes (930 / 1 skipped); B-10 is skipped by owner decision
+  single run now passes (935 / 1 skipped); B-10 is skipped by owner decision
   (HWiNFO is not installed, live `poll_time` check is not required).
