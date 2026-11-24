@@ -5,12 +5,12 @@
   assets (`UpdateInfo.sha256`, `hmac.compare_digest` after MZ/size checks,
   atomic `.part` cleanup on mismatch). No UI/layout changes; 23 pages,
   18 themes, 935 passed / 1 skipped, TITANIUM baseline, Geist fonts, EN/UA.
-  Installer, portable zip and source zip published on GitHub.
+  Installer and portable zip published on GitHub; source zip built locally.
 - Released **v2.1.0** — design-system patch (unified spacing/radius tokens),
   18 curated themes with aliases for the 11 retired names, and review-hardening
   fixes (cooperative teardown, cached stylesheet/WMI names, warning filtering).
   23 pages, 18 themes, 935 passed / 1 skipped, TITANIUM baseline, Geist fonts,
-  EN/UA. Installer, portable zip and source zip published on GitHub.
+  EN/UA. Installer and portable zip published on GitHub; source zip built locally.
 - Released **v2.0.1** — Stage 3/4 UX polish plus Stage 5 monitoring profiles
   (`ECO`/`BALANCED`/`PERFORMANCE`) and an optional pythonnet/LibreHardwareMonitor
   temperature backend. 23 pages, 904 passed / 1 skipped, TITANIUM baseline,
@@ -611,6 +611,13 @@
 - Release v2.1.0 is published: tag `v2.1.0` points to `739123b`, GitHub Actions
   Release run `45369199779` completed successfully, and the GitHub release has
   `PCOptimizer_PRO_Setup_2.1.0.exe` + `PCOptimizer_PRO_2.1.0_portable.zip`.
+- Release v2.1.1 is published: tag `v2.1.1` points to `a7c327e`, GitHub Actions
+  Release run `45381697565` completed successfully, and the GitHub release has
+  `PCOptimizer_PRO_Setup_2.1.1.exe` + `PCOptimizer_PRO_2.1.1_portable.zip`.
+  At release time the installer asset digest was
+  `sha256:6a0f77bfc90c2c85f23bca27a3ef0be72abc765118fcda5070207b971449f150`.
+  The source zip `dist\PCOptimizer_PRO_src_v2.1.1.zip` was built locally.
+  The local `app_run` copy was silently upgraded to `2.1.1.0` and relaunched.
 - Audit follow-ups (from `docs/AUDIT_v2.0.1.md`): B-09 is fixed — full pytest
   single run now passes (935 / 1 skipped); B-10 is skipped by owner decision
   (HWiNFO is not installed, live `poll_time` check is not required).
