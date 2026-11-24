@@ -49,6 +49,24 @@
   commit applies the visual guide's theme proposal — 29 → **18 themes**, with the 11
   removed names kept as `THEME_ALIASES` so saved settings keep working.
 
+### Pause point (2026-11-24)
+- `main` head: `6ba2cb2` (`fix(ui): harden review findings`), pushed; Windows CI run
+  `45295313687` = success. Tree is clean, version is still **2.0.2**, and no
+  build/installer/release was made for the style/theme work.
+- Full suite: **930 passed / 1 skipped** in one run (~177 s); `ruff`, `mypy`,
+  `compileall`, `git diff --check` clean.
+- Review checklist is done: UI scale 100/125/150% has no real clipping, all 18
+  themes apply, `COBALT` starts as `MIDNIGHT`, table headers match data alignment,
+  and a 210 s HWiNFO shared-memory smoke returned 21/21 fresh samples with
+  changing CPU/board/GPU/hotspot temperatures.
+- Next session starts with **v2.1.0**: bump version in `app/__init__.py`,
+  `assets/version_info.txt`, `installer/PCOptimizer_PRO.iss`,
+  `app/i18n/translations.py` (`sidebar_user_sub`) and README; regenerate 23
+  `docs/screenshots/v2.1.0_*.png`; close the running source GUI before building;
+  rebuild exe/portable/installer/source zip; tag `v2.1.0`, verify GitHub Actions
+  and Release assets, then check that an installed v2.0.2 sees the update.
+  Release notes draft is in the session log; no bump/build was requested yet.
+
 
 - Released **v1.7.1** (`d9f83ab`) — reliability/stabilization batch: fixed safe
   alert limits and quiet CPU/GPU alerts during games, Settings reset applies
