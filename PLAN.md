@@ -611,13 +611,17 @@
 - Release v2.1.0 is published: tag `v2.1.0` points to `739123b`, GitHub Actions
   Release run `45369199779` completed successfully, and the GitHub release has
   `PCOptimizer_PRO_Setup_2.1.0.exe` + `PCOptimizer_PRO_2.1.0_portable.zip`.
-- Release v2.1.2 in progress: state-hardening patch over 2.1.1; version bumped and screenshots copied from v2.1.1 (no UI changes). Tag/release pending. v2.1.1: tag `a7c327e`, GitHub Actions
-  Release run `45381697565` completed successfully, and the GitHub release has
-  `PCOptimizer_PRO_Setup_2.1.1.exe` + `PCOptimizer_PRO_2.1.1_portable.zip`.
-  At release time the installer asset digest was
-  `sha256:6a0f77bfc90c2c85f23bca27a3ef0be72abc765118fcda5070207b971449f150`.
-  The source zip `dist\PCOptimizer_PRO_src_v2.1.1.zip` was built locally.
-  The local `app_run` copy was silently upgraded to `2.1.1.0` and relaunched.
-- Audit follow-ups (from `docs/AUDIT_v2.0.1.md`): B-09 is fixed вЂ” full pytest
+- Release v2.1.1: tag `a7c327e`, GitHub Actions Release run `45381697565`
+  completed successfully; assets `PCOptimizer_PRO_Setup_2.1.1.exe` +
+  `PCOptimizer_PRO_2.1.1_portable.zip` (installer sha256
+  `6a0f77bfc90c2c85f23bca27a3ef0be72abc765118fcda5070207b971449f150`).
+- Release v2.1.2: tag `v2.1.2` / `8c72666` published, but its Release CI rerun
+  failed because the tag points to pre-i18n-fix code; assets were built from
+  that old commit. Superseded by v2.1.3.
+- Release v2.1.3: tag `v2.1.3` / `f6c18c1` (over `9bdbb0c` i18n mojibake fix +
+  `e973b5d` `.editorconfig`), GitHub Actions Release run `45520158504`
+  completed successfully; assets `PCOptimizer_PRO_Setup_2.1.3.exe` +
+  `PCOptimizer_PRO_2.1.3_portable.zip` published.
+- Audit follow-ups (from `docs/AUDIT_v2.0.1.md`): B-09 is fixed — full pytest
   single run now passes (943 / 1 skipped); B-10 is skipped by owner decision
   (HWiNFO is not installed, live `poll_time` check is not required).
