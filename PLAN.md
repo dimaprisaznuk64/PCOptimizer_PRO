@@ -122,6 +122,17 @@
   published with installer + portable assets (SHA-256 digests available from
   the GitHub API).
 
+### Release v2.1.5 (2026-11-25)
+- Version bumped to **2.1.5** in `app/__init__.py`, `assets/version_info.txt`
+  (filevers/prodvers/StringStruct `2.1.5.0`), installer, and EN/UA
+  `sidebar_user_sub`.
+- Regenerated all **23** offscreen 1440×860 screenshots as
+  `docs/screenshots/v2.1.5_*.png`; removed the obsolete `v2.1.4_*` set.
+- README badge, screenshot links, and installer/portable names updated.
+- Includes the immutable system-change journal from commit `799b34a`:
+  SHA-256 hash chain, backup checksum sidecars and a read-only feed in
+  Operations.
+
 ### Stage 5 follow-up — update integrity (source-only, 2026-11-24)
 - GitHub release assets publish a `digest` (`sha256:...`). `UpdateInfo` now carries
   it, and `download_installer()` hashes the stream and refuses to save a file when
