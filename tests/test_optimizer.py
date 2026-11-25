@@ -4,6 +4,7 @@ import time
 
 import pytest
 
+from app.changes import ChangeJournal
 from app.optimizer import (
     GUID_BALANCED,
     GUID_HIGH_PERF,
@@ -107,7 +108,7 @@ class FakeSystem:
     def is_admin(self) -> bool:
         return self.admin
 
-    def make_service(self, tmp_path) -> OptimizerService:
+    def make_service(self, tmp_path, *, journal: ChangeJournal | None = None) -> OptimizerService:
         return OptimizerService(
             run=self.run,
             elevate=self.elevate,
@@ -117,6 +118,7 @@ class FakeSystem:
             reg_delete=self.reg_delete,
             backup_path=tmp_path / "backup.json",
             restore=self.restore,
+            journal=journal,
         )
 
 
@@ -648,6 +650,35 @@ def test_optimizer_page_revert_button_state(qapp, tmp_path, monkeypatch) -> None
     page.start_revert()
     assert _wait_until(qapp, lambda: service.revert_calls == 1)
     assert _wait_until(qapp, lambda: page._task is None)
+
+
+def test_optimizer_backup_checksum_and_journal(tmp_path) -> None:
+    fake = FakeSystem()
+    journal = ChangeJournal(store=tmp_path / "changes.jsonl")
+    service = fake.make_service(tmp_path, journal=journal)
+
+    service.apply_profile("GAMING", with_restore_point=False)
+    assert service.backup_integrity().status == "ok"
+    assert service.backup_integrity().valid is True
+
+    service.revert()
+    assert [entry.operation for entry in journal.entries()] == [
+        "optimizer.revert",
+        "optimizer.apply",
+    ]
+    assert journal.entries(limit=1)[0].outcome == "ok"
+    assert not service.backup_path.exists()
+
+
+def test_tampered_optimizer_backup_is_quarantined(tmp_path) -> None:
+    fake = FakeSystem()
+    service = fake.make_service(tmp_path)
+    service.apply_profile("GAMING", with_restore_point=False)
+
+    service.backup_path.write_text('{"profile": "TAMPERED"}', encoding="utf-8")
+    with pytest.raises(OptimizerError, match="checksum mismatch"):
+        service.revert()
+    assert list(tmp_path.glob("backup.json.corrupt-*"))
 
 
 def test_default_backup_path_uses_data_root(tmp_path, monkeypatch) -> None:

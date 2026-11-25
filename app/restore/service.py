@@ -19,6 +19,7 @@ import time
 from collections.abc import Callable, Sequence
 from dataclasses import dataclass
 
+from app.changes import ChangeJournal
 from app.winpaths import POWERSHELL_PATH, PS_UTF8_PREFIX, decode_process_output
 
 # Status codes returned in RestoreResult.status
@@ -82,10 +83,12 @@ class RestorePointService:
         run: Callable[[Sequence[str], float], tuple[int, str]] | None = None,
         is_admin: Callable[[], bool] | None = None,
         powershell: str = POWERSHELL_PATH,
+        journal: ChangeJournal | None = None,
     ) -> None:
         self._run = run or self._default_run
         self._is_admin = is_admin or self._default_is_admin
         self._ps = powershell
+        self._journal = journal or ChangeJournal.instance()
 
     # ---------- public ----------
 
@@ -110,41 +113,74 @@ class RestorePointService:
 
     def create(self, label: str, *, force: bool = True) -> RestoreResult:
         label = (label or "").strip() or "PCOptimizer PRO"
+
+        def finish(result: RestoreResult) -> RestoreResult:
+            self._journal.record(
+                operation="restore.point",
+                outcome="ok" if result.ok else "error",
+                detail=f"{result.status}: {result.message}"[:400],
+                source="optimizer",
+                target=label,
+                restore_point=str(result.sequence or ""),
+            )
+            return result
+
         try:
             before = {p.sequence for p in self.list_points()}
         except RestoreError as exc:
-            return RestoreResult(False, STATUS_ERROR, str(exc), label=label)
+            return finish(RestoreResult(False, STATUS_ERROR, str(exc), label=label))
         script = self._build_create_script(label, force)
         result = self._invoke(script, 240.0)
         if result is None:
-            return RestoreResult(False, STATUS_CANCELLED, "cancelled at the UAC prompt", label=label)
+            return finish(
+                RestoreResult(
+                    False, STATUS_CANCELLED, "cancelled at the UAC prompt", label=label
+                )
+            )
 
         code, text = result
         try:
             after_points = self.list_points()
         except RestoreError as exc:
-            return RestoreResult(False, STATUS_ERROR, str(exc), label=label)
+            return finish(RestoreResult(False, STATUS_ERROR, str(exc), label=label))
         new = {p.sequence for p in after_points} - before
         if new:
             seq = max(new)
             detail = next((p.description for p in after_points if p.sequence == seq), label)
-            return RestoreResult(True, STATUS_CREATED, detail, label=label, sequence=seq)
+            return finish(
+                RestoreResult(True, STATUS_CREATED, detail, label=label, sequence=seq)
+            )
 
         lowered = text.lower()
         if any(marker in lowered for marker in _DISABLED_MARKERS):
-            return RestoreResult(False, STATUS_DISABLED, text.strip(), label=label)
+            return finish(RestoreResult(False, STATUS_DISABLED, text.strip(), label=label))
         if code == UAC_CANCELLED_CODE:
-            return RestoreResult(False, STATUS_CANCELLED, text.strip(), label=label)
+            return finish(RestoreResult(False, STATUS_CANCELLED, text.strip(), label=label))
         if code == 0:
-            return RestoreResult(False, STATUS_SKIPPED, text.strip() or "no new restore point", label=label)
-        return RestoreResult(False, STATUS_ERROR, text.strip() or f"exit {code}", label=label)
+            return finish(
+                RestoreResult(
+                    False, STATUS_SKIPPED, text.strip() or "no new restore point", label=label
+                )
+            )
+        return finish(RestoreResult(False, STATUS_ERROR, text.strip() or f"exit {code}", label=label))
 
     def enable_protection(self, drive: str = "C:") -> RestoreResult:
         # ``drive`` ends up inside a PowerShell string, so it must be a bare
         # drive letter ("C:") — never arbitrary text.
         letter = (drive or "").strip().rstrip("\\")
+
+        def finish(result: RestoreResult) -> RestoreResult:
+            self._journal.record(
+                operation="restore.protection",
+                outcome="ok" if result.ok else "error",
+                detail=f"{result.status}: {result.message}"[:400],
+                source="optimizer",
+                target=letter,
+            )
+            return result
+
         if not _DRIVE_RE.match(letter):
-            return RestoreResult(False, STATUS_ERROR, f"invalid drive: {drive!r}")
+            return finish(RestoreResult(False, STATUS_ERROR, f"invalid drive: {drive!r}"))
         # Enable-ComputerRestore can report success while protection stays off.
         # Re-read the master switch (DisableSR) so we never report a no-op as
         # success. If the value is missing we assume it is enabled by default.
@@ -157,11 +193,11 @@ class RestorePointService:
         )
         result = self._invoke(script, 120.0)
         if result is None:
-            return RestoreResult(False, STATUS_CANCELLED, "cancelled at the UAC prompt")
+            return finish(RestoreResult(False, STATUS_CANCELLED, "cancelled at the UAC prompt"))
         code, text = result
         if code == 0:
-            return RestoreResult(True, STATUS_CREATED, "system protection enabled")
-        return RestoreResult(False, STATUS_ERROR, text.strip() or f"exit {code}")
+            return finish(RestoreResult(True, STATUS_CREATED, "system protection enabled"))
+        return finish(RestoreResult(False, STATUS_ERROR, text.strip() or f"exit {code}"))
 
     # ---------- scripts ----------
 

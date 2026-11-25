@@ -8,6 +8,7 @@ from PySide6.QtCore import Qt
 from PySide6.QtGui import QGuiApplication
 from PySide6.QtWidgets import QDialog
 
+from app.changes import ChangeJournal
 from app.cleaner import (
     STANDBY_CACHE_ID,
     CleanerScheduler,
@@ -98,6 +99,21 @@ def test_clean_removes_files_and_empty_dirs(cache_target) -> None:
     assert root.exists()
     assert not (root / "a.txt").exists()
     assert not (root / "sub").exists()
+
+
+def test_clean_records_outcome_in_change_journal(cache_target, tmp_path) -> None:
+    target, _root = cache_target
+    journal = ChangeJournal(store=tmp_path / "changes.jsonl")
+    service = CleanerService([target], journal=journal)
+
+    outcome = service.clean(target, known_bytes=3048)
+    assert outcome.freed_bytes == 3048
+
+    entry = journal.entries(limit=1)[0]
+    assert entry.operation == "cleaner.clean"
+    assert entry.outcome == "ok"
+    assert entry.source == "cleaner"
+    assert target.id in entry.detail
 
 
 def test_clean_reports_partial_result_on_walk_error(tmp_path, monkeypatch) -> None:

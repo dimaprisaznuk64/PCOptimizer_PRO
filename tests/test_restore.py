@@ -3,6 +3,7 @@ from __future__ import annotations
 import base64
 import re
 
+from app.changes import ChangeJournal
 from app.restore import (
     STATUS_CANCELLED,
     STATUS_CREATED,
@@ -71,8 +72,10 @@ class FakeRunner:
             return 0, "OK"
         return 0, ""
 
-    def make_service(self) -> RestorePointService:
-        return RestorePointService(run=self.run, is_admin=lambda: self.admin)
+    def make_service(self, journal: ChangeJournal | None = None) -> RestorePointService:
+        return RestorePointService(
+            run=self.run, is_admin=lambda: self.admin, journal=journal
+        )
 
 
 # ---------- script generation ----------
@@ -153,6 +156,21 @@ def test_create_admin_creates_point() -> None:
     assert result.sequence == 101
     # went straight through powershell, no UAC wrapper
     assert all("Start-Process" not in " ".join(c) for c in runner.calls)
+
+
+def test_create_point_is_journalled(tmp_path) -> None:
+    journal = ChangeJournal(store=tmp_path / "changes.jsonl")
+    runner = FakeRunner(admin=True)
+
+    result = runner.make_service(journal).create("PCOptimizer_PRO test")
+    assert result.ok
+
+    entry = journal.entries(limit=1)[0]
+    assert entry.operation == "restore.point"
+    assert entry.outcome == "ok"
+    assert entry.source == "optimizer"
+    assert entry.restore_point == "101"
+    assert "created" in entry.detail
 
 
 def test_create_non_admin_uses_runas_wrapper() -> None:

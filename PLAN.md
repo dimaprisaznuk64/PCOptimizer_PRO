@@ -132,6 +132,25 @@
   `compileall` clean. Source-only: committed and pushed, version/exe/installer
   unchanged (the check ships in the next release build).
 
+### Stage 5 follow-up — immutable system-change journal (source-only, 2026-11-25)
+- New `app/changes` service: append-only `system_changes.jsonl` with a SHA-256
+  hash chain (`genesis -> prev_hash -> hash`), schema version, `integrity()`
+  report and immutable read API. `read` never clears or marks entries; the
+  activity feed stays separate and still supports Clear/Mark read.
+- Backup integrity: `write_checksum`/`verify_checksum` sidecars for
+  `optimizer_backup.json` and `startup_backup/history.jsonl`; legacy sidecar-free
+  files are accepted, mismatches are quarantined and fail closed. Optimizer and
+  Startup now use the same checksum helpers.
+- Operations recorded into the new journal: `optimizer.apply`/`revert`,
+  `restore.point`/`protection`, `startup.enable`/`disable`/`remove`/`undo`, and
+  `cleaner.clean` (outcome `ok`/`warn`/`error`, with reasons/locked files).
+- `OperationsPage` gained a read-only feed switch between Activity and System
+  Changes, an integrity status line, and new EN/UA keys; no new page or nav item.
+- Verification: targeted `155 passed, 1 skipped`; chunked full suite
+  **964 passed, 2 skipped (966 collected)**; `ruff`, `mypy` (122 files),
+  `compileall`, `git diff --check` clean. Source-only: version/exe/installer
+  unchanged.
+
 
 - Released **v1.7.1** (`d9f83ab`) вЂ” reliability/stabilization batch: fixed safe
   alert limits and quiet CPU/GPU alerts during games, Settings reset applies

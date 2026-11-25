@@ -8,6 +8,7 @@ import time
 import pytest
 from PySide6.QtGui import QGuiApplication
 
+from app.changes import ChangeJournal, checksum_path, write_checksum
 from app.i18n import tr
 from app.startup import StartupError, StartupItem, StartupService
 from app.startup.service import (
@@ -64,10 +65,11 @@ def test_impact_low() -> None:
 class FakeRegistryService(StartupService):
     """StartupService backed by in-memory dict instead of winreg."""
 
-    def __init__(self, tmp_path, values: dict | None = None) -> None:
+    def __init__(self, tmp_path, values: dict | None = None, *, journal=None) -> None:
         super().__init__(
             backup_dir=tmp_path / "backup",
             run_sources=(("HKCU", RUN_KEY, "HKCU Run"),),
+            journal=journal,
         )
         self.reg: dict[tuple[str, str, str], tuple[object, int]] = dict(values or {})
 
@@ -163,12 +165,50 @@ def test_corrupt_last_journal_line_keeps_older_entries_undoable(tmp_path) -> Non
     history = service.backup_dir / "history.jsonl"
     with history.open("a", encoding="utf-8") as f:
         f.write("{ broken\n")
+    write_checksum(history)
 
     with pytest.raises(StartupError, match="corrupt"):
         service.undo_last()
 
     service.undo_last()
     assert service.reg[("HKCU", RUN_KEY, "Doomed")] == (r"C:\bin\doomed.exe", 1)
+
+
+def test_history_checksum_mismatch_is_quarantined(tmp_path) -> None:
+    service = FakeRegistryService(tmp_path, {("HKCU", RUN_KEY, "Doomed"): (r"C:\bin\doomed.exe", 1)})
+    items, _ = service.list_items()
+    service.remove(next(i for i in items if i.name == "Doomed"))
+
+    history = service.backup_dir / "history.jsonl"
+    history.write_text(history.read_text(encoding="utf-8").replace("registry", "registrX"))
+    assert checksum_path(history).exists()
+
+    with pytest.raises(StartupError, match="checksum"):
+        service.undo_last()
+    assert list(service.backup_dir.glob("history.jsonl.corrupt-*"))
+    assert ("HKCU", RUN_KEY, "Doomed") not in service.reg
+
+
+def test_startup_operations_are_journalled(tmp_path) -> None:
+    journal = ChangeJournal(store=tmp_path / "changes.jsonl")
+    service = FakeRegistryService(
+        tmp_path,
+        {("HKCU", RUN_KEY, "Doomed"): (r"C:\bin\doomed.exe", 1)},
+        journal=journal,
+    )
+    items, _ = service.list_items()
+    item = next(i for i in items if i.name == "Doomed")
+
+    service.set_enabled(item, False)
+    service.remove(item)
+    service.undo_last()
+
+    operations = [entry.operation for entry in journal.entries()]
+    assert operations == [
+        "startup.undo",
+        "startup.remove",
+        "startup.disable",
+    ]
 
 
 def test_registry_remove_rollback_when_delete_fails(tmp_path) -> None:

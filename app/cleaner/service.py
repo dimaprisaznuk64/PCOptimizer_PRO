@@ -10,6 +10,7 @@ import time
 from collections.abc import Sequence
 from dataclasses import dataclass
 
+from app.changes import ChangeJournal
 from app.cleaner.whitelist import CleanerWhitelist
 from app.winpaths import POWERSHELL_PATH, PS_UTF8_PREFIX, decode_process_output
 
@@ -294,9 +295,11 @@ class CleanerService:
         self,
         targets: Sequence[CleanTarget] | None = None,
         whitelist: CleanerWhitelist | None = None,
+        journal: ChangeJournal | None = None,
     ) -> None:
         self._targets = list(targets) if targets is not None else default_targets()
         self.whitelist = whitelist if whitelist is not None else CleanerWhitelist()
+        self._journal = journal or ChangeJournal.instance()
 
     @property
     def targets(self) -> list[CleanTarget]:
@@ -323,6 +326,41 @@ class CleanerService:
     def clean(self, target: CleanTarget, known_bytes: int = 0, known_files: int = 0) -> CleanOutcome:
         if target.kind == "preview":
             return CleanOutcome(target.id, 0, 0, 0, "preview-only target", False)
+        try:
+            outcome = self._clean(target, known_bytes, known_files)
+        except Exception as exc:
+            self._journal.record(
+                operation="cleaner.clean",
+                outcome="error",
+                detail=str(exc)[:400],
+                source="cleaner",
+                target=target.id,
+            )
+            raise
+        if outcome.error and outcome.freed_bytes == 0:
+            status = "error"
+        elif outcome.error or outcome.partial:
+            status = "warn"
+        else:
+            status = "ok"
+        detail = (
+            f"[{target.id}] {target.name}: freed {outcome.freed_bytes} bytes, "
+            f"{outcome.files_deleted} deleted, {outcome.files_skipped} skipped"
+        )
+        if outcome.error:
+            detail = f"{detail}; {outcome.error}"
+        self._journal.record(
+            operation="cleaner.clean",
+            outcome=status,
+            detail=detail[:400],
+            source="cleaner",
+            target=target.id,
+        )
+        return outcome
+
+    def _clean(
+        self, target: CleanTarget, known_bytes: int = 0, known_files: int = 0
+    ) -> CleanOutcome:
         if target.kind == "recycle":
             return self._empty_recycle(target, known_bytes, known_files)
         if target.kind == "memory":

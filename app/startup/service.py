@@ -9,6 +9,13 @@ from collections.abc import Sequence
 from dataclasses import dataclass
 from pathlib import Path
 
+from app.changes import (
+    ChangeJournal,
+    ChecksumResult,
+    checksum_path,
+    verify_checksum,
+    write_checksum,
+)
 from app.settings import data_root
 from app.wincom import run_in_com
 
@@ -157,6 +164,7 @@ class StartupService:
         common_startup_dir: str | None = None,
         backup_dir: str | Path | None = None,
         run_sources: Sequence[tuple[str, str, str]] | None = None,
+        journal: ChangeJournal | None = None,
     ) -> None:
         appdata = os.environ.get("APPDATA", "")
         program_data = os.environ.get("PROGRAMDATA", "")
@@ -170,6 +178,11 @@ class StartupService:
             data_root() / "startup_backup"
         )
         self.run_sources = tuple(run_sources) if run_sources is not None else RUN_SOURCES
+        self._journal = journal or ChangeJournal.instance()
+
+    def backup_integrity(self) -> ChecksumResult:
+        """Checksum status for the startup undo history."""
+        return verify_checksum(self._history_path())
 
     def list_items(self) -> tuple[list[StartupItem], list[str]]:
         items: list[StartupItem] = []
@@ -339,6 +352,27 @@ class StartupService:
             return
 
     def set_enabled(self, item: StartupItem, enabled: bool) -> None:
+        operation = "startup.enable" if enabled else "startup.disable"
+        try:
+            self._set_enabled(item, enabled)
+        except StartupError as exc:
+            self._journal.record(
+                operation=operation,
+                outcome="error",
+                detail=str(exc)[:400],
+                source="startup",
+                target=item.name,
+            )
+            raise
+        self._journal.record(
+            operation=operation,
+            outcome="ok",
+            detail=item.source,
+            source="startup",
+            target=item.name,
+        )
+
+    def _set_enabled(self, item: StartupItem, enabled: bool) -> None:
         if item.kind == "registry":
             if item.hive is None or item.approved_name is None:
                 raise StartupError("item is missing registry locators")
@@ -361,6 +395,27 @@ class StartupService:
         raise StartupError(f"cannot toggle {item.kind}")
 
     def remove(self, item: StartupItem) -> str:
+        try:
+            message = self._remove(item)
+        except StartupError as exc:
+            self._journal.record(
+                operation="startup.remove",
+                outcome="error",
+                detail=str(exc)[:400],
+                source="startup",
+                target=item.name,
+            )
+            raise
+        self._journal.record(
+            operation="startup.remove",
+            outcome="ok",
+            detail=message[:400],
+            source="startup",
+            target=item.name,
+        )
+        return message
+
+    def _remove(self, item: StartupItem) -> str:
         if item.kind == "registry":
             return self._remove_registry(item)
         if item.kind == "folder":
@@ -368,6 +423,25 @@ class StartupService:
         raise StartupError("scheduled tasks can only be disabled, not removed")
 
     def undo_last(self) -> str:
+        try:
+            message = self._undo_last()
+        except StartupError as exc:
+            self._journal.record(
+                operation="startup.undo",
+                outcome="error",
+                detail=str(exc)[:400],
+                source="startup",
+            )
+            raise
+        self._journal.record(
+            operation="startup.undo",
+            outcome="ok",
+            detail=message[:400],
+            source="startup",
+        )
+        return message
+
+    def _undo_last(self) -> str:
         lines = self._history_lines()
         if not lines:
             raise StartupError("no backup history yet")
@@ -522,6 +596,13 @@ class StartupService:
         history = self._history_path()
         if not history.exists():
             return []
+        check = verify_checksum(history)
+        if not check.valid:
+            quarantine = self._quarantine_history()
+            hint = f" (saved as {quarantine})" if quarantine else ""
+            raise StartupError(
+                f"undo history checksum {check.status}: {check.detail}{hint} — refusing to use it"
+            )
         try:
             return [line for line in history.read_text(encoding="utf-8").splitlines() if line.strip()]
         except OSError as e:
@@ -541,6 +622,24 @@ class StartupService:
         except OSError as e:
             tmp.unlink(missing_ok=True)
             raise StartupError(f"cannot write undo history: {e}") from e
+        try:
+            write_checksum(history)
+        except OSError:
+            checksum_path(history).unlink(missing_ok=True)
+
+    def _quarantine_history(self) -> str | None:
+        stamp = time.strftime("%Y%m%d_%H%M%S")
+        history = self._history_path()
+        target = history.with_name(f"{history.name}.corrupt-{stamp}")
+        try:
+            history.replace(target)
+            try:
+                checksum_path(history).replace(target.with_name(f"{target.name}.sha256"))
+            except OSError:
+                pass
+            return str(target)
+        except OSError:
+            return None
 
     def _append_history(self, entry: dict) -> None:
         lines = self._history_lines()

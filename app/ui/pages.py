@@ -43,6 +43,7 @@ def build_pages(
     on_monitor_profile_applied=None,
     monitor_profile: str = "BALANCED",
 ) -> list[tuple[str, QWidget]]:
+    from app.changes import ChangeJournal
     from app.monitor.profiles import profile_for
     from app.settings import SettingsService
 
@@ -104,7 +105,7 @@ def build_pages(
         ("system_report", SystemReportPage()),
         ("export_center", ExportCenterPage()),
         ("health", HealthPage()),
-        ("operations", OperationsPage()),
+        ("operations", OperationsPage(journal=ChangeJournal.instance())),
         (
             "settings",
             SettingsPage(

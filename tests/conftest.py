@@ -36,11 +36,14 @@ def isolated_data_root(tmp_path, monkeypatch):
     """Keep runtime data (health result etc.) out of the project tree and reset the log singleton."""
     monkeypatch.setenv("PCOPTIMIZER_DATA", str(tmp_path / "data"))
     monkeypatch.setenv("PCOPTIMIZER_LHM_DISABLED", "1")
+    from app.changes import ChangeJournal
     from app.ui.activity import ActivityLog
 
     ActivityLog._instance = None
+    ChangeJournal._instance = None
     yield
     ActivityLog._instance = None
+    ChangeJournal._instance = None
 
 
 @pytest.fixture(autouse=True)

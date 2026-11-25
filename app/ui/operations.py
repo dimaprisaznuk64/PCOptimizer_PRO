@@ -27,6 +27,7 @@ from PySide6.QtWidgets import (
     QWidget,
 )
 
+from app.changes import ChangeEntry, ChangeJournal
 from app.i18n import tr
 from app.reports.service import ReportError, format_for_path, timestamp_name, write_report
 from app.settings import data_root
@@ -39,6 +40,14 @@ from .theme import DANGER, OK, PAGE_MARGINS, PAGE_SPACING, SPACING_SM, TEXT_DIM,
 
 LEVEL_ALL = "all"
 LEVELS = (LEVEL_ALL, "ok", "warn", "error")
+FEED_ACTIVITY = "activity"
+FEED_CHANGES = "changes"
+FEEDS = (FEED_ACTIVITY, FEED_CHANGES)
+_CHANGE_SOURCE_KEYS = {
+    "optimizer": "optimizer",
+    "startup": "startup",
+    "cleaner": "cleaner",
+}
 RANGES: tuple[tuple[str, float | None], ...] = (
     ("ops_range_all", None),
     ("ops_range_24h", 24 * 3600.0),
@@ -117,15 +126,42 @@ def _source_text(source: str) -> str:
     return tr(dict(NAV_KEYS).get(source, source))
 
 
+def change_to_entry(entry: ChangeEntry) -> Entry:
+    """Project an immutable audit record into the operations table model."""
+    parts = [entry.detail] if entry.detail else []
+    if entry.target:
+        parts.append(f"target: {entry.target}")
+    if entry.restore_point:
+        parts.append(f"restore point: {entry.restore_point}")
+    if entry.backup:
+        parts.append(f"backup: {entry.backup}")
+    if entry.backup_sha256:
+        parts.append(f"sha256: {entry.backup_sha256}")
+    return Entry(
+        ts=entry.ts,
+        level=entry.outcome,
+        title=entry.operation,
+        detail=" · ".join(parts),
+        source=_CHANGE_SOURCE_KEYS.get(entry.source, entry.source),
+    )
+
+
 class OperationsPage(QWidget):
     """Full activity history with filters, details, export and page navigation."""
 
     navigate = Signal(str)
 
-    def __init__(self, log: ActivityLog | None = None, parent: QWidget | None = None) -> None:
+    def __init__(
+        self,
+        log: ActivityLog | None = None,
+        *,
+        journal: ChangeJournal | None = None,
+        parent: QWidget | None = None,
+    ) -> None:
         super().__init__(parent)
         self.setObjectName("page")
         self._log = log or ActivityLog.instance()
+        self._journal = journal or ChangeJournal.instance()
         self._visible: list[Entry] = []
         self._selected_ts: float | None = None
 
@@ -153,6 +189,11 @@ class OperationsPage(QWidget):
 
         toolbar = QHBoxLayout()
         toolbar.setSpacing(SPACING_SM)
+        self.feed_combo = QComboBox()
+        self.feed_combo.addItems([tr(f"ops_feed_{feed}") for feed in FEEDS])
+        self.feed_combo.currentIndexChanged.connect(self._refresh)
+        toolbar.addWidget(self.feed_combo)
+
         self.search = QLineEdit()
         self.search.setPlaceholderText(tr("ops_search"))
         self.search.setClearButtonEnabled(True)
@@ -233,6 +274,25 @@ class OperationsPage(QWidget):
     def log(self) -> ActivityLog:
         return self._log
 
+    def _feed(self) -> str:
+        index = max(0, min(self.feed_combo.currentIndex(), len(FEEDS) - 1))
+        return FEEDS[index]
+
+    def _all_entries(self) -> list[Entry]:
+        if self._feed() == FEED_CHANGES:
+            return [change_to_entry(entry) for entry in self._journal.entries()]
+        return list(self._log.entries(limit=None))
+
+    def _status_text(self, total: int, shown: int) -> str:
+        if self._feed() != FEED_CHANGES:
+            return tr("ops_status", count=shown, total=total)
+        check = self._journal.integrity()
+        if check.ok:
+            integrity = tr("ops_journal_integrity_ok", count=check.entries)
+        else:
+            integrity = tr("ops_journal_integrity_broken", errors="; ".join(check.errors[:3]))
+        return f"{integrity} · {tr('ops_status', count=shown, total=total)}"
+
     def _level_at(self, index: int) -> str:
         return LEVELS[max(0, min(index, len(LEVELS) - 1))]
 
@@ -275,7 +335,10 @@ class OperationsPage(QWidget):
             copy_text(f"{entry.title}\n{entry.detail}")
 
     def _refresh(self, *_args) -> None:
-        all_entries = self._log.entries(limit=None)
+        all_entries = self._all_entries()
+        is_changes = self._feed() == FEED_CHANGES
+        self.mark_button.setEnabled(not is_changes)
+        self.clear_button.setEnabled(not is_changes)
         for level, card in self.cards.items():
             count = len(all_entries) if level == LEVEL_ALL else sum(1 for e in all_entries if e.level == level)
             card.update_metric(str(count))
@@ -301,9 +364,7 @@ class OperationsPage(QWidget):
                 self.table.setItem(row, column, cell)
             if entry.ts == self._selected_ts:
                 self.table.selectRow(row)
-        self.status_label.setText(
-            tr("ops_status", count=len(self._visible), total=len(all_entries))
-        )
+        self.status_label.setText(self._status_text(len(all_entries), len(self._visible)))
         self._on_selection_changed()
 
     def _on_selection_changed(self) -> None:
@@ -342,6 +403,9 @@ class OperationsPage(QWidget):
         )
 
     def clear_history(self) -> None:
+        if self._feed() == FEED_CHANGES:
+            self.status_label.setText(tr("ops_journal_immutable"))
+            return
         if self._visible and not self._ask_confirm():
             return
         self._log.clear()
@@ -388,6 +452,12 @@ class OperationsPage(QWidget):
         for level, card in self.cards.items():
             card.set_title(tr(f"ops_stat_{level}"))
         self.search.setPlaceholderText(tr("ops_search"))
+        feed_index = self.feed_combo.currentIndex()
+        self.feed_combo.blockSignals(True)
+        self.feed_combo.clear()
+        self.feed_combo.addItems([tr(f"ops_feed_{feed}") for feed in FEEDS])
+        self.feed_combo.setCurrentIndex(max(0, min(feed_index, len(FEEDS) - 1)))
+        self.feed_combo.blockSignals(False)
         level_index = self.level_combo.currentIndex()
         range_index = self.range_combo.currentIndex()
         self.level_combo.blockSignals(True)

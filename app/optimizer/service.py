@@ -10,6 +10,14 @@ from collections.abc import Callable, Sequence
 from dataclasses import dataclass
 from pathlib import Path
 
+from app.changes import (
+    ChangeJournal,
+    ChecksumResult,
+    checksum_path,
+    file_sha256,
+    verify_checksum,
+    write_checksum,
+)
 from app.restore import STATUS_CREATED, RestorePointService, RestoreResult
 from app.settings import data_root
 from app.winpaths import POWERSHELL_PATH, PS_UTF8_PREFIX, decode_process_output
@@ -70,6 +78,12 @@ _GUID_RE = re.compile(
 )
 
 
+def _outcome(applied: Sequence[str], errors: Sequence[str]) -> str:
+    if errors:
+        return "warn" if applied else "error"
+    return "ok"
+
+
 def _atomic_write_text(path: Path, text: str) -> None:
     """Write JSON state atomically so a crash can never leave a half file."""
     path.parent.mkdir(parents=True, exist_ok=True)
@@ -126,6 +140,7 @@ class OptimizerService:
         reg_delete: Callable[[str, str, str], None] | None = None,
         backup_path: str | Path | None = None,
         restore: RestorePointService | None = None,
+        journal: ChangeJournal | None = None,
     ) -> None:
         self._run = run or self._default_run
         self._elevate = elevate or self._default_elevate
@@ -133,7 +148,10 @@ class OptimizerService:
         self._reg_get = reg_get or self._default_reg_get
         self._reg_set = reg_set or self._default_reg_set
         self._reg_delete = reg_delete or self._default_reg_delete
-        self._restore = restore or RestorePointService(run=self._run, is_admin=self._is_admin)
+        self._journal = journal or ChangeJournal.instance()
+        self._restore = restore or RestorePointService(
+            run=self._run, is_admin=self._is_admin, journal=self._journal
+        )
         self.backup_path = Path(backup_path) if backup_path else (
             data_root() / "optimizer_backup.json"
         )
@@ -186,9 +204,18 @@ class OptimizerService:
             result = self.create_restore_point(f"PCOptimizer_PRO {profile}")
             restore_status = result.status
             if not result.ok:
+                error = f"restore point {result.status}: {result.message}"
+                self._journal.record(
+                    operation="optimizer.apply",
+                    outcome="error",
+                    detail=f"{profile.upper()}: {error}",
+                    source="optimizer",
+                    target=profile.upper(),
+                    restore_point=restore_label or "",
+                )
                 return ApplyReport(
                     applied=(),
-                    errors=(f"restore point {result.status}: {result.message}",),
+                    errors=(error,),
                     restore_point=None,
                     restore_status=result.status,
                 )
@@ -233,6 +260,19 @@ class OptimizerService:
             except OptimizerError as e:
                 errors.append(str(e))
 
+        self._journal.record(
+            operation="optimizer.apply",
+            outcome=_outcome(applied, errors),
+            detail=(
+                f"{profile.upper()}: {len(applied)} applied, {len(errors)} errors; "
+                "; ".join((*applied, *errors))[:400]
+            ),
+            source="optimizer",
+            target=profile.upper(),
+            backup=str(self.backup_path),
+            backup_sha256=file_sha256(self.backup_path) or "",
+            restore_point=restore_label or "",
+        )
         return ApplyReport(
             applied=tuple(applied),
             errors=tuple(errors),
@@ -241,9 +281,28 @@ class OptimizerService:
         )
 
     def revert(self) -> ApplyReport:
-        backup = self._load_backup()
+        try:
+            backup = self._load_backup()
+        except OptimizerError as exc:
+            self._journal.record(
+                operation="optimizer.revert",
+                outcome="error",
+                detail=str(exc),
+                source="optimizer",
+                backup=str(self.backup_path),
+            )
+            raise
         if backup is None:
-            raise OptimizerError("no backup available — nothing to revert")
+            message = "no backup available — nothing to revert"
+            self._journal.record(
+                operation="optimizer.revert",
+                outcome="error",
+                detail=message,
+                source="optimizer",
+                backup=str(self.backup_path),
+            )
+            raise OptimizerError(message)
+        backup_hash = file_sha256(self.backup_path) or ""
         applied: list[str] = []
         errors: list[str] = []
 
@@ -304,6 +363,15 @@ class OptimizerService:
             # (and the Gaming page's active state) reflects reality, not history.
             self._clear_backup()
 
+        self._journal.record(
+            operation="optimizer.revert",
+            outcome=_outcome(applied, errors),
+            detail=f"{len(applied)} restored, {len(errors)} errors",
+            source="optimizer",
+            target=str(backup.get("last_profile") or backup.get("profile") or ""),
+            backup=str(self.backup_path),
+            backup_sha256=backup_hash,
+        )
         return ApplyReport(applied=tuple(applied), errors=tuple(errors))
 
     def create_restore_point(self, description: str) -> RestoreResult:
@@ -322,6 +390,10 @@ class OptimizerService:
             return self._load_backup() is not None
         except OptimizerError:
             return False
+
+    def backup_integrity(self) -> ChecksumResult:
+        """Checksum status for the current optimizer backup."""
+        return verify_checksum(self.backup_path)
 
     def backup_profile(self) -> str | None:
         """Profile applied most recently while a backup exists (e.g. 'GAMING')."""
@@ -362,7 +434,7 @@ class OptimizerService:
                 updated = dict(existing)
                 updated["last_profile"] = profile
                 try:
-                    _atomic_write_text(self.backup_path, json.dumps(updated, indent=2))
+                    self._write_backup(updated)
                 except OSError:
                     # The original snapshot is still intact; a missing
                     # "last_profile" hint is cosmetic, not an undo failure.
@@ -403,11 +475,28 @@ class OptimizerService:
             "visual_fx": state.visual_fx,
             "visual_fx_read_ok": vis_err is None,
         }
+        self._write_backup(data)
+
+    def _write_backup(self, data: dict) -> None:
         _atomic_write_text(self.backup_path, json.dumps(data, indent=2))
+        try:
+            write_checksum(self.backup_path)
+        except OSError:
+            # Never leave a stale sidecar: a legacy backup without a checksum
+            # remains usable, while a wrong checksum would quarantine it.
+            checksum_path(self.backup_path).unlink(missing_ok=True)
 
     def _load_backup(self) -> dict | None:
         if not self.backup_path.exists():
             return None
+        check = verify_checksum(self.backup_path)
+        if not check.valid:
+            quarantine = self._quarantine_backup()
+            hint = f" (saved as {quarantine})" if quarantine else ""
+            raise OptimizerError(
+                f"backup checksum {check.status}: {check.detail}{hint} — refusing to revert "
+                "from unverifiable data"
+            )
         try:
             data = json.loads(self.backup_path.read_text(encoding="utf-8"))
         except (OSError, json.JSONDecodeError) as e:
@@ -425,15 +514,22 @@ class OptimizerService:
         target = self.backup_path.with_name(f"{self.backup_path.name}.corrupt-{stamp}")
         try:
             self.backup_path.replace(target)
+            try:
+                checksum_path(self.backup_path).replace(
+                    target.with_name(f"{target.name}.sha256")
+                )
+            except OSError:
+                pass
             return str(target)
         except OSError:
             return None
 
     def _clear_backup(self) -> None:
-        try:
-            self.backup_path.unlink(missing_ok=True)
-        except OSError:
-            pass
+        for path in (self.backup_path, checksum_path(self.backup_path)):
+            try:
+                path.unlink(missing_ok=True)
+            except OSError:
+                pass
 
     # ---------- primitives ----------
 

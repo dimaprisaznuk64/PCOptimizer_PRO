@@ -6,11 +6,13 @@ from pathlib import Path
 
 import pytest
 
+from app.changes import ChangeEntry, ChangeJournal
 from app.i18n import I18nService, tr
 from app.ui.activity import ActivityLog, Entry
 from app.ui.main_window import MainWindow
 from app.ui.operations import (
     OperationsPage,
+    change_to_entry,
     filter_operations,
     operations_to_csv,
     operations_to_json,
@@ -127,6 +129,60 @@ def test_page_context_menu_opens_source(qapp) -> None:
     open_action.trigger()
     assert targets == ["cleaner"]
     assert log.unread_count() == 1
+    page.close()
+
+
+def test_change_entry_projection_includes_audit_fields() -> None:
+    entry = ChangeEntry(
+        id="0" * 32,
+        ts=1_700_000_000.0,
+        operation="optimizer.apply",
+        outcome="ok",
+        detail="BALANCED applied",
+        source="optimizer",
+        target="BALANCED",
+        backup="C:\\backup.json",
+        backup_sha256="a" * 64,
+        restore_point="512",
+    )
+
+    projected = change_to_entry(entry)
+    assert projected.level == "ok"
+    assert projected.title == "optimizer.apply"
+    assert projected.source == "optimizer"
+    assert "BALANCED applied" in projected.detail
+    assert "restore point: 512" in projected.detail
+    assert "sha256: " + "a" * 64 in projected.detail
+
+
+def test_page_shows_system_change_feed_and_keeps_it_read_only(qapp, tmp_path: Path) -> None:
+    journal = ChangeJournal(store=tmp_path / "changes.jsonl")
+    journal.record(
+        operation="optimizer.apply",
+        outcome="ok",
+        detail="BALANCED applied",
+        source="optimizer",
+        target="BALANCED",
+    )
+    log = ActivityLog.instance()
+    log.clear()
+    log.record("Cleaned cache", "1 GB", source="cleaner")
+
+    page = OperationsPage(log=log, journal=journal)
+    assert page.feed_combo.count() == 2
+    page.feed_combo.setCurrentIndex(1)
+    assert page.table.rowCount() == 1
+    assert page.table.item(0, 2).text() == "optimizer.apply"
+    assert not page.clear_button.isEnabled()
+    assert not page.mark_button.isEnabled()
+    assert "intact" in page.status_label.text()
+
+    page.clear_button.click()
+    assert len(journal.entries()) == 1
+
+    page.feed_combo.setCurrentIndex(0)
+    assert page.table.rowCount() == 1
+    assert page.table.item(0, 2).text() == "Cleaned cache"
     page.close()
 
 
