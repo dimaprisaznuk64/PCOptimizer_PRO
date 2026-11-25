@@ -113,14 +113,21 @@
   `docs/screenshots/v2.1.4_*.png`; removed the obsolete `v2.1.3_*` set.
 - README version badge, screenshot links, and installer/portable names updated
   to v2.1.4; test count is **953** (2 skipped).
-- Build/tag/release: pending verification after commit and push.
+- Commit/tag/push: `52b2567` on `main`, tag `v2.1.4` pushed.
+- Local build: exe `2.1.4.0`, `dist\PCOptimizer_PRO_2.1.4_portable.zip`,
+  `dist\installer\PCOptimizer_PRO_Setup_2.1.4.exe`, and source zip. Smoke test
+  OK; silent upgrade of `app_run` to `2.1.4.0` succeeded and the desktop
+  shortcut points at `app_run\PCOptimizer_PRO.exe`.
+- CI Release run `45595182850` = success; [Release v2.1.4](https://github.com/dimaprisaznuk64/PCOptimizer_PRO/releases/tag/v2.1.4)
+  published with installer + portable assets (SHA-256 digests available from
+  the GitHub API).
 
-### Stage 5 follow-up вЂ” update integrity (source-only, 2026-11-24)
+### Stage 5 follow-up — update integrity (source-only, 2026-11-24)
 - GitHub release assets publish a `digest` (`sha256:...`). `UpdateInfo` now carries
   it, and `download_installer()` hashes the stream and refuses to save a file when
   the digest mismatches (fail-closed on malformed metadata too). The UI reports
   `(SHA-256 verified)` via new EN/UA `set_upd_downloaded_verified` key.
-- Fixed drift in `docs/landing.html` (29 в†’ 18 themes) and README (test count).
+- Fixed drift in `docs/landing.html` (29 → 18 themes) and README (test count).
 - Verification: **943 passed / 1 skipped** (~231 s); `ruff`, `mypy` (120 files),
   `compileall` clean. Source-only: committed and pushed, version/exe/installer
   unchanged (the check ships in the next release build).
