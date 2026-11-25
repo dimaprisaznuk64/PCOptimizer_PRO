@@ -39,6 +39,19 @@ def _protected_roots() -> set[str]:
     return {os.path.normcase(os.path.normpath(c)) for c in candidates if c}
 
 
+def _is_link_or_junction(path: str) -> bool:
+    """True for symlinks and Windows junctions (both redirect elsewhere)."""
+    for check in (getattr(os.path, "islink", None), getattr(os.path, "isjunction", None)):
+        if check is None:
+            continue
+        try:
+            if check(path):
+                return True
+        except OSError:
+            return True
+    return False
+
+
 def is_safe_root(path: str) -> bool:
     """Reject obviously dangerous cleanup roots.
 
@@ -58,18 +71,11 @@ def is_safe_root(path: str) -> bool:
     except (OSError, ValueError):
         return False
     drive, tail = os.path.splitdrive(normalized)
-    if drive and tail in ("", os.sep):
+    if tail in ("", os.sep) and (drive or normalized == os.path.abspath(os.sep)):
         return False
     if normalized in _protected_roots():
         return False
-    is_link = getattr(os.path, "islink", lambda _p: False)
-    is_junction = getattr(os.path, "isjunction", lambda _p: False)
-    try:
-        if is_link(path) or is_junction(path):
-            return False
-    except OSError:
-        return False
-    return True
+    return not _is_link_or_junction(path)
 
 
 def _is_default_target_path(path: str) -> bool:
@@ -364,7 +370,8 @@ class CleanerService:
                 dirnames[:] = [
                     name
                     for name in dirnames
-                    if not self.whitelist.is_excluded(os.path.join(dirpath, name))
+                    if not _is_link_or_junction(os.path.join(dirpath, name))
+                    and not self.whitelist.is_excluded(os.path.join(dirpath, name))
                 ]
                 for filename in filenames:
                     path = os.path.join(dirpath, filename)
@@ -423,12 +430,19 @@ class CleanerService:
                     freed += st.st_size
                     deleted += 1
                 continue
-            for dirpath, _dirnames, filenames in os.walk(
+            empty_dirs: list[str] = []
+            for dirpath, dirnames, filenames in os.walk(
                 root,
-                topdown=False,
+                topdown=True,
                 onerror=lambda e: walk_errors.append(str(e)),
                 followlinks=False,
             ):
+                dirnames[:] = [
+                    name
+                    for name in dirnames
+                    if not _is_link_or_junction(os.path.join(dirpath, name))
+                ]
+                empty_dirs.append(dirpath)
                 for filename in filenames:
                     path = os.path.join(dirpath, filename)
                     try:
@@ -449,6 +463,7 @@ class CleanerService:
                     else:
                         freed += st.st_size
                         deleted += 1
+            for dirpath in reversed(empty_dirs):
                 if dirpath != root and not self.whitelist.is_excluded(dirpath):
                     try:
                         os.rmdir(dirpath)

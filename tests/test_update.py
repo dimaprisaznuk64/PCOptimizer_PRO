@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import hashlib
+import http.client
 
 from app.update import (
     NOTES_LIMIT,
@@ -37,6 +38,7 @@ def test_newer_release_is_offered() -> None:
         available=True,
         url="https://github.com/dimaprisaznuk64/PCOptimizer_PRO/releases/tag/v1.6.6",
         notes="release notes",
+        download_unavailable="no_asset",
     )
 
 
@@ -112,8 +114,9 @@ def test_installer_asset_is_taken_from_release_payload() -> None:
     info = UpdateService("1.6.5", fetcher=lambda _u, _t: payload).check()
     assert info.available is True
     assert info.asset_name == "PCOptimizer_PRO_Setup_1.6.6.exe"
-    assert info.download_url.startswith("https://github.com/")
+    assert info.download_url == ""
     assert info.sha256 == ""
+    assert info.download_unavailable == "no_checksum"
 
 
 def test_installer_asset_sha256_is_taken_from_release_payload() -> None:
@@ -143,6 +146,43 @@ def test_unsupported_or_malformed_digests_are_ignored() -> None:
             "1.6.5", fetcher=lambda _u, _t, payload=payload: payload
         ).check()
         assert info.sha256 == ""
+        assert info.download_unavailable == "no_checksum"
+
+
+def test_installer_asset_is_pinned_to_release_version() -> None:
+    payload = _release()
+    payload["assets"] = [
+        {
+            "name": "PCOptimizer_PRO_Setup_1.6.5.exe",
+            "browser_download_url": "https://github.com/release/setup165.exe",
+            "digest": "sha256:" + "1" * 64,
+        },
+        {
+            "name": "PCOptimizer_PRO_Setup_1.6.6.exe",
+            "browser_download_url": "https://github.com/release/setup166.exe",
+            "digest": "sha256:" + "2" * 64,
+        },
+    ]
+    info = UpdateService("1.6.5", fetcher=lambda _u, _t: payload).check()
+    assert info.asset_name == "PCOptimizer_PRO_Setup_1.6.6.exe"
+    assert info.download_url.endswith("setup166.exe")
+    assert info.sha256 == "2" * 64
+    assert info.download_unavailable == ""
+
+
+def test_stale_installer_is_not_offered_as_this_release() -> None:
+    payload = _release()
+    payload["assets"] = [
+        {
+            "name": "PCOptimizer_PRO_Setup_1.6.5.exe",
+            "browser_download_url": "https://github.com/release/setup165.exe",
+            "digest": "sha256:" + "1" * 64,
+        }
+    ]
+    info = UpdateService("1.6.5", fetcher=lambda _u, _t: payload).check()
+    assert info.asset_name == ""
+    assert info.download_url == ""
+    assert info.download_unavailable == "version_mismatch"
 
 
 class _Response:
@@ -163,21 +203,28 @@ class _Response:
         return chunk
 
 
+_PAYLOAD = b"MZ" + b"x" * (1024 * 1024)
+
+
 def _info(
-    url: str = "https://github.com/release/setup.exe", sha256: str = ""
+    url: str = "https://github.com/release/setup.exe",
+    sha256: str | None = None,
+    *,
+    payload: bytes = _PAYLOAD,
 ) -> UpdateInfo:
+    digest = hashlib.sha256(payload).hexdigest() if sha256 is None else sha256
     return UpdateInfo(
         current="1.6.5",
         latest="1.6.6",
         available=True,
         download_url=url,
         asset_name="PCOptimizer PRO Setup 1.6.6.exe",
-        sha256=sha256,
+        sha256=digest,
     )
 
 
 def test_download_installer_streams_and_sanitizes_name(tmp_path) -> None:
-    payload = b"MZ" + b"x" * (1024 * 1024)
+    payload = _PAYLOAD
     target = download_installer(
         _info(), tmp_path, opener=lambda _url, timeout: _Response(payload)
     )
@@ -188,12 +235,14 @@ def test_download_installer_streams_and_sanitizes_name(tmp_path) -> None:
 
 
 def test_download_installer_rejects_bad_payload(tmp_path) -> None:
+    bad = b"not an exe"
+
     class Bad(_Response):
         def __init__(self) -> None:
-            super().__init__(b"not an exe")
+            super().__init__(bad)
 
     try:
-        download_installer(_info(), tmp_path, opener=lambda _url, timeout: Bad())
+        download_installer(_info(payload=bad), tmp_path, opener=lambda _url, timeout: Bad())
     except UpdateDownloadError as e:
         assert "not a valid" in str(e)
     else:
@@ -202,7 +251,7 @@ def test_download_installer_rejects_bad_payload(tmp_path) -> None:
 
 
 def test_download_installer_verifies_sha256(tmp_path) -> None:
-    payload = b"MZ" + b"x" * (1024 * 1024)
+    payload = _PAYLOAD
     digest = hashlib.sha256(payload).hexdigest()
     target = download_installer(
         _info(sha256=digest), tmp_path, opener=lambda _url, timeout: _Response(payload)
@@ -212,7 +261,7 @@ def test_download_installer_verifies_sha256(tmp_path) -> None:
 
 
 def test_download_installer_rejects_checksum_mismatch(tmp_path) -> None:
-    payload = b"MZ" + b"x" * (1024 * 1024)
+    payload = _PAYLOAD
     try:
         download_installer(
             _info(sha256="0" * 64),
@@ -227,8 +276,41 @@ def test_download_installer_rejects_checksum_mismatch(tmp_path) -> None:
     assert not list(tmp_path.glob("*.exe"))
 
 
+def test_download_installer_requires_a_checksum(tmp_path) -> None:
+    info = _info(sha256="")
+    called: list[str] = []
+
+    def forbidden(_url: str, timeout: float) -> _Response:
+        called.append(_url)
+        return _Response(_PAYLOAD)
+
+    try:
+        download_installer(info, tmp_path, opener=forbidden)
+    except UpdateDownloadError as e:
+        assert "SHA-256" in str(e)
+        assert info.url in str(e)
+    else:
+        raise AssertionError("installer without a checksum was accepted")
+    assert called == []
+    assert not list(tmp_path.glob("*.part"))
+    assert not list(tmp_path.glob("*.exe"))
+
+
+def test_download_installer_cleans_part_after_unexpected_error(tmp_path) -> None:
+    def broken(_url: str, timeout: float) -> None:
+        raise http.client.IncompleteRead(b"partial")
+
+    try:
+        download_installer(_info(), tmp_path, opener=broken)
+    except UpdateDownloadError as e:
+        assert "IncompleteRead" in str(e)
+    else:
+        raise AssertionError("unexpected error was not normalized")
+    assert not list(tmp_path.glob("*.part"))
+
+
 def test_download_installer_rejects_invalid_checksum_metadata(tmp_path) -> None:
-    payload = b"MZ" + b"x" * (1024 * 1024)
+    payload = _PAYLOAD
     try:
         download_installer(
             _info(sha256="not-a-digest"),

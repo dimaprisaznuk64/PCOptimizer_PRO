@@ -80,6 +80,41 @@
   18 themes apply, `COBALT` starts as `MIDNIGHT`, table headers match data
   alignment, and HWiNFO shared-memory smoke returned 21/21 fresh samples.
 
+### Current work (source-only, 2026-11-25)
+- Update integrity is now fail-closed. `_find_asset()` accepts only a GitHub
+  installer whose embedded version matches the release tag and whose `digest`
+  is a valid `sha256:`; mismatches produce `download_unavailable` reasons
+  (`no_asset` / `version_mismatch` / `no_checksum`) and a localized Settings
+  warning instead of a dead download button. `download_installer()` rejects a
+  missing/invalid digest **before any network request**, always compares the
+  streamed SHA-256 with `hmac.compare_digest`, cleans `.part` on every failure,
+  and the error points to the release page. New EN/UA keys:
+  `set_upd_unverified`, `set_upd_asset_mismatch`.
+- CI release step now clears stale `dist/` and publishes only the exact
+  versioned installer/portable names from `RELEASE_VERSION`;
+  `scripts/build_installer.ps1` fails loudly on a version mismatch.
+- Cleaner path safety: `_is_link_or_junction()` rejects symlinks/junctions;
+  scan and clean prune both from directory walks, clean walks top-down and
+  removes empty folders afterwards, and `is_safe_root()` now rejects the
+  filesystem root on POSIX as well as Windows drive roots. New regression
+  tests cover a symlinked directory, a junction emulation via monkeypatched
+  `os.path.isjunction`, a missing checksum, and `os.sep` as a target.
+- `README.md` encoding was repaired (double cp1251/UTF-8 mojibake) and the
+  portable instructions now point at `PCOptimizer_PRO.exe` in the archive root.
+- Verification: targeted `94 passed, 1 skipped`; full suite **951 passed,
+  2 skipped (953 collected)**; `ruff`, `mypy` (120 files), `compileall`,
+  `git diff --check` clean. These fixes ship in **v2.1.4**.
+
+### Release v2.1.4 (2026-11-25)
+- Version bumped to **2.1.4** in `app/__init__.py`, `assets/version_info.txt`
+  (also fixed stale fixed-version tuples `2.1.1` → `2.1.4`), installer, and
+  EN/UA `sidebar_user_sub`.
+- Regenerated all **23** offscreen 1440×860 screenshots as
+  `docs/screenshots/v2.1.4_*.png`; removed the obsolete `v2.1.3_*` set.
+- README version badge, screenshot links, and installer/portable names updated
+  to v2.1.4; test count is **953** (2 skipped).
+- Build/tag/release: pending verification after commit and push.
+
 ### Stage 5 follow-up вЂ” update integrity (source-only, 2026-11-24)
 - GitHub release assets publish a `digest` (`sha256:...`). `UpdateInfo` now carries
   it, and `download_installer()` hashes the stream and refuses to save a file when

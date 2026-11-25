@@ -10,7 +10,7 @@ from typing import Any
 
 from app.settings import data_root
 
-from .service import UpdateInfo
+from .service import RELEASES_PAGE, UpdateInfo
 
 MAX_INSTALLER_BYTES = 250 * 1024 * 1024
 MIN_INSTALLER_BYTES = 1024 * 1024
@@ -65,6 +65,12 @@ def download_installer(
     if not _is_trusted_url(info.download_url):
         raise UpdateDownloadError("untrusted installer URL")
 
+    expected = _expected_digest(getattr(info, "sha256", ""))
+    if not expected:
+        raise UpdateDownloadError(
+            f"no verified SHA-256 checksum for this release; see {info.url or RELEASES_PAGE}"
+        )
+
     target = installer_path(info, directory)
     temp = target.with_name(target.name + ".part")
     target.parent.mkdir(parents=True, exist_ok=True)
@@ -88,13 +94,20 @@ def download_installer(
             magic = downloaded.read(2)
         if written < MIN_INSTALLER_BYTES or magic != b"MZ":
             raise UpdateDownloadError("downloaded file is not a valid Windows installer")
-        expected = _expected_digest(getattr(info, "sha256", ""))
-        if expected and not hmac.compare_digest(digest.hexdigest(), expected):
+        if not hmac.compare_digest(digest.hexdigest(), expected):
             raise UpdateDownloadError("checksum mismatch: installer was not saved")
         temp.replace(target)
-    except (OSError, ValueError, UpdateDownloadError) as e:
-        temp.unlink(missing_ok=True)
-        if isinstance(e, UpdateDownloadError):
-            raise
-        raise UpdateDownloadError(str(e)) from e
+    except UpdateDownloadError:
+        _discard(temp)
+        raise
+    except Exception as exc:
+        _discard(temp)
+        raise UpdateDownloadError(str(exc) or type(exc).__name__) from exc
     return target
+
+
+def _discard(path: Path) -> None:
+    try:
+        path.unlink(missing_ok=True)
+    except OSError:
+        pass

@@ -213,6 +213,62 @@ def test_scan_refuses_unsafe_path() -> None:
     assert result.error is not None and "refusing unsafe" in result.error
 
 
+def test_is_safe_root_rejects_filesystem_root() -> None:
+    assert not is_safe_root(os.sep)
+    assert not is_safe_root(os.path.abspath(os.sep))
+
+
+def test_scan_and_clean_do_not_follow_symlinked_directory(tmp_path) -> None:
+    root = tmp_path / "cache"
+    root.mkdir()
+    (root / "keep.txt").write_bytes(b"k" * 16)
+    outside = tmp_path / "outside"
+    outside.mkdir()
+    (outside / "secret.txt").write_bytes(b"s" * 4096)
+    linked = root / "linked"
+    try:
+        os.symlink(outside, linked, target_is_directory=True)
+    except OSError as exc:
+        pytest.skip(f"symlinks are unavailable here: {exc}")
+
+    target = CleanTarget("link", "Link", "System", paths=(str(root),))
+    service = CleanerService([target])
+    scanned = service.scan(target)
+    assert scanned.files == 1
+    assert scanned.bytes == 16
+
+    outcome = service.clean(target)
+    assert outcome.files_deleted == 1
+    assert not (root / "keep.txt").exists()
+    assert (outside / "secret.txt").exists()
+
+
+def test_scan_and_clean_do_not_follow_junction(tmp_path, monkeypatch) -> None:
+    root = tmp_path / "cache"
+    root.mkdir()
+    (root / "keep.txt").write_bytes(b"k" * 16)
+    linked = root / "linked"
+    linked.mkdir()
+    (linked / "secret.txt").write_bytes(b"s" * 4096)
+    monkeypatch.setattr(
+        os.path,
+        "isjunction",
+        lambda p: os.path.normcase(str(p)) == os.path.normcase(str(linked)),
+        raising=False,
+    )
+
+    target = CleanTarget("junction", "Junction", "System", paths=(str(root),))
+    service = CleanerService([target])
+    scanned = service.scan(target)
+    assert scanned.files == 1
+    assert scanned.bytes == 16
+
+    outcome = service.clean(target)
+    assert outcome.files_deleted == 1
+    assert not (root / "keep.txt").exists()
+    assert (linked / "secret.txt").exists()
+
+
 def test_clean_partial_when_walk_error_and_nothing_deleted(tmp_path, monkeypatch) -> None:
     root = tmp_path / "cache"
     root.mkdir()

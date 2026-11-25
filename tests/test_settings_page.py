@@ -281,6 +281,37 @@ def test_check_reports_available_update(qapp, tmp_path) -> None:
     assert page.release_button.isHidden() is False
 
 
+def test_unverified_installer_disables_download(qapp, tmp_path) -> None:
+    from app.update import UpdateInfo
+
+    page = _page(qapp, tmp_path)
+    page._on_update_checked(
+        UpdateInfo(
+            current="1.6.5",
+            latest="1.7.0",
+            available=True,
+            url="https://github.com/dimaprisaznuk64/PCOptimizer_PRO/releases/tag/v1.7.0",
+            asset_name="PCOptimizer_PRO_Setup_1.7.0.exe",
+            download_unavailable="no_checksum",
+        )
+    )
+    assert "no SHA-256" in page.update_status.text()
+    assert page.release_button.isHidden() is False
+    assert page.download_button.isHidden() is True
+
+
+def test_update_status_follows_live_language_switch(qapp, tmp_path) -> None:
+    from app.i18n import I18nService
+    from app.update import UpdateInfo
+
+    page = _page(qapp, tmp_path)
+    page._on_update_checked(UpdateInfo(current="1.6.5", latest="1.6.5"))
+    assert page.update_status.text() == "You have the latest version (v1.6.5)"
+    I18nService.instance().set_language("UA", emit=False)
+    page.retranslate()
+    assert page.update_status.text() == "У вас остання версія (v1.6.5)"
+
+
 def test_check_reports_latest_version(qapp, tmp_path) -> None:
     from app.update import UpdateInfo
 

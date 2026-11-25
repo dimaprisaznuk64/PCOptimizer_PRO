@@ -85,6 +85,8 @@ class SettingsPage(QWidget):
         self._dynamic_visibility: dict[int, bool] = {}
         self._release_url = RELEASES_PAGE
         self.last_update = None
+        self._update_status_key: str | None = None
+        self._update_status_args: dict[str, object] = {}
 
         outer = QVBoxLayout(self)
         outer.setContentsMargins(0, 0, 0, 0)
@@ -232,6 +234,8 @@ class SettingsPage(QWidget):
         self.no_match_label.setText(tr("set_search_no_match"))
         self._rebuild_search_index()
         self._apply_search(self.search_edit.text())
+        if self._update_status_key is not None:
+            self.update_status.setText(tr(self._update_status_key, **self._update_status_args))
 
     # ---------- search ----------
 
@@ -715,6 +719,11 @@ class SettingsPage(QWidget):
 
     # ---------- updates ----------
 
+    def _set_update_status(self, key: str, **fmt: object) -> None:
+        self._update_status_key = key
+        self._update_status_args = fmt
+        self.update_status.setText(tr(key, **fmt))
+
     def check_for_updates(self) -> None:
         """Ask GitHub for the newest release in a background thread."""
         if self._check_task is not None:
@@ -725,7 +734,7 @@ class SettingsPage(QWidget):
         self.release_button.setVisible(False)
         self.download_button.setVisible(False)
         self.update_status.setVisible(True)
-        self.update_status.setText(tr("set_upd_checking"))
+        self._set_update_status("set_upd_checking")
         self.check_updates_button.setEnabled(False)
         service = self._update_service or UpdateService()
         task = Task(service.check, parent=self)
@@ -742,21 +751,27 @@ class SettingsPage(QWidget):
         self._finish_update_check()
         self.last_update = info
         if getattr(info, "error", None):
-            self.update_status.setText(tr("set_upd_failed", msg=info.error))
+            self._set_update_status("set_upd_failed", msg=info.error)
             self.download_button.setVisible(False)
             return
         if getattr(info, "available", False):
-            self.update_status.setText(tr("set_upd_available", version=info.latest))
+            reason = getattr(info, "download_unavailable", "")
+            if reason == "no_checksum":
+                self._set_update_status("set_upd_unverified", version=info.latest)
+            elif reason == "version_mismatch":
+                self._set_update_status("set_upd_asset_mismatch", version=info.latest)
+            else:
+                self._set_update_status("set_upd_available", version=info.latest)
             self._release_url = str(info.url)
             self.release_button.setVisible(True)
             self.download_button.setVisible(bool(getattr(info, "download_url", "")))
             return
         self.download_button.setVisible(False)
-        self.update_status.setText(tr("set_upd_current", version=info.latest or info.current))
+        self._set_update_status("set_upd_current", version=info.latest or info.current)
 
     def _on_update_failed(self, message: str) -> None:
         self._finish_update_check()
-        self.update_status.setText(tr("set_upd_failed", msg=message))
+        self._set_update_status("set_upd_failed", msg=message)
 
     def _open_release_page(self) -> None:
         QDesktopServices.openUrl(QUrl(self._release_url))
@@ -765,17 +780,17 @@ class SettingsPage(QWidget):
         """Download the published installer in the background (never runs it)."""
         info = getattr(self, "last_update", None)
         if info is None or not getattr(info, "available", False):
-            self.update_status.setText(tr("set_upd_no_asset"))
+            self._set_update_status("set_upd_no_asset")
             return
         if not getattr(info, "download_url", ""):
-            self.update_status.setText(tr("set_upd_no_asset"))
+            self._set_update_status("set_upd_no_asset")
             return
         if self._download_task is not None:
             return
         from .tasks import Task
 
         self.update_status.setVisible(True)
-        self.update_status.setText(tr("set_upd_downloading"))
+        self._set_update_status("set_upd_downloading")
         self.download_button.setEnabled(False)
         task = Task(lambda: download_installer(info), parent=self)
         task.done.connect(self._on_download_done)
@@ -791,11 +806,11 @@ class SettingsPage(QWidget):
         self._finish_download()
         info = getattr(self, "last_update", None)
         key = "set_upd_downloaded_verified" if getattr(info, "sha256", "") else "set_upd_downloaded"
-        self.update_status.setText(tr(key, path=str(path)))
+        self._set_update_status(key, path=str(path))
 
     def _on_download_failed(self, message: str) -> None:
         self._finish_download()
-        self.update_status.setText(tr("set_upd_download_failed", msg=message))
+        self._set_update_status("set_upd_download_failed", msg=message)
 
     # ---------- log preview ----------
 

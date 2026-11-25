@@ -14,6 +14,7 @@ import urllib.parse
 import urllib.request
 from collections.abc import Callable
 from dataclasses import dataclass
+from pathlib import Path
 
 from app import __version__
 
@@ -26,6 +27,7 @@ TIMEOUT_S = 6.0
 NOTES_LIMIT = 4000
 
 _VERSION_RE = re.compile(r"^v?(\d+(?:\.\d+)*)")
+_ASSET_VERSION_RE = re.compile(r"(\d+(?:\.\d+)+)")
 
 Fetcher = Callable[[str, float], dict[str, object]]
 
@@ -58,6 +60,7 @@ class UpdateInfo:
     download_url: str = ""
     asset_name: str = ""
     sha256: str = ""
+    download_unavailable: str = ""
 
 
 def _fetch_json(url: str, timeout: float) -> dict[str, object]:
@@ -86,11 +89,24 @@ def _asset_sha256(asset: dict[str, object]) -> str:
     return digest
 
 
-def _find_asset(payload: dict[str, object]) -> tuple[str, str, str]:
-    """Return ``(download_url, name, sha256)`` for the first Windows installer."""
+def _asset_version(name: str) -> tuple[int, ...] | None:
+    """Version embedded in an installer name, e.g. ``Setup_2.1.3.exe``."""
+    match = _ASSET_VERSION_RE.search(Path(name).stem)
+    return parse_version(match.group(1)) if match is not None else None
+
+
+def _find_asset(
+    payload: dict[str, object], latest: tuple[int, ...]
+) -> tuple[str, str, str, str]:
+    """Return ``(url, name, sha256, unavailable_reason)`` for this release's installer.
+
+    An asset from an older release must never be offered as an update, and an
+    installer without a valid published digest is never offered for download.
+    """
     assets = payload.get("assets")
     if not isinstance(assets, list):
-        return "", "", ""
+        return "", "", "", "no_asset"
+    has_installer = False
     for asset in assets:
         if not isinstance(asset, dict):
             continue
@@ -98,12 +114,21 @@ def _find_asset(payload: dict[str, object]) -> tuple[str, str, str]:
         url = str(asset.get("browser_download_url") or "")
         if not name.lower().endswith(".exe") or "setup" not in name.lower():
             continue
+        has_installer = True
+        if _asset_version(name) != latest:
+            continue
         parsed = urllib.parse.urlparse(url)
-        if parsed.scheme == "https" and parsed.netloc.lower() in {
+        if parsed.scheme != "https" or parsed.netloc.lower() not in {
             "github.com", "www.github.com", "objects.githubusercontent.com"
         }:
-            return url, name, _asset_sha256(asset)
-    return "", "", ""
+            continue
+        digest = _asset_sha256(asset)
+        if not digest:
+            return "", name, "", "no_checksum"
+        return url, name, digest, ""
+    if has_installer:
+        return "", "", "", "version_mismatch"
+    return "", "", "", "no_asset"
 
 
 class UpdateService:
@@ -143,7 +168,7 @@ class UpdateService:
         current = parse_version(self._current) or ()
         url = payload.get("html_url")
         body = payload.get("body")
-        download_url, asset_name, sha256 = _find_asset(payload)
+        download_url, asset_name, sha256, unavailable = _find_asset(payload, latest)
         info = UpdateInfo(
             current=self._current,
             latest=".".join(str(part) for part in latest),
@@ -153,6 +178,7 @@ class UpdateService:
             download_url=download_url,
             asset_name=asset_name,
             sha256=sha256,
+            download_unavailable=unavailable,
         )
         log.info(
             "update check: current=%s latest=%s available=%s",

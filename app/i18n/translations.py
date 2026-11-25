@@ -95,7 +95,7 @@ TRANSLATIONS: dict[str, dict[str, str]] = {
         "tip_nav_health": "Health score with per-finding actions",
         "tip_nav_settings": "Language, theme, scale, alerts and updates",
         "sidebar_user_title": "Your PC is in safe hands",
-        "sidebar_user_sub": "PCOptimizer PRO v2.1.3",
+        "sidebar_user_sub": "PCOptimizer PRO v2.1.4",
         "sidebar_status_ok": "System healthy",
 
         # Top bar
@@ -1113,6 +1113,8 @@ TRANSLATIONS: dict[str, dict[str, str]] = {
         "set_upd_available": "Update available: v{version}",
         "set_upd_failed": "Update check failed: {msg}",
         "set_upd_no_asset": "No installer was published for this release",
+        "set_upd_unverified": "Update available: v{version} (no SHA-256 checksum; download disabled)",
+        "set_upd_asset_mismatch": "Update available: v{version} (installer for this version was not found)",
         "set_upd_downloading": "Downloading installer…",
         "set_upd_downloaded": "Installer saved to {path}",
         "set_upd_downloaded_verified": "Installer saved to {path} (SHA-256 verified)",
@@ -1512,7 +1514,7 @@ TRANSLATIONS: dict[str, dict[str, str]] = {
         "tip_nav_health": "Оцінка здоров'я з діями для кожної проблеми",
         "tip_nav_settings": "Мова, тема, масштаб, алерти та оновлення",
         "sidebar_user_title": "Твій ПК у надійних руках",
-        "sidebar_user_sub": "PCOptimizer PRO v2.1.3",
+        "sidebar_user_sub": "PCOptimizer PRO v2.1.4",
         "sidebar_status_ok": "Система в нормі",
 
         # Top bar
@@ -2530,6 +2532,8 @@ TRANSLATIONS: dict[str, dict[str, str]] = {
         "set_upd_available": "Доступне оновлення: v{version}",
         "set_upd_failed": "Не вдалося перевірити оновлення: {msg}",
         "set_upd_no_asset": "Для цього релізу інсталятор не опубліковано",
+        "set_upd_unverified": "Доступне оновлення: v{version} (нема SHA-256; завантаження вимкнено)",
+        "set_upd_asset_mismatch": "Доступне оновлення: v{version} (інсталятор цієї версії не знайдено)",
         "set_upd_downloading": "Завантаження інсталятора…",
         "set_upd_downloaded": "Інсталятор збережено у {path}",
         "set_upd_downloaded_verified": "Інсталятор збережено у {path} (SHA-256 перевірено)",

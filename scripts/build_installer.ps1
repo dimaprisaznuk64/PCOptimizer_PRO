@@ -78,7 +78,7 @@ if (-not $installer) {
     throw "ISCC.exe reported success but no installer .exe was found in $outDir"
 }
 if ($expectedVersion -and $installer.Name -notlike "*$expectedVersion*") {
-    Write-Warning "Installer name '$($installer.Name)' does not contain expected version '$expectedVersion'."
+    throw "Installer name '$($installer.Name)' does not contain expected version '$expectedVersion'. Fix MyAppVersion in installer/PCOptimizer_PRO.iss."
 }
 
 Write-Host "Done. Installer: $($installer.FullName)"
