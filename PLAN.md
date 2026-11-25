@@ -1,6 +1,10 @@
 ﻿# Development Plan
 
 ## Status
+- Released **v2.1.5** — immutable system-change journal (SHA-256 hash chain,
+  backup checksum sidecars, read-only Operations feed) and verified installer
+  downloads; 23 pages, 18 themes, 964 passed / 2 skipped, TITANIUM baseline,
+  Geist fonts, EN/UA. Installer and portable zip published on GitHub.
 - Released **v2.1.1** вЂ” SHA-256 verification for downloaded GitHub installer
   assets (`UpdateInfo.sha256`, `hmac.compare_digest` after MZ/size checks,
   atomic `.part` cleanup on mismatch). No UI/layout changes; 23 pages,
@@ -132,18 +136,30 @@
 - Includes the immutable system-change journal from commit `799b34a`:
   SHA-256 hash chain, backup checksum sidecars and a read-only feed in
   Operations.
+- Verification: **964 passed, 2 skipped in 191.69 s**; `ruff`, `mypy` (122
+  files), `compileall`, `git diff --check` clean.
+- Commits/tag/push: `799b34a` (journal) and `b6017d0` (release bump); annotated
+  tag `v2.1.5` and `main` at `b6017d0`.
+- Local build: exe `2.1.5.0` (PYZ TOC contains `app.changes` and
+  `app.changes.service`), `dist\PCOptimizer_PRO_2.1.5_portable.zip`
+  (56,773,075 B), `dist\installer\PCOptimizer_PRO_Setup_2.1.5.exe`
+  (41,303,450 B) and `dist\PCOptimizer_PRO_src_v2.1.5.zip` (9,330,048 B).
+  Smoke OK for both the frozen exe and the installed copy; `app_run` silently
+  upgraded `2.1.4.0` → `2.1.5.0`, desktop shortcut target unchanged.
+- CI Release run `45612185493` = success; CI run `45612176191` = success;
+  [Release v2.1.5](https://github.com/dimaprisaznuk64/PCOptimizer_PRO/releases/tag/v2.1.5)
+  published with installer + portable assets. Stale v2.1.4 artifacts removed.
 
-### Stage 5 follow-up — update integrity (source-only, 2026-11-24)
+### Stage 5 follow-up — update integrity (shipped in v2.1.5)
 - GitHub release assets publish a `digest` (`sha256:...`). `UpdateInfo` now carries
   it, and `download_installer()` hashes the stream and refuses to save a file when
   the digest mismatches (fail-closed on malformed metadata too). The UI reports
   `(SHA-256 verified)` via new EN/UA `set_upd_downloaded_verified` key.
 - Fixed drift in `docs/landing.html` (29 → 18 themes) and README (test count).
 - Verification: **943 passed / 1 skipped** (~231 s); `ruff`, `mypy` (120 files),
-  `compileall` clean. Source-only: committed and pushed, version/exe/installer
-  unchanged (the check ships in the next release build).
+  `compileall` clean. Shipped in release v2.1.5.
 
-### Stage 5 follow-up — immutable system-change journal (source-only, 2026-11-25)
+### Stage 5 follow-up — immutable system-change journal (shipped in v2.1.5)
 - New `app/changes` service: append-only `system_changes.jsonl` with a SHA-256
   hash chain (`genesis -> prev_hash -> hash`), schema version, `integrity()`
   report and immutable read API. `read` never clears or marks entries; the
@@ -159,8 +175,7 @@
   Changes, an integrity status line, and new EN/UA keys; no new page or nav item.
 - Verification: targeted `155 passed, 1 skipped`; chunked full suite
   **964 passed, 2 skipped (966 collected)**; `ruff`, `mypy` (122 files),
-  `compileall`, `git diff --check` clean. Source-only: version/exe/installer
-  unchanged.
+  `compileall`, `git diff --check` clean. Shipped in release v2.1.5.
 
 
 - Released **v1.7.1** (`d9f83ab`) вЂ” reliability/stabilization batch: fixed safe
@@ -694,6 +709,11 @@
   `e973b5d` `.editorconfig`), GitHub Actions Release run `45520158504`
   completed successfully; assets `PCOptimizer_PRO_Setup_2.1.3.exe` +
   `PCOptimizer_PRO_2.1.3_portable.zip` published.
+- Release v2.1.5: tag `v2.1.5` / `b6017d0`; CI Release run `45612185493`
+  (success). Assets `PCOptimizer_PRO_Setup_2.1.5.exe` (sha256
+  `e1f589f3b060d1ac805f9e16b9207b9e31abf75c4ed0f43326c8858b9685170f`) and
+  `PCOptimizer_PRO_2.1.5_portable.zip` (sha256
+  `0f439ba16eb437acbb82920036e4b03552cfb671d9c151e09b51aed4ef3cb50c`).
 - Audit follow-ups (from `docs/AUDIT_v2.0.1.md`): B-09 is fixed — full pytest
   single run now passes (943 / 1 skipped); B-10 is skipped by owner decision
   (HWiNFO is not installed, live `poll_time` check is not required).
