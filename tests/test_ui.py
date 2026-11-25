@@ -474,3 +474,55 @@ def test_shutdown_only_suppresses_pyside_disconnect_warning(qapp, monkeypatch) -
     for _args, kwargs in calls:
         assert kwargs.get("category") is RuntimeWarning
         assert "Failed to disconnect" in str(kwargs.get("message", ""))
+
+
+def test_snapshot_goes_only_to_visible_page(qapp, monkeypatch) -> None:
+    from app.sensors import MockBackend, SensorManager
+
+    window = MainWindow()
+    dashboard = window.page("dashboard")
+    monitor = window.page("monitor")
+    calls: list[str] = []
+    original_dashboard = dashboard.apply_snapshot
+    original_monitor = monitor.apply_snapshot
+
+    monkeypatch.setattr(
+        dashboard,
+        "apply_snapshot",
+        lambda snapshot: (calls.append("dashboard"), original_dashboard(snapshot)),
+    )
+    monkeypatch.setattr(
+        monitor,
+        "apply_snapshot",
+        lambda snapshot: (calls.append("monitor"), original_monitor(snapshot)),
+    )
+
+    window.show_page("monitor")
+    window.handle_snapshot(SensorManager([MockBackend(cpu_percent=7.0)]).snapshot())
+    assert "monitor" in calls
+    assert "dashboard" not in calls
+
+    window.show_page("dashboard")
+    assert "dashboard" in calls
+    window.close()
+
+
+def test_gaming_page_still_receives_hidden_snapshot(qapp, monkeypatch) -> None:
+    from app.sensors import MockBackend, SensorManager
+
+    window = MainWindow()
+    gaming = window.page("gaming")
+    original = gaming.apply_snapshot
+    received: list[object] = []
+    monkeypatch.setattr(
+        gaming,
+        "apply_snapshot",
+        lambda snapshot: (received.append(snapshot), original(snapshot)),
+    )
+
+    window.show_page("monitor")
+    snapshot = SensorManager([MockBackend(gpu_percent=42.0)]).snapshot()
+    window.handle_snapshot(snapshot)
+
+    assert received == [snapshot]
+    window.close()

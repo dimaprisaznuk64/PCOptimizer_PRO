@@ -131,6 +131,8 @@ class SessionCompareChart(QWidget):
 
 
 class GamingPage(QWidget):
+    background_snapshot = True
+
     def __init__(
         self,
         service: GamingService | None = None,

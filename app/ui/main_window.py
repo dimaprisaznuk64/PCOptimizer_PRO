@@ -380,6 +380,11 @@ class MainWindow(QMainWindow):
         self.stack.setCurrentIndex(index)
         if changed:
             self._fade_in(self.stack.widget(index))
+            if self._last_snapshot is not None:
+                page = self._page_widget(self.stack.widget(index))
+                handler = getattr(page, "apply_snapshot", None)
+                if handler is not None:
+                    handler(self._last_snapshot)
         self.sidebar.set_current(key)
         self.topbar.set_title(self._nav_label(key))
         nav_keys = [k for k, _ in NAV_KEYS]
@@ -638,8 +643,12 @@ class MainWindow(QMainWindow):
     def handle_snapshot(self, snapshot) -> None:
         self._last_snapshot = snapshot
         self._history.record(snapshot)
+        current = self._page_widget(self.stack.currentWidget())
         for i in range(self.stack.count()):
-            handler = getattr(self._page_widget(self.stack.widget(i)), "apply_snapshot", None)
+            page = self._page_widget(self.stack.widget(i))
+            if page is not current and not getattr(page, "background_snapshot", False):
+                continue
+            handler = getattr(page, "apply_snapshot", None)
             if handler is not None:
                 handler(snapshot)
         self._update_sidebar_health(snapshot)

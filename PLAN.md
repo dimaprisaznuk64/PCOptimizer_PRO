@@ -5,6 +5,11 @@
   backup checksum sidecars, read-only Operations feed) and verified installer
   downloads; 23 pages, 18 themes, 964 passed / 2 skipped, TITANIUM baseline,
   Geist fonts, EN/UA. Installer and portable zip published on GitHub.
+- Unreleased (source-only) — snapshot fan-out now targets the visible page only;
+  the last snapshot is replayed when a page becomes active. Gaming keeps
+  receiving hidden snapshots so telemetry sessions stay alive. 968 tests
+  collected (966 passed, 2 skipped); `ruff`, `mypy` (122 files), `compileall`
+  clean.
 - Released **v2.1.1** вЂ” SHA-256 verification for downloaded GitHub installer
   assets (`UpdateInfo.sha256`, `hmac.compare_digest` after MZ/size checks,
   atomic `.part` cleanup on mismatch). No UI/layout changes; 23 pages,
