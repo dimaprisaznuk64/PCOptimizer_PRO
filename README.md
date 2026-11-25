@@ -17,7 +17,7 @@
    <img src="https://img.shields.io/badge/tests-900%2B%20passed-brightgreen" alt="Tests">
   <a href="https://github.com/dimaprisaznuk64/PCOptimizer_PRO/actions/workflows/ci.yml"><img src="https://github.com/dimaprisaznuk64/PCOptimizer_PRO/actions/workflows/ci.yml/badge.svg" alt="CI"></a>
   <img src="https://img.shields.io/badge/license-MIT-green" alt="License">
-  <img src="https://img.shields.io/badge/version-2.1.2-blue" alt="Version">
+  <img src="https://img.shields.io/badge/version-2.1.3-blue" alt="Version">
 </p>
 
 Р¤С–Р»РѕСЃРѕС„С–СЏ РїСЂРѕС”РєС‚Сѓ: **Р¶РѕРґРЅРёС… В«СЃРµРєСЂРµС‚РЅРёС…В» СЂРµС”СЃС‚СЂРѕРІРёС… С‚РІС–РєС–РІ С– РІРёРіР°РґР°РЅРёС… +FPS**. РљРѕР¶РЅР° Р·РјС–РЅР° СЃРёСЃС‚РµРјРё СЂРѕР±РёС‚СЊСЃСЏ Р»РёС€Рµ РїС–СЃР»СЏ Р±РµРєР°РїСѓ С– РјР°С” РєРЅРѕРїРєСѓ РІС–РґРєР°С‚Сѓ; С‚РѕС‡РєСѓ РІС–РґРЅРѕРІР»РµРЅРЅСЏ РјРѕР¶РЅР° СЃС‚РІРѕСЂРёС‚Рё РґРѕРґР°С‚РєРѕРІРѕ РІСЂСѓС‡РЅСѓ. Р—Р°СЃС‚РѕСЃСѓРЅРѕРє РїСЂР°С†СЋС” Р±РµР· Р°РґРјС–РЅ-РїСЂР°РІ вЂ” UAC Р·Р°РїРёС‚СѓС”С‚СЊСЃСЏ С‚РѕС‡РєРѕРІРѕ, Р»РёС€Рµ РґР»СЏ РєРѕРЅРєСЂРµС‚РЅРёС… РѕРїРµСЂР°С†С–Р№.
@@ -242,39 +242,39 @@ main.py
 
 | Р”Р°С€Р±РѕСЂРґ | РњРѕРЅС–С‚РѕСЂ СЃРёСЃС‚РµРјРё |
 | --- | --- |
-| ![Р”Р°С€Р±РѕСЂРґ](docs/screenshots/v2.1.2_dashboard.png) | ![РњРѕРЅС–С‚РѕСЂ](docs/screenshots/v2.1.2_monitor.png) |
+| ![Р”Р°С€Р±РѕСЂРґ](docs/screenshots/v2.1.3_dashboard.png) | ![РњРѕРЅС–С‚РѕСЂ](docs/screenshots/v2.1.3_monitor.png) |
 
 | Р¦РµРЅС‚СЂ РѕРїРµСЂР°С†С–Р№ | РџР°РЅРµР»СЊ С‚РµРјРїРµСЂР°С‚СѓСЂ |
 | --- | --- |
-| ![РћРїРµСЂР°С†С–С—](docs/screenshots/v2.1.2_operations.png) | ![РўРµРјРїРµСЂР°С‚СѓСЂРё](docs/screenshots/v2.1.2_temperature.png) |
+| ![РћРїРµСЂР°С†С–С—](docs/screenshots/v2.1.3_operations.png) | ![РўРµРјРїРµСЂР°С‚СѓСЂРё](docs/screenshots/v2.1.3_temperature.png) |
 
 | Р—Р°Р»С–Р·Рѕ (Hardware) | GPU-РјРѕРЅС–С‚РѕСЂ |
 | --- | --- |
-| ![Р—Р°Р»С–Р·Рѕ](docs/screenshots/v2.1.2_hardware.png) | ![GPU](docs/screenshots/v2.1.2_gpu.png) |
+| ![Р—Р°Р»С–Р·Рѕ](docs/screenshots/v2.1.3_hardware.png) | ![GPU](docs/screenshots/v2.1.3_gpu.png) |
 
 | PC Health Score | Р§РёСЃС‚РёР»СЊРЅРёРє |
 | --- | --- |
-| ![Health](docs/screenshots/v2.1.2_health.png) | ![Р§РёСЃС‚РёР»СЊРЅРёРє](docs/screenshots/v2.1.2_cleaner.png) |
+| ![Health](docs/screenshots/v2.1.3_health.png) | ![Р§РёСЃС‚РёР»СЊРЅРёРє](docs/screenshots/v2.1.3_cleaner.png) |
 
 | Р†РіСЂРѕРІРёР№ СЂРµР¶РёРј | Р›Р°СѓРЅС‡РµСЂ С–РіРѕСЂ |
 | --- | --- |
-| ![Gaming](docs/screenshots/v2.1.2_gaming.png) | ![Р›Р°СѓРЅС‡РµСЂ](docs/screenshots/v2.1.2_launcher.png) |
+| ![Gaming](docs/screenshots/v2.1.3_gaming.png) | ![Р›Р°СѓРЅС‡РµСЂ](docs/screenshots/v2.1.3_launcher.png) |
 
 | Р‘РµРЅС‡РјР°СЂРєРё | РњРµСЂРµР¶Р° |
 | --- | --- |
-| ![Р‘РµРЅС‡РјР°СЂРєРё](docs/screenshots/v2.1.2_benchmarks.png) | ![РњРµСЂРµР¶Р°](docs/screenshots/v2.1.2_network.png) |
+| ![Р‘РµРЅС‡РјР°СЂРєРё](docs/screenshots/v2.1.3_benchmarks.png) | ![РњРµСЂРµР¶Р°](docs/screenshots/v2.1.3_network.png) |
 
 | Р”С–Р°РіРЅРѕСЃС‚РёРєР° | Р”РёСЃРєРё С‚Р° СЃС…РѕРІРёС‰Рµ |
 | --- | --- |
-| ![Р”С–Р°РіРЅРѕСЃС‚РёРєР°](docs/screenshots/v2.1.2_diagnostics.png) | ![Р”РёСЃРєРё](docs/screenshots/v2.1.2_disk.png) |
+| ![Р”С–Р°РіРЅРѕСЃС‚РёРєР°](docs/screenshots/v2.1.3_diagnostics.png) | ![Р”РёСЃРєРё](docs/screenshots/v2.1.3_disk.png) |
 
 | РџР°РЅРµР»СЊ С‚РµРјРїРµСЂР°С‚СѓСЂ | Р‘РµРЅС‡РјР°СЂРє Р·Р°Р»С–Р·Р° |
 | --- | --- |
-| ![РўРµРјРїРµСЂР°С‚СѓСЂРё](docs/screenshots/v2.1.2_temperature.png) | ![Р‘РµРЅС‡РјР°СЂРє Р·Р°Р»С–Р·Р°](docs/screenshots/v2.1.2_hardware_benchmark.png) |
+| ![РўРµРјРїРµСЂР°С‚СѓСЂРё](docs/screenshots/v2.1.3_temperature.png) | ![Р‘РµРЅС‡РјР°СЂРє Р·Р°Р»С–Р·Р°](docs/screenshots/v2.1.3_hardware_benchmark.png) |
 
 | Р¦РµРЅС‚СЂ РµРєСЃРїРѕСЂС‚Сѓ | Р”СЂР°Р№РІРµСЂРё |
 | --- | --- |
-| ![Р•РєСЃРїРѕСЂС‚](docs/screenshots/v2.1.2_export_center.png) | ![Р”СЂР°Р№РІРµСЂРё](docs/screenshots/v2.1.2_drivers.png) |
+| ![Р•РєСЃРїРѕСЂС‚](docs/screenshots/v2.1.3_export_center.png) | ![Р”СЂР°Р№РІРµСЂРё](docs/screenshots/v2.1.3_drivers.png) |
 
 Р РµС€С‚Р° СЃС‚РѕСЂС–РЅРѕРє (РџСЂРѕС†РµСЃРё, РђРІС‚РѕР·Р°РІР°РЅС‚Р°Р¶РµРЅРЅСЏ, РћРїС‚РёРјС–Р·Р°С‚РѕСЂ, Р†СЃС‚РѕСЂС–СЏ РїСЂРѕРґСѓРєС‚РёРІРЅРѕСЃС‚С–, Р—РІС–С‚ СЃРёСЃС‚РµРјРё, РќР°Р»Р°С€С‚СѓРІР°РЅРЅСЏ): [docs/screenshots](docs/screenshots)
 
@@ -297,12 +297,12 @@ main.py
 
 ## Р’СЃС‚Р°РЅРѕРІР»РµРЅРЅСЏ
 
-**Р’Р°СЂС–Р°РЅС‚ 1 вЂ” С–РЅСЃС‚Р°Р»СЏС‚РѕСЂ.** Р—Р°РїСѓСЃС‚РёС‚Рё `PCOptimizer_PRO_Setup_2.1.2.exe`.
+**Р’Р°СЂС–Р°РЅС‚ 1 вЂ” С–РЅСЃС‚Р°Р»СЏС‚РѕСЂ.** Р—Р°РїСѓСЃС‚РёС‚Рё `PCOptimizer_PRO_Setup_2.1.3.exe`.
 Р’СЃС‚Р°РЅРѕРІР»СЋС”С‚СЊСЃСЏ РґР»СЏ РїРѕС‚РѕС‡РЅРѕРіРѕ РєРѕСЂРёСЃС‚СѓРІР°С‡Р° (Р±РµР· РїСЂР°РІ Р°РґРјС–РЅС–СЃС‚СЂР°С‚РѕСЂР°), РјРѕРІРё EN/UA, СЃС‚РІРѕСЂСЋС” СЏСЂР»РёРєРё С‚Р° РґРµС–РЅСЃС‚Р°Р»СЏС‚РѕСЂ.
 
 > РЇРєС‰Рѕ Windows РїРѕРєР°Р·СѓС” В«Windows protected your PCВ» (SmartScreen) вЂ” С†Рµ РЅРѕСЂРјР°Р»СЊРЅРѕ РґР»СЏ РЅРµРїС–РґРїРёСЃР°РЅРёС… РїСЂРѕРіСЂР°Рј: **More info в†’ Run anyway**. РўР°Рє СЃР°РјРѕ РґРµСЏРєС– Р°РЅС‚РёРІС–СЂСѓСЃРё РјРѕР¶СѓС‚СЊ С…РёР±РЅРѕ СЂРµР°РіСѓРІР°С‚Рё РЅР° PyInstaller-Р·Р±С–СЂРєРё.
 
-**Р’Р°СЂС–Р°РЅС‚ 2 вЂ” РїРѕСЂС‚Р°С‚РёРІРЅРѕ.** Р РѕР·РїР°РєСѓРІР°С‚Рё `PCOptimizer_PRO_2.1.2_portable.zip` С– Р·Р°РїСѓСЃС‚РёС‚Рё `PCOptimizer_PRO\PCOptimizer_PRO.exe`. РќС–С‡РѕРіРѕ РЅРµ РІСЃС‚Р°РЅРѕРІР»СЋС”С‚СЊСЃСЏ.
+**Р’Р°СЂС–Р°РЅС‚ 2 вЂ” РїРѕСЂС‚Р°С‚РёРІРЅРѕ.** Р РѕР·РїР°РєСѓРІР°С‚Рё `PCOptimizer_PRO_2.1.3_portable.zip` С– Р·Р°РїСѓСЃС‚РёС‚Рё `PCOptimizer_PRO\PCOptimizer_PRO.exe`. РќС–С‡РѕРіРѕ РЅРµ РІСЃС‚Р°РЅРѕРІР»СЋС”С‚СЊСЃСЏ.
 
 Р“РѕС‚РѕРІС– Р·Р±С–СЂРєРё вЂ” Сѓ СЂРѕР·РґС–Р»С– [Releases](https://github.com/dimaprisaznuk64/PCOptimizer_PRO/releases).
 
