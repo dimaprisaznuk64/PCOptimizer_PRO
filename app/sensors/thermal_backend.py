@@ -21,6 +21,7 @@ from .types import ThermalStat
 _TTL_S = 2.0
 _LHM_NAMESPACES = ("root\\LibreHardwareMonitor", "root\\OpenHardwareMonitor")
 _SOURCE_PRIORITY = {"hwinfo": 5, "lhm": 4, "lhm_pythonnet": 3, "wmi_acpi": 1}
+_EMPTY_TTL_S = 15.0
 
 
 def _is_admin() -> bool:
@@ -67,11 +68,14 @@ class ThermalBackend(Backend):
         lhm_reader: LhmReader | None = None,
         *,
         hwinfo_reader: Any | None = None,
+        empty_ttl_s: float = _EMPTY_TTL_S,
     ) -> None:
         self._zones: Any = None
         self._source: str | None = None
         self._owner_thread_id: int | None = None
         self._cache: tuple[float, Partial] | None = None
+        self._empty_until = 0.0
+        self._empty_ttl_s = max(0.0, float(empty_ttl_s))
         self._lhm_reader = lhm_reader
         self._hwinfo_reader = hwinfo_reader
 
@@ -189,6 +193,8 @@ class ThermalBackend(Backend):
         now = monotonic()
         if self._cache is not None and now - self._cache[0] < _TTL_S:
             return self._cache[1]
+        if self._empty_ttl_s and now < self._empty_until:
+            return {}
         stats: list[ThermalStat] = []
         notes: list[str] = []
 
@@ -217,13 +223,18 @@ class ThermalBackend(Backend):
                 notes.append(f"LHM WMI: {exc2}")
 
         if not stats:
+            # No ACPI/LHM/HWiNFO on this machine: avoid retrying several WMI
+            # namespace queries on every sampler tick when nothing can change.
+            self._empty_until = now + self._empty_ttl_s
             return {}
+        self._empty_until = 0.0
         result: Partial = {"thermal": _merge_stats(tuple(stats), tuple(notes))}
         self._cache = (now, result)
         return result
 
     def close(self) -> None:
         self._cache = None
+        self._empty_until = 0.0
         if self._lhm_reader is not None:
             self._lhm_reader.close()
         if self._owner_thread_id is not None and self._owner_thread_id != threading.get_ident():

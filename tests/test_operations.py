@@ -6,6 +6,7 @@ import time
 from pathlib import Path
 
 import pytest
+from PySide6.QtWidgets import QMainWindow
 
 from app.changes import ChangeEntry, ChangeJournal
 from app.i18n import I18nService, tr
@@ -95,6 +96,21 @@ def test_page_renders_filters_and_shows_details(qapp) -> None:
     assert "Cleaned cache" in page.detail_label.text()
     assert page.open_button.isEnabled()
     page.close()  # newest entries are first, so row 0 is the cache cleanup
+
+
+def test_operations_log_fills_available_height(qapp) -> None:
+    window = QMainWindow()
+    window.resize(1440, 860)
+    page = OperationsPage()
+    window.setCentralWidget(page)
+    window.show()
+    qapp.processEvents()
+
+    assert page.log_card.body.stretch(0) == 1
+    assert page.log_card._layout.stretch(1) == 1
+    assert page.table.height() > 400
+    assert page.table.height() > page.detail_label.height() * 4
+    window.close()
 
 
 def test_page_navigates_to_selected_source(qapp) -> None:
@@ -263,6 +279,28 @@ def test_page_recovery_cancel_keeps_files(
 
     assert stale.exists()
     assert page.clean_recovery_button.isEnabled()
+    page.close()
+
+
+def test_deferred_operations_page_loads_on_first_show(qapp) -> None:
+    from app.recovery import RecoveryReport
+
+    class _CountingRecovery:
+        def __init__(self) -> None:
+            self.calls = 0
+
+        def scan(self) -> RecoveryReport:
+            self.calls += 1
+            return RecoveryReport(())
+
+    recovery = _CountingRecovery()
+    page = OperationsPage(log=ActivityLog.instance(), recovery=recovery, defer_load=True)
+    page.retranslate()  # language changes must not trigger hidden I/O
+    assert recovery.calls == 0
+    page.ensure_loaded()
+    assert recovery.calls == 1
+    page.ensure_loaded()
+    assert recovery.calls == 1
     page.close()
 
 

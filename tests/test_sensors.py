@@ -400,6 +400,41 @@ def test_thermal_backend_keeps_acpi_instance_name(monkeypatch) -> None:
     assert part["thermal"].temperatures == (("CPU Package", 70.0),)
 
 
+def test_thermal_backend_negative_caches_missing_sensors(monkeypatch) -> None:
+    from app.sensors import thermal_backend as mod
+
+    backend = mod.ThermalBackend(empty_ttl_s=5.0)
+    probes: list[str] = []
+
+    def unavailable() -> mod.ThermalStat:
+        probes.append("probe")
+        raise mod.SensorUnavailable("none")
+
+    monkeypatch.setattr(backend, "_acpi", unavailable)
+    monkeypatch.setattr(backend, "_lhm", unavailable)
+    clock = [100.0]
+    monkeypatch.setattr(mod, "monotonic", lambda: clock[0])
+
+    assert backend.collect() == {}
+    assert len(probes) == 2  # ACPI + LHM fallback
+    clock[0] = 101.0
+    assert backend.collect() == {}
+    assert len(probes) == 2  # cached "no sensors" result, no WMI retries
+
+    clock[0] = 105.1
+    assert backend.collect() == {}
+    assert len(probes) == 4  # TTL expired, probed again
+
+    def recovered() -> mod.ThermalStat:
+        return mod.ThermalStat(source="wmi_acpi", temperatures=(("zone0", 66.0),))
+
+    clock[0] = 110.2  # second negative cache window also elapsed
+    monkeypatch.setattr(backend, "_acpi", recovered)
+    assert backend.collect()["thermal"].temperatures == (("zone0", 66.0),)
+    backend.close()
+    assert backend._empty_until == 0.0
+
+
 def test_thermal_backend_falls_back_to_lhm_targets(monkeypatch) -> None:
     import sys
     import types

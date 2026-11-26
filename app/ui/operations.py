@@ -159,6 +159,7 @@ class OperationsPage(QWidget):
         journal: ChangeJournal | None = None,
         recovery: RecoveryService | None = None,
         parent: QWidget | None = None,
+        defer_load: bool = False,
     ) -> None:
         super().__init__(parent)
         self.setObjectName("page")
@@ -166,6 +167,7 @@ class OperationsPage(QWidget):
         self._journal = journal or ChangeJournal.instance()
         self._recovery = recovery or RecoveryService(journal=self._journal)
         self._recovery_report = RecoveryReport(())
+        self._loaded = not defer_load
         self._visible: list[Entry] = []
         self._selected_ts: float | None = None
 
@@ -279,18 +281,31 @@ class OperationsPage(QWidget):
         self.detail_label.setObjectName("cardSub")
         self.detail_label.setWordWrap(True)
         self.log_card.body.addWidget(self.detail_label)
+        self.log_card.expand_body()
 
         self.status_label = QLabel("")
         self.status_label.setObjectName("cardSub")
         layout.addWidget(self.status_label)
 
         self._log.changed.connect(self._refresh)
-        self._refresh()
-        self._refresh_recovery()
+        if self._loaded:
+            self._refresh()
+            self._refresh_recovery()
 
     @property
     def log(self) -> ActivityLog:
         return self._log
+
+    def ensure_loaded(self) -> None:
+        if self._loaded:
+            return
+        self._loaded = True
+        self._refresh()
+        self._refresh_recovery()
+
+    def showEvent(self, event) -> None:
+        super().showEvent(event)
+        self.ensure_loaded()
 
     def _feed(self) -> str:
         index = max(0, min(self.feed_combo.currentIndex(), len(FEEDS) - 1))
@@ -312,6 +327,8 @@ class OperationsPage(QWidget):
         return f"{integrity} · {tr('ops_status', count=shown, total=total)}"
 
     def _refresh_recovery(self) -> None:
+        if not self._loaded:
+            return
         report = self._recovery.scan()
         self._recovery_report = report
         if report.ok:
@@ -387,6 +404,8 @@ class OperationsPage(QWidget):
             copy_text(f"{entry.title}\n{entry.detail}")
 
     def _refresh(self, *_args) -> None:
+        if not self._loaded:
+            return
         all_entries = self._all_entries()
         is_changes = self._feed() == FEED_CHANGES
         self.mark_button.setEnabled(not is_changes)
@@ -529,5 +548,6 @@ class OperationsPage(QWidget):
         self.clean_recovery_button.setText(tr("ops_recovery_clean"))
         self.log_card.set_title(tr("ops_log_title"))
         self.table.setHorizontalHeaderLabels([tr(key) for key in _COLUMN_KEYS])
-        self._refresh()
-        self._refresh_recovery()
+        if self._loaded:
+            self._refresh()
+            self._refresh_recovery()

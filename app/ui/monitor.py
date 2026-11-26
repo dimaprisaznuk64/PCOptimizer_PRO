@@ -37,8 +37,8 @@ from .theme import (
     SPACING_LG,
     SPACING_MD,
     SPACING_SM,
-    SPACING_XL,
     SPACING_XS,
+    ls,
 )
 
 
@@ -111,15 +111,14 @@ class CoreBars(QWidget):
             row, col = divmod(i, columns)
             label = QLabel(str(i))
             label.setObjectName("cardSub")
-            if col == 0:
-                label.setFixedWidth(18)
-            else:  # gap between column groups so "16%" never touches the next index
-                label.setFixedWidth(42)
-                label.setContentsMargins(SPACING_XL, 0, 0, 0)
+            label.setAlignment(Qt.AlignmentFlag.AlignRight | Qt.AlignmentFlag.AlignVCenter)
+            label.setFixedWidth(ls(28))
+            if col == 1:
+                self._layout.setColumnMinimumWidth(3, ls(24))
             bar = Bar(ACCENT)
             text = QLabel("")
             text.setObjectName("cardSub")
-            text.setFixedWidth(40)
+            text.setFixedWidth(ls(46))
             text.setAlignment(Qt.AlignmentFlag.AlignRight | Qt.AlignmentFlag.AlignVCenter)
             self._layout.addWidget(label, row, col * 3)
             self._layout.addWidget(bar, row, col * 3 + 1)

@@ -404,7 +404,7 @@ def _first_float(row: dict, keys: Sequence[str]) -> float | None:
         if value in (None, ""):
             continue
         try:
-            return float(value)  # type: ignore[arg-type]
+            return float(value)
         except (TypeError, ValueError):
             continue
     return None

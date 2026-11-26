@@ -232,6 +232,7 @@ class MainWindow(QMainWindow):
                 on_wizard_requested=lambda: self.open_first_run(force=True),
                 on_dashboard_hidden_applied=self.apply_dashboard_hidden,
                 on_monitor_profile_applied=self.apply_monitor_profile,
+                on_quiet_games_applied=self.apply_quiet_games,
                 monitor_profile=str(self.settings.get("monitor_profile")),
                 history=self._history,
             )
@@ -381,8 +382,11 @@ class MainWindow(QMainWindow):
         self.stack.setCurrentIndex(index)
         if changed:
             self._fade_in(self.stack.widget(index))
+            page = self._page_widget(self.stack.widget(index))
+            ensure_loaded = getattr(page, "ensure_loaded", None)
+            if ensure_loaded is not None:
+                ensure_loaded()
             if self._last_snapshot is not None:
-                page = self._page_widget(self.stack.widget(index))
                 handler = getattr(page, "apply_snapshot", None)
                 if handler is not None:
                     handler(self._last_snapshot)
@@ -587,6 +591,7 @@ class MainWindow(QMainWindow):
                 on_wizard_requested=lambda: self.open_first_run(force=True),
                 on_dashboard_hidden_applied=self.apply_dashboard_hidden,
                 on_monitor_profile_applied=self.apply_monitor_profile,
+                on_quiet_games_applied=self.apply_quiet_games,
                 monitor_profile=str(self.settings.get("monitor_profile")),
                 history=self._history,
             )
@@ -659,12 +664,26 @@ class MainWindow(QMainWindow):
         self._check_usage_alert(snapshot, game_running)
 
     def start_game_watcher(self) -> None:
-        if self._game_watcher is not None:
+        if self._game_watcher is not None or not self.settings.get("alerts_quiet_during_games"):
             return
         watcher = _GamePresenceWatcher(self._gaming, interval_s=self._monitor_profile.game_presence_s)
         watcher.presence.connect(self._set_game_running)
         self._game_watcher = watcher
         watcher.start()
+
+    def apply_quiet_games(self, enabled: bool) -> None:
+        """Start/stop background process polling with the live setting."""
+        if enabled:
+            self.start_game_watcher()
+            return
+        self._game_running = False
+        watcher = self._game_watcher
+        if watcher is None:
+            return
+        if watcher.stop():
+            self._game_watcher = None
+        else:
+            _log.warning("game watcher did not stop in time; keeping it registered")
 
     def _set_game_running(self, running: bool) -> None:
         self._game_running = bool(running)
@@ -982,7 +1001,7 @@ def run(argv: list[str] | None = None) -> int:
         window.open_first_run()
     window.schedule_health_scan()
     window.schedule_update_check()
-    window.start_game_watcher()
+    window.apply_quiet_games(bool(settings.get("alerts_quiet_during_games")))
     sampler.start()
     try:
         return app.exec()

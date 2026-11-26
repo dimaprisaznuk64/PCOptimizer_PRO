@@ -313,6 +313,7 @@ class LauncherPage(QWidget):
         self.clear_history_button = QPushButton(tr("launch_clear"))
         self.clear_history_button.setObjectName("linkButton")
         self.clear_history_button.clicked.connect(self.start_clear_history)
+        self._fit_clear_button()
         header.addWidget(self.clear_history_button)
         history_layout.addLayout(header)
         self.history_list = QListWidget()
@@ -349,6 +350,9 @@ class LauncherPage(QWidget):
             self._cols = cols
             self._relayout()
 
+    def _fit_clear_button(self) -> None:
+        self.clear_history_button.setMinimumWidth(self.clear_history_button.sizeHint().width())
+
     def retranslate(self) -> None:
         self._title.setText(tr("launch_title"))
         self._desc.setText(tr("launch_desc"))
@@ -356,6 +360,7 @@ class LauncherPage(QWidget):
         self.add_button.setText(tr("launch_add"))
         self.remove_button.setText(tr("launch_remove"))
         self.clear_history_button.setText(tr("launch_clear"))
+        self._fit_clear_button()
         self._details_title.setText(tr("launch_details"))
         self._history_title.setText(tr("launch_history"))
         self.search_edit.setPlaceholderText(tr("launch_search"))

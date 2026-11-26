@@ -49,11 +49,14 @@ class HistoryPage(QWidget):
         self,
         history: PerformanceHistory | None = None,
         parent: QWidget | None = None,
+        *,
+        defer_load: bool = False,
     ) -> None:
         super().__init__(parent)
         self.setObjectName("page")
         self._history = history or PerformanceHistory()
         self._minutes = 360.0  # default 6 h
+        self._loaded = not defer_load
 
         layout = QVBoxLayout(self)
         layout.setContentsMargins(*PAGE_MARGINS)
@@ -140,11 +143,22 @@ class HistoryPage(QWidget):
         proc_layout.addWidget(self.proc_table)
         layout.addWidget(proc_card, 0)
 
-        self._refresh()
+        if self._loaded:
+            self._refresh()
 
     @property
     def history(self) -> PerformanceHistory:
         return self._history
+
+    def ensure_loaded(self) -> None:
+        if self._loaded:
+            return
+        self._loaded = True
+        self._refresh()
+
+    def showEvent(self, event) -> None:
+        super().showEvent(event)
+        self.ensure_loaded()
 
     # ---------- data ----------
 
@@ -156,6 +170,8 @@ class HistoryPage(QWidget):
         self._refresh()
 
     def _refresh(self) -> None:
+        if not self._loaded:
+            return
         samples = self._history.query(self._minutes)
         count = len(samples)
         self.proc_table.setRowCount(0)
@@ -268,4 +284,5 @@ class HistoryPage(QWidget):
         self._proc_title.setText(tr("hist_proc_title"))
         self.proc_table.setHorizontalHeaderLabels([tr(k) for k in _PROC_COLUMN_KEYS])
         align_numeric_headers(self.proc_table, (1, 2, 3))
-        self._refresh()
+        if self._loaded:
+            self._refresh()

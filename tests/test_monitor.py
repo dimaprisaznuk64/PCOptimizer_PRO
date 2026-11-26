@@ -4,6 +4,7 @@ import time
 
 from app.sensors import MockBackend, SensorManager
 from app.sensors.types import CpuStat, MemoryStat, Snapshot, ThermalStat
+from app.ui import theme
 from app.ui.main_window import MainWindow
 from app.ui.monitor import MonitorPage
 
@@ -149,3 +150,16 @@ def test_main_window_broadcast_reaches_monitor(qapp) -> None:
     monitor = window.page("monitor")
     assert monitor.cpu_value.text() == "33%"
     window.close()
+
+
+def test_core_labels_scale_with_ui(qapp) -> None:
+    original = theme.UI_SCALE
+    try:
+        theme.set_ui_scale(150)
+        page = MonitorPage()
+        page.apply_snapshot(SensorManager([MockBackend()]).snapshot())
+        label = page.cores._cells[0][0]
+        assert label.width() == theme.ls(28)
+        assert page.cores._layout.columnMinimumWidth(3) == theme.SPACING_XL
+    finally:
+        theme.set_ui_scale(original)

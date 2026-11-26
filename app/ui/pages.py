@@ -41,6 +41,7 @@ def build_pages(
     on_wizard_requested=None,
     on_dashboard_hidden_applied=None,
     on_monitor_profile_applied=None,
+    on_quiet_games_applied=None,
     monitor_profile: str = "BALANCED",
 ) -> list[tuple[str, QWidget]]:
     from app.changes import ChangeJournal
@@ -97,7 +98,7 @@ def build_pages(
         ("launcher", LauncherPage()),
         ("benchmarks", BenchmarksPage()),
         ("hardware_benchmark", HardwareBenchmarkPage()),
-        ("history", HistoryPage(history)),
+        ("history", HistoryPage(history, defer_load=True)),
         ("network", NetworkPage()),
         ("disk", DiskPage()),
         ("diagnostics", DiagnosticsPage()),
@@ -105,7 +106,7 @@ def build_pages(
         ("system_report", SystemReportPage()),
         ("export_center", ExportCenterPage()),
         ("health", HealthPage()),
-        ("operations", OperationsPage(journal=ChangeJournal.instance())),
+        ("operations", OperationsPage(journal=ChangeJournal.instance(), defer_load=True)),
         (
             "settings",
             SettingsPage(
@@ -115,6 +116,7 @@ def build_pages(
                 on_wizard_requested=on_wizard_requested,
                 on_dashboard_hidden_applied=on_dashboard_hidden_applied,
                 on_monitor_profile_applied=on_monitor_profile_applied,
+                on_quiet_games_applied=on_quiet_games_applied,
             ),
         ),
     ]

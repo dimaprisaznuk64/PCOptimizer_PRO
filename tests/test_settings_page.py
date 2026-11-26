@@ -49,6 +49,27 @@ def test_save_persists_values(qapp, tmp_path) -> None:
     assert reloaded.get("log_level") == "ERROR"
 
 
+def test_save_applies_quiet_games_toggle_live(qapp, tmp_path) -> None:
+    applied: list[bool] = []
+    page = _page(qapp, tmp_path, on_quiet_games_applied=applied.append)
+    assert page.quiet_games_check.isChecked() is True
+    page.quiet_games_check.setChecked(False)
+    page.save()
+    page.quiet_games_check.setChecked(True)
+    page.save()
+    page.save()  # unchanged value must not re-apply
+    assert applied == [False, True]
+
+
+def test_reset_applies_quiet_games_toggle_live(qapp, tmp_path) -> None:
+    applied: list[bool] = []
+    page = _page(qapp, tmp_path, on_quiet_games_applied=applied.append)
+    page.quiet_games_check.setChecked(False)
+    page.save()
+    page.reset()
+    assert applied == [False, True]
+
+
 def test_save_sets_up_logging(qapp, tmp_path) -> None:
     import logging as _logging
 

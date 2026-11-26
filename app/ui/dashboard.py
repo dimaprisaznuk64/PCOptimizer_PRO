@@ -69,6 +69,7 @@ from .theme import (
     TEXT_DIM,
     WARN,
     hud_brackets,
+    ls,
     set_mono,
 )
 
@@ -591,7 +592,7 @@ class ProcessLoadWidget(QFrame):
             row.addWidget(n_lbl, 1)
 
             c_lbl = QLabel(f"{cpu:.1f}%")
-            c_lbl.setMinimumWidth(36)
+            c_lbl.setMinimumWidth(ls(48))
             c_lbl.setAlignment(Qt.AlignmentFlag.AlignRight | Qt.AlignmentFlag.AlignVCenter)
             c_lbl.setStyleSheet(
                 f"font-size: {T_SMALL}px; font-weight: 700; color: {DANGER};" if cpu > 10
@@ -601,7 +602,7 @@ class ProcessLoadWidget(QFrame):
 
             mem = f"{mem_mb / 1024:.1f} GB" if mem_mb >= 1024 else f"{mem_mb:.0f} MB"
             m_lbl = QLabel(mem)
-            m_lbl.setMinimumWidth(48)
+            m_lbl.setMinimumWidth(ls(60))
             m_lbl.setAlignment(Qt.AlignmentFlag.AlignRight | Qt.AlignmentFlag.AlignVCenter)
             m_lbl.setStyleSheet(f"font-size: {T_SMALL}px; font-weight: 600; color: {TEXT_DIM};")
             row.addWidget(m_lbl)

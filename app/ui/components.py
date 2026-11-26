@@ -500,6 +500,7 @@ class PerfChart(QFrame):
         head = QHBoxLayout()
         label = QLabel(title or tr("dash_chart_title"))
         label.setStyleSheet(f"font-size: {T_BODY}px; font-weight: 700; color: {TEXT};")
+        label.setWordWrap(True)
         head.addWidget(label)
         head.addStretch(1)
         self._title_label = label
@@ -701,6 +702,31 @@ def chart_line_spec(key: str, multi: bool) -> tuple[bool, float]:
     multi-series mode so the curves do not cover each other with gradients."""
     primary = (not multi) or key == "cpu"
     return primary, 2.5
+
+
+def decimate_for_width(values: list[float], max_points: int) -> list[tuple[int, float]]:
+    """Reduce a long series to a painter-friendly size without losing peaks.
+
+    Every bucket contributes its minimum and maximum, so a short load spike is
+    still visible. The original index is kept in each pair to preserve the
+    honest time axis when the curve is drawn.
+    """
+    count = len(values)
+    if count <= 2 or max_points < 2 or count <= max_points:
+        return list(enumerate(values))
+    bucket = max(2, math.ceil(count / max_points))
+    picked: dict[int, float] = {0: values[0], count - 1: values[-1]}
+    for start in range(0, count, bucket):
+        end = min(count, start + bucket)
+        low = high = start
+        for idx in range(start + 1, end):
+            if values[idx] < values[low]:
+                low = idx
+            if values[idx] > values[high]:
+                high = idx
+        picked[low] = values[low]
+        picked[high] = values[high]
+    return sorted(picked.items())
 
 
 class _ChartCanvas(QWidget):
@@ -974,10 +1000,13 @@ class _ChartCanvas(QWidget):
             values = self._smooth(raw)
             step = plot.width() / max(1, len(indices) - 1)
             x0 = plot.right() - (len(indices) - 1) * step
+            # A 3600-point history would rebuild thousands of cubic segments on
+            # every snapshot/hover repaint; cap the path to the visible width.
+            points = decimate_for_width(values, max(32, int(plot.width() // 3)))
 
             path = QPainterPath()
             prev = None
-            for i, v in enumerate(values):
+            for i, v in points:
                 ratio = max(0.0, min(1.0, v / hi))
                 pt = QPointF(x0 + i * step, plot.bottom() - ratio * plot.height())
                 if prev is None:
@@ -987,7 +1016,7 @@ class _ChartCanvas(QWidget):
                     mid = (prev.x() + pt.x()) / 2
                     path.cubicTo(QPointF(mid, prev.y()), QPointF(mid, pt.y()), pt)
                 prev = pt
-            last_x = x0 + (len(values) - 1) * step
+            last_x = x0 + points[-1][0] * step
 
             # Single-series tabs (and CPU in "All") get a gradient fill and a
             # 2px line; the other series stay thin 1px lines so they do not
@@ -1534,6 +1563,11 @@ class CardPanel(QFrame):
 
     def set_title(self, text: str) -> None:
         self.title_label.setText(text.upper())
+
+    def expand_body(self, index: int = 0) -> None:
+        self._layout.setStretch(1, 1)
+        self._layout.setStretch(2, 0)
+        self.body.setStretch(index, 1)
 
     def set_rows(self, items: list[tuple[str, float | None, str]], marker: float | None = None) -> None:
         self._marker = marker

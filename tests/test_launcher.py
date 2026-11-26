@@ -429,3 +429,20 @@ def test_placeholder_cover_follows_light_theme(qapp) -> None:
             assert color.red() > 180 and color.green() > 180 and color.blue() > 180
     finally:
         theme.set_theme(previous)
+
+
+def test_clear_history_button_fits_active_language(qapp, tmp_path) -> None:
+    from app.i18n.service import I18nService
+
+    page = LauncherPage(CannedLauncher(tmp_path))
+    button = page.clear_history_button
+    assert button.minimumWidth() >= button.sizeHint().width()
+
+    service = I18nService.instance()
+    previous = service.current_language
+    try:
+        service.set_language("UA", emit=False)
+        page.retranslate()
+        assert button.minimumWidth() >= button.sizeHint().width()
+    finally:
+        service.set_language(previous, emit=False)

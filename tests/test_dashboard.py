@@ -5,14 +5,16 @@ import threading
 import time
 
 from PySide6.QtCore import Qt
+from PySide6.QtGui import QFontMetrics
 from PySide6.QtTest import QSignalSpy, QTest
 from PySide6.QtWidgets import QPushButton
 
 from app.history import HistorySample, PerformanceHistory
 from app.i18n import tr
 from app.sensors import MockBackend, SensorManager
+from app.ui import theme
 from app.ui.components import RingCard
-from app.ui.dashboard import DashboardPage
+from app.ui.dashboard import DashboardPage, ProcessLoadWidget
 from app.ui.main_window import MainWindow
 from app.ui.sampler import SensorSampler
 
@@ -436,3 +438,19 @@ def test_main_window_shares_history_with_dashboard(qapp, tmp_path) -> None:
     assert dashboard.history_widget.history is history
     assert history_page._history is history
     window.close()
+
+
+def test_process_load_labels_scale_with_ui(qapp) -> None:
+    original = theme.UI_SCALE
+    try:
+        theme.set_ui_scale(150)
+        widget = ProcessLoadWidget()
+        widget.set_rows([("python.exe", 36.1, 2048)])
+        row = widget._rows_box.itemAt(0).layout()
+        cpu_label = row.itemAt(2).widget()
+        mem_label = row.itemAt(3).widget()
+        assert cpu_label.minimumWidth() == theme.ls(48)
+        assert mem_label.minimumWidth() == theme.ls(60)
+        assert cpu_label.minimumWidth() >= QFontMetrics(cpu_label.font()).horizontalAdvance("36.1%")
+    finally:
+        theme.set_ui_scale(original)

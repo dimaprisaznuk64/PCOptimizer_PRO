@@ -42,6 +42,18 @@ def test_initial_state_is_dashboard(qapp) -> None:
     window.close()
 
 
+def test_hidden_history_and_operations_pages_defer_loading(qapp) -> None:
+    window = MainWindow()
+    assert window.page("history")._loaded is False
+    assert window.page("operations")._loaded is False
+    window.show_page("history")
+    assert window.page("history")._loaded is True
+    assert window.page("operations")._loaded is False
+    window.show_page("operations")
+    assert window.page("operations")._loaded is True
+    window.close()
+
+
 def test_unknown_key_is_ignored(qapp) -> None:
     window = MainWindow()
     before = window.current_key

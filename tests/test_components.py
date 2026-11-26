@@ -224,6 +224,40 @@ def test_chart_smoothing_averages_neighbours() -> None:
     assert _ChartCanvas._smooth([5.0, 5.0, 5.0]) == [5.0, 5.0, 5.0]
 
 
+def test_decimate_for_width_keeps_peaks_and_bounds_points() -> None:
+    values = [float(i % 100) for i in range(3600)]
+    values[1800] = 1000.0  # one sample spike must survive decimation
+    points = ui_components.decimate_for_width(values, 40)
+    assert len(points) <= 2 * 40 + 4
+    assert points[0] == (0, values[0])
+    assert points[-1] == (3599, values[-1])
+    assert max(points, key=lambda pair: pair[1]) == (1800, 1000.0)
+    assert all(a[0] < b[0] for a, b in zip(points, points[1:], strict=False))
+    # Short series are left untouched.
+    assert ui_components.decimate_for_width(values[:10], 40) == list(enumerate(values[:10]))
+
+
+def test_chart_paint_decimates_long_history(qapp, monkeypatch) -> None:
+    from PySide6.QtGui import QPixmap
+
+    from app.ui.components import _ChartCanvas
+
+    counts: list[int] = []
+    monkeypatch.setattr(
+        ui_components.QPainter,
+        "drawPath",
+        lambda self, path: counts.append(path.elementCount()),
+    )
+    canvas = _ChartCanvas(points=3600)
+    canvas.resize(320, 160)
+    for i in range(3600):
+        canvas.push(float(i), {"cpu": float(i % 100)})
+    canvas.render(QPixmap(canvas.size()))
+    assert len(counts) == 1  # only the cpu series has data
+    # ~10800 raw cubic path elements before; bounded by the plot width now.
+    assert max(counts) < 1000
+
+
 def test_chart_axis_hi_has_network_floor(qapp) -> None:
     from app.ui.components import _ChartCanvas
 
@@ -447,3 +481,8 @@ def test_empty_hint_fits_short_table_at_high_scale(qapp) -> None:
         assert hint.heightForWidth(hint.width()) <= hint.height() + 3
     finally:
         theme.set_ui_scale(original)
+
+
+def test_perf_chart_title_wraps_long_text(qapp) -> None:
+    chart = PerfChart(title="Історія ресурсів · 60 хв")
+    assert chart._title_label.wordWrap()

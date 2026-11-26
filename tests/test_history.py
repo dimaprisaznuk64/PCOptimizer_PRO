@@ -333,6 +333,27 @@ def test_history_page_shows_7d_range_and_advanced_cards(qapp, tmp_path) -> None:
     assert page._hotspot_card.value.text() == "85°C"
 
 
+def test_history_page_defers_query_until_first_show(qapp) -> None:
+    class _CountingHistory:
+        def __init__(self) -> None:
+            self.calls = 0
+
+        def query(self, _minutes: float) -> list[HistorySample]:
+            self.calls += 1
+            return []
+
+    history = _CountingHistory()
+    page = HistoryPage(history, defer_load=True)
+    page.retranslate()  # language changes must not query the hidden page
+    assert history.calls == 0
+    page.ensure_loaded()
+    assert history.calls == 1
+    page.ensure_loaded()
+    assert history.calls == 1
+    page._set_range(60.0, "hist_range_1h")
+    assert history.calls == 2
+
+
 def test_top_process_summary_latest_peak_and_counts():
     samples = [
         HistorySample(ts=1.0, top_processes=(("a.exe", 100.0), ("gone.exe", 50.0))),

@@ -375,6 +375,46 @@ def test_main_window_alerts_resume_after_game_without_stale_hot_state(qapp) -> N
     assert len(tray.messages) == 5
 
 
+def test_game_watcher_is_skipped_when_quiet_mode_is_off(qapp, monkeypatch) -> None:
+    from app.ui import main_window as mw
+
+    created: list[object] = []
+
+    class _FakeSignal:
+        def connect(self, _slot) -> None:
+            return None
+
+    class _FakeWatcher:
+        def __init__(self, _gaming, *, interval_s: float = 5.0, parent=None) -> None:
+            self.started = False
+            self.stopped = False
+            self.interval_s = interval_s
+            created.append(self)
+
+        presence = _FakeSignal()
+
+        def start(self) -> None:
+            self.started = True
+
+        def stop(self, timeout_ms: int = 3000) -> bool:
+            self.stopped = True
+            return True
+
+    monkeypatch.setattr(mw, "_GamePresenceWatcher", _FakeWatcher)
+    window = mw.MainWindow(settings=_quiet_settings(alerts_quiet_during_games=False), gaming=_FakeGaming(True))
+    window.start_game_watcher()
+    window.apply_quiet_games(True)  # still disabled in settings
+    assert created == []
+    assert window._game_watcher is None
+
+    window.settings.set("alerts_quiet_during_games", True)
+    window.apply_quiet_games(True)
+    assert len(created) == 1 and created[0].started  # type: ignore[attr-defined]
+    window.apply_quiet_games(False)
+    assert created[0].stopped  # type: ignore[attr-defined]
+    assert window._game_watcher is None
+
+
 def test_game_presence_watcher_emits_from_background_thread(qapp) -> None:
     import time
 

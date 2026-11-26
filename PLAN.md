@@ -1,6 +1,26 @@
 ﻿# Development Plan
 
 ## Status
+- Unreleased — Stage 5 background work: `PerfChart` decimates long histories
+  before building the cubic path (min/max per bucket, original index keeps the
+  time axis honest; 3600 samples: 140.7 → 42.6 ms/repaint); `ThermalBackend`
+  negative-caches an empty sensor scan for 15 s so machines without ACPI/LHM
+  no longer retry several WMI namespaces every sampler tick; the game-presence
+  watcher starts only when `alerts_quiet_during_games` is enabled and toggles
+  live from Settings (Save/Reset); `HistoryPage` and `OperationsPage` no longer
+  load/scan their JSONL files in constructors — `build_pages()` passes
+  `defer_load=True` and `ensure_loaded()` runs on first `showEvent`/page select,
+  so hidden pages do no filesystem I/O and language changes do not wake them.
+  Removed a stale `type: ignore` in gaming telemetry.
+  **996 collected / 994 passed / 2 skipped**, `ruff`, `mypy` (125 files),
+  `compileall`, `git diff --check` clean.
+- Unreleased — visual pass over all 23 pages (EN/UA, 100/125/150%, 1440×860):
+  `PerfChart` titles wrap, the Launcher clear-history button fits its active
+  translation, Monitor core labels/gaps and Dashboard process labels scale with
+  the UI.   Re-audit: 106 minor candidates, 0 real clipping (`diff >= 12`);
+  **987 collected / 985 passed / 2 skipped**, `ruff`, `mypy`, `compileall` clean.
+- Unreleased — Operations action log now fills the card's available height via
+  `CardPanel.expand_body()`; at 1440×860 the table grows from 192 px to 510 px.
 - Released **v2.1.6** — unclean-exit detection (`app/recovery/crash.py`), snapshot
   fan-out to visible pages only, and crash-recovery report in Operations;
   23 pages, 18 themes, 980 passed / 2 skipped, TITANIUM baseline, Geist fonts,

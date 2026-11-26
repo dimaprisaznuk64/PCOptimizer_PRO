@@ -69,6 +69,7 @@ class SettingsPage(QWidget):
         on_wizard_requested=None,
         on_dashboard_hidden_applied=None,
         on_monitor_profile_applied=None,
+        on_quiet_games_applied=None,
     ) -> None:
         super().__init__(parent)
         self.setObjectName("page")
@@ -80,6 +81,7 @@ class SettingsPage(QWidget):
         self._on_wizard_requested = on_wizard_requested
         self._on_dashboard_hidden_applied = on_dashboard_hidden_applied
         self._on_monitor_profile_applied = on_monitor_profile_applied
+        self._on_quiet_games_applied = on_quiet_games_applied
         self._check_task: Task | None = None
         self._download_task: Task | None = None
         self._dynamic_visibility: dict[int, bool] = {}
@@ -614,6 +616,7 @@ class SettingsPage(QWidget):
         }
 
     def save(self) -> None:
+        previous_quiet = bool(self._service.get("alerts_quiet_during_games"))
         try:
             for key, value in self.collect_values().items():
                 self._service.set(key, value)
@@ -643,6 +646,7 @@ class SettingsPage(QWidget):
             previous_dashboard,
             previous_profile,
             previous_interval,
+            previous_quiet,
         )
 
     def _apply_live_changes(
@@ -653,6 +657,7 @@ class SettingsPage(QWidget):
         previous_dashboard: str = "",
         previous_profile: str = DEFAULT_PROFILE,
         previous_interval: int = 1000,
+        previous_quiet: bool | None = None,
     ) -> None:
         language = str(self._service.get("language"))
         theme = str(self._service.get("theme"))
@@ -677,6 +682,13 @@ class SettingsPage(QWidget):
             profile != previous_profile or interval != previous_interval
         ) and self._on_monitor_profile_applied is not None:
             self._on_monitor_profile_applied(profile, interval)
+        quiet = bool(self._service.get("alerts_quiet_during_games"))
+        if (
+            previous_quiet is not None
+            and quiet != previous_quiet
+            and self._on_quiet_games_applied is not None
+        ):
+            self._on_quiet_games_applied(quiet)
 
     def reset(self) -> None:
         previous_language = I18nService.instance().current_language
@@ -685,6 +697,7 @@ class SettingsPage(QWidget):
         previous_dashboard = getattr(self, "_loaded_dashboard", "")
         previous_profile = getattr(self, "_loaded_profile", DEFAULT_PROFILE)
         previous_interval = getattr(self, "_loaded_interval", 1000)
+        previous_quiet = bool(self._service.get("alerts_quiet_during_games"))
         self._service.reset()
         try:
             self._service.save()
@@ -700,6 +713,7 @@ class SettingsPage(QWidget):
             previous_dashboard,
             previous_profile,
             previous_interval,
+            previous_quiet,
         )
 
     def customize_dashboard(self) -> None:
