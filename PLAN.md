@@ -1,30 +1,16 @@
 ﻿# Development Plan
 
 ## Status
-- Released **v2.1.7** — Stage 5 reliability/performance batch: chart decimation,
-  thermal empty-scan cache, quiet-mode game watcher gating, deferred hidden-page
-  I/O, expanded Operations log and visual clipping fixes; plus a telemetry typing
-  fix. 23 pages, 18 themes, 994 passed / 2 skipped, installer + portable published.
-- Unreleased — Stage 5 background work: `PerfChart` decimates long histories
-  before building the cubic path (min/max per bucket, original index keeps the
-  time axis honest; 3600 samples: 140.7 → 42.6 ms/repaint); `ThermalBackend`
-  negative-caches an empty sensor scan for 15 s so machines without ACPI/LHM
-  no longer retry several WMI namespaces every sampler tick; the game-presence
-  watcher starts only when `alerts_quiet_during_games` is enabled and toggles
-  live from Settings (Save/Reset); `HistoryPage` and `OperationsPage` no longer
-  load/scan their JSONL files in constructors — `build_pages()` passes
-  `defer_load=True` and `ensure_loaded()` runs on first `showEvent`/page select,
-  so hidden pages do no filesystem I/O and language changes do not wake them.
-  Removed a stale `type: ignore` in gaming telemetry.
-  **996 collected / 994 passed / 2 skipped**, `ruff`, `mypy` (125 files),
-  `compileall`, `git diff --check` clean.
-- Unreleased — visual pass over all 23 pages (EN/UA, 100/125/150%, 1440×860):
-  `PerfChart` titles wrap, the Launcher clear-history button fits its active
-  translation, Monitor core labels/gaps and Dashboard process labels scale with
-  the UI.   Re-audit: 106 minor candidates, 0 real clipping (`diff >= 12`);
-  **987 collected / 985 passed / 2 skipped**, `ruff`, `mypy`, `compileall` clean.
-- Unreleased — Operations action log now fills the card's available height via
-  `CardPanel.expand_body()`; at 1440×860 the table grows from 192 px to 510 px.
+- Released **v2.2.0** — final audit and documentation cleanup: 23 pages × 18
+  themes, EN/UA parity (1377 keys each), 100/125/150% scaling and all live
+  services/journal/backups verified; no product bugs found. Corrected stale
+  `29 themes` documentation and landing-page screenshot links. **996 collected /
+  994 passed / 2 skipped**, `ruff`, `mypy` (125 files), `compileall`,
+  `git diff --check` clean; installer + portable published.
+- Shipped in **v2.1.7** — Stage 5 reliability/performance batch: chart
+  decimation (3600 samples: 140.7 → 42.6 ms/repaint), thermal empty-scan cache,
+  quiet-mode game watcher gating, deferred hidden-page I/O, expanded Operations
+  log and visual clipping fixes; plus a telemetry typing fix.
 - Released **v2.1.6** — unclean-exit detection (`app/recovery/crash.py`), snapshot
   fan-out to visible pages only, and crash-recovery report in Operations;
   23 pages, 18 themes, 980 passed / 2 skipped, TITANIUM baseline, Geist fonts,
@@ -262,6 +248,37 @@
   `c4bf4222d335bfd978af15431f5133430880bc5eed2c5aa1a3a7fea30f8cc128`) and
   portable (sha256
   `109d1dc7241720975425e3133edbed2ce2574222768358fcf2ac2b7870ebe456`).
+
+### Release v2.2.0 (2026-11-27)
+- Final audit: offscreen EN/UA × 100/125/150% at 1440×860 across all **23**
+  pages — 0 real clipped labels; functional probe **43/43** checks covering
+  i18n parity (1377 keys per language), all **18** palettes, settings defaults,
+  sensors/GPU/thermal, hardware/diagnostics, journal/backup integrity, recovery
+  and MainWindow page rendering. Non-admin `list_points()` returned an honest
+  `Access denied`, which is expected and already covered by `tests/test_restore.py`.
+- Documentation drift fixed: `PLAN.md` and `docs/THEMES_REVIEW.md` now state the
+  current 18-theme palette set (older 29-theme pass kept as history),
+  `docs/landing.html` points at `v2.2.0_*` screenshots, README gained a final-audit
+  bullet. Version bumped to **2.2.0** in `app/__init__.py`,
+  `assets/version_info.txt` (`2.2.0.0`), installer, README and EN/UA
+  `sidebar_user_sub`. Regenerated all **23** offscreen screenshots as
+  `docs/screenshots/v2.2.0_*.png`; removed the `v2.1.7_*` set.
+- Verification: **996 collected / 994 passed / 2 skipped**; `ruff`, `mypy`
+  (125 files), `compileall` and `git diff --check` clean. Frozen exe smoke test
+  logged `starting PCOptimizer PRO 2.2.0` and stayed alive.
+- Commits/tag/push: `125351f` (release bump) pushed to `main`; annotated tag
+  `v2.2.0` pushed. Local build: exe `2.2.0.0`, portable
+  `dist\PCOptimizer_PRO_2.2.0_portable.zip` (56,785,626 B), installer
+  `dist\installer\PCOptimizer_PRO_Setup_2.2.0.exe` (41,298,358 B), source
+  `dist\PCOptimizer_PRO_src_v2.2.0.zip` (9,232,526 B). `app_run` silently
+  upgraded `2.1.7.0` → `2.2.0.0`, desktop shortcut target unchanged. Stale
+  v2.1.7 artifacts removed.
+- CI Release run `45907374441` = success;
+  [Release v2.2.0](https://github.com/dimaprisaznuk64/PCOptimizer_PRO/releases/tag/v2.2.0)
+  published with installer (sha256
+  `574784a8f3ae0c741545d1b886247511c4eb49e3359836726ed7fe43221226f9`) and
+  portable (sha256
+  `1c9cb9dc488e8d2aaca9de656356d382d4ffd6ffc31ceb6282e037c00a8d9c56`).
 
 - Released **v1.7.1** (`d9f83ab`) вЂ” reliability/stabilization batch: fixed safe
   alert limits and quiet CPU/GPU alerts during games, Settings reset applies
@@ -809,6 +826,11 @@
   `c4bf4222d335bfd978af15431f5133430880bc5eed2c5aa1a3a7fea30f8cc128`) and
   `PCOptimizer_PRO_2.1.7_portable.zip` (sha256
   `109d1dc7241720975425e3133edbed2ce2574222768358fcf2ac2b7870ebe456`).
+- Release v2.2.0: tag `v2.2.0` / `125351f`; CI Release run `45907374441`
+  (success). Assets `PCOptimizer_PRO_Setup_2.2.0.exe` (sha256
+  `574784a8f3ae0c741545d1b886247511c4eb49e3359836726ed7fe43221226f9`) and
+  `PCOptimizer_PRO_2.2.0_portable.zip` (sha256
+  `1c9cb9dc488e8d2aaca9de656356d382d4ffd6ffc31ceb6282e037c00a8d9c56`).
 - Audit follow-ups (from `docs/AUDIT_v2.0.1.md`): B-09 is fixed — full pytest
   single run now passes (943 / 1 skipped); B-10 is skipped by owner decision
   (HWiNFO is not installed, live `poll_time` check is not required).
