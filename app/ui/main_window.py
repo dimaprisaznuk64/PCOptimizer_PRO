@@ -44,6 +44,7 @@ from app.i18n import I18nService, tr
 from app.logs import get_logger
 from app.monitor.profiles import profile_for
 from app.processes.service import ProcessService
+from app.recovery import CrashTracker
 from app.settings import SettingsService
 
 from .pages import build_pages
@@ -940,16 +941,38 @@ def run(argv: list[str] | None = None) -> int:
 
     log.info("starting PCOptimizer PRO %s (settings: %s, log: %s)", __version__, settings.path, log_file)
 
+    tracker = CrashTracker(version=__version__)
+    crash = tracker.start()
+    if crash is not None:
+        log.warning(
+            "previous session ended uncleanly (pid=%s, version=%s, heartbeat=%s)",
+            crash.pid,
+            crash.version,
+            crash.heartbeat,
+        )
+
     manager = SensorManager.with_defaults()
     window = MainWindow(settings=settings)
     guard.show_requested.connect(window.open_window)
     sampler = SensorSampler(manager, interval_ms=settings.get("sample_interval_ms"))
     sampler.snapshot_ready.connect(window.handle_snapshot)
+    sampler.snapshot_ready.connect(tracker.heartbeat)
     window.sampler = sampler
 
     tray = AppTray(parent=app)
     window.attach_tray(tray)
     tray.show()
+
+    if crash is not None:
+        from datetime import datetime
+
+        from .activity import record
+
+        stamp = datetime.fromtimestamp(crash.heartbeat).strftime("%Y-%m-%d %H:%M")
+        title = tr("recovery_crash_title")
+        body = tr("recovery_crash_body", stamp=stamp, version=crash.version or "?")
+        tray.show_message(title, body)
+        record(title, body, level="warn", source="operations")
 
     if settings.get("start_minimized"):
         window.showMinimized()
@@ -964,6 +987,7 @@ def run(argv: list[str] | None = None) -> int:
     try:
         return app.exec()
     finally:
+        tracker.finish()
         sampler_ok = sampler.stop()
         if window._game_watcher is not None:
             window._game_watcher.stop()

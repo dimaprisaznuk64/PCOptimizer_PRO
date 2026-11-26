@@ -10,9 +10,14 @@
   receiving hidden snapshots so telemetry sessions stay alive.
 - Unreleased (working tree) — crash-recovery report in Operations: stale `.tmp`
   and `.part` files older than 1 h are listed and removable after confirmation;
-  `.corrupt-*` quarantines and broken change-journal chains are shown read-only.
-  976 tests collected (974 passed, 2 skipped); `ruff`, `mypy` (124 files),
-  `compileall` clean.
+   `.corrupt-*` quarantines and broken change-journal chains are shown read-only.
+- Unreleased (working tree) — unclean-exit detection: `app/recovery/crash.py`
+  keeps a live session marker (`session.json`) refreshed by sampler snapshots;
+  a stale marker from a dead PID is reported on the next start via tray,
+  ActivityLog and the log, then replaced. Clean exit removes the marker;
+  a corrupt marker is quarantined for the RecoveryService. 6 new tests.
+   982 tests collected (980 passed, 2 skipped); `ruff`, `mypy` (125 files),
+   `compileall` clean.
 - Released **v2.1.1** вЂ” SHA-256 verification for downloaded GitHub installer
   assets (`UpdateInfo.sha256`, `hmac.compare_digest` after MZ/size checks,
   atomic `.part` cleanup on mismatch). No UI/layout changes; 23 pages,

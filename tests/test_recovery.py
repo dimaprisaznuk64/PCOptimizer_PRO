@@ -1,11 +1,12 @@
 from __future__ import annotations
 
+import json
 import os
 import time
 from pathlib import Path
 
 from app.changes import ChangeJournal
-from app.recovery import RecoveryService
+from app.recovery import CrashTracker, RecoveryService
 
 
 def test_scan_reports_stale_temp_and_quarantine(tmp_path: Path) -> None:
@@ -82,3 +83,93 @@ def test_clean_stale_skips_file_touched_after_scan(tmp_path: Path) -> None:
     assert removed == 0
     assert errors == ()
     assert stale.exists()
+
+
+def _marker(tmp_path: Path, *, pid: int = 4242, heartbeat: float = 100.0) -> Path:
+    path = tmp_path / "session.json"
+    path.write_text(
+        json.dumps(
+            {"pid": pid, "started": 50.0, "heartbeat": heartbeat, "version": "2.1.5"}
+        ),
+        encoding="utf-8",
+    )
+    return path
+
+
+def test_first_start_claims_marker_without_crash(tmp_path: Path) -> None:
+    tracker = CrashTracker(tmp_path, now=lambda: 1000.0, pid=10, version="2.2.0")
+
+    assert tracker.start() is None
+    payload = json.loads((tmp_path / "session.json").read_text(encoding="utf-8"))
+    assert payload == {
+        "pid": 10,
+        "started": 1000.0,
+        "heartbeat": 1000.0,
+        "version": "2.2.0",
+    }
+    assert not (tmp_path / "session.json.tmp").exists()
+
+
+def test_stale_dead_marker_reports_unclean_exit_and_is_replaced(tmp_path: Path) -> None:
+    _marker(tmp_path)
+    tracker = CrashTracker(
+        tmp_path, now=lambda: 1000.0, pid=10, alive=lambda pid: False
+    )
+
+    crash = tracker.start()
+
+    assert crash is not None
+    assert (crash.pid, crash.heartbeat, crash.version) == (4242, 100.0, "2.1.5")
+    payload = json.loads((tmp_path / "session.json").read_text(encoding="utf-8"))
+    assert payload["pid"] == 10
+    assert payload["started"] == 50.0
+
+
+def test_fresh_or_live_marker_is_not_a_crash(tmp_path: Path) -> None:
+    fresh = CrashTracker(
+        tmp_path, now=lambda: 200.0, pid=10, alive=lambda pid: False
+    )
+    _marker(tmp_path)
+    assert fresh.start() is None
+
+    _marker(tmp_path)
+    live = CrashTracker(tmp_path, now=lambda: 1000.0, pid=10, alive=lambda pid: True)
+    assert live.start() is None
+
+
+def test_corrupt_marker_is_quarantined_and_reported(tmp_path: Path) -> None:
+    (tmp_path / "session.json").write_text("{broken", encoding="utf-8")
+    tracker = CrashTracker(tmp_path, now=lambda: 1000.0, pid=10)
+
+    assert tracker.start() is None
+    quarantine = [p for p in tmp_path.iterdir() if ".corrupt-" in p.name]
+    assert len(quarantine) == 1
+    assert any(issue.kind == "quarantine" for issue in RecoveryService(tmp_path).scan().issues)
+
+
+def test_heartbeat_refreshes_marker_and_is_throttled(tmp_path: Path) -> None:
+    clock = [1000.0]
+    tracker = CrashTracker(
+        tmp_path, now=lambda: clock[0], pid=10, heartbeat_every_s=30.0
+    )
+    tracker.start()
+    clock[0] += 10.0
+    tracker.heartbeat()
+    assert json.loads((tmp_path / "session.json").read_text(encoding="utf-8"))["heartbeat"] == 1000.0
+
+    clock[0] += 25.0
+    tracker.heartbeat()
+    payload = json.loads((tmp_path / "session.json").read_text(encoding="utf-8"))
+    assert payload["heartbeat"] == 1035.0
+    assert payload["pid"] == 10
+
+
+def test_finish_removes_own_marker_but_not_another_session(tmp_path: Path) -> None:
+    tracker = CrashTracker(tmp_path, now=lambda: 1000.0, pid=10)
+    tracker.start()
+    assert tracker.finish() is True
+    assert not (tmp_path / "session.json").exists()
+
+    _marker(tmp_path, pid=9999)
+    assert tracker.finish() is False
+    assert (tmp_path / "session.json").exists()
