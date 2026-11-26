@@ -17,7 +17,7 @@
    <img src="https://img.shields.io/badge/tests-900%2B%20passed-brightgreen" alt="Tests">
   <a href="https://github.com/dimaprisaznuk64/PCOptimizer_PRO/actions/workflows/ci.yml"><img src="https://github.com/dimaprisaznuk64/PCOptimizer_PRO/actions/workflows/ci.yml/badge.svg" alt="CI"></a>
   <img src="https://img.shields.io/badge/license-MIT-green" alt="License">
-  <img src="https://img.shields.io/badge/version-2.1.7-blue" alt="Version">
+  <img src="https://img.shields.io/badge/version-2.2.0-blue" alt="Version">
 </p>
 
 Філософія проєкту: **жодних «секретних» реєстрових твіків і вигаданих +FPS**. Кожна зміна системи робиться лише після бекапу і має кнопку відкату; точку відновлення можна створити додатково вручну. Застосунок працює без адмін-прав — UAC запитується точково, лише для конкретних операцій.
@@ -53,6 +53,7 @@
 - **Контекстні меню в таблицях**: процеси, автозавантаження, чистильник і центр операцій мають правоклік з дією по рядку, копіюванням значень і швидкими переходами
 - **Кастомізація дашборду**: вибір віджетів у Налаштуваннях; приховані секції автоматично зникають, а стан зберігається в портативному `data/`
 - **Гілкі сенсорів** з підтримкою NVML, WMI ACPI та mock-дані для тестів
+- **Фінальний аудит v2.2.0**: 23 сторінки, 18 тем, EN/UA і масштаби 100–150% перевірені офскрін; цілісність журналу/бекапів і чесні помилки точок відновлення без прав адміністратора
 
 ### Монітор системи
 - CPU: загальне навантаження, історія (180 точок), кожне ядро окремо
@@ -242,39 +243,39 @@ main.py
 
 | Дашборд | Монітор системи |
 | --- | --- |
-| ![Дашборд](docs/screenshots/v2.1.7_dashboard.png) | ![Монітор](docs/screenshots/v2.1.7_monitor.png) |
+| ![Дашборд](docs/screenshots/v2.2.0_dashboard.png) | ![Монітор](docs/screenshots/v2.2.0_monitor.png) |
 
 | Центр операцій | Панель температур |
 | --- | --- |
-| ![Операції](docs/screenshots/v2.1.7_operations.png) | ![Температури](docs/screenshots/v2.1.7_temperature.png) |
+| ![Операції](docs/screenshots/v2.2.0_operations.png) | ![Температури](docs/screenshots/v2.2.0_temperature.png) |
 
 | Залізо (Hardware) | GPU-монітор |
 | --- | --- |
-| ![Залізо](docs/screenshots/v2.1.7_hardware.png) | ![GPU](docs/screenshots/v2.1.7_gpu.png) |
+| ![Залізо](docs/screenshots/v2.2.0_hardware.png) | ![GPU](docs/screenshots/v2.2.0_gpu.png) |
 
 | PC Health Score | Чистильник |
 | --- | --- |
-| ![Health](docs/screenshots/v2.1.7_health.png) | ![Чистильник](docs/screenshots/v2.1.7_cleaner.png) |
+| ![Health](docs/screenshots/v2.2.0_health.png) | ![Чистильник](docs/screenshots/v2.2.0_cleaner.png) |
 
 | Ігровий режим | Лаунчер ігор |
 | --- | --- |
-| ![Gaming](docs/screenshots/v2.1.7_gaming.png) | ![Лаунчер](docs/screenshots/v2.1.7_launcher.png) |
+| ![Gaming](docs/screenshots/v2.2.0_gaming.png) | ![Лаунчер](docs/screenshots/v2.2.0_launcher.png) |
 
 | Бенчмарки | Мережа |
 | --- | --- |
-| ![Бенчмарки](docs/screenshots/v2.1.7_benchmarks.png) | ![Мережа](docs/screenshots/v2.1.7_network.png) |
+| ![Бенчмарки](docs/screenshots/v2.2.0_benchmarks.png) | ![Мережа](docs/screenshots/v2.2.0_network.png) |
 
 | Діагностика | Диски та сховище |
 | --- | --- |
-| ![Діагностика](docs/screenshots/v2.1.7_diagnostics.png) | ![Диски](docs/screenshots/v2.1.7_disk.png) |
+| ![Діагностика](docs/screenshots/v2.2.0_diagnostics.png) | ![Диски](docs/screenshots/v2.2.0_disk.png) |
 
 | Панель температур | Бенчмарк заліза |
 | --- | --- |
-| ![Температури](docs/screenshots/v2.1.7_temperature.png) | ![Бенчмарк заліза](docs/screenshots/v2.1.7_hardware_benchmark.png) |
+| ![Температури](docs/screenshots/v2.2.0_temperature.png) | ![Бенчмарк заліза](docs/screenshots/v2.2.0_hardware_benchmark.png) |
 
 | Центр експорту | Драйвери |
 | --- | --- |
-| ![Експорт](docs/screenshots/v2.1.7_export_center.png) | ![Драйвери](docs/screenshots/v2.1.7_drivers.png) |
+| ![Експорт](docs/screenshots/v2.2.0_export_center.png) | ![Драйвери](docs/screenshots/v2.2.0_drivers.png) |
 
 Решта сторінок (Процеси, Автозавантаження, Оптимізатор, Історія продуктивності, Звіт системи, Налаштування): [docs/screenshots](docs/screenshots)
 
@@ -299,12 +300,12 @@ main.py
 
 ## Встановлення
 
-**Варіант 1 — інсталятор.** Запустити `PCOptimizer_PRO_Setup_2.1.7.exe`.
+**Варіант 1 — інсталятор.** Запустити `PCOptimizer_PRO_Setup_2.2.0.exe`.
 Встановлюється для поточного користувача (без прав адміністратора), мови EN/UA, створює ярлики та деінсталятор.
 
 > Якщо Windows показує «Windows protected your PC» (SmartScreen) — це нормально для непідписаних програм: **More info → Run anyway**. Так само деякі антивіруси можуть хибно реагувати на PyInstaller-збірки.
 
-**Варіант 2 — портативно.** Розпакувати `PCOptimizer_PRO_2.1.7_portable.zip` і запустити `PCOptimizer_PRO.exe` у корені архіву. Нічого не встановлюється.
+**Варіант 2 — портативно.** Розпакувати `PCOptimizer_PRO_2.2.0_portable.zip` і запустити `PCOptimizer_PRO.exe` у корені архіву. Нічого не встановлюється.
 
 Готові збірки — у розділі [Releases](https://github.com/dimaprisaznuk64/PCOptimizer_PRO/releases).
 

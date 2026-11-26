@@ -55,7 +55,7 @@
   persistent collapse state across theme rebuilds, compact mode and language
   switches, redesigned Dashboard with 4 sections/history/recommendations, and a
   live interface scale of 100вЂ“150%, scaled layout tokens and uniform page
-  margins, WCAG-readable status/accent tokens in all 29 themes; 23 pages now,
+  margins, WCAG-readable status/accent tokens in all palettes (18 themes now); 23 pages now,
   localized nav tooltips/group counts and shared motion tokens; global search
   palette (Ctrl+K) with recent pages, a Notification Center with persistent read
   state and a Recent Operations Center with filters, export and page jumps;
@@ -282,7 +282,7 @@
   Windows commit-charge / virtual-memory detail, top RAM-consuming processes,
   7-day history with advanced telemetry and per-process RAM history, and Gaming
   Mode 2.0 telemetry/profiles/session comparison charts.
-- 23 pages, 29 themes, default theme **TITANIUM**.
+- 23 pages, 18 themes now (29 at the earlier Stage 3 contrast pass), default theme **TITANIUM**.
 - Newest v2 tools work (Cleaner 2.0, Diagnostics 2.0, Drivers, System Report,
   Hardware Benchmark, Temperature Dashboard, Export Center) is committed in
   `3dc29ce` and `d1b930d`; version/exe/installer are bumped to **v2.0.0**.
