@@ -401,7 +401,7 @@ class GamingTelemetryService:
 def _first_float(row: dict, keys: Sequence[str]) -> float | None:
     for key in keys:
         value = row.get(key)
-        if value in (None, ""):
+        if value is None or value == "":
             continue
         try:
             return float(value)
