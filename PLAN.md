@@ -1,6 +1,10 @@
 ﻿# Development Plan
 
 ## Status
+- Released **v2.1.7** — Stage 5 reliability/performance batch: chart decimation,
+  thermal empty-scan cache, quiet-mode game watcher gating, deferred hidden-page
+  I/O, expanded Operations log and visual clipping fixes; plus a telemetry typing
+  fix. 23 pages, 18 themes, 994 passed / 2 skipped, installer + portable published.
 - Unreleased — Stage 5 background work: `PerfChart` decimates long histories
   before building the cubic path (min/max per bucket, original index keeps the
   time axis honest; 3600 samples: 140.7 → 42.6 ms/repaint); `ThermalBackend`
@@ -230,6 +234,34 @@
   `88b01ba874c4781e8fa24be1358ce699adf26a7e83e24c46ea44773243ab2b8d`) and
   portable (sha256
   `e0164e718a3c660264cecfffa5738c6ae52c4619e803763e392c90c17e1f1ac6`).
+
+### Release v2.1.7 (2026-11-26)
+- Version bumped to **2.1.7** in `app/__init__.py`, `assets/version_info.txt`
+  (filevers/prodvers/StringStruct `2.1.7.0`), installer, README and EN/UA
+  `sidebar_user_sub`. Regenerated all **23** offscreen 1440×860 screenshots as
+  `docs/screenshots/v2.1.7_*.png`; removed the obsolete `v2.1.6_*` set.
+- Includes `b01823b`: `PerfChart` decimation (3600 samples: 140.7 → 42.6 ms per
+  repaint), a 15 s negative cache for empty thermal scans, game-presence watcher
+  gated by `alerts_quiet_during_games`, deferred JSONL/recovery I/O for hidden
+  History/Operations pages, and the visual clipping fixes from the 23-page audit.
+  `a46cd57` narrows CSV values in the gaming telemetry helper for mypy.
+- Verification: **996 collected / 994 passed / 2 skipped**; `ruff`, `mypy`
+  (125 files), `compileall` and `git diff --check` clean. Frozen exe smoke test
+  logged `starting PCOptimizer PRO 2.1.7`.
+- Commits/tag/push: `a46cd57` (typing) and `f7f6373` (release bump) pushed to
+  `main`; annotated tag `v2.1.7` pushed.
+- Local build: exe `2.1.7.0`, portable `dist\PCOptimizer_PRO_2.1.7_portable.zip`
+  (56,784,334 B), installer `dist\installer\PCOptimizer_PRO_Setup_2.1.7.exe`
+  (41,312,356 B) and source `dist\PCOptimizer_PRO_src_v2.1.7.zip` (9,233,906 B).
+  `app_run` silently upgraded `2.1.4.0` → `2.1.7.0`, desktop shortcut target
+  unchanged; the installed GUI was relaunched (PID 5124). Stale v2.1.6 artifacts
+  removed.
+- CI Release run `45901419267` = success;
+  [Release v2.1.7](https://github.com/dimaprisaznuk64/PCOptimizer_PRO/releases/tag/v2.1.7)
+  published with installer (sha256
+  `c4bf4222d335bfd978af15431f5133430880bc5eed2c5aa1a3a7fea30f8cc128`) and
+  portable (sha256
+  `109d1dc7241720975425e3133edbed2ce2574222768358fcf2ac2b7870ebe456`).
 
 - Released **v1.7.1** (`d9f83ab`) вЂ” reliability/stabilization batch: fixed safe
   alert limits and quiet CPU/GPU alerts during games, Settings reset applies
@@ -772,6 +804,11 @@
   `88b01ba874c4781e8fa24be1358ce699adf26a7e83e24c46ea44773243ab2b8d`) and
   `PCOptimizer_PRO_2.1.6_portable.zip` (sha256
   `e0164e718a3c660264cecfffa5738c6ae52c4619e803763e392c90c17e1f1ac6`).
+- Release v2.1.7: tag `v2.1.7` / `f7f6373`; CI Release run `45901419267`
+  (success). Assets `PCOptimizer_PRO_Setup_2.1.7.exe` (sha256
+  `c4bf4222d335bfd978af15431f5133430880bc5eed2c5aa1a3a7fea30f8cc128`) and
+  `PCOptimizer_PRO_2.1.7_portable.zip` (sha256
+  `109d1dc7241720975425e3133edbed2ce2574222768358fcf2ac2b7870ebe456`).
 - Audit follow-ups (from `docs/AUDIT_v2.0.1.md`): B-09 is fixed — full pytest
   single run now passes (943 / 1 skipped); B-10 is skipped by owner decision
   (HWiNFO is not installed, live `poll_time` check is not required).
