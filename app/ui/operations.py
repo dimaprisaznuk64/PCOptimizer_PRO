@@ -29,6 +29,7 @@ from PySide6.QtWidgets import (
 
 from app.changes import ChangeEntry, ChangeJournal
 from app.i18n import tr
+from app.recovery import RecoveryReport, RecoveryService
 from app.reports.service import ReportError, format_for_path, timestamp_name, write_report
 from app.settings import data_root
 
@@ -156,12 +157,15 @@ class OperationsPage(QWidget):
         log: ActivityLog | None = None,
         *,
         journal: ChangeJournal | None = None,
+        recovery: RecoveryService | None = None,
         parent: QWidget | None = None,
     ) -> None:
         super().__init__(parent)
         self.setObjectName("page")
         self._log = log or ActivityLog.instance()
         self._journal = journal or ChangeJournal.instance()
+        self._recovery = recovery or RecoveryService(journal=self._journal)
+        self._recovery_report = RecoveryReport(())
         self._visible: list[Entry] = []
         self._selected_ts: float | None = None
 
@@ -232,6 +236,19 @@ class OperationsPage(QWidget):
         toolbar.addWidget(self.clear_button)
         layout.addLayout(toolbar)
 
+        recovery_row = QHBoxLayout()
+        recovery_row.setSpacing(SPACING_SM)
+        self.recovery_label = QLabel("")
+        self.recovery_label.setObjectName("cardSub")
+        self.recovery_label.setWordWrap(True)
+        recovery_row.addWidget(self.recovery_label, 1)
+        self.clean_recovery_button = QPushButton(tr("ops_recovery_clean"))
+        self.clean_recovery_button.setProperty("secondary", True)
+        self.clean_recovery_button.setEnabled(False)
+        self.clean_recovery_button.clicked.connect(self.clean_recovery)
+        recovery_row.addWidget(self.clean_recovery_button)
+        layout.addLayout(recovery_row)
+
         self.log_card = CardPanel(tr("ops_log_title"))
         layout.addWidget(self.log_card, 1)
         self.table = QTableWidget(0, len(_COLUMN_KEYS))
@@ -269,6 +286,7 @@ class OperationsPage(QWidget):
 
         self._log.changed.connect(self._refresh)
         self._refresh()
+        self._refresh_recovery()
 
     @property
     def log(self) -> ActivityLog:
@@ -292,6 +310,40 @@ class OperationsPage(QWidget):
         else:
             integrity = tr("ops_journal_integrity_broken", errors="; ".join(check.errors[:3]))
         return f"{integrity} · {tr('ops_status', count=shown, total=total)}"
+
+    def _refresh_recovery(self) -> None:
+        report = self._recovery.scan()
+        self._recovery_report = report
+        if report.ok:
+            text = tr("ops_recovery_ok")
+        else:
+            details = "; ".join(issue.detail for issue in report.issues[:2])
+            text = f"{tr('ops_recovery_issues', count=len(report.issues))} · {details}"
+        self.recovery_label.setText(text)
+        self.clean_recovery_button.setEnabled(report.cleanable > 0)
+
+    @staticmethod
+    def _ask_clean_recovery() -> bool:
+        return (
+            QMessageBox.question(
+                None,
+                tr("ops_recovery_clean"),
+                tr("ops_confirm_recovery"),
+                QMessageBox.StandardButton.Yes | QMessageBox.StandardButton.No,
+                QMessageBox.StandardButton.No,
+            )
+            == QMessageBox.StandardButton.Yes
+        )
+
+    def clean_recovery(self) -> None:
+        if self._recovery_report.cleanable == 0 or not self._ask_clean_recovery():
+            return
+        removed, errors = self._recovery.clean_stale(self._recovery_report)
+        self._refresh_recovery()
+        if errors:
+            self.status_label.setText(tr("ops_recovery_failed", msg="; ".join(errors[:2])))
+        else:
+            self.status_label.setText(tr("ops_recovery_cleaned", count=removed))
 
     def _level_at(self, index: int) -> str:
         return LEVELS[max(0, min(index, len(LEVELS) - 1))]
@@ -474,6 +526,8 @@ class OperationsPage(QWidget):
         self.mark_button.setText(tr("ops_mark_read"))
         self.export_button.setText(tr("ops_export"))
         self.clear_button.setText(tr("ops_clear"))
+        self.clean_recovery_button.setText(tr("ops_recovery_clean"))
         self.log_card.set_title(tr("ops_log_title"))
         self.table.setHorizontalHeaderLabels([tr(key) for key in _COLUMN_KEYS])
         self._refresh()
+        self._refresh_recovery()

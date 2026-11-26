@@ -7,9 +7,12 @@
   Geist fonts, EN/UA. Installer and portable zip published on GitHub.
 - Unreleased (committed `fbbed21`) — snapshot fan-out now targets the visible page only;
   the last snapshot is replayed when a page becomes active. Gaming keeps
-  receiving hidden snapshots so telemetry sessions stay alive. 968 tests
-  collected (966 passed, 2 skipped); `ruff`, `mypy` (122 files), `compileall`
-  clean.
+  receiving hidden snapshots so telemetry sessions stay alive.
+- Unreleased (working tree) — crash-recovery report in Operations: stale `.tmp`
+  and `.part` files older than 1 h are listed and removable after confirmation;
+  `.corrupt-*` quarantines and broken change-journal chains are shown read-only.
+  976 tests collected (974 passed, 2 skipped); `ruff`, `mypy` (124 files),
+  `compileall` clean.
 - Released **v2.1.1** вЂ” SHA-256 verification for downloaded GitHub installer
   assets (`UpdateInfo.sha256`, `hmac.compare_digest` after MZ/size checks,
   atomic `.part` cleanup on mismatch). No UI/layout changes; 23 pages,

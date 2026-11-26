@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import json
+import os
 import time
 from pathlib import Path
 
@@ -8,6 +9,7 @@ import pytest
 
 from app.changes import ChangeEntry, ChangeJournal
 from app.i18n import I18nService, tr
+from app.recovery import RecoveryService
 from app.ui.activity import ActivityLog, Entry
 from app.ui.main_window import MainWindow
 from app.ui.operations import (
@@ -214,6 +216,72 @@ def test_page_clear_requires_confirmation(qapp, monkeypatch: pytest.MonkeyPatch)
     page.clear_button.click()
     assert log.entries(limit=None) == []
     assert tr("ops_cleared") == page.status_label.text()
+    page.close()
+
+
+def test_page_recovery_status_and_cleanup(
+    qapp, tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    root = tmp_path / "data"
+    root.mkdir()
+    stale = root / "settings.json.tmp"
+    stale.write_text("{}", encoding="utf-8")
+    old = time.time() - 7200
+    os.utime(stale, (old, old))
+    log = ActivityLog.instance()
+    log.clear()
+
+    page = OperationsPage(log=log, recovery=RecoveryService(root=root))
+    assert page.clean_recovery_button.isEnabled()
+    assert "settings.json.tmp" in page.recovery_label.text()
+
+    monkeypatch.setattr(OperationsPage, "_ask_clean_recovery", staticmethod(lambda: True))
+    page.clean_recovery_button.click()
+
+    assert not stale.exists()
+    assert page.recovery_label.text() == tr("ops_recovery_ok")
+    assert not page.clean_recovery_button.isEnabled()
+    assert tr("ops_recovery_cleaned", count=1) in page.status_label.text()
+    page.close()
+
+
+def test_page_recovery_cancel_keeps_files(
+    qapp, tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    root = tmp_path / "data"
+    root.mkdir()
+    stale = root / "settings.json.json.tmp"
+    stale.write_text("{}", encoding="utf-8")
+    old = time.time() - 7200
+    os.utime(stale, (old, old))
+    log = ActivityLog.instance()
+    log.clear()
+
+    page = OperationsPage(log=log, recovery=RecoveryService(root=root))
+    monkeypatch.setattr(OperationsPage, "_ask_clean_recovery", staticmethod(lambda: False))
+    page.clean_recovery_button.click()
+
+    assert stale.exists()
+    assert page.clean_recovery_button.isEnabled()
+    page.close()
+
+
+def test_retranslate_updates_recovery_button(qapp, tmp_path: Path) -> None:
+    root = tmp_path / "data"
+    root.mkdir()
+    stale = root / "settings.json.tmp"
+    stale.write_text("{}", encoding="utf-8")
+    old = time.time() - 7200
+    os.utime(stale, (old, old))
+    log = ActivityLog.instance()
+    log.clear()
+
+    page = OperationsPage(log=log, recovery=RecoveryService(root=root))
+    I18nService.instance().set_language("UA")
+    page.retranslate()
+
+    assert page.clean_recovery_button.text() == tr("ops_recovery_clean")
+    assert "Цілісність даних" in page.recovery_label.text()
     page.close()
 
 
