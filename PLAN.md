@@ -1,23 +1,14 @@
 ﻿# Development Plan
 
 ## Status
+- Released **v2.1.6** — unclean-exit detection (`app/recovery/crash.py`), snapshot
+  fan-out to visible pages only, and crash-recovery report in Operations;
+  23 pages, 18 themes, 980 passed / 2 skipped, TITANIUM baseline, Geist fonts,
+  EN/UA. Installer and portable zip published on GitHub.
 - Released **v2.1.5** — immutable system-change journal (SHA-256 hash chain,
   backup checksum sidecars, read-only Operations feed) and verified installer
   downloads; 23 pages, 18 themes, 964 passed / 2 skipped, TITANIUM baseline,
   Geist fonts, EN/UA. Installer and portable zip published on GitHub.
-- Unreleased (committed `fbbed21`) — snapshot fan-out now targets the visible page only;
-  the last snapshot is replayed when a page becomes active. Gaming keeps
-  receiving hidden snapshots so telemetry sessions stay alive.
-- Unreleased (working tree) — crash-recovery report in Operations: stale `.tmp`
-  and `.part` files older than 1 h are listed and removable after confirmation;
-   `.corrupt-*` quarantines and broken change-journal chains are shown read-only.
-- Unreleased (working tree) — unclean-exit detection: `app/recovery/crash.py`
-  keeps a live session marker (`session.json`) refreshed by sampler snapshots;
-  a stale marker from a dead PID is reported on the next start via tray,
-  ActivityLog and the log, then replaced. Clean exit removes the marker;
-  a corrupt marker is quarantined for the RecoveryService. 6 new tests.
-   982 tests collected (980 passed, 2 skipped); `ruff`, `mypy` (125 files),
-   `compileall` clean.
 - Released **v2.1.1** вЂ” SHA-256 verification for downloaded GitHub installer
   assets (`UpdateInfo.sha256`, `hmac.compare_digest` after MZ/size checks,
   atomic `.part` cleanup on mismatch). No UI/layout changes; 23 pages,
@@ -190,6 +181,35 @@
   **964 passed, 2 skipped (966 collected)**; `ruff`, `mypy` (122 files),
   `compileall`, `git diff --check` clean. Shipped in release v2.1.5.
 
+### Release v2.1.6 (2026-11-26)
+- Version bumped to **2.1.6** in `app/__init__.py`, `assets/version_info.txt`
+  (filevers/prodvers/StringStruct `2.1.6.0`), installer, README and EN/UA
+  `sidebar_user_sub`.
+- Includes `1564834` (unclean-exit detection): a live `session.json` marker is
+  refreshed from sampler snapshots; a stale marker from a dead PID is reported
+  on the next start via tray, ActivityLog and the log, then replaced. Clean exit
+  removes the marker; a corrupt marker is quarantined for `RecoveryService`.
+- Also includes snapshot fan-out to visible pages only (`fbbed21`) and the
+  read-only crash-recovery report in Operations (`e199019`).
+- Regenerated all **23** offscreen 1440×860 screenshots as
+  `docs/screenshots/v2.1.6_*.png`; removed the obsolete `v2.1.5_*` set.
+- Verification: **982 collected / 980 passed / 2 skipped**; `ruff`, `mypy`
+  (125 files), `compileall`, `git diff --check` clean. Offscreen stale-marker
+  probe confirmed the localized warning and clean marker removal.
+- Commits/tag/push: `1564834` (feature) and `e68c017` (release bump); annotated
+  tag `v2.1.6` pushed to `origin/main`.
+- Local build: exe `2.1.6.0` (PYZ TOC contains `app.recovery.crash`), portable
+  `dist\PCOptimizer_PRO_2.1.6_portable.zip` (56,782,487 B), installer
+  `dist\installer\PCOptimizer_PRO_Setup_2.1.6.exe` (41,310,079 B) and source
+  `dist\PCOptimizer_PRO_src_v2.1.6.zip` (9,172,363 B). Smoke OK for the frozen
+  exe; `app_run` silently upgraded `2.1.5.0` → `2.1.6.0`, desktop/Start-menu
+  shortcut targets unchanged. Stale v2.1.5 artifacts removed.
+- CI Release run `45784515243` = success;
+  [Release v2.1.6](https://github.com/dimaprisaznuk64/PCOptimizer_PRO/releases/tag/v2.1.6)
+  published with installer (sha256
+  `88b01ba874c4781e8fa24be1358ce699adf26a7e83e24c46ea44773243ab2b8d`) and
+  portable (sha256
+  `e0164e718a3c660264cecfffa5738c6ae52c4619e803763e392c90c17e1f1ac6`).
 
 - Released **v1.7.1** (`d9f83ab`) вЂ” reliability/stabilization batch: fixed safe
   alert limits and quiet CPU/GPU alerts during games, Settings reset applies
@@ -706,8 +726,8 @@
   only if a reliable Windows API appears.
 - `mypy` is wired into CI as non-blocking. Dev dependency stays pinned to
   `>=1.11,<2` because mypy 2.4.1 crashed internally on this tree. All remaining
-  typing errors were fixed in `e0d244f`; `python -m mypy app` now reports
-  **Success: no issues found in 120 source files**.
+   typing errors were fixed in `e0d244f`; `python -m mypy app` now reports
+   **Success: no issues found in 125 source files**.
 - Release v2.1.0 is published: tag `v2.1.0` points to `739123b`, GitHub Actions
   Release run `45369199779` completed successfully, and the GitHub release has
   `PCOptimizer_PRO_Setup_2.1.0.exe` + `PCOptimizer_PRO_2.1.0_portable.zip`.
@@ -727,6 +747,11 @@
   `e1f589f3b060d1ac805f9e16b9207b9e31abf75c4ed0f43326c8858b9685170f`) and
   `PCOptimizer_PRO_2.1.5_portable.zip` (sha256
   `0f439ba16eb437acbb82920036e4b03552cfb671d9c151e09b51aed4ef3cb50c`).
+- Release v2.1.6: tag `v2.1.6` / `e68c017`; CI Release run `45784515243`
+  (success). Assets `PCOptimizer_PRO_Setup_2.1.6.exe` (sha256
+  `88b01ba874c4781e8fa24be1358ce699adf26a7e83e24c46ea44773243ab2b8d`) and
+  `PCOptimizer_PRO_2.1.6_portable.zip` (sha256
+  `e0164e718a3c660264cecfffa5738c6ae52c4619e803763e392c90c17e1f1ac6`).
 - Audit follow-ups (from `docs/AUDIT_v2.0.1.md`): B-09 is fixed — full pytest
   single run now passes (943 / 1 skipped); B-10 is skipped by owner decision
   (HWiNFO is not installed, live `poll_time` check is not required).
