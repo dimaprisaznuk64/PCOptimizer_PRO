@@ -839,6 +839,11 @@
   `574784a8f3ae0c741545d1b886247511c4eb49e3359836726ed7fe43221226f9`) and
   `PCOptimizer_PRO_2.2.0_portable.zip` (sha256
   `1c9cb9dc488e8d2aaca9de656356d382d4ffd6ffc31ceb6282e037c00a8d9c56`).
+- Release v2.3.0: tag `v2.3.0` / `2a227ef`; CI Release run `45975255005`
+  (success). Assets `PCOptimizer_PRO_Setup_2.3.0.exe` (sha256
+  `555c359014eb786126f096ae72fe5d4ffe3b6b1aa1bc9362de06fb1d1dbcf4f1`) and
+  `PCOptimizer_PRO_2.3.0_portable.zip` (sha256
+  `bd78f104bbc2e8a9194f69485df8e7c85f7f5c1eb79cc4c0b2f299d921eda2c0`).
 - Audit follow-ups (from `docs/AUDIT_v2.0.1.md`): B-09 is fixed — full pytest
   single run now passes (943 / 1 skipped); B-10 is skipped by owner decision
   (HWiNFO is not installed, live `poll_time` check is not required).
@@ -888,4 +893,31 @@
   (overlay preview 300×156); removed the obsolete `v2.2.0_*` set.
 - Verification after the bump: **1013 collected / 1011 passed / 2 skipped**;
   `ruff`, `mypy` (Success, 128 files), `compileall`, `git diff --check` clean.
-- Local and CI build/release status will be appended after the tag is pushed.
+- Local build commands: `powershell -ExecutionPolicy Bypass -File scripts/build_exe.ps1`,
+  `powershell -ExecutionPolicy Bypass -File scripts/create_portable.ps1`,
+  `powershell -ExecutionPolicy Bypass -File scripts/build_installer.ps1`, and
+  `git archive -o "dist/PCOptimizer_PRO_src_v2.3.0.zip" HEAD`. Built artifacts:
+  `dist\PCOptimizer_PRO\PCOptimizer_PRO.exe` (2.3.0.0, 5,795,286 B, sha256
+  `a575c1514029caf1fb5cd08733d4de9c322380102d03a0b888bf46d48dea73f2`),
+  `dist\PCOptimizer_PRO_2.3.0_portable.zip` (56,806,789 B, sha256
+  `4e6f1e43bbaab83e8a5d047b809e3db1bfa4eee3612753391d92f31f885c384f`),
+  `dist\installer\PCOptimizer_PRO_Setup_2.3.0.exe` (41,333,568 B, sha256
+  `433b7d139d67007ee8acbbec9445e5e4061f4cde3df2e5e90f5b6cab91b0b28c`), and
+  `dist\PCOptimizer_PRO_src_v2.3.0.zip` (9,253,684 B, sha256
+  `b58b18a92219849bc0f32609d38d459451aed70a794bfde5ac99564d371a87c4`).
+  `PYZ-00.toc` has `app.overlay`, `app.overlay.hotkey`, `app.overlay.widget`,
+  `app.reports.pdf`, `app.update.download`, `app.changes.service`, and
+  `app.recovery.crash`; `COLLECT-00.toc` has Geist and Geist Mono fonts.
+  Frozen smoke: `starting PCOptimizer PRO 2.3.0` in
+  `C:\Users\Admin\AppData\Local\Temp\pcopt_v230_smoke_data\logs\PCOptimizer_PRO.log`;
+  process stayed alive for 10 s. Silent upgrade of `app_run` from 2.2.0.0 to
+  2.3.0.0 succeeded and the Desktop shortcut targets `app_run\PCOptimizer_PRO.exe`.
+  Stale 2.2.0 portable/source/installer artifacts were removed.
+- CI Release run `45975255005` (`https://github.com/dimaprisaznuk64/PCOptimizer_PRO/actions/runs/45975255005`,
+  job `140425267345`) completed with `success`; all steps including Pytest,
+  Build exe, Verify built exe, Build installer, Portable zip and Create GitHub
+  Release succeeded. [Release v2.3.0](https://github.com/dimaprisaznuk64/PCOptimizer_PRO/releases/tag/v2.3.0)
+  is published with `PCOptimizer_PRO_Setup_2.3.0.exe` (43,420,995 B, sha256
+  `555c359014eb786126f096ae72fe5d4ffe3b6b1aa1bc9362de06fb1d1dbcf4f1`) and
+  `PCOptimizer_PRO_2.3.0_portable.zip` (62,353,919 B, sha256
+  `bd78f104bbc2e8a9194f69485df8e7c85f7f5c1eb79cc4c0b2f299d921eda2c0`).
