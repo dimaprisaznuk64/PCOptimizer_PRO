@@ -288,6 +288,7 @@ class OperationsPage(QWidget):
         layout.addWidget(self.status_label)
 
         self._log.changed.connect(self._refresh)
+        self._log.changed.connect(self._refresh_recovery)
         if self._loaded:
             self._refresh()
             self._refresh_recovery()

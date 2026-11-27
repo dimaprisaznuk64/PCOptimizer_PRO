@@ -49,6 +49,18 @@ def test_save_persists_values(qapp, tmp_path) -> None:
     assert reloaded.get("log_level") == "ERROR"
 
 
+def test_save_reports_disk_error(qapp, tmp_path, monkeypatch) -> None:
+    page = _page(qapp, tmp_path)
+
+    def fail_save():
+        raise OSError("disk full")
+
+    monkeypatch.setattr(page._service, "save", fail_save)
+    page.save()
+    assert "disk full" in page.status_label.text()
+    assert page.status_label.objectName() == "errorLine"
+
+
 def test_save_applies_quiet_games_toggle_live(qapp, tmp_path) -> None:
     applied: list[bool] = []
     page = _page(qapp, tmp_path, on_quiet_games_applied=applied.append)

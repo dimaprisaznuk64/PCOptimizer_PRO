@@ -11,6 +11,7 @@ from collections.abc import Callable, Sequence
 from dataclasses import dataclass, replace
 from pathlib import Path
 
+from app.sensors.temperature_names import KIND_BOARD, KIND_SYSTEM, temperature_kind
 from app.settings import data_root
 
 SESSION_COMPARE_METRICS = ("cpu", "ram", "gpu", "gpu_temp", "fps")
@@ -155,6 +156,9 @@ class FrameProvider(ABC):
         frames = self.read_frames()
         return frames[-1] if frames else None
 
+    def read_new_frames(self, since_ts: float = -math.inf) -> list[FrameSample]:
+        return [frame for frame in self.read_frames() if frame.ts > since_ts]
+
 
 class CsvFrameProvider(FrameProvider):
     def __init__(self, path: str | Path | None = None, source: str = "PresentMon CSV") -> None:
@@ -169,10 +173,24 @@ class CsvFrameProvider(FrameProvider):
         return self.path is not None and self.path.is_file()
 
     def _frame(self, row: dict[str, str], index: int = 0) -> FrameSample | None:
-        frametime = _first_float(row, ("msBetweenPresents", "FrameTime", "FrameTime(ms)", "FrameTimeMS"))
+        frametime = _first_float(
+            row,
+            ("MsBetweenPresents", "msBetweenPresents", "FrameTime", "FrameTime(ms)", "FrameTimeMS"),
+        )
         if frametime is None or frametime <= 0:
             return None
-        ts = _first_float(row, ("Time", "Timestamp", "FrameNumber", "PresentTime"))
+        ts = _first_float(
+            row,
+            (
+                "CPUStartTime",
+                "CPUStartQPCTime",
+                "CPUStartQPC",
+                "Time",
+                "Timestamp",
+                "FrameNumber",
+                "PresentTime",
+            ),
+        )
         return FrameSample(
             ts=ts if ts is not None else float(index),
             frametime_ms=frametime,
@@ -195,33 +213,40 @@ class CsvFrameProvider(FrameProvider):
                 frames.append(frame)
         return frames
 
-    def latest_frame(self) -> FrameSample | None:
+    def _tail_frames(self) -> list[FrameSample]:
         if not self.available or self.path is None:
-            return None
+            return []
         try:
             with open(self.path, "rb") as f:
                 header = f.readline()
                 size = os.fstat(f.fileno()).st_size
                 if size <= len(header):
-                    return None
+                    return []
                 tail_size = min(size - len(header), LATEST_TAIL_BYTES)
                 f.seek(size - tail_size)
                 tail = f.read(tail_size)
         except OSError:
-            return None
+            return []
         if not header.endswith(b"\n"):
             header += b"\n"
         text = (header + tail).decode("utf-8-sig", errors="replace")
         try:
             rows = list(csv.DictReader(io.StringIO(text)))
         except csv.Error:
-            return None
-        latest: FrameSample | None = None
+            return []
+        frames: list[FrameSample] = []
         for index, row in enumerate(rows):
             frame = self._frame(row, index)
             if frame is not None:
-                latest = frame
-        return latest
+                frames.append(frame)
+        return frames
+
+    def latest_frame(self) -> FrameSample | None:
+        frames = self._tail_frames()
+        return frames[-1] if frames else None
+
+    def read_new_frames(self, since_ts: float = -math.inf) -> list[FrameSample]:
+        return [frame for frame in self._tail_frames() if frame.ts > since_ts]
 
 
 class StaticFrameProvider(FrameProvider):
@@ -262,7 +287,13 @@ def resource_metrics(snapshot) -> ResourceMetrics:
         commit_percent = snapshot.memory.commit_used / snapshot.memory.commit_limit * 100.0
     system_temp = None
     if snapshot.thermal and snapshot.thermal.temperatures:
-        system_temp = max(value for _, value in snapshot.thermal.temperatures)
+        values = [
+            value
+            for name, value in snapshot.thermal.temperatures
+            if temperature_kind(name) in (KIND_BOARD, KIND_SYSTEM)
+        ]
+        if values:
+            system_temp = max(values)
     gpu_percent = gpu_temp = gpu_hotspot = None
     if snapshot.gpus:
         gpu = snapshot.gpus[0]
@@ -441,8 +472,9 @@ class GamingTelemetryService:
 
 
 def _first_float(row: dict, keys: Sequence[str]) -> float | None:
+    lowered = {str(key).lower(): value for key, value in row.items()}
     for key in keys:
-        value = row.get(key)
+        value = lowered.get(key.lower())
         if value is None or value == "":
             continue
         try:

@@ -1,6 +1,8 @@
 from __future__ import annotations
 
 import ctypes
+import logging
+import math
 import time
 from collections import deque
 from collections.abc import Callable
@@ -19,7 +21,7 @@ from PySide6.QtGui import (
 from PySide6.QtWidgets import QApplication, QWidget
 from shiboken6 import isValid
 
-from app.gaming.telemetry import FrameSample, ResourceMetrics, frame_stats
+from app.gaming.telemetry import FrameSample, FrameStats, ResourceMetrics, frame_stats
 from app.i18n import tr
 
 from .hotkey import OverlayHotkey
@@ -28,6 +30,7 @@ _FRESH_SECONDS = 5.0
 _FRAME_HISTORY = 240
 _TOPMOST = -1
 _SWP_RESTORE = 0x0001 | 0x0002 | 0x0010 | 0x0040
+_log = logging.getLogger(__name__)
 
 
 def _force_topmost(window: QWidget) -> None:
@@ -110,6 +113,7 @@ class OverlayWidget(QWidget):
         self._metrics = ResourceMetrics()
         self._frame: FrameSample | None = None
         self._frame_at = 0.0
+        self._frame_signature: tuple[float, float, str] | None = None
         self._frames: deque[FrameSample] = deque(maxlen=_FRAME_HISTORY)
         self._source = ""
         self._source_available = False
@@ -199,22 +203,36 @@ class OverlayWidget(QWidget):
         self.keep_topmost()
 
     def keep_topmost(self) -> None:
-        if self.isVisible() and isValid(self):
+        if isValid(self) and self.isVisible():
             _force_topmost(self)
-        if self._handle.isVisible() and isValid(self._handle):
+        if isValid(self._handle) and self._handle.isVisible():
             _force_topmost(self._handle)
 
     def set_source(self, name: str, available: bool) -> None:
-        self._source = str(name)
-        self._source_available = bool(available)
+        name = str(name)
+        available = bool(available)
+        if name != self._source or available != self._source_available:
+            self.clear_frames()
+        self._source = name
+        self._source_available = available
 
     def update_metrics(self, metrics: ResourceMetrics) -> None:
         self._metrics = metrics
 
     def update_frame(self, frame: FrameSample) -> None:
+        signature = (frame.ts, frame.frametime_ms, frame.source)
+        if signature == self._frame_signature:
+            return
+        self._frame_signature = signature
         self._frame = frame
         self._frame_at = self._clock()
         self._frames.append(frame)
+
+    def clear_frames(self) -> None:
+        self._frame = None
+        self._frame_at = 0.0
+        self._frame_signature = None
+        self._frames.clear()
 
     def _current_frame(self) -> FrameSample | None:
         if self._frame is None:
@@ -222,6 +240,11 @@ class OverlayWidget(QWidget):
         if self._clock() - self._frame_at > _FRESH_SECONDS:
             return None
         return self._frame
+
+    def _visible_stats(self) -> FrameStats:
+        if self._current_frame() is None:
+            return FrameStats()
+        return frame_stats(list(self._frames))
 
     @staticmethod
     def _pct(value: float | None) -> str:
@@ -297,7 +320,7 @@ class OverlayWidget(QWidget):
         )
 
         frame = self._current_frame()
-        stats = frame_stats(list(self._frames))
+        stats = self._visible_stats()
         metrics = self._metrics
         fps_top = rect.top() + handle_h + theme.ls(2)
         fps = f"{frame.fps:.0f}" if frame is not None else "—"
@@ -412,11 +435,13 @@ class OverlayService(QObject):
         self.provider = provider if provider is not None else self._make_provider()
         self._enabled = False
         self._closed = False
+        self._last_frame_ts = -math.inf
         self._poll_timer = QTimer(self)
         self._poll_timer.setInterval(max(50, poll_interval_ms))
         self._poll_timer.timeout.connect(self.poll_frame)
         self.hotkey.triggered.connect(self.toggle)
-        self.hotkey.register()
+        if not self.hotkey.register():
+            _log.warning("overlay hotkey could not be registered; use the tray or Settings to toggle it")
         self.refresh_source()
         self.set_enabled(bool(self._settings.get("overlay_enabled")))
 
@@ -440,9 +465,13 @@ class OverlayService(QObject):
         if not self._provider_injected:
             path = str(self._settings.get("presentmon_csv_path") or "")
             self.provider = default_frame_provider(path)
+        self._last_frame_ts = -math.inf
+        self.widget.clear_frames()
         self.widget.set_source(self.provider.source_name(), self.provider.available)
 
     def set_enabled(self, enabled: bool, *, persist: bool = False) -> None:
+        if self._closed:
+            return
         enabled = bool(enabled)
         if persist:
             self._settings.set("overlay_enabled", enabled)
@@ -467,14 +496,17 @@ class OverlayService(QObject):
         self.widget.update_metrics(resource_metrics(snapshot))
 
     def poll_frame(self) -> None:
-        if not self._enabled:
+        if not self._enabled or self._closed:
             return
         self.widget.keep_topmost()
-        frame = self.provider.latest_frame()
-        if frame is not None:
+        for frame in self.provider.read_new_frames(self._last_frame_ts):
             self.widget.update_frame(frame)
+            if frame.ts > self._last_frame_ts:
+                self._last_frame_ts = frame.ts
 
     def retranslate(self) -> None:
+        if self._closed:
+            return
         self._poll_timer.stop()
         self.widget.refresh_layout()
         if self._enabled:

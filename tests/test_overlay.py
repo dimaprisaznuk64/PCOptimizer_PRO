@@ -17,10 +17,11 @@ class FakeHotkey(QObject):
         super().__init__()
         self.registers = 0
         self.unregisters = 0
+        self.fail_register = False
 
     def register(self) -> bool:
         self.registers += 1
-        return True
+        return not self.fail_register
 
     def unregister(self) -> None:
         self.unregisters += 1
@@ -140,6 +141,84 @@ def test_overlay_widget_stale_frame_is_not_shown(qapp) -> None:
     assert widget._current_frame() is None
     widget.close()
     widget.deleteLater()
+
+
+def test_overlay_widget_ignores_duplicate_frames_and_clears_on_source_change(qapp) -> None:
+    clock = SimpleNamespace(now=10.0)
+    widget = OverlayWidget(clock=lambda: clock.now)
+    frame = FrameSample(ts=1.0, frametime_ms=16.7, fps=59.9, source="fake")
+    try:
+        widget.update_frame(frame)
+        widget.update_frame(frame)
+        assert len(widget._frames) == 1
+        assert widget._visible_stats().low_1 is not None
+
+        clock.now = 15.1
+        assert widget._current_frame() is None
+        assert widget._visible_stats().low_1 is None
+
+        widget.set_source("other", True)
+        assert not widget._frames
+        assert widget._frame is None
+    finally:
+        widget.close()
+        widget.deleteLater()
+
+
+def test_overlay_poll_ingests_every_new_frame(qapp, tmp_path) -> None:
+    clock = SimpleNamespace(now=0.0)
+    widget = OverlayWidget(clock=lambda: clock.now)
+    frames = [
+        FrameSample(ts=1.0, frametime_ms=16.7, fps=59.9, source="fake"),
+        FrameSample(ts=2.0, frametime_ms=8.0, fps=125.0, source="fake"),
+    ]
+    service = OverlayService(
+        SettingsService(tmp_path / "settings.json"),
+        widget=widget,
+        hotkey=FakeHotkey(),
+        provider=StaticFrameProvider(frames),
+    )
+    try:
+        service.set_enabled(True)
+        service.poll_frame()
+        assert [frame.ts for frame in widget._frames] == [1.0, 2.0]
+        assert widget._frame is frames[-1]
+
+        clock.now = 10.0
+        service.poll_frame()
+        assert [frame.ts for frame in widget._frames] == [1.0, 2.0]
+        assert widget._current_frame() is None
+    finally:
+        service.close()
+
+
+def test_overlay_is_noop_after_close(qapp, tmp_path) -> None:
+    settings = SettingsService(tmp_path / "settings.json")
+    service = OverlayService(
+        settings,
+        hotkey=FakeHotkey(),
+        provider=StaticFrameProvider([]),
+    )
+    service.close()
+    service.set_enabled(True, persist=True)
+    service.poll_frame()
+    service.retranslate()
+    assert service.enabled is False
+    assert SettingsService(tmp_path / "settings.json").get("overlay_enabled") is False
+
+
+def test_overlay_hotkey_failure_is_logged(qapp, tmp_path, caplog) -> None:
+    hotkey = FakeHotkey()
+    hotkey.fail_register = True
+    service = OverlayService(
+        SettingsService(tmp_path / "settings.json"),
+        hotkey=hotkey,
+        provider=StaticFrameProvider([]),
+    )
+    try:
+        assert "hotkey" in caplog.text.lower()
+    finally:
+        service.close()
 
 
 def test_overlay_widget_restores_saved_position(qapp) -> None:

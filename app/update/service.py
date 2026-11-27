@@ -107,6 +107,7 @@ def _find_asset(
     if not isinstance(assets, list):
         return "", "", "", "no_asset"
     has_installer = False
+    without_checksum = ""
     for asset in assets:
         if not isinstance(asset, dict):
             continue
@@ -124,8 +125,11 @@ def _find_asset(
             continue
         digest = _asset_sha256(asset)
         if not digest:
-            return "", name, "", "no_checksum"
+            without_checksum = without_checksum or name
+            continue
         return url, name, digest, ""
+    if without_checksum:
+        return "", without_checksum, "", "no_checksum"
     if has_installer:
         return "", "", "", "version_mismatch"
     return "", "", "", "no_asset"

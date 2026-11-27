@@ -74,6 +74,15 @@ def test_load_ignores_corrupt_json(tmp_path) -> None:
     assert svc.get("log_level") == "INFO"
 
 
+def test_load_ignores_invalid_utf8(tmp_path) -> None:
+    path = tmp_path / "settings.json"
+    path.write_bytes(b'{"language":"UA",\xff}')
+    svc = SettingsService(path)
+    assert svc.get("log_level") == "INFO"
+    assert svc.load_error is not None
+    assert "UTF-8" in svc.load_error
+
+
 def test_load_ignores_invalid_entries(tmp_path) -> None:
     path = tmp_path / "settings.json"
     path.write_text(
@@ -234,6 +243,22 @@ def test_migration_retries_after_failed_copy(tmp_path, monkeypatch) -> None:
     monkeypatch.setattr(settings_service, "_atomic_copy_file", real_copy)
     data_root()
     assert json.loads((root / "settings.json").read_text(encoding="utf-8"))["theme"] == "CYBER"
+
+
+def test_migration_replaces_non_utf8_destination(tmp_path, monkeypatch) -> None:
+    legacy = tmp_path / "legacy" / "PCOptimizer_PRO"
+    legacy.mkdir(parents=True)
+    (legacy / "settings.json").write_text(json.dumps({"theme": "TITANIUM"}), encoding="utf-8")
+    monkeypatch.setenv("LOCALAPPDATA", str(tmp_path / "legacy"))
+
+    root = tmp_path / "new_data"
+    root.mkdir()
+    (root / "settings.json").write_bytes(b'{"theme":"CYBER",\xff}')
+    monkeypatch.setenv("PCOPTIMIZER_DATA", str(root))
+
+    data_root()
+    assert json.loads((root / "settings.json").read_text(encoding="utf-8"))["theme"] == "TITANIUM"
+    assert list(root.glob("settings.json.corrupt-*"))
 
 
 def test_migration_replaces_corrupt_destination(tmp_path, monkeypatch) -> None:

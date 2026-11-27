@@ -72,6 +72,20 @@ def test_csv_provider_parses_presentmon_columns(tmp_path) -> None:
     assert frames[1].fps == 1000 / 33.4
 
 
+def test_csv_provider_parses_presentmon_2x_headers(tmp_path) -> None:
+    path = tmp_path / "presentmon.csv"
+    path.write_text(
+        "Application,ProcessID,CPUStartTime,MsBetweenPresents,MsGPUTime\n"
+        "Game.exe,123,1.0,16.7,12.0\n"
+        "Game.exe,123,2.0,8.0,7.0\n",
+        encoding="utf-8",
+    )
+    provider = CsvFrameProvider(path)
+    frames = provider.read_frames()
+    assert [(frame.ts, frame.frametime_ms) for frame in frames] == [(1.0, 16.7), (2.0, 8.0)]
+    assert frames[1].fps == 125.0
+
+
 def test_csv_provider_without_path_is_unavailable(tmp_path) -> None:
     provider = CsvFrameProvider()
     assert provider.available is False
@@ -87,6 +101,14 @@ def test_csv_provider_latest_frame_reads_only_tail(tmp_path) -> None:
     assert frame is not None
     assert frame.fps == 125.0
     assert frame.ts == 999.0
+
+
+def test_csv_provider_read_new_frames_only_returns_later_timestamps(tmp_path) -> None:
+    path = tmp_path / "frames.csv"
+    path.write_text("Time,msBetweenPresents\n1.0,16.7\n2.0,8.0\n", encoding="utf-8")
+    provider = CsvFrameProvider(path)
+    frames = provider.read_new_frames(1.0)
+    assert [frame.ts for frame in frames] == [2.0]
 
 
 def test_default_frame_provider_prefers_explicit_path_and_falls_back_to_env(tmp_path, monkeypatch) -> None:
@@ -108,6 +130,14 @@ def test_resource_metrics_reads_advanced_snapshot() -> None:
     assert metrics.gpu_hotspot == 81.0
     assert metrics.system_temp == 66.0
     assert metrics.commit_percent == 80.0
+
+
+def test_resource_metrics_system_temp_excludes_gpu_sensor() -> None:
+    snapshot = _snapshot()
+    snapshot.thermal.temperatures = (("board", 44.0), ("gpu", 86.0))
+    metrics = resource_metrics(snapshot)
+    assert metrics.system_temp == 44.0
+    assert metrics.gpu_temp == 70.0
 
 
 def test_session_metric_value_and_unit() -> None:

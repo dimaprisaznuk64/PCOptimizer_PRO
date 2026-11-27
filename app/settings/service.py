@@ -129,7 +129,7 @@ def _valid_json_file(path: Path) -> bool:
     try:
         json.loads(path.read_text(encoding="utf-8"))
         return True
-    except (OSError, json.JSONDecodeError):
+    except (OSError, UnicodeDecodeError, json.JSONDecodeError):
         return False
 
 
@@ -224,6 +224,10 @@ class SettingsService:
         self.load_error = None
         try:
             raw = self._path.read_text(encoding="utf-8")
+        except UnicodeDecodeError as e:
+            self.load_error = f"settings file is not valid UTF-8, defaults restored: {e}"
+            log.warning("%s (%s)", self.load_error, self._path)
+            return self.data
         except OSError:
             return self.data
         try:

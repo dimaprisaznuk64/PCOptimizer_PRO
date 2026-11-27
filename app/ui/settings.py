@@ -665,7 +665,7 @@ class SettingsPage(QWidget):
             for key, value in self.collect_values().items():
                 self._service.set(key, value)
             path = self._service.save()
-        except SettingsError as exc:
+        except (SettingsError, OSError) as exc:
             self.status_label.setText(tr("set_save_failed", msg=exc))
             self.status_label.setObjectName("errorLine")
             self.status_label.style().unpolish(self.status_label)

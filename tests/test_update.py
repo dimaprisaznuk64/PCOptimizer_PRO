@@ -132,6 +132,25 @@ def test_installer_asset_sha256_is_taken_from_release_payload() -> None:
     assert info.sha256 == "a" * 64
 
 
+def test_checksumless_installer_does_not_hide_later_verified_asset() -> None:
+    payload = _release()
+    payload["assets"] = [
+        {
+            "name": "PCOptimizer_PRO_Setup_1.6.6.exe",
+            "browser_download_url": "https://github.com/release/setup-no-digest.exe",
+        },
+        {
+            "name": "PCOptimizer_PRO_Setup_1.6.6.exe",
+            "browser_download_url": "https://github.com/release/setup-verified.exe",
+            "digest": "sha256:" + "b" * 64,
+        },
+    ]
+    info = UpdateService("1.6.5", fetcher=lambda _u, _t: payload).check()
+    assert info.download_url.endswith("setup-verified.exe")
+    assert info.sha256 == "b" * 64
+    assert info.download_unavailable == ""
+
+
 def test_unsupported_or_malformed_digests_are_ignored() -> None:
     for digest in ("md5:" + "a" * 32, "sha256:xyz", "sha256:" + "g" * 64):
         payload = _release()

@@ -1,11 +1,15 @@
 from __future__ import annotations
 
 import json
+from concurrent.futures import ThreadPoolExecutor
+
+import pytest
 
 from app import __version__
 from app.changes import (
     GENESIS_HASH,
     ChangeJournal,
+    ChangeJournalError,
     checksum_path,
     file_sha256,
     verify_checksum,
@@ -62,6 +66,27 @@ def test_clear_removes_entries(tmp_path) -> None:
     journal.clear()
     assert journal.entries() == []
     assert journal.integrity().entries == 0
+
+
+def test_integrity_reports_invalid_utf8_without_raising(tmp_path) -> None:
+    store = tmp_path / "system_changes.jsonl"
+    store.write_bytes(b'{"operation":"optimizer.apply"}\n\xff\n')
+    journal = ChangeJournal(store=store)
+    integrity = journal.integrity()
+    assert integrity.ok is False
+    assert any("UTF-8" in error for error in integrity.errors)
+    with pytest.raises(ChangeJournalError):
+        journal.record(operation="optimizer.apply")
+
+
+def test_concurrent_records_keep_hash_chain(tmp_path) -> None:
+    journal = ChangeJournal(store=tmp_path / "system_changes.jsonl")
+
+    with ThreadPoolExecutor(max_workers=8) as pool:
+        list(pool.map(lambda i: journal.record(operation="test.record", detail=str(i)), range(160)))
+
+    assert len(journal.entries()) == 160
+    assert journal.integrity().ok is True
 
 
 def test_checksum_helpers_accept_legacy_and_reject_mismatch(tmp_path) -> None:

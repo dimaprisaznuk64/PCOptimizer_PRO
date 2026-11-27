@@ -7,6 +7,7 @@ import hmac
 import json
 import os
 import re
+import threading
 import time
 import uuid
 from dataclasses import dataclass, replace
@@ -19,6 +20,10 @@ SCHEMA_VERSION = 1
 GENESIS_HASH = "0" * 64
 _SHA256_RE = re.compile(r"^[0-9a-fA-F]{64}$")
 _OUTCOMES = frozenset({"ok", "warn", "error"})
+
+
+class ChangeJournalError(RuntimeError):
+    pass
 
 
 @dataclass(frozen=True, slots=True)
@@ -181,6 +186,7 @@ class ChangeJournal:
 
     def __init__(self, store: str | Path | None = None) -> None:
         self.store = Path(store) if store else data_root() / "system_changes.jsonl"
+        self._lock = threading.RLock()
 
     @classmethod
     def instance(cls) -> ChangeJournal:
@@ -202,29 +208,32 @@ class ChangeJournal:
     ) -> ChangeEntry:
         if outcome not in _OUTCOMES:
             raise ValueError(f"unknown outcome {outcome}")
-        entries, _errors = self._load()
-        prev = entries[-1].hash if entries else GENESIS_HASH
-        entry = ChangeEntry(
-            id=uuid.uuid4().hex,
-            ts=time.time(),
-            operation=operation,
-            outcome=outcome,
-            detail=detail,
-            source=source,
-            target=target,
-            backup=backup,
-            backup_sha256=backup_sha256,
-            restore_point=restore_point,
-            app_version=__version__,
-            prev_hash=prev,
-        )
-        entry = replace(entry, hash=entry.digest())
-        self.store.parent.mkdir(parents=True, exist_ok=True)
-        with self.store.open("a", encoding="utf-8") as fh:
-            fh.write(entry.to_json() + "\n")
-            fh.flush()
-            os.fsync(fh.fileno())
-        return entry
+        with self._lock:
+            entries, errors = self._load()
+            if errors:
+                raise ChangeJournalError("cannot append to a journal with integrity errors")
+            prev = entries[-1].hash if entries else GENESIS_HASH
+            entry = ChangeEntry(
+                id=uuid.uuid4().hex,
+                ts=time.time(),
+                operation=operation,
+                outcome=outcome,
+                detail=detail,
+                source=source,
+                target=target,
+                backup=backup,
+                backup_sha256=backup_sha256,
+                restore_point=restore_point,
+                app_version=__version__,
+                prev_hash=prev,
+            )
+            entry = replace(entry, hash=entry.digest())
+            self.store.parent.mkdir(parents=True, exist_ok=True)
+            with self.store.open("a", encoding="utf-8") as fh:
+                fh.write(entry.to_json() + "\n")
+                fh.flush()
+                os.fsync(fh.fileno())
+            return entry
 
     def entries(
         self,
@@ -233,7 +242,8 @@ class ChangeJournal:
         operation: str | None = None,
         outcome: str | None = None,
     ) -> list[ChangeEntry]:
-        entries, _errors = self._load()
+        with self._lock:
+            entries, _errors = self._load()
         result = list(reversed(entries))
         if operation is not None:
             result = [e for e in result if e.operation == operation]
@@ -242,21 +252,25 @@ class ChangeJournal:
         return result if limit is None else result[:limit]
 
     def integrity(self) -> JournalIntegrity:
-        entries, errors = self._load()
+        with self._lock:
+            entries, errors = self._load()
         return JournalIntegrity(ok=not errors, entries=len(entries), errors=errors)
 
     def clear(self) -> None:
         """Testing helper — the UI never exposes this for the audit trail."""
-        try:
-            self.store.unlink(missing_ok=True)
-        except OSError:
-            pass
+        with self._lock:
+            try:
+                self.store.unlink(missing_ok=True)
+            except OSError:
+                pass
 
     def _load(self) -> tuple[list[ChangeEntry], tuple[str, ...]]:
         try:
             lines = self.store.read_text(encoding="utf-8").splitlines()
         except FileNotFoundError:
             return [], ()
+        except UnicodeDecodeError as exc:
+            return [], (f"journal is not valid UTF-8: {exc}",)
         except OSError as exc:
             return [], (f"cannot read journal: {exc}",)
         entries: list[ChangeEntry] = []

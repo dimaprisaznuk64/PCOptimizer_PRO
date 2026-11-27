@@ -131,6 +131,9 @@
 - Окреме always-on-top вікно поверх гри без захоплення фокусу та кліків (Qt `Tool` + `FramelessWindowHint`), увімкнення `Ctrl+Alt+F9` або з трею
 - Показує FPS (якщо є зовнішній CSV-провайдер), CPU%, GPU%, RAM% і температуру; відсутні дані позначаються чесно, без «вигаданих» значень
 - Шлях до PresentMon CSV задається в Налаштуваннях або змінною `PCOPTIMIZER_PRESENTMON_CSV`; PresentMon не входить до поставки
+- Офіційний PresentMon: https://github.com/GameTechDev/PresentMon/releases/latest — портативний `PresentMon-2.6.0-x64.exe` (~1 МБ); у релізі є й MSI з GUI/сервісом
+- Приклад запуску: `PresentMon-2.6.0-x64.exe --process_name Game.exe --output_file "D:\...\PCOptimizer_PRO\data\presentmon.csv" --terminate_on_proc_exit`; потім вкажи цей файл у Налаштуваннях
+- Якщо PresentMon пише `failed to start trace session (access denied)`, запусти його з адмін-правами (`--restart_as_admin`) або додай користувача до групи `Performance Log Users`
 - Жодних DLL-ін'єкцій, хуків, читання/запису пам'яті процесу або керування грою; безпечно для anti-cheat
 - Обмеження: live CSV може вимагати адмін-прав або групи `Performance Log Users`; HAGS іноді спотворює GPU-таймінги; OpenGL/Vulkan менш точні; у exclusive fullscreen оверлей може бути перекритий — рекомендується borderless/windowed
 
@@ -294,7 +297,7 @@ main.py
 
 - **Python 3.13** + **PySide6** (Qt 6; 18 вбудованих тем, тема за замовчуванням — Titanium, вбудовані шрифти Geist / Geist Mono, масштаб інтерфейсу 100–150% із миттєвим застосуванням)
 - **psutil** — CPU/RAM/диски/мережа, **nvidia-ml-py** (NVML) — GPU, **WMI** — температури, **pywin32** — COM/Task Scheduler/кошик, **pythonnet** + LibreHardwareMonitorLib — додаткові апаратні температури
-- **pytest** — 1011 тестів
+- **pytest** — 1025 тестів
 - **PyInstaller** — збірка .exe, **Inno Setup** — інсталятор
 
 ## Безпека понад усе

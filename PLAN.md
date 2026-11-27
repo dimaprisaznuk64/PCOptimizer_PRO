@@ -1,6 +1,16 @@
 ﻿# Development Plan
 
 ## Status
+- Source-only post-v2.3.0 reliability pass: corrupt UTF-8 `settings.json` /
+  `changes.jsonl` no longer break startup or journal integrity; concurrent
+  journal writes keep a valid SHA-256 chain; Settings save reports disk errors;
+  overlay no longer presents a stale static CSV as LIVE and recomputes 1% LOW
+  from newly ingested frames; update metadata no longer hides a verified
+  installer behind a checksumless asset; Operations recovery status refreshes
+  after external cleanup; PresentMon 2.x CSV headers are parsed case-insensitively
+  (`CPUStartTime`, `MsBetweenPresents`). Verification: **1027 collected / 1025
+  passed / 2 skipped**, `ruff`, `mypy` (128 files), `compileall`, `git diff --check`
+  clean (CRLF warnings only). Not committed and not released.
 - Released **v2.3.0** — safe FPS/CPU overlay: always-on-top borderless window,
   always-registered `Ctrl+Alt+F9` hotkey (works even while the overlay is
   hidden), tray/Settings toggle, optional external PresentMon CSV provider,
@@ -921,3 +931,35 @@
   `555c359014eb786126f096ae72fe5d4ffe3b6b1aa1bc9362de06fb1d1dbcf4f1`) and
   `PCOptimizer_PRO_2.3.0_portable.zip` (62,353,919 B, sha256
   `bd78f104bbc2e8a9194f69485df8e7c85f7f5c1eb79cc4c0b2f299d921eda2c0`).
+
+### R110 post-release reliability pass (source-only, after v2.3.0)
+- `app/settings/service.py`: `_valid_json_file()` handles `OSError`,
+  `UnicodeDecodeError` and `json.JSONDecodeError`; `load()` records a visible
+  `load_error` and falls back to defaults on invalid UTF-8 instead of crashing.
+  Migration replaces an invalid non-UTF-8 destination file.
+- `app/changes/service.py`: added `ChangeJournalError`, an `RLock` around
+  append/read/integrity/clear, and an integrity check before append. A corrupt
+  non-UTF-8 journal is reported through `integrity()` and blocks further writes
+  rather than silently breaking the SHA-256 chain.
+- `app/ui/settings.py`: `SettingsPage.save()` catches `OSError` and shows it in
+  the UI instead of leaking an unhandled disk exception.
+- `app/gaming/telemetry.py`: `FrameProvider.read_new_frames(since_ts=...)` and
+  `CsvFrameProvider` tail tracking let the overlay ingest each PresentMon row
+  once; `resource_metrics()` now excludes GPU sensors from the system/board
+  temperature value.
+- `app/overlay/widget.py`: duplicate frame signatures are ignored, stale frames
+  clear FPS/percentile values, changing the source clears samples, and all
+  overlay service actions become no-ops after `close()`. Hotkey registration
+  failure is logged instead of being silent.
+- `app/update/service.py`: a checksumless installer no longer masks a later
+  verified installer in the same GitHub release payload.
+- `app/ui/operations.py`: recovery status now refreshes when the activity log
+  changes, so external cleanup is reflected without reopening the page.
+- `app/gaming/telemetry.py`: CSV column lookup is case-insensitive and accepts
+  real PresentMon 2.x headers (`CPUStartTime`, `MsBetweenPresents`), so the
+  official CSV works without manual column renaming; README documents the
+  official download and a sample `--process_name/--output_file` command.
+- Tests added for all findings. Verification: targeted 138 passed; full suite
+  **1027 collected / 1025 passed / 2 skipped in 207.23 s**; `ruff check .`,
+  `mypy app` (Success, 128 files), `compileall -q app tests` and
+  `git diff --check` clean (CRLF warnings only).

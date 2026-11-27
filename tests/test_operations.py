@@ -261,6 +261,29 @@ def test_page_recovery_status_and_cleanup(
     page.close()
 
 
+def test_page_recovery_status_refreshes_after_external_cleanup(
+    qapp, tmp_path: Path
+) -> None:
+    root = tmp_path / "data"
+    root.mkdir()
+    stale = root / "settings.json.tmp"
+    stale.write_text("{}", encoding="utf-8")
+    old = time.time() - 7200
+    os.utime(stale, (old, old))
+    log = ActivityLog.instance()
+    log.clear()
+
+    page = OperationsPage(log=log, recovery=RecoveryService(root=root))
+    assert page.clean_recovery_button.isEnabled()
+    assert "settings.json.tmp" in page.recovery_label.text()
+
+    stale.unlink()
+    log.record("Cleaned temp file", "removed", source="cleaner")
+    assert page.recovery_label.text() == tr("ops_recovery_ok")
+    assert not page.clean_recovery_button.isEnabled()
+    page.close()
+
+
 def test_page_recovery_cancel_keeps_files(
     qapp, tmp_path: Path, monkeypatch: pytest.MonkeyPatch
 ) -> None:
