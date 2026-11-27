@@ -1,7 +1,7 @@
 ﻿# Development Plan
 
 ## Status
-- Source-only post-v2.3.0 reliability pass: corrupt UTF-8 `settings.json` /
+- Released **v2.3.1** — post-v2.3.0 reliability pass: corrupt UTF-8 `settings.json` /
   `changes.jsonl` no longer break startup or journal integrity; concurrent
   journal writes keep a valid SHA-256 chain; Settings save reports disk errors;
   overlay no longer presents a stale static CSV as LIVE and recomputes 1% LOW
@@ -10,7 +10,7 @@
   after external cleanup; PresentMon 2.x CSV headers are parsed case-insensitively
   (`CPUStartTime`, `MsBetweenPresents`). Verification: **1027 collected / 1025
   passed / 2 skipped**, `ruff`, `mypy` (128 files), `compileall`, `git diff --check`
-  clean (CRLF warnings only). Not committed and not released.
+  clean (CRLF warnings only). Committed as `938ec5b`, shipped in v2.3.1.
 - Released **v2.3.0** — safe FPS/CPU overlay: always-on-top borderless window,
   always-registered `Ctrl+Alt+F9` hotkey (works even while the overlay is
   hidden), tray/Settings toggle, optional external PresentMon CSV provider,
@@ -963,3 +963,45 @@
   **1027 collected / 1025 passed / 2 skipped in 207.23 s**; `ruff check .`,
   `mypy app` (Success, 128 files), `compileall -q app tests` and
   `git diff --check` clean (CRLF warnings only).
+
+### Release v2.3.1 (2026-11-28)
+- Version bumped to **2.3.1** in `app/__init__.py`, `assets/version_info.txt`
+  (filevers/prodvers/StringStruct `2.3.1.0`), installer and EN/UA
+  `sidebar_user_sub`; README badge, install names and screenshot links and
+  `docs/landing.html` screenshot links updated.
+- Regenerated all **23** page screenshots plus `v2.3.1_overlay.png` at 1440×860
+  (overlay preview 300×156); removed the obsolete `v2.3.0_*` set. Helper:
+  `%TEMP%\opencode\shoot_v231.py` with an isolated `PCOPTIMIZER_DATA`.
+- Verification after the bump: **1027 collected / 1025 passed / 2 skipped in
+  209.47 s**; `ruff check .`, `mypy app` (Success, 128 files), `compileall -q app`
+  and `git diff --check` clean (CRLF warnings only).
+- Commits/tag: `938ec5b` (reliability fixes, pushed `10aa48b..938ec5b`),
+  `f79bd6a` (`chore(release): bump version to 2.3.1 and refresh screenshots`),
+  annotated tag `v2.3.1` (`Release v2.3.1`), pushed `main` and tag.
+- Local build commands: `powershell -ExecutionPolicy Bypass -File scripts/build_exe.ps1`,
+  `powershell -ExecutionPolicy Bypass -File scripts/create_portable.ps1`,
+  `powershell -ExecutionPolicy Bypass -File scripts/build_installer.ps1`, and
+  `git archive -o "dist/PCOptimizer_PRO_src_v2.3.1.zip" HEAD`. Built artifacts:
+  `dist\PCOptimizer_PRO\PCOptimizer_PRO.exe` (2.3.1.0, 5,797,162 B, sha256
+  `633a9f0a335c94fe99f5aefbe1558b8591515efa303ec50e94024085891dc1e2`),
+  `dist\PCOptimizer_PRO_2.3.1_portable.zip` (56,809,384 B, sha256
+  `1f80f6f6ca31e05ac71927620ce9237f5d39de50b812efdd82077e8fd4342576`),
+  `dist\installer\PCOptimizer_PRO_Setup_2.3.1.exe` (41,332,160 B, ProductVersion
+  2.3.1, sha256 `cdde0f6e9df54c5f8c5f910d9493be41c75aab3d119a0cb59aa3d1b44c9c6a85`),
+  and `dist\PCOptimizer_PRO_src_v2.3.1.zip` (9,386,370 B, sha256
+  `a64f7b27ed65c13a2577778ecc710c7d362e2811a139dec40afbaf1baa387eb1`).
+  `PYZ-00.toc` has `app.overlay*`, `app.reports.pdf`, `app.update.download`,
+  `app.changes.service` and `app.recovery.crash` modules.
+  Frozen smoke: `starting PCOptimizer PRO 2.3.1` in
+  `C:\Users\Admin\AppData\Local\Temp\pcopt_v231_smoke_data\logs\PCOptimizer_PRO.log`;
+  process stayed alive for 10 s. Silent upgrade of `app_run` from 2.3.0.0 to
+  2.3.1.0 succeeded and the Desktop shortcut targets `app_run\PCOptimizer_PRO.exe`.
+  Stale 2.3.0 portable/source/installer artifacts were removed.
+- CI Release run `46077783826` (`https://github.com/dimaprisaznuk64/PCOptimizer_PRO/actions/runs/46077783826`,
+  job `140769464297`) completed with `success`; all steps including Pytest,
+  Build exe, Verify built exe, Build installer, Portable zip and Create GitHub
+  Release succeeded. [Release v2.3.1](https://github.com/dimaprisaznuk64/PCOptimizer_PRO/releases/tag/v2.3.1)
+  is published with `PCOptimizer_PRO_Setup_2.3.1.exe` (43,422,737 B, sha256
+  `0702c2c0da4867251ad12d78c316fc160767cfd11bdd22bd6c0c1fb7d1f22efb`) and
+  `PCOptimizer_PRO_2.3.1_portable.zip` (62,354,195 B, sha256
+  `5ea3963096f91a5a7b0b3038fd44c5e7fad6bff0086466255dbb0dd5fdf7e4c2`).
