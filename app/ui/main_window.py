@@ -150,6 +150,7 @@ class MainWindow(QMainWindow):
         gaming: GamingService | None = None,
         processes: ProcessService | None = None,
         history: PerformanceHistory | None = None,
+        overlay=None,
     ) -> None:
         super().__init__(parent)
         self.setWindowTitle("PCOptimizer PRO")
@@ -169,6 +170,11 @@ class MainWindow(QMainWindow):
         from . import theme as th
 
         th.set_ui_scale(int(self.settings.get("ui_scale")))
+        if overlay is None:
+            from app.overlay import OverlayService
+
+            overlay = OverlayService(self.settings, parent=self)
+        self.overlay = overlay
         self._gaming = gaming or GamingService()
         self._processes = processes or ProcessService()
         self._game_running = False
@@ -233,6 +239,8 @@ class MainWindow(QMainWindow):
                 on_dashboard_hidden_applied=self.apply_dashboard_hidden,
                 on_monitor_profile_applied=self.apply_monitor_profile,
                 on_quiet_games_applied=self.apply_quiet_games,
+                on_overlay_applied=self.apply_overlay,
+                on_presentmon_source_applied=self.apply_presentmon_source,
                 monitor_profile=str(self.settings.get("monitor_profile")),
                 history=self._history,
             )
@@ -431,6 +439,8 @@ class MainWindow(QMainWindow):
             notifications.retranslate()
         if self.tray is not None:
             self.tray.retranslate()
+        if getattr(self, "overlay", None) is not None:
+            self.overlay.retranslate()
         for i in range(self.stack.count()):
             page = self._page_widget(self.stack.widget(i))
             retranslate = getattr(page, "retranslate", None)
@@ -556,6 +566,8 @@ class MainWindow(QMainWindow):
             th.apply(app)
         if self.tray is not None:
             self.tray.tray.setIcon(app_icon())
+        if getattr(self, "overlay", None) is not None:
+            self.overlay.retranslate()
 
         geometry = self.geometry()
         key = self.current_key
@@ -592,6 +604,8 @@ class MainWindow(QMainWindow):
                 on_dashboard_hidden_applied=self.apply_dashboard_hidden,
                 on_monitor_profile_applied=self.apply_monitor_profile,
                 on_quiet_games_applied=self.apply_quiet_games,
+                on_overlay_applied=self.apply_overlay,
+                on_presentmon_source_applied=self.apply_presentmon_source,
                 monitor_profile=str(self.settings.get("monitor_profile")),
                 history=self._history,
             )
@@ -626,7 +640,9 @@ class MainWindow(QMainWindow):
         self.tray = tray
         tray.open_requested.connect(self.open_window)
         tray.gaming_requested.connect(self.open_gaming)
+        tray.overlay_requested.connect(self.toggle_overlay)
         tray.quit_requested.connect(self.quit_app)
+        tray.set_overlay_checked(self.overlay.enabled)
 
     def open_window(self) -> None:
         self.show()
@@ -636,6 +652,22 @@ class MainWindow(QMainWindow):
     def open_gaming(self) -> None:
         self.show_page("gaming")
         self.open_window()
+
+    def toggle_overlay(self) -> None:
+        self.apply_overlay(not self.overlay.enabled, persist=True)
+
+    def apply_overlay(self, enabled: bool, *, persist: bool = False) -> None:
+        self.overlay.set_enabled(bool(enabled), persist=persist)
+        if self.tray is not None:
+            self.tray.set_overlay_checked(self.overlay.enabled)
+
+    def apply_presentmon_source(self, _path: str) -> None:
+        self.overlay.refresh_source()
+
+    def close_overlay(self) -> None:
+        overlay = getattr(self, "overlay", None)
+        if overlay is not None:
+            overlay.close()
 
     def quit_app(self) -> None:
         self._force_quit = True
@@ -649,6 +681,8 @@ class MainWindow(QMainWindow):
     def handle_snapshot(self, snapshot) -> None:
         self._last_snapshot = snapshot
         self._history.record(snapshot)
+        if getattr(self, "overlay", None) is not None:
+            self.overlay.apply_snapshot(snapshot)
         current = self._page_widget(self.stack.currentWidget())
         for i in range(self.stack.count()):
             page = self._page_widget(self.stack.widget(i))
@@ -917,6 +951,7 @@ class MainWindow(QMainWindow):
             except (RuntimeError, TypeError):
                 pass
             self._unread_connected = False
+        self.close_overlay()
         self._force_quit = True
         self.close()
         self.deleteLater()
@@ -1007,6 +1042,7 @@ def run(argv: list[str] | None = None) -> int:
         return app.exec()
     finally:
         tracker.finish()
+        window.close_overlay()
         sampler_ok = sampler.stop()
         if window._game_watcher is not None:
             window._game_watcher.stop()

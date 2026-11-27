@@ -95,7 +95,7 @@ TRANSLATIONS: dict[str, dict[str, str]] = {
         "tip_nav_health": "Health score with per-finding actions",
         "tip_nav_settings": "Language, theme, scale, alerts and updates",
         "sidebar_user_title": "Your PC is in safe hands",
-        "sidebar_user_sub": "PCOptimizer PRO v2.2.0",
+        "sidebar_user_sub": "PCOptimizer PRO v2.3.0",
         "sidebar_status_ok": "System healthy",
 
         # Top bar
@@ -246,7 +246,21 @@ TRANSLATIONS: dict[str, dict[str, str]] = {
         # Tray
         "tray_open": "Open PCOptimizer",
         "tray_gaming": "Gaming Mode",
+        "tray_overlay": "Toggle FPS overlay",
         "tray_quit": "Quit",
+
+        # Overlay
+        "overlay_live": "LIVE",
+        "overlay_drag_hint": "DRAG",
+        "overlay_fps": "FPS",
+        "overlay_low": "1% LOW",
+        "overlay_frame": "frame",
+        "overlay_min_ago": "ms",
+        "overlay_cpu": "CPU",
+        "overlay_ram": "RAM",
+        "overlay_gpu": "GPU",
+        "overlay_sys": "SYS",
+        "overlay_no_source": "no PresentMon CSV",
 
         # Dashboard
         "dash_eyebrow": "PC PERFORMANCE CENTER",
@@ -1117,6 +1131,12 @@ TRANSLATIONS: dict[str, dict[str, str]] = {
         "set_ram_alert": "RAM usage threshold",
         "set_disk_alert": "Disk usage threshold",
         "set_alert_cooldown": "Repeat alerts after (min)",
+        "set_overlay_enabled": "Show FPS/CPU overlay",
+        "set_overlay_tip": "Click-through always-on-top window (Ctrl+Alt+F9). FPS comes only from an optional PresentMon CSV.",
+        "set_presentmon_path": "PresentMon CSV path",
+        "set_presentmon_placeholder": "Optional: C:\\path\\to\\PresentMon.csv",
+        "set_presentmon_browse": "Browse...",
+        "set_presentmon_tip": "Only an external CSV is read. No process memory, hooks or injection. Leave empty to hide FPS.",
         "set_version": "Version",
         "set_update_check": "Check for updates on startup",
         "set_check_updates": "Check now",
@@ -1528,7 +1548,7 @@ TRANSLATIONS: dict[str, dict[str, str]] = {
         "tip_nav_health": "Оцінка здоров'я з діями для кожної проблеми",
         "tip_nav_settings": "Мова, тема, масштаб, алерти та оновлення",
         "sidebar_user_title": "Твій ПК у надійних руках",
-        "sidebar_user_sub": "PCOptimizer PRO v2.2.0",
+        "sidebar_user_sub": "PCOptimizer PRO v2.3.0",
         "sidebar_status_ok": "Система в нормі",
 
         # Top bar
@@ -1679,7 +1699,21 @@ TRANSLATIONS: dict[str, dict[str, str]] = {
         # Tray
         "tray_open": "Відкрити PCOptimizer",
         "tray_gaming": "Ігровий режим",
+        "tray_overlay": "Перемкнути FPS-оверлей",
         "tray_quit": "Вихід",
+
+        # Overlay
+        "overlay_live": "НАЖИВО",
+        "overlay_drag_hint": "ТЯГНИ",
+        "overlay_fps": "FPS",
+        "overlay_low": "1% НИЗЬКІ",
+        "overlay_frame": "кадр",
+        "overlay_min_ago": "мс",
+        "overlay_cpu": "CPU",
+        "overlay_ram": "RAM",
+        "overlay_gpu": "GPU",
+        "overlay_sys": "СИСТ",
+        "overlay_no_source": "немає PresentMon CSV",
 
         # Dashboard
         "dash_eyebrow": "ЦЕНТР ПРОДУКТИВНОСТІ ПК",
@@ -2550,6 +2584,12 @@ TRANSLATIONS: dict[str, dict[str, str]] = {
         "set_ram_alert": "Поріг використання RAM",
         "set_disk_alert": "Поріг заповнення диска",
         "set_alert_cooldown": "Повторювати сповіщення через (хв)",
+        "set_overlay_enabled": "Показувати FPS/CPU-оверлей",
+        "set_overlay_tip": "Прозоре вікно поверх усього з натисканням наскрізь (Ctrl+Alt+F9). FPS береться лише зовнішнього PresentMon CSV.",
+        "set_presentmon_path": "Шлях до PresentMon CSV",
+        "set_presentmon_placeholder": "Необов'язково: C:\\шлях\\PresentMon.csv",
+        "set_presentmon_browse": "Обрати...",
+        "set_presentmon_tip": "Читається тільки зовнішній CSV. Без пам'яті процесів, хуків та ін'єкцій. Порожнє значення приховує FPS.",
         "set_version": "Версія",
         "set_update_check": "Перевіряти оновлення при запуску",
         "set_check_updates": "Перевірити зараз",

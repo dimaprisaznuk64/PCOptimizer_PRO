@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import csv
+import io
 import json
 import math
 import os
@@ -13,6 +14,7 @@ from pathlib import Path
 from app.settings import data_root
 
 SESSION_COMPARE_METRICS = ("cpu", "ram", "gpu", "gpu_temp", "fps")
+LATEST_TAIL_BYTES = 128 * 1024
 
 
 @dataclass(frozen=True, slots=True)
@@ -149,6 +151,10 @@ class FrameProvider(ABC):
     def read_frames(self) -> list[FrameSample]:
         raise NotImplementedError
 
+    def latest_frame(self) -> FrameSample | None:
+        frames = self.read_frames()
+        return frames[-1] if frames else None
+
 
 class CsvFrameProvider(FrameProvider):
     def __init__(self, path: str | Path | None = None, source: str = "PresentMon CSV") -> None:
@@ -162,6 +168,18 @@ class CsvFrameProvider(FrameProvider):
     def available(self) -> bool:
         return self.path is not None and self.path.is_file()
 
+    def _frame(self, row: dict[str, str], index: int = 0) -> FrameSample | None:
+        frametime = _first_float(row, ("msBetweenPresents", "FrameTime", "FrameTime(ms)", "FrameTimeMS"))
+        if frametime is None or frametime <= 0:
+            return None
+        ts = _first_float(row, ("Time", "Timestamp", "FrameNumber", "PresentTime"))
+        return FrameSample(
+            ts=ts if ts is not None else float(index),
+            frametime_ms=frametime,
+            fps=1000.0 / frametime,
+            source=self.source,
+        )
+
     def read_frames(self) -> list[FrameSample]:
         if not self.available or self.path is None:
             return []
@@ -172,19 +190,38 @@ class CsvFrameProvider(FrameProvider):
             return []
         frames: list[FrameSample] = []
         for index, row in enumerate(rows):
-            frametime = _first_float(row, ("msBetweenPresents", "FrameTime", "FrameTime(ms)", "FrameTimeMS"))
-            if frametime is None or frametime <= 0:
-                continue
-            ts = _first_float(row, ("Time", "Timestamp", "FrameNumber", "PresentTime"))
-            frames.append(
-                FrameSample(
-                    ts=ts if ts is not None else float(index),
-                    frametime_ms=frametime,
-                    fps=1000.0 / frametime,
-                    source=self.source,
-                )
-            )
+            frame = self._frame(row, index)
+            if frame is not None:
+                frames.append(frame)
         return frames
+
+    def latest_frame(self) -> FrameSample | None:
+        if not self.available or self.path is None:
+            return None
+        try:
+            with open(self.path, "rb") as f:
+                header = f.readline()
+                size = os.fstat(f.fileno()).st_size
+                if size <= len(header):
+                    return None
+                tail_size = min(size - len(header), LATEST_TAIL_BYTES)
+                f.seek(size - tail_size)
+                tail = f.read(tail_size)
+        except OSError:
+            return None
+        if not header.endswith(b"\n"):
+            header += b"\n"
+        text = (header + tail).decode("utf-8-sig", errors="replace")
+        try:
+            rows = list(csv.DictReader(io.StringIO(text)))
+        except csv.Error:
+            return None
+        latest: FrameSample | None = None
+        for index, row in enumerate(rows):
+            frame = self._frame(row, index)
+            if frame is not None:
+                latest = frame
+        return latest
 
 
 class StaticFrameProvider(FrameProvider):
@@ -202,10 +239,15 @@ class StaticFrameProvider(FrameProvider):
     def read_frames(self) -> list[FrameSample]:
         return list(self._frames)
 
+    def latest_frame(self) -> FrameSample | None:
+        return self._frames[-1] if self._frames else None
 
-def default_frame_provider() -> FrameProvider:
-    path = os.environ.get("PCOPTIMIZER_PRESENTMON_CSV")
-    return CsvFrameProvider(path) if path else CsvFrameProvider()
+
+def default_frame_provider(path: str | Path | None = None) -> FrameProvider:
+    raw = str(path) if path else ""
+    if not raw:
+        raw = os.environ.get("PCOPTIMIZER_PRESENTMON_CSV") or ""
+    return CsvFrameProvider(raw) if raw else CsvFrameProvider()
 
 
 def resource_metrics(snapshot) -> ResourceMetrics:

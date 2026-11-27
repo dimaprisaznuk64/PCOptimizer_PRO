@@ -118,6 +118,7 @@ class _Toast(QWidget):
 class AppTray(QObject):
     open_requested = Signal()
     gaming_requested = Signal()
+    overlay_requested = Signal()
     quit_requested = Signal()
 
     def __init__(self, icon: QIcon | None = None, parent: QObject | None = None) -> None:
@@ -130,6 +131,12 @@ class AppTray(QObject):
 
         self.gaming_action: QAction = self.menu.addAction(tr("tray_gaming"))
         self.gaming_action.triggered.connect(self.gaming_requested.emit)
+
+        self.overlay_action: QAction = self.menu.addAction(tr("tray_overlay"))
+        self.overlay_action.setCheckable(True)
+        self.overlay_action.triggered.connect(
+            lambda _checked=False: self.overlay_requested.emit()
+        )
 
         self.menu.addSeparator()
         self.quit_action: QAction = self.menu.addAction(tr("tray_quit"))
@@ -144,6 +151,7 @@ class AppTray(QObject):
         """Refresh context-menu texts after a language change."""
         self.open_action.setText(tr("tray_open"))
         self.gaming_action.setText(tr("tray_gaming"))
+        self.overlay_action.setText(tr("tray_overlay"))
         self.quit_action.setText(tr("tray_quit"))
 
     @property
@@ -155,6 +163,9 @@ class AppTray(QObject):
 
     def hide(self) -> None:
         self.tray.hide()
+
+    def set_overlay_checked(self, checked: bool) -> None:
+        self.overlay_action.setChecked(bool(checked))
 
     def set_tooltip(self, text: str) -> None:
         self.tray.setToolTip(text)

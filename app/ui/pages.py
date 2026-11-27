@@ -42,6 +42,8 @@ def build_pages(
     on_dashboard_hidden_applied=None,
     on_monitor_profile_applied=None,
     on_quiet_games_applied=None,
+    on_overlay_applied=None,
+    on_presentmon_source_applied=None,
     monitor_profile: str = "BALANCED",
 ) -> list[tuple[str, QWidget]]:
     from app.changes import ChangeJournal
@@ -117,6 +119,8 @@ def build_pages(
                 on_dashboard_hidden_applied=on_dashboard_hidden_applied,
                 on_monitor_profile_applied=on_monitor_profile_applied,
                 on_quiet_games_applied=on_quiet_games_applied,
+                on_overlay_applied=on_overlay_applied,
+                on_presentmon_source_applied=on_presentmon_source_applied,
             ),
         ),
     ]

@@ -538,3 +538,63 @@ def test_gaming_page_still_receives_hidden_snapshot(qapp, monkeypatch) -> None:
 
     assert received == [snapshot]
     window.close()
+
+
+def test_main_window_wires_overlay_controls(qapp, tmp_path) -> None:
+    from PySide6.QtCore import QObject, Signal
+
+    from app.sensors import MockBackend, SensorManager
+    from app.settings import SettingsService
+    from app.ui.tray import AppTray
+
+    class FakeOverlay(QObject):
+        state_changed = Signal(bool)
+
+        def __init__(self) -> None:
+            super().__init__()
+            self.enabled = False
+            self.enabled_calls: list[tuple[bool, bool]] = []
+            self.refresh_calls = 0
+            self.snapshots: list[object] = []
+            self.closed = 0
+
+        def set_enabled(self, enabled: bool, *, persist: bool = False) -> None:
+            self.enabled = bool(enabled)
+            self.enabled_calls.append((self.enabled, persist))
+
+        def refresh_source(self) -> None:
+            self.refresh_calls += 1
+
+        def apply_snapshot(self, snapshot: object) -> None:
+            self.snapshots.append(snapshot)
+
+        def retranslate(self) -> None:
+            return
+
+        def close(self) -> None:
+            self.closed += 1
+
+    settings = SettingsService(tmp_path / "settings.json")
+    overlay = FakeOverlay()
+    window = MainWindow(settings=settings, overlay=overlay)
+    tray = AppTray(parent=qapp)
+    window.attach_tray(tray)
+
+    settings_page = window.page("settings")
+    assert settings_page._on_overlay_applied == window.apply_overlay
+    assert settings_page._on_presentmon_source_applied == window.apply_presentmon_source
+
+    window.apply_overlay(True, persist=True)
+    assert overlay.enabled_calls == [(True, True)]
+    assert tray.overlay_action.isChecked() is True
+
+    window.apply_presentmon_source(str(tmp_path / "frames.csv"))
+    assert overlay.refresh_calls == 1
+
+    snapshot = SensorManager([MockBackend(gpu_percent=42.0)]).snapshot()
+    window.handle_snapshot(snapshot)
+    assert overlay.snapshots == [snapshot]
+
+    window.close_overlay()
+    assert overlay.closed == 1
+    window.close()

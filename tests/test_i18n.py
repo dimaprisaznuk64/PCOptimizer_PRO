@@ -93,3 +93,29 @@ def test_stage2_translation_keys_are_resolved() -> None:
         assert TRANSLATIONS["UA"].get(key), key
         assert TRANSLATIONS["EN"][key] != key
         assert TRANSLATIONS["UA"][key] != key
+
+
+def test_overlay_translation_keys_are_resolved() -> None:
+    root = Path(__file__).parent.parent
+    prefixes = ("overlay_", "tray_overlay", "set_overlay", "set_presentmon")
+    keys: set[str] = set()
+    for relative in ("app/overlay/widget.py", "app/ui/settings.py", "app/ui/tray.py"):
+        tree = ast.parse((root / relative).read_text(encoding="utf-8"))
+        for node in ast.walk(tree):
+            if not isinstance(node, ast.Call) or not node.args:
+                continue
+            func = node.func
+            name = func.id if isinstance(func, ast.Name) else getattr(func, "attr", "")
+            if name != "tr":
+                continue
+            arg = node.args[0]
+            if (
+                isinstance(arg, ast.Constant)
+                and isinstance(arg.value, str)
+                and arg.value.startswith(prefixes)
+            ):
+                keys.add(arg.value)
+    assert keys
+    for key in sorted(keys):
+        assert TRANSLATIONS["EN"].get(key), key
+        assert TRANSLATIONS["UA"].get(key), key

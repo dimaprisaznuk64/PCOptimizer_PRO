@@ -1,6 +1,14 @@
 ﻿# Development Plan
 
 ## Status
+- Released **v2.3.0** — safe FPS/CPU overlay: always-on-top borderless window,
+  always-registered `Ctrl+Alt+F9` hotkey (works even while the overlay is
+  hidden), tray/Settings toggle, optional external PresentMon CSV provider,
+  stale-frame and timer cleanup, EN/UA strings and frozen-build hidden-imports.
+  No injection, hooks, or process-memory access. Verification:
+  **1013 collected / 1011 passed / 2 skipped**, `ruff`, `mypy` (128 files),
+  `compileall`, `git diff --check` clean. 23 page screenshots plus an overlay
+  preview regenerated as `docs/screenshots/v2.3.0_*.png`.
 - Released **v2.2.0** — final audit and documentation cleanup: 23 pages × 18
   themes, EN/UA parity (1377 keys each), 100/125/150% scaling and all live
   services/journal/backups verified; no product bugs found. Corrected stale
@@ -834,3 +842,50 @@
 - Audit follow-ups (from `docs/AUDIT_v2.0.1.md`): B-09 is fixed — full pytest
   single run now passes (943 / 1 skipped); B-10 is skipped by owner decision
   (HWiNFO is not installed, live `poll_time` check is not required).
+
+## R107 safe FPS/CPU overlay (source-only, 2026-11-28)
+- Approved scope: «Базовий + PresentMon opt-in (Recommended)». Implemented the
+  anti-cheat-safe variant: a separate Qt `Tool` window with
+  `FramelessWindowHint`, `WindowStaysOnTopHint`, `WindowDoesNotAcceptFocus`,
+  translucent background and transparent mouse events; no DLL injection,
+  detours/hooks, process-memory access, or game control.
+- New `app/overlay/`: `hotkey.py` (`OverlayHotkey` with Win32
+  `RegisterHotKey`/`UnregisterHotKey` via `ctypes`, `Ctrl+Alt+F9`, native event
+  filter registered for the app lifetime, safe non-Windows no-op) and `widget.py` (`OverlayWidget`,
+  `OverlayService(QObject)`, 250 ms poll timer, live snapshot application,
+  idempotent close, theme/font/language refresh).
+- FPS source priority: Settings `presentmon_csv_path` → env
+  `PCOPTIMIZER_PRESENTMON_CSV` → static unavailable value. `app/gaming/telemetry.py`
+  now has bounded tail reads and `latest_frame()` on CSV providers, so only the
+  newest PresentMon frame is used for overlay FPS.
+- Settings addition: `overlay_enabled` (default `False`) and
+  `presentmon_csv_path` (default `""`) with Browse and live apply. Tray gained a
+  checkable «FPS overlay» action; `MainWindow` wires tray/hotkey/settings,
+  replays snapshots into the overlay, and closes it on shutdown/theme rebuild.
+- Caveats documented for users: PresentMon is not bundled and live CSV may need
+  admin or `Performance Log Users`; HAGS may distort some GPU timings;
+  OpenGL/Vulkan can be less exact; exclusive fullscreen may cover the overlay
+  (borderless/windowed is recommended).
+- `PCOptimizer_PRO.spec` hidden-imports `app.overlay`, `app.overlay.hotkey`,
+  `app.overlay.widget`. EN/UA keys and an AST parity test cover all overlay
+  translation keys.
+- Verification: targeted overlay/settings/tray/UI/i18n/telemetry tests pass;
+  full suite **1013 collected / 1011 passed / 2 skipped**; `ruff check .`,
+  `mypy app` (Success: no issues in 128 files), `compileall -q app`, and
+  `git diff --check` clean (CRLF warnings only). At that point the work was
+  source-only; the v2.3.0 release below ships it.
+- Hotkey follow-up: `Ctrl+Alt+F9` is now registered for the whole app lifetime,
+  so it can also turn a hidden overlay on; `set_enabled()` no longer
+  re-registers/unregisters and `close()` unregisters once. Added a regression
+  test that emits the hotkey signal while the overlay is hidden. An offscreen
+  paint probe produced a non-blank 300×156 preview.
+
+### Release v2.3.0 (2026-11-28)
+- Version bumped to **2.3.0** in `app/__init__.py`, `assets/version_info.txt`
+  (filevers/prodvers/StringStruct `2.3.0.0`), installer and EN/UA
+  `sidebar_user_sub`; README badge, install commands and screenshot links updated.
+- Regenerated all **23** page screenshots plus `v2.3.0_overlay.png` at 1440×860
+  (overlay preview 300×156); removed the obsolete `v2.2.0_*` set.
+- Verification after the bump: **1013 collected / 1011 passed / 2 skipped**;
+  `ruff`, `mypy` (Success, 128 files), `compileall`, `git diff --check` clean.
+- Local and CI build/release status will be appended after the tag is pushed.

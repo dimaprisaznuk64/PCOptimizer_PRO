@@ -19,6 +19,7 @@ def test_tray_menu_structure(qapp) -> None:
     labels = [a.text() for a in actions if a.text()]
     assert "Open PCOptimizer" in labels
     assert "Gaming Mode" in labels
+    assert "Toggle FPS overlay" in labels
     assert "Quit" in labels
 
 
@@ -26,17 +27,23 @@ def test_tray_signals(qapp) -> None:
     tray = AppTray(parent=qapp)
     opened: list[int] = []
     gaming: list[int] = []
+    overlay: list[bool] = []
     quit_: list[int] = []
     tray.open_requested.connect(lambda: opened.append(1))
     tray.gaming_requested.connect(lambda: gaming.append(1))
+    tray.overlay_requested.connect(lambda: overlay.append(True))
     tray.quit_requested.connect(lambda: quit_.append(1))
 
     tray.open_action.trigger()
     tray.gaming_action.trigger()
+    tray.overlay_action.trigger()
+    tray.set_overlay_checked(True)
+    assert tray.overlay_action.isChecked() is True
     tray.quit_action.trigger()
 
     assert opened == [1]
     assert gaming == [1]
+    assert overlay == [True]
     assert quit_ == [1]
 
 

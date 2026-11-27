@@ -31,6 +31,9 @@ DEFAULTS: dict[str, Any] = {
     "usage_alerts_enabled": True,
     "first_run_completed": True,
     "dashboard_hidden": "",
+    "overlay_enabled": False,
+    "overlay_position": "",
+    "presentmon_csv_path": "",
 }
 
 CHOICES: dict[str, tuple[str, ...]] = {

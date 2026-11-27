@@ -14,10 +14,10 @@
   <img src="https://img.shields.io/badge/platform-Windows%2010%2F11%20x64-0078D6" alt="Platform">
   <img src="https://img.shields.io/badge/python-3.13-3776AB" alt="Python">
   <img src="https://img.shields.io/badge/UI-PySide6%20(Qt%206)-41CD52" alt="PySide6">
-   <img src="https://img.shields.io/badge/tests-900%2B%20passed-brightgreen" alt="Tests">
+   <img src="https://img.shields.io/badge/tests-1000%2B%20passed-brightgreen" alt="Tests">
   <a href="https://github.com/dimaprisaznuk64/PCOptimizer_PRO/actions/workflows/ci.yml"><img src="https://github.com/dimaprisaznuk64/PCOptimizer_PRO/actions/workflows/ci.yml/badge.svg" alt="CI"></a>
   <img src="https://img.shields.io/badge/license-MIT-green" alt="License">
-  <img src="https://img.shields.io/badge/version-2.2.0-blue" alt="Version">
+  <img src="https://img.shields.io/badge/version-2.3.0-blue" alt="Version">
 </p>
 
 Філософія проєкту: **жодних «секретних» реєстрових твіків і вигаданих +FPS**. Кожна зміна системи робиться лише після бекапу і має кнопку відкату; точку відновлення можна створити додатково вручну. Застосунок працює без адмін-прав — UAC запитується точково, лише для конкретних операцій.
@@ -125,7 +125,16 @@
 - Вимкнення = відкат змін; стан режиму зберігається окремо від бекапу оптимізатора
 - Сесія телеметрії: FPS, середній frametime, 1% / 0.1% lows, CPU/RAM/GPU та температури «до/після», історія сесій
 - Графік порівняння сесій: CPU/RAM/GPU/температура «до/після», окремий перегляд FPS по сесіях і середня зміна з напрямком
-- Джерело FPS — інжектований PresentMon-подібний CSV-провайдер; без нього сторінка чесно показує недоступність даних. Оверлею та ін'єкцій у гру немає
+- Джерело FPS — зовнішній PresentMon-подібний CSV-провайдер; без нього сторінка чесно показує недоступність даних. Ін'єкцій у гру немає
+
+### Безпечний FPS/CPU оверлей
+- Окреме always-on-top вікно поверх гри без захоплення фокусу та кліків (Qt `Tool` + `FramelessWindowHint`), увімкнення `Ctrl+Alt+F9` або з трею
+- Показує FPS (якщо є зовнішній CSV-провайдер), CPU%, GPU%, RAM% і температуру; відсутні дані позначаються чесно, без «вигаданих» значень
+- Шлях до PresentMon CSV задається в Налаштуваннях або змінною `PCOPTIMIZER_PRESENTMON_CSV`; PresentMon не входить до поставки
+- Жодних DLL-ін'єкцій, хуків, читання/запису пам'яті процесу або керування грою; безпечно для anti-cheat
+- Обмеження: live CSV може вимагати адмін-прав або групи `Performance Log Users`; HAGS іноді спотворює GPU-таймінги; OpenGL/Vulkan менш точні; у exclusive fullscreen оверлей може бути перекритий — рекомендується borderless/windowed
+
+![FPS/CPU оверлей](docs/screenshots/v2.3.0_overlay.png)
 
 ### Лаунчер ігор
 - Плитки ігор з обкладинками Steam, обране та історія запусків
@@ -243,39 +252,39 @@ main.py
 
 | Дашборд | Монітор системи |
 | --- | --- |
-| ![Дашборд](docs/screenshots/v2.2.0_dashboard.png) | ![Монітор](docs/screenshots/v2.2.0_monitor.png) |
+| ![Дашборд](docs/screenshots/v2.3.0_dashboard.png) | ![Монітор](docs/screenshots/v2.3.0_monitor.png) |
 
 | Центр операцій | Панель температур |
 | --- | --- |
-| ![Операції](docs/screenshots/v2.2.0_operations.png) | ![Температури](docs/screenshots/v2.2.0_temperature.png) |
+| ![Операції](docs/screenshots/v2.3.0_operations.png) | ![Температури](docs/screenshots/v2.3.0_temperature.png) |
 
 | Залізо (Hardware) | GPU-монітор |
 | --- | --- |
-| ![Залізо](docs/screenshots/v2.2.0_hardware.png) | ![GPU](docs/screenshots/v2.2.0_gpu.png) |
+| ![Залізо](docs/screenshots/v2.3.0_hardware.png) | ![GPU](docs/screenshots/v2.3.0_gpu.png) |
 
 | PC Health Score | Чистильник |
 | --- | --- |
-| ![Health](docs/screenshots/v2.2.0_health.png) | ![Чистильник](docs/screenshots/v2.2.0_cleaner.png) |
+| ![Health](docs/screenshots/v2.3.0_health.png) | ![Чистильник](docs/screenshots/v2.3.0_cleaner.png) |
 
 | Ігровий режим | Лаунчер ігор |
 | --- | --- |
-| ![Gaming](docs/screenshots/v2.2.0_gaming.png) | ![Лаунчер](docs/screenshots/v2.2.0_launcher.png) |
+| ![Gaming](docs/screenshots/v2.3.0_gaming.png) | ![Лаунчер](docs/screenshots/v2.3.0_launcher.png) |
 
 | Бенчмарки | Мережа |
 | --- | --- |
-| ![Бенчмарки](docs/screenshots/v2.2.0_benchmarks.png) | ![Мережа](docs/screenshots/v2.2.0_network.png) |
+| ![Бенчмарки](docs/screenshots/v2.3.0_benchmarks.png) | ![Мережа](docs/screenshots/v2.3.0_network.png) |
 
 | Діагностика | Диски та сховище |
 | --- | --- |
-| ![Діагностика](docs/screenshots/v2.2.0_diagnostics.png) | ![Диски](docs/screenshots/v2.2.0_disk.png) |
+| ![Діагностика](docs/screenshots/v2.3.0_diagnostics.png) | ![Диски](docs/screenshots/v2.3.0_disk.png) |
 
 | Панель температур | Бенчмарк заліза |
 | --- | --- |
-| ![Температури](docs/screenshots/v2.2.0_temperature.png) | ![Бенчмарк заліза](docs/screenshots/v2.2.0_hardware_benchmark.png) |
+| ![Температури](docs/screenshots/v2.3.0_temperature.png) | ![Бенчмарк заліза](docs/screenshots/v2.3.0_hardware_benchmark.png) |
 
 | Центр експорту | Драйвери |
 | --- | --- |
-| ![Експорт](docs/screenshots/v2.2.0_export_center.png) | ![Драйвери](docs/screenshots/v2.2.0_drivers.png) |
+| ![Експорт](docs/screenshots/v2.3.0_export_center.png) | ![Драйвери](docs/screenshots/v2.3.0_drivers.png) |
 
 Решта сторінок (Процеси, Автозавантаження, Оптимізатор, Історія продуктивності, Звіт системи, Налаштування): [docs/screenshots](docs/screenshots)
 
@@ -285,7 +294,7 @@ main.py
 
 - **Python 3.13** + **PySide6** (Qt 6; 18 вбудованих тем, тема за замовчуванням — Titanium, вбудовані шрифти Geist / Geist Mono, масштаб інтерфейсу 100–150% із миттєвим застосуванням)
 - **psutil** — CPU/RAM/диски/мережа, **nvidia-ml-py** (NVML) — GPU, **WMI** — температури, **pywin32** — COM/Task Scheduler/кошик, **pythonnet** + LibreHardwareMonitorLib — додаткові апаратні температури
-- **pytest** — 994 тести
+- **pytest** — 1011 тестів
 - **PyInstaller** — збірка .exe, **Inno Setup** — інсталятор
 
 ## Безпека понад усе
@@ -300,12 +309,12 @@ main.py
 
 ## Встановлення
 
-**Варіант 1 — інсталятор.** Запустити `PCOptimizer_PRO_Setup_2.2.0.exe`.
+**Варіант 1 — інсталятор.** Запустити `PCOptimizer_PRO_Setup_2.3.0.exe`.
 Встановлюється для поточного користувача (без прав адміністратора), мови EN/UA, створює ярлики та деінсталятор.
 
 > Якщо Windows показує «Windows protected your PC» (SmartScreen) — це нормально для непідписаних програм: **More info → Run anyway**. Так само деякі антивіруси можуть хибно реагувати на PyInstaller-збірки.
 
-**Варіант 2 — портативно.** Розпакувати `PCOptimizer_PRO_2.2.0_portable.zip` і запустити `PCOptimizer_PRO.exe` у корені архіву. Нічого не встановлюється.
+**Варіант 2 — портативно.** Розпакувати `PCOptimizer_PRO_2.3.0_portable.zip` і запустити `PCOptimizer_PRO.exe` у корені архіву. Нічого не встановлюється.
 
 Готові збірки — у розділі [Releases](https://github.com/dimaprisaznuk64/PCOptimizer_PRO/releases).
 
@@ -354,6 +363,7 @@ app/
   cleaner/               — чистильник
   disk/                  — дисковий аналізатор
   gaming/                — ігровий режим, профілі ігор і сесійна телеметрія FPS
+  overlay/               — безпечний FPS/CPU оверлей та opt-in PresentMon CSV-провайдер
   network/               — ping і діагностика мережі
   optimizer/             — профілі оптимізації Windows
   processes/             — менеджер процесів
@@ -363,7 +373,7 @@ app/
   logs/                  — ротаційне логування
   i18n/                  — локалізація UA / EN
   core/, hardware/, monitor/, health/, diagnostics/, alerts/, benchmarks/, gaming/ — допоміжні модулі
-tests/                   — pytest-тести (900+)
+tests/                   — pytest-тести (1000+)
 scripts/                 — збірка exe/інсталятора, генерація іконки
 installer/               — скрипт Inno Setup
 docs/screenshots/        — скріншоти
@@ -381,4 +391,4 @@ docs/screenshots/        — скріншоти
 
 ## Дорожня карта
 
-- Overlay (FPS/CPU) поверх гри
+- [x] Overlay (FPS/CPU) поверх гри: безпечне always-on-top вікно + optional PresentMon CSV, без ін'єкцій (source-only, готується до релізу)

@@ -13,6 +13,7 @@ from app.gaming import (
     GamingTelemetryService,
     ResourceMetrics,
     StaticFrameProvider,
+    default_frame_provider,
     frame_stats,
     resource_metrics,
     session_metric_unit,
@@ -75,6 +76,28 @@ def test_csv_provider_without_path_is_unavailable(tmp_path) -> None:
     provider = CsvFrameProvider()
     assert provider.available is False
     assert provider.read_frames() == []
+
+
+def test_csv_provider_latest_frame_reads_only_tail(tmp_path) -> None:
+    path = tmp_path / "frames.csv"
+    rows = "1.0,16.7\n" * 18000
+    path.write_text("Time,msBetweenPresents\n" + rows + "999.0,8.0\n", encoding="utf-8")
+    provider = CsvFrameProvider(path)
+    frame = provider.latest_frame()
+    assert frame is not None
+    assert frame.fps == 125.0
+    assert frame.ts == 999.0
+
+
+def test_default_frame_provider_prefers_explicit_path_and_falls_back_to_env(tmp_path, monkeypatch) -> None:
+    explicit = tmp_path / "explicit.csv"
+    env_csv = tmp_path / "env.csv"
+    explicit.write_text("Time,msBetweenPresents\n1,16.7\n", encoding="utf-8")
+    env_csv.write_text("Time,msBetweenPresents\n1,8.0\n", encoding="utf-8")
+    monkeypatch.setenv("PCOPTIMIZER_PRESENTMON_CSV", str(env_csv))
+    assert default_frame_provider(explicit).path == explicit
+    assert default_frame_provider(None).path == env_csv
+    assert default_frame_provider("").path == env_csv
 
 
 def test_resource_metrics_reads_advanced_snapshot() -> None:

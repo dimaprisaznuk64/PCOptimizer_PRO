@@ -8,6 +8,7 @@ from PySide6.QtWidgets import (
     QApplication,
     QCheckBox,
     QDialog,
+    QFileDialog,
     QFrame,
     QGridLayout,
     QHBoxLayout,
@@ -70,6 +71,8 @@ class SettingsPage(QWidget):
         on_dashboard_hidden_applied=None,
         on_monitor_profile_applied=None,
         on_quiet_games_applied=None,
+        on_overlay_applied=None,
+        on_presentmon_source_applied=None,
     ) -> None:
         super().__init__(parent)
         self.setObjectName("page")
@@ -82,6 +85,8 @@ class SettingsPage(QWidget):
         self._on_dashboard_hidden_applied = on_dashboard_hidden_applied
         self._on_monitor_profile_applied = on_monitor_profile_applied
         self._on_quiet_games_applied = on_quiet_games_applied
+        self._on_overlay_applied = on_overlay_applied
+        self._on_presentmon_source_applied = on_presentmon_source_applied
         self._check_task: Task | None = None
         self._download_task: Task | None = None
         self._dynamic_visibility: dict[int, bool] = {}
@@ -215,6 +220,14 @@ class SettingsPage(QWidget):
         self.temp_alerts_check.setText(tr("set_temp_alerts"))
         self.quiet_games_check.setText(tr("set_quiet_games"))
         self.usage_alerts_check.setText(tr("set_usage_alerts"))
+        self.overlay_check.setText(tr("set_overlay_enabled"))
+        self.overlay_check.setToolTip(tr("set_overlay_tip"))
+        self._presentmon_label.setText(tr("set_presentmon_path"))
+        self._presentmon_label.setToolTip(tr("set_presentmon_tip"))
+        self.presentmon_edit.setPlaceholderText(tr("set_presentmon_placeholder"))
+        self.presentmon_edit.setToolTip(tr("set_presentmon_tip"))
+        self.presentmon_browse.setText(tr("set_presentmon_browse"))
+        self.presentmon_browse.setToolTip(tr("set_presentmon_tip"))
         self.save_button.setText(tr("set_save_btn"))
         self.reset_button.setText(tr("set_reset_btn"))
         self.admin_button.setText(tr("set_restart_admin"))
@@ -257,6 +270,8 @@ class SettingsPage(QWidget):
         13: "update check auto автоматична перевірка оновлень",
         14: "update status статус оновлення",
         15: "monitor profile eco balanced performance профіль моніторингу продуктивність економія",
+        16: "fps overlay cpu gpu hotkey presentmon оверлей накладання гарячі клавіші",
+        17: "presentmon csv path source fps шлях джерело",
     }
     _SEARCH_LOGGING = "logging logs level folder clear refresh журнал події рівень папка очистити оновити"
     _SEARCH_ACTIONS = (
@@ -483,6 +498,28 @@ class SettingsPage(QWidget):
         self.profile_combo.currentIndexChanged.connect(self._sync_interval_to_profile)
         grid.addWidget(self.profile_combo, 15, 1)
 
+        self.overlay_check = QCheckBox(tr("set_overlay_enabled"))
+        self.overlay_check.setToolTip(tr("set_overlay_tip"))
+        grid.addWidget(self.overlay_check, 16, 0, 1, 2)
+
+        self._presentmon_label = QLabel(tr("set_presentmon_path"))
+        self._presentmon_label.setToolTip(tr("set_presentmon_tip"))
+        grid.addWidget(self._presentmon_label, 17, 0)
+        presentmon_row = QHBoxLayout()
+        presentmon_row.setSpacing(SPACING_SM)
+        self.presentmon_edit = QLineEdit()
+        self.presentmon_edit.setPlaceholderText(tr("set_presentmon_placeholder"))
+        self.presentmon_edit.setToolTip(tr("set_presentmon_tip"))
+        self.presentmon_edit.setFixedHeight(COMBO_HEIGHT)
+        self.presentmon_edit.setSizePolicy(QSizePolicy.Policy.Expanding, QSizePolicy.Policy.Fixed)
+        presentmon_row.addWidget(self.presentmon_edit)
+        self.presentmon_browse = QPushButton(tr("set_presentmon_browse"))
+        self.presentmon_browse.setProperty("secondary", True)
+        self.presentmon_browse.setToolTip(tr("set_presentmon_tip"))
+        self.presentmon_browse.clicked.connect(self.browse_presentmon)
+        presentmon_row.addWidget(self.presentmon_browse)
+        grid.addLayout(presentmon_row, 17, 1)
+
         for check in (
             self.minimize_check,
             self.start_minimized_check,
@@ -490,6 +527,7 @@ class SettingsPage(QWidget):
             self.temp_alerts_check,
             self.quiet_games_check,
             self.usage_alerts_check,
+            self.overlay_check,
             self.update_check,
         ):
             check.setMinimumHeight(26)
@@ -591,6 +629,8 @@ class SettingsPage(QWidget):
         self.temp_alerts_check.setChecked(self._service.get("temp_alerts_enabled"))
         self.quiet_games_check.setChecked(bool(self._service.get("alerts_quiet_during_games")))
         self.usage_alerts_check.setChecked(bool(self._service.get("usage_alerts_enabled")))
+        self.overlay_check.setChecked(bool(self._service.get("overlay_enabled")))
+        self.presentmon_edit.setText(str(self._service.get("presentmon_csv_path") or ""))
         self._dashboard_hidden = str(self._service.get("dashboard_hidden"))
         self._loaded_dashboard = self._dashboard_hidden
         level = self._service.get("log_level")
@@ -610,6 +650,8 @@ class SettingsPage(QWidget):
             "temp_alerts_enabled": self.temp_alerts_check.isChecked(),
             "alerts_quiet_during_games": self.quiet_games_check.isChecked(),
             "usage_alerts_enabled": self.usage_alerts_check.isChecked(),
+            "overlay_enabled": self.overlay_check.isChecked(),
+            "presentmon_csv_path": self.presentmon_edit.text().strip(),
             "dashboard_hidden": serialize_dashboard_hidden(self._dashboard_hidden),
             "log_level": str(self.level_combo.currentData()),
             "theme": str(self.theme_combo.currentData()),
@@ -617,6 +659,8 @@ class SettingsPage(QWidget):
 
     def save(self) -> None:
         previous_quiet = bool(self._service.get("alerts_quiet_during_games"))
+        previous_overlay = bool(self._service.get("overlay_enabled"))
+        previous_presentmon = str(self._service.get("presentmon_csv_path") or "")
         try:
             for key, value in self.collect_values().items():
                 self._service.set(key, value)
@@ -647,6 +691,8 @@ class SettingsPage(QWidget):
             previous_profile,
             previous_interval,
             previous_quiet,
+            previous_overlay,
+            previous_presentmon,
         )
 
     def _apply_live_changes(
@@ -658,6 +704,8 @@ class SettingsPage(QWidget):
         previous_profile: str = DEFAULT_PROFILE,
         previous_interval: int = 1000,
         previous_quiet: bool | None = None,
+        previous_overlay: bool | None = None,
+        previous_presentmon: str | None = None,
     ) -> None:
         language = str(self._service.get("language"))
         theme = str(self._service.get("theme"))
@@ -689,6 +737,20 @@ class SettingsPage(QWidget):
             and self._on_quiet_games_applied is not None
         ):
             self._on_quiet_games_applied(quiet)
+        presentmon = str(self._service.get("presentmon_csv_path") or "")
+        if (
+            previous_presentmon is not None
+            and presentmon != previous_presentmon
+            and self._on_presentmon_source_applied is not None
+        ):
+            self._on_presentmon_source_applied(presentmon)
+        overlay = bool(self._service.get("overlay_enabled"))
+        if (
+            previous_overlay is not None
+            and overlay != previous_overlay
+            and self._on_overlay_applied is not None
+        ):
+            self._on_overlay_applied(overlay)
 
     def reset(self) -> None:
         previous_language = I18nService.instance().current_language
@@ -698,6 +760,8 @@ class SettingsPage(QWidget):
         previous_profile = getattr(self, "_loaded_profile", DEFAULT_PROFILE)
         previous_interval = getattr(self, "_loaded_interval", 1000)
         previous_quiet = bool(self._service.get("alerts_quiet_during_games"))
+        previous_overlay = bool(self._service.get("overlay_enabled"))
+        previous_presentmon = str(self._service.get("presentmon_csv_path") or "")
         self._service.reset()
         try:
             self._service.save()
@@ -714,7 +778,19 @@ class SettingsPage(QWidget):
             previous_profile,
             previous_interval,
             previous_quiet,
+            previous_overlay,
+            previous_presentmon,
         )
+
+    def browse_presentmon(self) -> None:
+        path, _selected = QFileDialog.getOpenFileName(
+            self,
+            tr("set_presentmon_path"),
+            self.presentmon_edit.text() or str(data_root()),
+            "CSV files (*.csv);;All files (*.*)",
+        )
+        if path:
+            self.presentmon_edit.setText(path)
 
     def customize_dashboard(self) -> None:
         dialog = DashboardCustomizerDialog(self._dashboard_hidden, self)

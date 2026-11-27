@@ -141,12 +141,41 @@ def test_collect_values_shape(qapp, tmp_path) -> None:
         "language",
         "ui_scale",
         "dashboard_hidden",
+        "overlay_enabled",
+        "presentmon_csv_path",
     }
     assert isinstance(values["sample_interval_ms"], int)
     assert isinstance(values["minimize_to_tray"], bool)
     assert isinstance(values["temp_alerts_enabled"], bool)
     assert isinstance(values["alerts_quiet_during_games"], bool)
     assert isinstance(values["usage_alerts_enabled"], bool)
+    assert isinstance(values["overlay_enabled"], bool)
+    assert isinstance(values["presentmon_csv_path"], str)
+
+
+def test_overlay_settings_are_persisted_and_applied_live(qapp, tmp_path) -> None:
+    overlay_calls: list[bool] = []
+    source_calls: list[str] = []
+    page = _page(
+        qapp,
+        tmp_path,
+        on_overlay_applied=overlay_calls.append,
+        on_presentmon_source_applied=source_calls.append,
+    )
+    path = tmp_path / "presentmon.csv"
+    page.overlay_check.setChecked(True)
+    page.presentmon_edit.setText(str(path))
+    page.save()
+    assert page.service.get("overlay_enabled") is True
+    assert page.service.get("presentmon_csv_path") == str(path)
+    assert overlay_calls == [True]
+    assert source_calls == [str(path)]
+
+    page.reset()
+    assert page.service.get("overlay_enabled") is False
+    assert page.service.get("presentmon_csv_path") == ""
+    assert overlay_calls[-1] is False
+    assert source_calls[-1] == ""
 
 
 def test_dashboard_hidden_is_persisted_and_applied_live(qapp, tmp_path) -> None:
