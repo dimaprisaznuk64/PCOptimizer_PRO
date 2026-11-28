@@ -1074,7 +1074,7 @@
   `PCOptimizer_PRO_2.3.2_portable.zip` (62,359,527 B, sha256
   `267462c52275dd33335a032a94c123ee068aed9be9d8160448b80722af3b5a88`).
 
-## R113 post-v2.3.2 reliability batch (source-only)
+### R113 post-v2.3.2 reliability batch (shipped in v2.3.3)
 - `ChangeJournal.try_record()` catches `ChangeJournalError`/`OSError`, logs a
   warning, and returns `False` instead of propagating; all 15 service call sites
   in Cleaner/Optimizer/Restore/Startup use it, so a corrupt journal can no
@@ -1102,5 +1102,53 @@
   `mypy` (128 files), `compileall`, `git diff --check` clean (CRLF warnings only).
 - Deliberately deferred: Operations/History hidden-page I/O (existing test
   depends on a recovery-status refresh after an external log record) and the
-  single-instance TOCTOU audit finding. No version bump, EXE or installer
-  rebuild in this batch.
+  single-instance TOCTOU audit finding. These fixes shipped in v2.3.3; see the
+  release section below.
+
+### Release v2.3.3 (2026-11-28)
+- Version bumped to **2.3.3** in `app/__init__.py`, `assets/version_info.txt`
+  (filevers/prodvers/StringStruct `2.3.3.0`), installer and EN/UA
+  `sidebar_user_sub`; README badge, install names, screenshot links and
+  `docs/landing.html` screenshot links updated. The stale `filevers`/`prodvers`
+  values `(2, 3, 1, 0)` in `assets/version_info.txt` were fixed as part of the
+  bump.
+- Regenerated all **23** page screenshots plus `v2.3.3_overlay.png` at 1440×860
+  (overlay preview 300×156); removed the obsolete `v2.3.2_*` screenshot set.
+  Helper: `%TEMP%\opencode\shoot_v233.py` with an isolated `PCOPTIMIZER_DATA`.
+- Verification after the bump: **1041 passed / 2 skipped in 251.36 s**;
+  `ruff check .`, `mypy app` (Success, 128 files), `compileall -q app` and
+  `git diff --check` clean (CRLF warnings only).
+- Commits/tag: `094d350` (`fix(reliability): harden journal, lifecycle and
+  telemetry state`, pushed `c0729a8..094d350`), `091758c`
+  (`docs: mark reliability batch as shipped`, pushed `094d350..091758c`),
+  `2a9dee5` (`chore(release): bump version to 2.3.3 and refresh screenshots`),
+  annotated tag `v2.3.3` (`Release v2.3.3`), pushed `main` and tag.
+- Local build commands: `powershell -NoProfile -ExecutionPolicy Bypass -File
+  scripts/build_exe.ps1`, `powershell -NoProfile -ExecutionPolicy Bypass -File
+  scripts/create_portable.ps1`, `powershell -NoProfile -ExecutionPolicy Bypass
+  -File scripts/build_installer.ps1`, and `git archive -o
+  "dist/PCOptimizer_PRO_src_v2.3.3.zip" HEAD`. Built artifacts:
+  `dist\PCOptimizer_PRO\PCOptimizer_PRO.exe` (2.3.3.0, 5,801,238 B, sha256
+  `4d1eb650227dd760e35c824e5fea7a548d36884f9938b667ed304dfac5c3ed73`),
+  `dist\PCOptimizer_PRO_2.3.3_portable.zip` (56,812,165 B, sha256
+  `41ab8018add33af14fbf424f759fb18d88f6911d877b45af09202260fea695e8`),
+  `dist\installer\PCOptimizer_PRO_Setup_2.3.3.exe` (41,331,101 B,
+  ProductVersion 2.3.3, sha256
+  `ac60702c4bf4ebd18c4850bdc5d5d1fc53758038472aca121f29e0fc8707a037`),
+  and `dist\PCOptimizer_PRO_src_v2.3.3.zip` (8,860,429 B, sha256
+  `37dde5b59d56fe340567c271c7cce2abdc4972448a1f5f61e9c199c977a08c0a`).
+  Frozen archive listing confirmed `app.overlay`, `app.reports.pdf`,
+  `app.update.download`, `app.changes.service`, `app.recovery.crash` and
+  `app.ui.launcher`. Frozen smoke: `starting PCOptimizer PRO 2.3.3` in
+  `%TEMP%\pcopt_v233_smoke\logs\PCOptimizer_PRO.log`; process stayed alive for
+  10 s. Silent upgrade of `app_run` from 2.3.2.0 to 2.3.3.0 succeeded
+  (`installer_exit=0`), and the Desktop shortcut targets
+  `app_run\PCOptimizer_PRO.exe`. Stale 2.3.2 portable/source/installer
+  artifacts were removed.
+- CI Release run `46172165762`
+  (`https://github.com/dimaprisaznuk64/PCOptimizer_PRO/actions/runs/46172165762`)
+  completed with `success`. [Release v2.3.3](https://github.com/dimaprisaznuk64/PCOptimizer_PRO/releases/tag/v2.3.3)
+  is published with `PCOptimizer_PRO_Setup_2.3.3.exe` (43,420,451 B, sha256
+  `a88984e2fdd1e10773bdab1310da03cba1bc0de9887674b4e92869243f838051`) and
+  `PCOptimizer_PRO_2.3.3_portable.zip` (62,360,949 B, sha256
+  `7c30e41eda6db2aeb6b97fd105c6ef4a52815acbdf159df9405a0daa9c2a4a97`).
