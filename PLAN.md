@@ -1,6 +1,19 @@
 ﻿# Development Plan
 
 ## Status
+- Unreleased (source-only, after v2.3.1) — reliability fixes found by a
+  targeted audit: a corrupt/invalid `cleaner_whitelist.json` is quarantined as
+  `.corrupt-<timestamp>`, exposes a load error, blocks cleaning instead of
+  silently dropping protections, and recovers after a successful whitelist save;
+  the Cleaner page shows the blocked status and a due schedule reminder, calls
+  `CleanerScheduler.mark_run()` only after a successful clean, and refuses to
+  clean while the whitelist is unavailable; `PerformanceHistory.record()` no
+  longer throttles after a failed append; gaming mode marks its state as
+  `UNKNOWN` when persisting the mode state fails instead of silently disagreeing
+  with the next start. EN/UA keys added for both UI warnings. Verification:
+  **1033 passed / 2 skipped in 182.37 s**; `ruff`, `mypy` (128 files),
+  `compileall`, `git diff --check` clean (CRLF warnings only). Source-only;
+  version/exe/installer unchanged.
 - Released **v2.3.1** — post-v2.3.0 reliability pass: corrupt UTF-8 `settings.json` /
   `changes.jsonl` no longer break startup or journal integrity; concurrent
   journal writes keep a valid SHA-256 chain; Settings save reports disk errors;
@@ -805,6 +818,8 @@
 
 ## Next
 
+- Decide whether to commit/push the unreleased reliability fixes above and ship
+  them as v2.3.2; no version bump or rebuild has been done for them yet.
 - The baseline design is frozen and the 23-module / 100-150% scaling audit is
   complete; no further structural UI changes without a new request.
 - Readability follow-ups from the approved baseline are done and shipped in

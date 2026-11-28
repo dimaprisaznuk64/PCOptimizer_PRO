@@ -361,6 +361,14 @@ class CleanerService:
     def _clean(
         self, target: CleanTarget, known_bytes: int = 0, known_files: int = 0
     ) -> CleanOutcome:
+        if self.whitelist.load_error:
+            return CleanOutcome(
+                target.id,
+                0,
+                0,
+                0,
+                f"whitelist unavailable: {self.whitelist.load_error}",
+            )
         if target.kind == "recycle":
             return self._empty_recycle(target, known_bytes, known_files)
         if target.kind == "memory":

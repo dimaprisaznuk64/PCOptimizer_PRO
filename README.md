@@ -297,7 +297,7 @@ main.py
 
 - **Python 3.13** + **PySide6** (Qt 6; 18 вбудованих тем, тема за замовчуванням — Titanium, вбудовані шрифти Geist / Geist Mono, масштаб інтерфейсу 100–150% із миттєвим застосуванням)
 - **psutil** — CPU/RAM/диски/мережа, **nvidia-ml-py** (NVML) — GPU, **WMI** — температури, **pywin32** — COM/Task Scheduler/кошик, **pythonnet** + LibreHardwareMonitorLib — додаткові апаратні температури
-- **pytest** — 1025 тестів
+- **pytest** — 1033 тести
 - **PyInstaller** — збірка .exe, **Inno Setup** — інсталятор
 
 ## Безпека понад усе

@@ -51,8 +51,27 @@ def test_is_excluded_normalizes_paths_and_fnmatch(tmp_path) -> None:
     assert not whitelist.is_excluded(root / "other.bin")
 
 
-def test_corrupt_store_starts_empty(tmp_path) -> None:
+def test_corrupt_store_starts_empty_and_reports_error(tmp_path) -> None:
     store = tmp_path / "whitelist.json"
     store.write_text("{not-json", encoding="utf-8")
 
-    assert CleanerWhitelist(store).patterns == ()
+    whitelist = CleanerWhitelist(store)
+
+    assert whitelist.patterns == ()
+    assert whitelist.load_error and "corrupt" in whitelist.load_error
+    assert not store.exists()
+    quarantined = list(tmp_path.glob("whitelist.json.corrupt-*"))
+    assert len(quarantined) == 1
+    assert quarantined[0].read_text(encoding="utf-8") == "{not-json"
+
+
+def test_invalid_format_is_reported_and_recoverable(tmp_path) -> None:
+    store = tmp_path / "whitelist.json"
+    store.write_text('{"patterns": "keep.bin"}', encoding="utf-8")
+
+    whitelist = CleanerWhitelist(store)
+    assert whitelist.load_error and "invalid format" in whitelist.load_error
+
+    assert whitelist.add("keep.bin") is True
+    assert whitelist.load_error is None
+    assert CleanerWhitelist(store).patterns == whitelist.patterns

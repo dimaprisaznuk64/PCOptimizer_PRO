@@ -140,7 +140,6 @@ class PerformanceHistory:
         now = self._now()
         if now - self._last_record < self._interval_s:
             return False
-        self._last_record = now
         top_processes: tuple[tuple[str, float], ...] = ()
         if self._process_top is not None:
             try:
@@ -152,7 +151,9 @@ class PerformanceHistory:
             except Exception as exc:
                 log.warning("history process scan failed: %s", exc)
         sample = self._from_snapshot(snapshot, now, top_processes)
-        self._append(sample)
+        if not self._append(sample):
+            return False
+        self._last_record = now
         self._compact_if_due()
         return True
 
@@ -229,14 +230,16 @@ class PerformanceHistory:
             top_processes=top_processes,
         )
 
-    def _append(self, sample: HistorySample) -> None:
+    def _append(self, sample: HistorySample) -> bool:
         try:
             self._store.parent.mkdir(parents=True, exist_ok=True)
             with open(self._store, "a", encoding="utf-8") as f:
                 f.write(json.dumps(sample.to_dict()) + "\n")
             self._append_count += 1
+            return True
         except OSError as exc:
             log.warning("history append failed: %s", exc)
+            return False
 
     def _compact_if_due(self) -> None:
         if self._append_count < _COMPACT_EVERY:

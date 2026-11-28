@@ -6,6 +6,7 @@ import pytest
 
 from app.gaming import DetectedGame, GamingError, GamingService
 from app.gaming.service import _find_exe, default_steam_roots
+from app.i18n import tr
 from app.optimizer import ApplyReport, OptimizerService
 from app.ui.gaming import GamingPage
 
@@ -305,7 +306,9 @@ def test_mode_state_write_failure_is_surfaced(tmp_path, monkeypatch) -> None:
     monkeypatch.setattr(service, "_save_mode_state", fail_save)
     report = service.activate(with_restore_point=False)
     assert any("mode state" in e for e in report.errors)
+    assert any("may be wrong after restart" in e for e in report.errors)
     assert service.active is True
+    assert service.state_uncertain is True
 
 
 def test_deactivate_reverts(tmp_path) -> None:
@@ -440,6 +443,16 @@ def test_gaming_page_toggle_mode(qapp, tmp_path, monkeypatch) -> None:
     assert _wait_until(qapp, lambda: service.mode_calls == ["activate", "deactivate"])
     assert _wait_until(qapp, lambda: page._task is None)
     assert page.mode_label.text() == "Mode: OFF"
+
+
+def test_gaming_page_mode_uncertain_label(qapp, tmp_path) -> None:
+    service = CannedGamingService(tmp_path)
+    service.state_uncertain = True
+    page = GamingPage(service=service)
+
+    page._update_mode_label()
+
+    assert page.mode_label.text() == tr("game_mode_uncertain")
 
 
 def test_gaming_page_toggle_cancelled(qapp, tmp_path, monkeypatch) -> None:

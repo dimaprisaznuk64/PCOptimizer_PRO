@@ -437,6 +437,12 @@ class GamingPage(QWidget):
         self._on_selection_changed()
 
     def _update_mode_label(self) -> None:
+        if self._service.state_uncertain:
+            self.mode_label.setText(tr("game_mode_uncertain"))
+            self.mode_button.setText(
+                tr("game_disable_btn") if self._service.active else tr("game_enable_btn")
+            )
+            return
         if self._service.active:
             self.mode_label.setText(tr("game_mode_on"))
             self.mode_button.setText(tr("game_disable_btn"))

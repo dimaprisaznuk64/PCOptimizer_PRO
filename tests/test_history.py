@@ -145,6 +145,34 @@ def test_record_throttled(tmp_path):
     assert h.record(FakeSnapshot()) is False
 
 
+def test_failed_append_is_not_throttled(tmp_path, monkeypatch):
+    t = [1000.0]
+    h = PerformanceHistory(store=tmp_path / "h.jsonl", now=lambda: t[0])
+    calls: list[float] = []
+
+    def append(sample):
+        calls.append(sample.ts)
+        return len(calls) > 1
+
+    monkeypatch.setattr(h, "_append", append)
+
+    assert h.record(FakeSnapshot()) is False
+    t[0] = 1001.0
+    assert h.record(FakeSnapshot()) is True
+    assert calls == [1000.0, 1001.0]
+
+
+def test_append_returns_false_on_disk_error(tmp_path, monkeypatch):
+    h = PerformanceHistory(store=tmp_path / "h.jsonl")
+
+    def fail_open(*args, **kwargs):
+        raise OSError("disk full")
+
+    monkeypatch.setattr("builtins.open", fail_open)
+
+    assert h.record(FakeSnapshot()) is False
+
+
 def test_query_filters_old(tmp_path):
     store = tmp_path / "h.jsonl"
     t = [10000.0]

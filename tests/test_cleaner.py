@@ -11,11 +11,13 @@ from PySide6.QtWidgets import QDialog
 from app.changes import ChangeJournal
 from app.cleaner import (
     STANDBY_CACHE_ID,
+    CleanerSchedule,
     CleanerScheduler,
     CleanerService,
     CleanerWhitelist,
     CleanTarget,
     ScanDetail,
+    ScanResult,
     default_targets,
     make_large_files_target,
     scan_large_files,
@@ -555,6 +557,23 @@ def test_scan_and_clean_skip_whitelisted_paths(tmp_path) -> None:
     assert not drop.exists()
 
 
+def test_corrupt_whitelist_blocks_cleaning(tmp_path) -> None:
+    root = tmp_path / "cache"
+    root.mkdir()
+    victim = root / "drop.bin"
+    victim.write_bytes(b"x" * 128)
+    store = tmp_path / "whitelist.json"
+    store.write_text("{not-json", encoding="utf-8")
+    target = CleanTarget("cached", "Cached", "System", paths=(str(root),))
+    service = CleanerService([target], CleanerWhitelist(store))
+
+    outcome = service.clean(target)
+
+    assert victim.exists()
+    assert outcome.freed_bytes == 0
+    assert outcome.error and "whitelist unavailable" in outcome.error
+
+
 def test_large_files_wrapper_and_preview_target(tmp_path) -> None:
     folder = tmp_path / "large"
     folder.mkdir()
@@ -600,6 +619,49 @@ def test_page_whitelist_action_saves_patterns(qapp, tmp_path, monkeypatch) -> No
     page = InteractiveCleaner(CleanerService(), whitelist=whitelist)
     page.open_whitelist()
     assert whitelist.patterns == ("new",)
+
+
+def test_page_corrupt_whitelist_blocks_clean_and_shows_status(qapp, tmp_path) -> None:
+    root = tmp_path / "cache"
+    root.mkdir()
+    victim = root / "drop.bin"
+    victim.write_bytes(b"x" * 128)
+    store = tmp_path / "whitelist.json"
+    store.write_text("{not-json", encoding="utf-8")
+    target = CleanTarget("cached", "Cached", "System", paths=(str(root),))
+    service = CleanerService([target])
+    page = InteractiveCleaner(service, whitelist=CleanerWhitelist(store))
+    page._scans[target.id] = ScanResult(target.id, 1, 128)
+
+    page.start_clean()
+
+    assert victim.exists()
+    assert tr("clean_whitelist_error").split("{")[0] in page.status_label.text()
+
+
+def test_page_shows_due_schedule_and_marks_run(qapp, tmp_path) -> None:
+    clock = [10 * 86400.0]
+    scheduler = CleanerScheduler(
+        tmp_path / "schedule.json", now=lambda: clock[0]
+    )
+    scheduler.save(
+        CleanerSchedule(
+            enabled=True,
+            cadence="daily",
+            target_ids=("a",),
+            last_run=0.0,
+        )
+    )
+    service = _two_target_service(tmp_path)
+    page = InteractiveCleaner(service, scheduler=scheduler)
+    page.show()
+    assert _wait_until(qapp, lambda: page._task is None)
+    assert tr("clean_schedule_due").split("{")[0] in page.status_label.text()
+
+    page._scans["a"] = ScanResult("a", 1, 1024)
+    page.start_clean()
+    assert _wait_until(qapp, lambda: page._task is None)
+    assert scheduler.last_run == clock[0]
 
 
 def test_page_schedule_action_saves_selected_targets(qapp, tmp_path, monkeypatch) -> None:

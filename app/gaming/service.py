@@ -213,6 +213,7 @@ class GamingService:
         # The applied-profile backup survives restarts; if it was a GAMING profile
         # the mode really is still on, so restore the flag instead of lying "off".
         self._active, self._active_profile = self._load_mode_state()
+        self.state_uncertain = False
         self.last_report: ApplyReport | None = None
 
     @property
@@ -422,8 +423,12 @@ class GamingService:
             self._active_profile = profile
         try:
             self._save_mode_state(self._active, self._active_profile)
+            self.state_uncertain = False
         except GamingError as e:
-            report = _report_with_error(report, f"mode state: {e}")
+            self.state_uncertain = True
+            report = _report_with_error(
+                report, f"mode state: {e}; status may be wrong after restart"
+            )
         self.last_report = report
         return report
 
@@ -434,8 +439,12 @@ class GamingService:
         self._active = bool(report.errors)
         try:
             self._save_mode_state(self._active, self._active_profile)
+            self.state_uncertain = False
         except GamingError as e:
-            report = _report_with_error(report, f"mode state: {e}")
+            self.state_uncertain = True
+            report = _report_with_error(
+                report, f"mode state: {e}; status may be wrong after restart"
+            )
         self.last_report = report
         return report
 

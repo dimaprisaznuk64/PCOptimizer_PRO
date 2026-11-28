@@ -3,6 +3,7 @@ from __future__ import annotations
 import fnmatch
 import json
 import os
+import time
 from collections.abc import Iterable
 from pathlib import Path
 
@@ -18,11 +19,16 @@ def _normalize(value: str | os.PathLike[str]) -> str:
 class CleanerWhitelist:
     def __init__(self, store: str | os.PathLike[str] | None = None) -> None:
         self.store = Path(store) if store is not None else data_root() / "cleaner_whitelist.json"
+        self._load_error: str | None = None
         self._patterns = tuple(self._load())
 
     @property
     def patterns(self) -> tuple[str, ...]:
         return self._patterns
+
+    @property
+    def load_error(self) -> str | None:
+        return self._load_error
 
     def add(self, pattern: str | os.PathLike[str]) -> bool:
         normalized = _normalize(pattern)
@@ -67,15 +73,36 @@ class CleanerWhitelist:
         with tmp.open("w", encoding="utf-8") as handle:
             json.dump({"patterns": list(self._patterns)}, handle, ensure_ascii=False, indent=2)
         os.replace(tmp, self.store)
+        self._load_error = None
+
+    def _quarantine(self) -> str | None:
+        stamp = time.strftime("%Y%m%d_%H%M%S")
+        target = self.store.with_name(f"{self.store.name}.corrupt-{stamp}")
+        try:
+            self.store.replace(target)
+            return str(target)
+        except OSError:
+            return None
 
     def _load(self) -> tuple[str, ...]:
         try:
             with self.store.open("r", encoding="utf-8") as handle:
                 data = json.load(handle)
-        except (OSError, json.JSONDecodeError, UnicodeDecodeError):
+        except FileNotFoundError:
+            return ()
+        except (json.JSONDecodeError, UnicodeDecodeError) as exc:
+            quarantined = self._quarantine()
+            detail = f" moved to {quarantined}" if quarantined else " (could not quarantine)"
+            self._load_error = f"whitelist file is corrupt: {exc};{detail}"
+            return ()
+        except OSError as exc:
+            self._load_error = f"whitelist file could not be read: {exc}"
             return ()
         raw = data.get("patterns") if isinstance(data, dict) else data
         if not isinstance(raw, list):
+            quarantined = self._quarantine()
+            detail = f" moved to {quarantined}" if quarantined else " (could not quarantine)"
+            self._load_error = f"whitelist file has an invalid format;{detail}"
             return ()
         values: Iterable[object] = raw
         return tuple(

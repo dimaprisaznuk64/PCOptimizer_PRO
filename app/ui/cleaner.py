@@ -106,6 +106,7 @@ class CleanerPage(QWidget):
         self._scans: dict[str, ScanResult] = {}
         self._outcomes: dict[str, CleanOutcome] = {}
         self._task: Task | None = None
+        self._schedule_due = False
 
         layout = QVBoxLayout(self)
         layout.setContentsMargins(*PAGE_MARGINS)
@@ -157,7 +158,7 @@ class CleanerPage(QWidget):
         self.hero_value = QLabel("—")
         self.hero_value.setObjectName("heroValue")
         hero_text.addWidget(self.hero_value)
-        self.status_label = QLabel(tr("clean_idle"))
+        self.status_label = QLabel(self._with_notices(tr("clean_idle")))
         self.status_label.setObjectName("cardSub")
         hero_text.addWidget(self.status_label)
         hero_row.addLayout(hero_text, 1)
@@ -208,6 +209,19 @@ class CleanerPage(QWidget):
         self._targets = self._all_targets()
         self._render_table()
 
+    def _whitelist_status_text(self) -> str:
+        error = self._whitelist.load_error
+        return tr("clean_whitelist_error", msg=error) if error else ""
+
+    def _with_notices(self, message: str) -> str:
+        if self._whitelist.load_error:
+            return self._whitelist_status_text()
+        if self._schedule_due and self._scheduler.is_due():
+            self._schedule_due = False
+            cadence = tr(_CADENCE_TR.get(self._scheduler.cadence, "clean_schedule_weekly"))
+            return f"{message} · {tr('clean_schedule_due', cadence=cadence)}"
+        return message
+
     def retranslate(self) -> None:
         """Refresh static texts after a language change."""
         self._title.setText(tr("clean_title"))
@@ -220,6 +234,8 @@ class CleanerPage(QWidget):
         self.leftovers_button.setText(tr("clean_leftovers_btn"))
         self.large_files_button.setText(tr("clean_large_btn"))
         self.note.setText(tr("clean_note"))
+        if self._task is None:
+            self.status_label.setText(self._with_notices(tr("clean_idle")))
         self.table.setHorizontalHeaderLabels(tuple(tr(k) for k in COLUMN_KEYS))
         align_numeric_headers(self.table, (2, 3))
         self._render_table()
@@ -230,6 +246,8 @@ class CleanerPage(QWidget):
 
     def showEvent(self, event) -> None:
         super().showEvent(event)
+        if self._scheduler.is_due():
+            self._schedule_due = True
         if not self._scans and self._task is None:
             self.start_scan()
 
@@ -254,7 +272,7 @@ class CleanerPage(QWidget):
         self._scans.update(by_id)
         self._render_table()
         total = sum(r.bytes for r in self._scans.values())
-        self.status_label.setText(tr("clean_scan_complete", size=size(total)))
+        self.status_label.setText(self._with_notices(tr("clean_scan_complete", size=size(total))))
         self.clean_button.setEnabled(any(r.bytes > 0 for r in self._scans.values()))
 
     def _on_task_failed(self, message: str) -> None:
@@ -266,6 +284,9 @@ class CleanerPage(QWidget):
 
     def start_clean(self) -> None:
         if self._task is not None:
+            return
+        if self._whitelist.load_error:
+            self.status_label.setText(self._whitelist_status_text())
             return
         selected = self._selected_targets()
         if not selected:
@@ -310,7 +331,13 @@ class CleanerPage(QWidget):
             message += " · " + tr("clean_skipped", count=skipped)
         if errors:
             message += f" · {errors}"
-        self.status_label.setText(message)
+        if freed or any(o.files_deleted for o in outcomes):
+            self._schedule_due = False
+            try:
+                self._scheduler.mark_run()
+            except OSError:
+                pass
+        self.status_label.setText(self._with_notices(message))
         log_action(
             tr("act_clean"),
             size(freed),
@@ -459,7 +486,10 @@ class CleanerPage(QWidget):
                 self._whitelist.remove(pattern)
         for pattern in dialog.patterns:
             self._whitelist.add(pattern)
-        self.status_label.setText(tr("clean_whitelist_saved", count=len(dialog.patterns)))
+        self.status_label.setText(
+            self._whitelist_status_text()
+            or tr("clean_whitelist_saved", count=len(dialog.patterns))
+        )
 
     def open_schedule(self) -> None:
         dialog = _ScheduleDialog(self._scheduler.schedule, self)
