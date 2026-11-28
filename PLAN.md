@@ -1,8 +1,8 @@
 ﻿# Development Plan
 
 ## Status
-- Unreleased (source-only, after v2.3.1) — reliability fixes found by a
-  targeted audit: a corrupt/invalid `cleaner_whitelist.json` is quarantined as
+- Released **v2.3.2** — reliability fixes found by a targeted audit: a
+  corrupt/invalid `cleaner_whitelist.json` is quarantined as
   `.corrupt-<timestamp>`, exposes a load error, blocks cleaning instead of
   silently dropping protections, and recovers after a successful whitelist save;
   the Cleaner page shows the blocked status and a due schedule reminder, calls
@@ -11,9 +11,9 @@
   longer throttles after a failed append; gaming mode marks its state as
   `UNKNOWN` when persisting the mode state fails instead of silently disagreeing
   with the next start. EN/UA keys added for both UI warnings. Verification:
-  **1033 passed / 2 skipped in 182.37 s**; `ruff`, `mypy` (128 files),
-  `compileall`, `git diff --check` clean (CRLF warnings only). Source-only;
-  version/exe/installer unchanged.
+  **1033 passed / 2 skipped in 199.04 s**; `ruff`, `mypy` (128 files),
+  `compileall`, `git diff --check` clean (CRLF warnings only). Committed as
+  `e89de8d`, shipped in v2.3.2.
 - Released **v2.3.1** — post-v2.3.0 reliability pass: corrupt UTF-8 `settings.json` /
   `changes.jsonl` no longer break startup or journal integrity; concurrent
   journal writes keep a valid SHA-256 chain; Settings save reports disk errors;
@@ -818,8 +818,9 @@
 
 ## Next
 
-- Decide whether to commit/push the unreleased reliability fixes above and ship
-  them as v2.3.2; no version bump or rebuild has been done for them yet.
+- v2.3.2 is committed as `e89de8d` and released from `6399f20`; the shipped
+  reliability fixes cover Cleaner whitelist/schedule safety, history append
+  retries and honest gaming-mode state on persistence failure.
 - The baseline design is frozen and the 23-module / 100-150% scaling audit is
   complete; no further structural UI changes without a new request.
 - Readability follow-ups from the approved baseline are done and shipped in
@@ -1020,3 +1021,46 @@
   `0702c2c0da4867251ad12d78c316fc160767cfd11bdd22bd6c0c1fb7d1f22efb`) and
   `PCOptimizer_PRO_2.3.1_portable.zip` (62,354,195 B, sha256
   `5ea3963096f91a5a7b0b3038fd44c5e7fad6bff0086466255dbb0dd5fdf7e4c2`).
+
+### Release v2.3.2 (2026-11-28)
+- Version bumped to **2.3.2** in `app/__init__.py`, `assets/version_info.txt`
+  (filevers/prodvers/StringStruct `2.3.2.0`), installer and EN/UA
+  `sidebar_user_sub`; README badge, install names and screenshot links and
+  `docs/landing.html` screenshot links updated.
+- Regenerated all **23** page screenshots plus `v2.3.2_overlay.png` at 1440×860
+  (overlay preview 300×156); removed the obsolete `v2.3.1_*` screenshot set.
+  Helper: `%TEMP%\opencode\shoot_v232.py` with an isolated `PCOPTIMIZER_DATA`.
+- Verification after the bump: **1033 passed / 2 skipped in 199.04 s**;
+  `ruff check .`, `mypy app` (Success, 128 files), `compileall -q app` and
+  `git diff --check` clean (CRLF warnings only).
+- Commits/tag: `e89de8d` (`fix(reliability): harden cleaner whitelist, schedule
+  and state persistence`, pushed `d8f437d..e89de8d`), `6399f20`
+  (`chore(release): bump version to 2.3.2 and refresh screenshots`), annotated
+  tag `v2.3.2` (`Release v2.3.2`), pushed `main` and tag.
+- Local build commands: `powershell -ExecutionPolicy Bypass -File scripts/build_exe.ps1`,
+  `powershell -ExecutionPolicy Bypass -File scripts/create_portable.ps1`,
+  `powershell -ExecutionPolicy Bypass -File scripts/build_installer.ps1`, and
+  `git archive -o "dist/PCOptimizer_PRO_src_v2.3.2.zip" HEAD`. Built artifacts:
+  `dist\PCOptimizer_PRO\PCOptimizer_PRO.exe` (2.3.2.0, 5,800,147 B, sha256
+  `850bd8d5b9e13e49b4a419f2dfa16e656dd407b13df93e26a2cea51b15489f09`),
+  `dist\PCOptimizer_PRO_2.3.2_portable.zip` (56,811,430 B, sha256
+  `8908be7d01be327a513907755fa8f02e5d0b3659c2c8e2cf4e0e2b8edce5b7da`),
+  `dist\installer\PCOptimizer_PRO_Setup_2.3.2.exe` (41,336,003 B, ProductVersion
+  2.3.2, sha256 `0754b34eaff347c522bcf3d5a986bd7b559b3fdb4b271343a060131b8e252d6a`),
+  and `dist\PCOptimizer_PRO_src_v2.3.2.zip` (8,922,433 B, sha256
+  `c0407e0f9b35194c8b20308974127932b34ef0cc501bee42097db802f1c4064`).
+  Frozen archive listing confirmed `app.overlay*`, `app.reports.pdf`,
+  `app.update.download`, `app.changes.service`, `app.recovery.crash` and
+  `app.ui.launcher`. Frozen smoke: `starting PCOptimizer PRO 2.3.2` in
+  `%TEMP%\pcopt_v232_smoke\logs\PCOptimizer_PRO.log`; process stayed alive for
+  10 s. Silent upgrade of `app_run` from 2.3.1.0 to 2.3.2.0 succeeded, the
+  Desktop and Start Menu shortcuts target `app_run\PCOptimizer_PRO.exe`, and a
+  smoke launch of the installed exe logged `starting PCOptimizer PRO 2.3.2`.
+  Stale 2.3.1 portable/source/installer artifacts were removed.
+- CI Release run `46135629935`
+  (`https://github.com/dimaprisaznuk64/PCOptimizer_PRO/actions/runs/46135629935`)
+  completed with `success`. [Release v2.3.2](https://github.com/dimaprisaznuk64/PCOptimizer_PRO/releases/tag/v2.3.2)
+  is published with `PCOptimizer_PRO_Setup_2.3.2.exe` (43,423,250 B, sha256
+  `54bf35dcd19602006476c40c3acc316b7a3e49acec13da1f11fe14c14ca394ed`) and
+  `PCOptimizer_PRO_2.3.2_portable.zip` (62,359,527 B, sha256
+  `267462c52275dd33335a032a94c123ee068aed9be9d8160448b80722af3b5a88`).
