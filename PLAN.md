@@ -1,13 +1,13 @@
 ﻿# Development Plan
 
 ## Status
-- Unreleased reliability follow-up (source-only) — single-instance acquisition
-  now serializes stale-server removal/listen with a cross-process `QLockFile`
-  and re-probes under the lock, closing the TOCTOU race between two launches;
-  the hidden Operations page ignores external activity-log changes until it is
-  first shown. Verification: **1044 passed / 2 skipped in 202.02 s**; `ruff`,
-  `mypy` (128 files), `compileall`, `git diff --check` clean. Not committed.
-- Unreleased reliability batch (source-only) — journal writes no longer turn a
+- Released in v2.3.4 — single-instance acquisition now serializes stale-server
+  removal/listen with a cross-process `QLockFile` and re-probes under the lock,
+  closing the TOCTOU race between two launches; the hidden Operations page
+  ignores external activity-log changes until it is first shown. Final
+  verification: **1044 passed / 2 skipped in 192.61 s**; `ruff`, `mypy` (128
+  files), `compileall`, `git diff --check` clean. Commit `b7c7952`, tag `v2.3.4`.
+- Shipped in v2.3.3 — journal writes no longer turn a
   completed system change into a failure when the journal is corrupt; Gaming
   Mode reports an uncertain state after partially applied/reverted profiles;
   `CrashTracker` retries a heartbeat after a failed marker write; closing the
@@ -1158,3 +1158,43 @@
   `a88984e2fdd1e10773bdab1310da03cba1bc0de9887674b4e92869243f838051`) and
   `PCOptimizer_PRO_2.3.3_portable.zip` (62,360,949 B, sha256
   `7c30e41eda6db2aeb6b97fd105c6ef4a52815acbdf159df9405a0daa9c2a4a97`).
+
+### Release v2.3.4 (2026-11-28)
+- Version bumped to **2.3.4** in `app/__init__.py`, `assets/version_info.txt`
+  (`filevers/prodvers/StringStruct 2.3.4.0`), installer `.iss`, EN/UA
+  `sidebar_user_sub`, README badge/install commands, screenshot refs and
+  `docs/landing.html`. Regenerated all **24** offscreen screenshots
+  (`docs/screenshots/v2.3.4_*.png`: 23 pages plus overlay; 1440×860 and
+  300×156); the v2.3.3 set was removed.
+- Final verification after bump: **1044 passed / 2 skipped in 192.61 s**;
+  `ruff check .`, `mypy app` (Success, 128 files), `compileall -q app`,
+  `git diff --check` clean (CRLF warnings only).
+- Commit **`b7c7952`** (`chore(release): bump version to 2.3.4 and refresh
+  screenshots`), annotated tag **`v2.3.4`** (`Release v2.3.4`), pushed `main`
+  and tag.
+- Local build: `dist\PCOptimizer_PRO\PCOptimizer_PRO.exe` (2.3.4.0, 5,802,084 B,
+  sha256 `3634da73bb8afaddf1b440fed27b399484491928739cb6dfff774fe6c27d9299`);
+  PYZ TOC contains `app.ui.single_instance`, `app.changes.service`,
+  `app.recovery.crash`, `app.overlay.widget`, `app.reports.pdf`,
+  `app.update.download` and `app.ui.launcher`. Portable
+  `dist\PCOptimizer_PRO_2.3.4_portable.zip` (56,813,637 B, sha256
+  `a09ff5074e2e755f4de830c1ac474464ee311caf7a70612ab18d17e4cd3d86af`);
+  installer `dist\installer\PCOptimizer_PRO_Setup_2.3.4.exe` (41,336,342 B,
+  ProductVersion 2.3.4, sha256
+  `b5d2f2518ade6ccbf9e1ef98ade2cf2b20b3f044cf5ba3d8e6240c9e9ea382d8`);
+  source zip `dist\PCOptimizer_PRO_src_v2.3.4.zip` (8,880,108 B, sha256
+  `caa42bedc504fc0134a9b1fd53e3f777d432b3b16eff9c8350c28a770101cd3c`).
+- Frozen smoke: `starting PCOptimizer PRO 2.3.4` in
+  `%TEMP%\pcopt_v234_smoke\logs\PCOptimizer_PRO.log`, alive 10 s. Installed
+  smoke: `starting PCOptimizer PRO 2.3.4` in
+  `%TEMP%\pcopt_v234_installed_smoke\logs\PCOptimizer_PRO.log`, alive 8 s.
+  Silent upgrade of `app_run` 2.3.3.0 → 2.3.4.0 succeeded
+  (`installer_exit=0`), Desktop shortcut targets
+  `D:\Programming\PythonPRO\PCOptimizer_PRO\app_run\PCOptimizer_PRO.exe`.
+- CI Release run **`46189343031`**
+  (`https://github.com/dimaprisaznuk64/PCOptimizer_PRO/actions/runs/46189343031`)
+  completed with `success`. [Release v2.3.4](https://github.com/dimaprisaznuk64/PCOptimizer_PRO/releases/tag/v2.3.4)
+  is published with `PCOptimizer_PRO_Setup_2.3.4.exe` (43,415,953 B, sha256
+  `2e3a3b8268f7cc9565e18446d7cd89d1e21e43dd6879f90f36e95357585ff2a6`) and
+  `PCOptimizer_PRO_2.3.4_portable.zip` (62,360,656 B, sha256
+  `1e542312c271a38bef0290d662522d050e684799e356a19aba85fa1edc241b92`).
