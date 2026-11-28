@@ -419,11 +419,12 @@ class GamingService:
             raise GamingError(f"unknown gaming profile: {profile}")
         report = self._optimizer.apply_profile(profile, with_restore_point=with_restore_point)
         self._active = bool(report.applied)
+        partial = bool(report.applied and report.errors)
         if self._active:
             self._active_profile = profile
         try:
             self._save_mode_state(self._active, self._active_profile)
-            self.state_uncertain = False
+            self.state_uncertain = partial
         except GamingError as e:
             self.state_uncertain = True
             report = _report_with_error(
@@ -437,9 +438,10 @@ class GamingService:
         # A failed revert leaves the GAMING backup in place, so the mode is
         # still on. Only a clean revert (backup removed) turns it off.
         self._active = bool(report.errors)
+        partial = bool(report.errors)
         try:
             self._save_mode_state(self._active, self._active_profile)
-            self.state_uncertain = False
+            self.state_uncertain = partial
         except GamingError as e:
             self.state_uncertain = True
             report = _report_with_error(

@@ -118,6 +118,19 @@ def test_clean_records_outcome_in_change_journal(cache_target, tmp_path) -> None
     assert target.id in entry.detail
 
 
+def test_clean_succeeds_when_change_journal_is_corrupt(cache_target, tmp_path) -> None:
+    target, _root = cache_target
+    journal = ChangeJournal(store=tmp_path / "changes.jsonl")
+    journal.store.write_bytes(b'{"operation":"cleaner.clean"}\n\xff\n')
+    service = CleanerService([target], journal=journal)
+
+    outcome = service.clean(target, known_bytes=3048)
+
+    assert outcome.freed_bytes == 3048
+    assert outcome.error is None
+    assert journal.integrity().ok is False
+
+
 def test_clean_reports_partial_result_on_walk_error(tmp_path, monkeypatch) -> None:
     root = tmp_path / "cache"
     root.mkdir()

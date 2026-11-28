@@ -374,15 +374,19 @@ class MainWindow(QMainWindow):
 
         language = changes.get("language")
         theme_name = changes.get("theme")
-        scale = changes.get("ui_scale")
-        if scale is not None and int(scale) != int(before.get("ui_scale", 100)):
-            th.set_ui_scale(int(scale))
+        raw_scale = changes.get("ui_scale")
+        before_scale = int(before.get("ui_scale", 100))
+        scale = int(raw_scale) if raw_scale is not None else None
+        scale_changed = scale is not None and scale != before_scale
+        if scale_changed and scale is not None:
+            th.set_ui_scale(scale)
         if language is not None and language != before.get("language"):
             I18nService.instance().set_language(str(language))
         if theme_name is not None and theme_name != before.get("theme"):
-            self.apply_theme(str(theme_name))
-        elif scale is not None and int(scale) != int(before.get("ui_scale", 100)):
-            self.apply_ui_scale(int(scale))
+            if self.apply_theme(str(theme_name)) is False and scale_changed:
+                th.set_ui_scale(before_scale)
+        elif scale is not None and scale_changed:
+            self.apply_ui_scale(scale)
 
     def _select_page(self, key: str) -> None:
         index = self._index_by_key[key]
@@ -537,14 +541,18 @@ class MainWindow(QMainWindow):
         if page is not None and hasattr(page, "set_process_refresh_ms"):
             page.set_process_refresh_ms(profile.process_refresh_ms)
 
-    def apply_ui_scale(self, percent: int) -> None:
+    def apply_ui_scale(self, percent: int) -> bool:
         """Apply a new interface scale instantly (reuses the theme rebuild path)."""
         from . import theme as th
 
+        previous = th.UI_SCALE
         th.set_ui_scale(percent)
-        self.apply_theme(th.CURRENT_THEME)
+        if self.apply_theme(th.CURRENT_THEME) is False:
+            th.set_ui_scale(previous)
+            return False
+        return True
 
-    def apply_theme(self, name: str) -> None:
+    def apply_theme(self, name: str) -> bool:
         """Apply a new theme instantly (no restart): restyle the app + rebuild every page."""
         from PySide6.QtWidgets import QApplication
 
@@ -557,7 +565,7 @@ class MainWindow(QMainWindow):
 
         if not stop_all():
             _log.warning("theme change postponed: a background task is still running")
-            return
+            return False
 
         th.set_theme(name)
         self._reload_ui_modules()
@@ -633,6 +641,7 @@ class MainWindow(QMainWindow):
         root = self.centralWidget()
         if root is not None:
             root.update()
+        return True
 
     # ---------- tray ----------
 
@@ -904,16 +913,19 @@ class MainWindow(QMainWindow):
             event.ignore()
             self.hide()
             return
-        if self.sampler is not None:
-            self.sampler.stop()
-        if self._game_watcher is not None:
-            self._game_watcher.stop()
         from .tasks import stop_all
 
         if not stop_all():
             _log.warning("close postponed: a background task is still running")
             event.ignore()
             return
+        if self.sampler is not None:
+            self.sampler.stop()
+        if self._game_watcher is not None:
+            if self._game_watcher.stop():
+                self._game_watcher = None
+            else:
+                _log.warning("game watcher did not stop in time; keeping it registered")
         super().closeEvent(event)
 
     def shutdown(self) -> None:

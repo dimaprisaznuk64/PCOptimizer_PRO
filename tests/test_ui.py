@@ -111,6 +111,29 @@ def test_settings_save_triggers_live_theme_apply(qapp, tmp_path, monkeypatch) ->
     page.close()
 
 
+def test_apply_theme_returns_false_when_a_task_is_running(qapp, monkeypatch) -> None:
+    from app.ui import tasks
+
+    monkeypatch.setattr(tasks, "stop_all", lambda: False)
+    window = MainWindow()
+
+    assert window.apply_theme("CYBER") is False
+    window.close()
+
+
+def test_apply_ui_scale_rolls_back_when_rebuild_is_postponed(qapp, monkeypatch) -> None:
+    from app.ui import tasks
+    from app.ui import theme as th
+
+    monkeypatch.setattr(tasks, "stop_all", lambda: False)
+    window = MainWindow()
+    before = th.UI_SCALE
+
+    assert window.apply_ui_scale(140) is False
+    assert th.UI_SCALE == before
+    window.close()
+
+
 def _rect_in(widget, parent):
     from PySide6.QtCore import QPoint, QRect
 

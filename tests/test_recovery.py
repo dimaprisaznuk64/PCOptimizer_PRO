@@ -5,6 +5,8 @@ import os
 import time
 from pathlib import Path
 
+import pytest
+
 from app.changes import ChangeJournal
 from app.recovery import CrashTracker, RecoveryService
 
@@ -162,6 +164,31 @@ def test_heartbeat_refreshes_marker_and_is_throttled(tmp_path: Path) -> None:
     payload = json.loads((tmp_path / "session.json").read_text(encoding="utf-8"))
     assert payload["heartbeat"] == 1035.0
     assert payload["pid"] == 10
+
+
+def test_heartbeat_retries_after_failed_marker_write(tmp_path: Path, monkeypatch) -> None:
+    clock = [1000.0]
+    tracker = CrashTracker(tmp_path, now=lambda: clock[0], pid=10, heartbeat_every_s=30.0)
+    tracker.start()
+    original_write = Path.write_text
+    fail_next = [True]
+
+    def flaky_write(self: Path, *args: object, **kwargs: object) -> int:
+        if fail_next[0] and self.name == "session.json.tmp":
+            fail_next[0] = False
+            raise OSError("disk full")
+        return original_write(self, *args, **kwargs)
+
+    monkeypatch.setattr(Path, "write_text", flaky_write)
+    clock[0] += 40.0
+    with pytest.raises(OSError):
+        tracker.heartbeat()
+
+    monkeypatch.undo()
+    clock[0] += 1.0
+    tracker.heartbeat()
+    payload = json.loads((tmp_path / "session.json").read_text(encoding="utf-8"))
+    assert payload["heartbeat"] == 1041.0
 
 
 def test_finish_removes_own_marker_but_not_another_session(tmp_path: Path) -> None:

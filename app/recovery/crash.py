@@ -91,12 +91,15 @@ class CrashTracker:
             "version": self._version,
         }
         tmp = self._path.with_name(f"{self._path.name}.tmp")
+        written = False
         try:
             self._path.parent.mkdir(parents=True, exist_ok=True)
             tmp.write_text(json.dumps(payload), encoding="utf-8")
             tmp.replace(self._path)
+            written = True
         finally:
-            self._last_write = self._now()
+            if written:
+                self._last_write = self._now()
             try:
                 tmp.unlink(missing_ok=True)
             except OSError:

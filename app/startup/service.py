@@ -356,7 +356,7 @@ class StartupService:
         try:
             self._set_enabled(item, enabled)
         except StartupError as exc:
-            self._journal.record(
+            self._journal.try_record(
                 operation=operation,
                 outcome="error",
                 detail=str(exc)[:400],
@@ -364,7 +364,7 @@ class StartupService:
                 target=item.name,
             )
             raise
-        self._journal.record(
+        self._journal.try_record(
             operation=operation,
             outcome="ok",
             detail=item.source,
@@ -398,7 +398,7 @@ class StartupService:
         try:
             message = self._remove(item)
         except StartupError as exc:
-            self._journal.record(
+            self._journal.try_record(
                 operation="startup.remove",
                 outcome="error",
                 detail=str(exc)[:400],
@@ -406,7 +406,7 @@ class StartupService:
                 target=item.name,
             )
             raise
-        self._journal.record(
+        self._journal.try_record(
             operation="startup.remove",
             outcome="ok",
             detail=message[:400],
@@ -426,14 +426,14 @@ class StartupService:
         try:
             message = self._undo_last()
         except StartupError as exc:
-            self._journal.record(
+            self._journal.try_record(
                 operation="startup.undo",
                 outcome="error",
                 detail=str(exc)[:400],
                 source="startup",
             )
             raise
-        self._journal.record(
+        self._journal.try_record(
             operation="startup.undo",
             outcome="ok",
             detail=message[:400],

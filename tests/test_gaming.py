@@ -288,6 +288,22 @@ def test_activate_without_restore_point(tmp_path) -> None:
     assert fake.apply_calls == [("GAMING", False)]
 
 
+def test_partial_activate_marks_mode_uncertain(tmp_path) -> None:
+    fake = FakeOptimizer(tmp_path)
+
+    def partial(profile: str, *, with_restore_point: bool = True) -> ApplyReport:
+        return ApplyReport(applied=("power plan → High performance",), errors=("HAGS failed",))
+
+    fake.apply_profile = partial  # type: ignore[method-assign]
+    service = _service(tmp_path, fake_opt=fake)
+
+    report = service.activate(with_restore_point=False)
+
+    assert service.active is True
+    assert service.state_uncertain is True
+    assert report.errors
+
+
 def test_activate_failure_keeps_mode_off(tmp_path) -> None:
     fake = FakeOptimizer(tmp_path)
     fake.fail_restore = True
@@ -329,6 +345,7 @@ def test_failed_revert_keeps_gaming_mode_active(tmp_path) -> None:
     report = service.deactivate()
     assert report.errors
     assert service.active is True
+    assert service.state_uncertain is True
 
 
 def test_active_restored_from_backup_after_restart(tmp_path) -> None:

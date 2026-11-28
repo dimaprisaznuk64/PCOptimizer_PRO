@@ -115,7 +115,7 @@ class RestorePointService:
         label = (label or "").strip() or "PCOptimizer PRO"
 
         def finish(result: RestoreResult) -> RestoreResult:
-            self._journal.record(
+            self._journal.try_record(
                 operation="restore.point",
                 outcome="ok" if result.ok else "error",
                 detail=f"{result.status}: {result.message}"[:400],
@@ -170,7 +170,7 @@ class RestorePointService:
         letter = (drive or "").strip().rstrip("\\")
 
         def finish(result: RestoreResult) -> RestoreResult:
-            self._journal.record(
+            self._journal.try_record(
                 operation="restore.protection",
                 outcome="ok" if result.ok else "error",
                 detail=f"{result.status}: {result.message}"[:400],

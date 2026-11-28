@@ -5,6 +5,7 @@ from __future__ import annotations
 import hashlib
 import hmac
 import json
+import logging
 import os
 import re
 import threading
@@ -20,6 +21,7 @@ SCHEMA_VERSION = 1
 GENESIS_HASH = "0" * 64
 _SHA256_RE = re.compile(r"^[0-9a-fA-F]{64}$")
 _OUTCOMES = frozenset({"ok", "warn", "error"})
+_LOG = logging.getLogger(__name__)
 
 
 class ChangeJournalError(RuntimeError):
@@ -234,6 +236,39 @@ class ChangeJournal:
                 fh.flush()
                 os.fsync(fh.fileno())
             return entry
+
+    def try_record(
+        self,
+        *,
+        operation: str,
+        outcome: str = "ok",
+        detail: str = "",
+        source: str = "",
+        target: str = "",
+        backup: str = "",
+        backup_sha256: str = "",
+        restore_point: str = "",
+    ) -> bool:
+        """Record a change without turning an already-applied action into a failure.
+
+        A corrupt journal is still visible through ``integrity()`` in Operations;
+        refusing to write must not make a completed system change look undone.
+        """
+        try:
+            self.record(
+                operation=operation,
+                outcome=outcome,
+                detail=detail,
+                source=source,
+                target=target,
+                backup=backup,
+                backup_sha256=backup_sha256,
+                restore_point=restore_point,
+            )
+        except (ChangeJournalError, OSError) as exc:
+            _LOG.warning("system change journal write failed (%s): %s", operation, exc)
+            return False
+        return True
 
     def entries(
         self,

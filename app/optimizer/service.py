@@ -205,7 +205,7 @@ class OptimizerService:
             restore_status = result.status
             if not result.ok:
                 error = f"restore point {result.status}: {result.message}"
-                self._journal.record(
+                self._journal.try_record(
                     operation="optimizer.apply",
                     outcome="error",
                     detail=f"{profile.upper()}: {error}",
@@ -260,7 +260,7 @@ class OptimizerService:
             except OptimizerError as e:
                 errors.append(str(e))
 
-        self._journal.record(
+        self._journal.try_record(
             operation="optimizer.apply",
             outcome=_outcome(applied, errors),
             detail=(
@@ -284,7 +284,7 @@ class OptimizerService:
         try:
             backup = self._load_backup()
         except OptimizerError as exc:
-            self._journal.record(
+            self._journal.try_record(
                 operation="optimizer.revert",
                 outcome="error",
                 detail=str(exc),
@@ -294,7 +294,7 @@ class OptimizerService:
             raise
         if backup is None:
             message = "no backup available — nothing to revert"
-            self._journal.record(
+            self._journal.try_record(
                 operation="optimizer.revert",
                 outcome="error",
                 detail=message,
@@ -363,7 +363,7 @@ class OptimizerService:
             # (and the Gaming page's active state) reflects reality, not history.
             self._clear_backup()
 
-        self._journal.record(
+        self._journal.try_record(
             operation="optimizer.revert",
             outcome=_outcome(applied, errors),
             detail=f"{len(applied)} restored, {len(errors)} errors",

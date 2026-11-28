@@ -95,6 +95,43 @@ def test_close_quits_when_tray_disabled(qapp, tmp_path) -> None:
     assert not window.isVisible()
 
 
+def test_postponed_close_keeps_monitoring_alive(qapp, tmp_path, monkeypatch) -> None:
+    from app.ui import tasks
+
+    settings = SettingsService(tmp_path / "settings.json")
+    settings.set("minimize_to_tray", False)
+    window = MainWindow(settings=settings)
+
+    class FakeSampler:
+        def __init__(self) -> None:
+            self.stops = 0
+
+        def stop(self) -> None:
+            self.stops += 1
+
+    class FakeWatcher:
+        def __init__(self) -> None:
+            self.stops = 0
+
+        def stop(self) -> bool:
+            self.stops += 1
+            return True
+
+    sampler = FakeSampler()
+    watcher = FakeWatcher()
+    window.sampler = sampler
+    window._game_watcher = watcher
+    monkeypatch.setattr(tasks, "stop_all", lambda: False)
+
+    event = QCloseEvent()
+    window.closeEvent(event)
+
+    assert not event.isAccepted()
+    assert sampler.stops == 0
+    assert watcher.stops == 0
+    assert window._game_watcher is watcher
+
+
 def test_quit_app_forces_close(qapp, tmp_path) -> None:
     window = MainWindow(settings=SettingsService(tmp_path / "settings.json"))
     tray = AppTray(parent=qapp)

@@ -61,6 +61,28 @@ def test_save_reports_disk_error(qapp, tmp_path, monkeypatch) -> None:
     assert page.status_label.objectName() == "errorLine"
 
 
+def test_save_retries_live_theme_and_scale_after_postponement(qapp, tmp_path) -> None:
+    from app.i18n import tr
+
+    service = SettingsService(tmp_path / "settings.json")
+    service.set("theme", "GRAPHITE")
+    page = SettingsPage(
+        service,
+        log_directory=tmp_path / "logs",
+        on_theme_applied=lambda _name: False,
+        on_scale_applied=lambda _percent: False,
+    )
+    page.load_values()
+    page.theme_combo.setCurrentIndex(page.theme_combo.findData("FOREST"))
+    page.scale_spin.setValue(140)
+    page.save()
+
+    assert page._loaded_theme == "GRAPHITE"
+    assert page._loaded_scale == 100
+    assert tr("set_live_postponed") in page.status_label.text()
+    page.close()
+
+
 def test_save_applies_quiet_games_toggle_live(qapp, tmp_path) -> None:
     applied: list[bool] = []
     page = _page(qapp, tmp_path, on_quiet_games_applied=applied.append)

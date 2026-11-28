@@ -329,7 +329,7 @@ class CleanerService:
         try:
             outcome = self._clean(target, known_bytes, known_files)
         except Exception as exc:
-            self._journal.record(
+            self._journal.try_record(
                 operation="cleaner.clean",
                 outcome="error",
                 detail=str(exc)[:400],
@@ -349,7 +349,7 @@ class CleanerService:
         )
         if outcome.error:
             detail = f"{detail}; {outcome.error}"
-        self._journal.record(
+        self._journal.try_record(
             operation="cleaner.clean",
             outcome=status,
             detail=detail[:400],

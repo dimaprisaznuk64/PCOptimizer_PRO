@@ -683,7 +683,7 @@ class SettingsPage(QWidget):
         self.status_label.style().polish(self.status_label)
         self.status_label.setText(tr("set_saved", path=path))
         self.refresh_preview()
-        self._apply_live_changes(
+        postponed = self._apply_live_changes(
             previous_language,
             previous_theme,
             previous_scale,
@@ -694,6 +694,8 @@ class SettingsPage(QWidget):
             previous_overlay,
             previous_presentmon,
         )
+        if postponed:
+            self.status_label.setText(tr("set_live_postponed"))
 
     def _apply_live_changes(
         self,
@@ -706,24 +708,30 @@ class SettingsPage(QWidget):
         previous_quiet: bool | None = None,
         previous_overlay: bool | None = None,
         previous_presentmon: str | None = None,
-    ) -> None:
+    ) -> bool:
         language = str(self._service.get("language"))
         theme = str(self._service.get("theme"))
         scale = int(self._service.get("ui_scale"))
         dashboard = serialize_dashboard_hidden(self._dashboard_hidden)
         profile = str(self._service.get("monitor_profile"))
         interval = int(self._service.get("sample_interval_ms"))
-        self._loaded_theme = theme
-        self._loaded_scale = scale
         self._loaded_dashboard = dashboard
         self._loaded_profile = profile
         self._loaded_interval = interval
         if language != previous_language:
             I18nService.instance().set_language(language)
+        scale_ok = True
+        self._loaded_scale = scale
         if scale != previous_scale and self._on_scale_applied is not None:
-            self._on_scale_applied(scale)
+            scale_ok = self._on_scale_applied(scale) is not False
+            if not scale_ok:
+                self._loaded_scale = previous_scale
+        theme_ok = True
+        self._loaded_theme = theme
         if theme != previous_theme and self._on_theme_applied is not None:
-            self._on_theme_applied(theme)
+            theme_ok = self._on_theme_applied(theme) is not False
+            if not theme_ok:
+                self._loaded_theme = previous_theme
         if dashboard != previous_dashboard and self._on_dashboard_hidden_applied is not None:
             self._on_dashboard_hidden_applied(dashboard)
         if (
@@ -751,6 +759,7 @@ class SettingsPage(QWidget):
             and self._on_overlay_applied is not None
         ):
             self._on_overlay_applied(overlay)
+        return not (scale_ok and theme_ok)
 
     def reset(self) -> None:
         previous_language = I18nService.instance().current_language
@@ -770,7 +779,7 @@ class SettingsPage(QWidget):
             return
         self.load_values()
         self.status_label.setText(tr("set_reset_done"))
-        self._apply_live_changes(
+        postponed = self._apply_live_changes(
             previous_language,
             previous_theme,
             previous_scale,
@@ -781,6 +790,8 @@ class SettingsPage(QWidget):
             previous_overlay,
             previous_presentmon,
         )
+        if postponed:
+            self.status_label.setText(tr("set_live_postponed"))
 
     def browse_presentmon(self) -> None:
         path, _selected = QFileDialog.getOpenFileName(

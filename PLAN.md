@@ -1,6 +1,15 @@
 ﻿# Development Plan
 
 ## Status
+- Unreleased reliability batch (source-only) — journal writes no longer turn a
+  completed system change into a failure when the journal is corrupt; Gaming
+  Mode reports an uncertain state after partially applied/reverted profiles;
+  `CrashTracker` retries a heartbeat after a failed marker write; closing the
+  window keeps monitoring alive when a background task refuses to stop; and
+  postponed theme/scale changes are retried on the next successful save/reset
+  with an honest EN/UA status. Verification: **1041 passed / 2 skipped in
+  248.69 s**; `ruff`, `mypy` (128 files), `compileall`, `git diff --check` clean
+  (CRLF warnings only). Not committed yet.
 - Released **v2.3.2** — reliability fixes found by a targeted audit: a
   corrupt/invalid `cleaner_whitelist.json` is quarantined as
   `.corrupt-<timestamp>`, exposes a load error, blocks cleaning instead of
@@ -1064,3 +1073,34 @@
   `54bf35dcd19602006476c40c3acc316b7a3e49acec13da1f11fe14c14ca394ed`) and
   `PCOptimizer_PRO_2.3.2_portable.zip` (62,359,527 B, sha256
   `267462c52275dd33335a032a94c123ee068aed9be9d8160448b80722af3b5a88`).
+
+## R113 post-v2.3.2 reliability batch (source-only)
+- `ChangeJournal.try_record()` catches `ChangeJournalError`/`OSError`, logs a
+  warning, and returns `False` instead of propagating; all 15 service call sites
+  in Cleaner/Optimizer/Restore/Startup use it, so a corrupt journal can no
+  longer make an already completed action look failed to the user. Strict
+  `record()` is unchanged and still the default for callers that need it.
+- Gaming Mode: `activate()`/`deactivate()` now mark `state_uncertain=True` when
+  the optimizer applied/reverted something but also reported errors, so the
+  UI/restart logic no longer claims a clean ON/OFF state after a partial change.
+- `CrashTracker._write()` advances `_last_write` only after the atomic
+  `tmp.replace()` succeeds; a transient `OSError` no longer suppresses the next
+  heartbeat for the full throttle interval.
+- UI lifecycle: `MainWindow.closeEvent()` waits for `Task.stop_all()` before
+  stopping the sampler and game watcher; a refused stop keeps the event
+  unaccepted and monitoring alive. `apply_theme()`/`apply_ui_scale()` return
+  `bool`, revert scale on a failed rebuild, and the wizard applies a scale-only
+  change after a postponed theme rebuild.
+- Settings: `_apply_live_changes()` returns whether the live callback succeeded;
+  `_loaded_theme`/`_loaded_scale` advance only on success, so a postponed
+  theme/scale change is retried on the next Save or Reset. The status line
+  shows localized `set_live_postponed` (EN/UA) when a task is still running.
+- Tests added: corrupt-journal `try_record`, cleaner success with corrupt
+  journal, partial Gaming activate/deactivate, heartbeat retry after write
+  failure, postponed live apply/retry, failed theme/scale rebuild rollback, and
+  postponed close. Full suite: 1041 passed / 2 skipped in 248.69 s; `ruff`,
+  `mypy` (128 files), `compileall`, `git diff --check` clean (CRLF warnings only).
+- Deliberately deferred: Operations/History hidden-page I/O (existing test
+  depends on a recovery-status refresh after an external log record) and the
+  single-instance TOCTOU audit finding. No version bump, EXE or installer
+  rebuild in this batch.

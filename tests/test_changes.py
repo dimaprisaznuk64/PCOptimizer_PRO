@@ -79,6 +79,15 @@ def test_integrity_reports_invalid_utf8_without_raising(tmp_path) -> None:
         journal.record(operation="optimizer.apply")
 
 
+def test_try_record_does_not_raise_on_corrupt_journal(tmp_path) -> None:
+    store = tmp_path / "system_changes.jsonl"
+    store.write_bytes(b'{"operation":"optimizer.apply"}\n\xff\n')
+    journal = ChangeJournal(store=store)
+
+    assert journal.try_record(operation="cleaner.clean", source="cleaner") is False
+    assert journal.integrity().ok is False
+
+
 def test_concurrent_records_keep_hash_chain(tmp_path) -> None:
     journal = ChangeJournal(store=tmp_path / "system_changes.jsonl")
 
