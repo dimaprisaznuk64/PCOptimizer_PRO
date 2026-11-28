@@ -137,7 +137,7 @@
 - Жодних DLL-ін'єкцій, хуків, читання/запису пам'яті процесу або керування грою; безпечно для anti-cheat
 - Обмеження: live CSV може вимагати адмін-прав або групи `Performance Log Users`; HAGS іноді спотворює GPU-таймінги; OpenGL/Vulkan менш точні; у exclusive fullscreen оверлей може бути перекритий — рекомендується borderless/windowed
 
-![FPS/CPU оверлей](docs/screenshots/v2.3.2_overlay.png)
+![FPS/CPU оверлей](docs/screenshots/v2.3.3_overlay.png)
 
 ### Лаунчер ігор
 - Плитки ігор з обкладинками Steam, обране та історія запусків
@@ -255,39 +255,39 @@ main.py
 
 | Дашборд | Монітор системи |
 | --- | --- |
-| ![Дашборд](docs/screenshots/v2.3.2_dashboard.png) | ![Монітор](docs/screenshots/v2.3.2_monitor.png) |
+| ![Дашборд](docs/screenshots/v2.3.3_dashboard.png) | ![Монітор](docs/screenshots/v2.3.3_monitor.png) |
 
 | Центр операцій | Панель температур |
 | --- | --- |
-| ![Операції](docs/screenshots/v2.3.2_operations.png) | ![Температури](docs/screenshots/v2.3.2_temperature.png) |
+| ![Операції](docs/screenshots/v2.3.3_operations.png) | ![Температури](docs/screenshots/v2.3.3_temperature.png) |
 
 | Залізо (Hardware) | GPU-монітор |
 | --- | --- |
-| ![Залізо](docs/screenshots/v2.3.2_hardware.png) | ![GPU](docs/screenshots/v2.3.2_gpu.png) |
+| ![Залізо](docs/screenshots/v2.3.3_hardware.png) | ![GPU](docs/screenshots/v2.3.3_gpu.png) |
 
 | PC Health Score | Чистильник |
 | --- | --- |
-| ![Health](docs/screenshots/v2.3.2_health.png) | ![Чистильник](docs/screenshots/v2.3.2_cleaner.png) |
+| ![Health](docs/screenshots/v2.3.3_health.png) | ![Чистильник](docs/screenshots/v2.3.3_cleaner.png) |
 
 | Ігровий режим | Лаунчер ігор |
 | --- | --- |
-| ![Gaming](docs/screenshots/v2.3.2_gaming.png) | ![Лаунчер](docs/screenshots/v2.3.2_launcher.png) |
+| ![Gaming](docs/screenshots/v2.3.3_gaming.png) | ![Лаунчер](docs/screenshots/v2.3.3_launcher.png) |
 
 | Бенчмарки | Мережа |
 | --- | --- |
-| ![Бенчмарки](docs/screenshots/v2.3.2_benchmarks.png) | ![Мережа](docs/screenshots/v2.3.2_network.png) |
+| ![Бенчмарки](docs/screenshots/v2.3.3_benchmarks.png) | ![Мережа](docs/screenshots/v2.3.3_network.png) |
 
 | Діагностика | Диски та сховище |
 | --- | --- |
-| ![Діагностика](docs/screenshots/v2.3.2_diagnostics.png) | ![Диски](docs/screenshots/v2.3.2_disk.png) |
+| ![Діагностика](docs/screenshots/v2.3.3_diagnostics.png) | ![Диски](docs/screenshots/v2.3.3_disk.png) |
 
 | Панель температур | Бенчмарк заліза |
 | --- | --- |
-| ![Температури](docs/screenshots/v2.3.2_temperature.png) | ![Бенчмарк заліза](docs/screenshots/v2.3.2_hardware_benchmark.png) |
+| ![Температури](docs/screenshots/v2.3.3_temperature.png) | ![Бенчмарк заліза](docs/screenshots/v2.3.3_hardware_benchmark.png) |
 
 | Центр експорту | Драйвери |
 | --- | --- |
-| ![Експорт](docs/screenshots/v2.3.2_export_center.png) | ![Драйвери](docs/screenshots/v2.3.2_drivers.png) |
+| ![Експорт](docs/screenshots/v2.3.3_export_center.png) | ![Драйвери](docs/screenshots/v2.3.3_drivers.png) |
 
 Решта сторінок (Процеси, Автозавантаження, Оптимізатор, Історія продуктивності, Звіт системи, Налаштування): [docs/screenshots](docs/screenshots)
 
