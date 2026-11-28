@@ -9,7 +9,7 @@
   postponed theme/scale changes are retried on the next successful save/reset
   with an honest EN/UA status. Verification: **1041 passed / 2 skipped in
   248.69 s**; `ruff`, `mypy` (128 files), `compileall`, `git diff --check` clean
-  (CRLF warnings only). Not committed yet.
+  (CRLF warnings only). Committed as `094d350` and pushed to `main`.
 - Released **v2.3.2** — reliability fixes found by a targeted audit: a
   corrupt/invalid `cleaner_whitelist.json` is quarantined as
   `.corrupt-<timestamp>`, exposes a load error, blocks cleaning instead of
