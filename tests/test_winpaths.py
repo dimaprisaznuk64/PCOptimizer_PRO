@@ -80,11 +80,18 @@ def test_decode_process_output_decodes_oem_codepage() -> None:
     assert decode_process_output(raw) == "Служба завершена"
 
 
-def test_decode_process_output_handles_cp1251_bytes() -> None:
-    raw = "Роботу служби завершено".encode("cp1251")
-    decoded = decode_process_output(raw)
-    assert decoded
-    assert "\ufffd" not in decoded
+def test_decode_process_output_prefers_cp1251_for_windows_1251_text() -> None:
+    for text in (
+        "Роботу служби завершено",
+        "Помилка доступу",
+        "Завантаження",
+    ):
+        assert decode_process_output(text.encode("cp1251")) == text
+
+
+def test_decode_process_output_prefers_cp866_for_oem_text() -> None:
+    for text in ("Служба завершена", "Проверка завершена"):
+        assert decode_process_output(text.encode("cp866")) == text
 
 
 def test_decode_process_output_falls_back_to_replacement() -> None:
