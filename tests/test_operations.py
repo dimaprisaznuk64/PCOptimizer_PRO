@@ -284,6 +284,35 @@ def test_page_recovery_status_refreshes_after_external_cleanup(
     page.close()
 
 
+def test_hidden_operations_page_ignores_external_log_changes(
+    qapp, tmp_path: Path
+) -> None:
+    root = tmp_path / "data"
+    root.mkdir()
+
+    class CountingRecovery(RecoveryService):
+        def __init__(self, *args, **kwargs) -> None:
+            super().__init__(*args, **kwargs)
+            self.scan_calls = 0
+
+        def scan(self):
+            self.scan_calls += 1
+            return super().scan()
+
+    log = ActivityLog.instance()
+    log.clear()
+    recovery = CountingRecovery(root=root)
+    page = OperationsPage(log=log, recovery=recovery, defer_load=True)
+    assert page._loaded is False
+
+    log.record("Cleaned temp file", "removed", source="cleaner")
+    assert recovery.scan_calls == 0
+
+    page.ensure_loaded()
+    assert recovery.scan_calls == 1
+    page.close()
+
+
 def test_page_recovery_cancel_keeps_files(
     qapp, tmp_path: Path, monkeypatch: pytest.MonkeyPatch
 ) -> None:

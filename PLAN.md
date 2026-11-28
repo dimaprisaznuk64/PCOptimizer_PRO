@@ -1,6 +1,12 @@
 ﻿# Development Plan
 
 ## Status
+- Unreleased reliability follow-up (source-only) — single-instance acquisition
+  now serializes stale-server removal/listen with a cross-process `QLockFile`
+  and re-probes under the lock, closing the TOCTOU race between two launches;
+  the hidden Operations page ignores external activity-log changes until it is
+  first shown. Verification: **1044 passed / 2 skipped in 202.02 s**; `ruff`,
+  `mypy` (128 files), `compileall`, `git diff --check` clean. Not committed.
 - Unreleased reliability batch (source-only) — journal writes no longer turn a
   completed system change into a failure when the journal is corrupt; Gaming
   Mode reports an uncertain state after partially applied/reverted profiles;

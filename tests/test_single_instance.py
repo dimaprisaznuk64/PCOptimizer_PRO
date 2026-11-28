@@ -54,3 +54,79 @@ def test_first_instance_emits_show_signal(qapp, pipe_name: str) -> None:
         assert _wait_for(qapp, lambda: requested == [1])
     finally:
         primary.close()
+
+
+def test_acquire_serializes_probe_remove_and_listen(
+    qapp, pipe_name: str, monkeypatch
+) -> None:
+    import app.ui.single_instance as module
+
+    state: dict[str, object] = {}
+
+    class TrackingLock:
+        def __init__(self, path: str) -> None:
+            self.path = path
+            self.locked = False
+            state["lock"] = self
+
+        def setStaleLockTime(self, milliseconds: int) -> None:
+            state["stale_ms"] = milliseconds
+
+        def tryLock(self, timeout: int) -> bool:
+            state["timeout"] = timeout
+            self.locked = True
+            return True
+
+        def unlock(self) -> None:
+            self.locked = False
+
+    real_remove = module.QLocalServer.removeServer
+    real_listen = module.QLocalServer.listen
+
+    def remove_server(name: str) -> bool:
+        state["remove_locked"] = state["lock"].locked
+        return real_remove(name)
+
+    def listen(self, name: str) -> bool:
+        assert state["lock"].locked is True
+        return real_listen(self, name)
+
+    monkeypatch.setattr(module, "QLockFile", TrackingLock)
+    monkeypatch.setattr(module.QLocalServer, "removeServer", staticmethod(remove_server))
+    monkeypatch.setattr(module.QLocalServer, "listen", listen)
+
+    guard = SingleInstanceGuard(name=pipe_name, parent=qapp)
+    assert guard.acquire() is True
+    assert state["remove_locked"] is True
+    assert state["lock"].locked is False
+    guard.close()
+
+
+def test_busy_lock_does_not_create_primary(qapp, pipe_name: str, monkeypatch) -> None:
+    import app.ui.single_instance as module
+
+    class BusyLock:
+        def __init__(self, path: str) -> None:
+            pass
+
+        def setStaleLockTime(self, milliseconds: int) -> None:
+            pass
+
+        def tryLock(self, timeout: int) -> bool:
+            return False
+
+        def removeStaleLockFile(self) -> bool:
+            return False
+
+        def unlock(self) -> None:
+            raise AssertionError("unlock must not run when tryLock failed")
+
+    def fail_remove(name: str) -> bool:
+        raise AssertionError("stale server must not be removed without the lock")
+
+    monkeypatch.setattr(module, "QLockFile", BusyLock)
+    monkeypatch.setattr(module.QLocalServer, "removeServer", staticmethod(fail_remove))
+
+    guard = SingleInstanceGuard(name=pipe_name, parent=qapp)
+    assert guard.acquire() is False
+    assert guard._server is None
